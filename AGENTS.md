@@ -17,6 +17,23 @@ This repository is an architecture-validation scaffold for Coproduct mobile SDKs
 
 A bug like the RN 0.82 + Xcode 26 `fmt` consteval failure, or the cargokit Gradle-9 `project.exec` removal, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
 
+## Building
+
+Every SDK surface has a build script under `scripts/build/`. Use these rather than reconstructing the underlying commands. Each script gates the env vars it needs, resolves paths from any cwd, and emits a tagged `COPRODUCT_<surface>_<role>_STATUS pass=true` status line on success.
+
+| Surface | Source-linked (Debug, dev inner loop) | Artifact-linked (Release, release gate) |
+|---|---|---|
+| iOS | `scripts/build/source-linked-ios-demo.sh` | `scripts/build/artifact-linked-ios-consumer-test.sh` |
+| Android | `scripts/build/source-linked-android-demo.sh` | `scripts/build/artifact-linked-android-consumer-test.sh` |
+| React Native (iOS) | `scripts/build/source-linked-rn-demo-ios.sh` | `scripts/build/artifact-linked-rn-consumer-test-ios.sh` |
+| React Native (Android) | `scripts/build/source-linked-rn-demo-android.sh` | `scripts/build/artifact-linked-rn-consumer-test-android.sh` |
+| Flutter (iOS) | `scripts/build/source-linked-flutter-demo-ios.sh` | `scripts/build/artifact-linked-flutter-consumer-test-ios.sh` |
+| Flutter (Android) | `scripts/build/source-linked-flutter-demo-android.sh` | `scripts/build/artifact-linked-flutter-consumer-test-android.sh` |
+
+Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set. iOS-touching scripts require Xcode and CocoaPods on PATH. Supporting packaging scripts live under `scripts/package/` (e.g. `ios-spm-binary.sh`, `ios-spm-fixture.sh`).
+
+`DEVELOPMENT.md` documents the underlying manual commands for stage-by-stage debugging.
+
 ## Bundle ID and applicationId convention (scaffold demos and consumer-tests only)
 
 Demo and consumer-test apps use the convention:
@@ -128,11 +145,7 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 - `CoproductFFI.xcframework` is generated scaffold output from static Rust libraries.
 - The iOS Swift package should use Swift 5 language mode for now. UniFFI-generated Swift currently trips Swift 6 strict-concurrency checks around static callback vtable pointers.
 - Package the current iOS binary artifact for SwiftPM release testing with `./scripts/package/ios-spm-binary.sh`. This produces `build/ios-spm/CoproductFFI.xcframework.zip` plus a SwiftPM checksum. The artifact-linked iOS consumer-test lives at `consumer-tests/ios/CoproductConsumerIOS/` and consumes the SwiftPM fixture built by `./scripts/package/ios-spm-fixture.sh`.
-- `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. Use:
-  ```bash
-  cd sdks/ios
-  xcodebuild -scheme Coproduct -destination 'generic/platform=iOS Simulator' build
-  ```
+- `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. The build scripts in the Building section use `xcodebuild -destination 'generic/platform=iOS Simulator'` instead, which is what should be used for any ad-hoc verification.
 - Keep exact iOS build commands documented in `sdks/ios/BUILDING.md`.
 
 ## Android Notes
@@ -144,18 +157,10 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 - Android UniFFI bindings need JNA and coroutines. The module uses `net.java.dev.jna:jna:5.12.0@aar` because UniFFI documents JNA 5.12.0 or newer for Android, plus kotlinx coroutines for suspend functions and foreign callbacks.
 - Build the Android `.so` files with `cargo ndk` and copy them into `sdks/android/src/main/jniLibs` for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
 - Android Studio Panda generated the native Android demo that now lives at `examples/android-demo` with Gradle `9.4.1`, AGP `9.2.1`, Kotlin `2.2.10`, and compile SDK `36.1`. Native Android now follows that generated shape: `sdks/android` uses `com.android.library` plus `com.android.built-in-kotlin`, not the legacy `org.jetbrains.kotlin.android` plugin. Do not reintroduce `android.builtInKotlin=false` or `android.newDsl=false` unless a concrete AGP regression requires it.
-- The native Android consumer test lives at `consumer-tests/android` and depends on `app.coproduct:coproduct-android:0.0.1-SNAPSHOT` from `mavenLocal`. Publish it with `examples/android-demo ./gradlew :coproduct-android:publishToMavenLocal`, then run `consumer-tests/android ./gradlew :app:assembleRelease` to exercise Maven metadata plus R8/minification.
-- The Android build runs on JDK 17, not the Android Studio bundled JBR 21. The React Native example Gradle wrapper is pinned to `8.14` (unified with the Flutter example, see the Flutter section). Build with `JAVA_HOME=/opt/homebrew/opt/openjdk@17`. Historical note: the `create-react-native-library` template shipped Gradle `9.0.0`, and Gradle 9 with JDK 21 fails at configuration time with `JvmVendorSpec does not have member field 'IBM_SEMERU'`. Gradle 8.14 with JDK 17 does not hit this.
-- `java` is not on `PATH`. Without `JAVA_HOME` set, the build fails with "Unable to locate a Java Runtime".
-- The native build needs the NDK. Set `ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006` (the version the scaffold's CMake wiring was validated against).
-- The validated clean build command is:
-  ```bash
-  JAVA_HOME=/opt/homebrew/opt/openjdk@17 \
-  ANDROID_HOME=$HOME/Library/Android/sdk \
-  ANDROID_SDK_ROOT=$HOME/Library/Android/sdk \
-  ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/27.1.12297006 \
-  yarn example android --no-packager --active-arch-only
-  ```
+- The native Android consumer test lives at `consumer-tests/android` and depends on `app.coproduct:coproduct-android:0.0.1-SNAPSHOT` from `mavenLocal`. The artifact-linked build script wraps the two-step `publishToMavenLocal` from `examples/android-demo` plus `assembleRelease` from `consumer-tests/android` to exercise Maven metadata plus R8/minification.
+- The Android build runs on JDK 17, not the Android Studio bundled JBR 21. The React Native example Gradle wrapper is pinned to `8.14` (unified with the Flutter example, see the Flutter section). Historical note: the `create-react-native-library` template shipped Gradle `9.0.0`, and Gradle 9 with JDK 21 fails at configuration time with `JvmVendorSpec does not have member field 'IBM_SEMERU'`. Gradle 8.14 with JDK 17 does not hit this.
+- `java` is not on `PATH`. Without `JAVA_HOME` set, Gradle fails with "Unable to locate a Java Runtime".
+- The native build needs the NDK at `ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006` (the version the scaffold's CMake wiring was validated against).
 - After switching JDKs, run `./gradlew --stop` so a daemon started under the wrong JDK is not reused.
 
 ## Validation Anchors
