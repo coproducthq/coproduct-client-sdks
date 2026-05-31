@@ -8,7 +8,7 @@ These ARE the release gate. They catch publish, install, and autolink bugs that 
 
 | Platform | Directory | Artifact-linked via |
 |---|---|---|
-| Native iOS | [ios/](./ios/) | SwiftPM `file:` to a `package-ios-spm-fixture.sh`-built zip |
+| Native iOS | [ios/](./ios/) | SwiftPM `file:` to a `scripts/package/ios-spm-fixture.sh`-built zip |
 | Native Android | [android/](./android/) | mavenLocal artifact published via `examples/android-demo`'s `publishToMavenLocal` |
 | React Native | [react-native/](./react-native/) | Fresh RN app installing the SDK from a `yarn pack`-built `.tgz` |
 | Flutter | [flutter/](./flutter/) | Fresh Flutter app consuming the SDK via `path:` reference |

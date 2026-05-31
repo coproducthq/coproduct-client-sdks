@@ -9,10 +9,10 @@ This slot is the iOS counterpart to `consumer-tests/{react-native,flutter,androi
 From `coproduct-client-sdks/`:
 
 ```bash
-./scripts/package-ios-spm-fixture.sh
+./scripts/package/ios-spm-fixture.sh
 ```
 
-This calls `package-ios-spm-binary.sh` to produce the binary artifact, then assembles a self-contained Swift Package at `build/ios-spm/` containing:
+This calls `scripts/package/ios-spm-binary.sh` to produce the binary artifact, then assembles a self-contained Swift Package at `build/ios-spm/` containing:
 
 - `Package.swift` — the manifest declaring the `Coproduct` library, a binary target backed by the local xcframework zip, and a source target backed by the vendored wrapper
 - `CoproductFFI.xcframework.zip` and `.checksum` — the binary artifact (the zip is what gets uploaded as a GitHub release asset; the checksum is what a future remote `Package.swift` will reference)

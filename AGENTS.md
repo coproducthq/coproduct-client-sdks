@@ -127,7 +127,7 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 - The Swift package lives in `sdks/ios`.
 - `CoproductFFI.xcframework` is generated scaffold output from static Rust libraries.
 - The iOS Swift package should use Swift 5 language mode for now. UniFFI-generated Swift currently trips Swift 6 strict-concurrency checks around static callback vtable pointers.
-- Package the current iOS binary artifact for SwiftPM release testing with `./scripts/package-ios-spm-binary.sh`. This produces `build/ios-spm/CoproductFFI.xcframework.zip` plus a SwiftPM checksum. The artifact-linked iOS consumer-test lives at `consumer-tests/ios/CoproductConsumerIOS/` and consumes the SwiftPM fixture built by `./scripts/package-ios-spm-fixture.sh`.
+- Package the current iOS binary artifact for SwiftPM release testing with `./scripts/package/ios-spm-binary.sh`. This produces `build/ios-spm/CoproductFFI.xcframework.zip` plus a SwiftPM checksum. The artifact-linked iOS consumer-test lives at `consumer-tests/ios/CoproductConsumerIOS/` and consumes the SwiftPM fixture built by `./scripts/package/ios-spm-fixture.sh`.
 - `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. Use:
   ```bash
   cd sdks/ios

@@ -9,7 +9,7 @@ set -euo pipefail
 # app must already be installed. This script does not rebuild.
 #
 # Usage:
-#   ./scripts/run-rn-vector-test-ios.sh [simulator-udid]
+#   ./scripts/test/rn-vector-ios.sh [simulator-udid]
 #
 # Default UDID is the iPhone 17 sim used elsewhere in the scaffold
 

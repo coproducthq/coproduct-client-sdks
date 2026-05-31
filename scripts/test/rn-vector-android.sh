@@ -9,7 +9,7 @@ set -euo pipefail
 # installed. This script does not rebuild.
 #
 # Usage:
-#   ./scripts/run-rn-vector-test-android.sh [emulator-serial]
+#   ./scripts/test/rn-vector-android.sh [emulator-serial]
 #
 # Default emulator serial is emulator-5554
 
