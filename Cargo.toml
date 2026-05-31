@@ -17,3 +17,10 @@ sha2 = "0.11.0"
 thiserror = "2.0.18"
 uniffi = { version = "0.31.1", features = ["cli"] }
 flutter_rust_bridge = "2.12.0"
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
