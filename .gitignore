@@ -2,7 +2,6 @@
 .DS_Store
 
 # IDE: JetBrains (IntelliJ, Android Studio)
-# Surgical exclusions: share project structure, exclude per-user state
 **/.idea/workspace.xml
 **/.idea/caches/
 **/.idea/libraries/
@@ -53,5 +52,5 @@ sdks/react-native/coproduct/lib/
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/Flutter/ephemeral/
 
-# Superpowers plugin: internal design docs intentionally not tracked
+# Superpowers plugin
 docs/superpowers/
