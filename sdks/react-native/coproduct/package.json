@@ -46,14 +46,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/coproduct/coproduct-client-sdks.git"
+    "url": "git+https://github.com/coproducthq/coproduct-client-sdks.git"
   },
   "author": "Coproduct <dev@coproduct.app> (https://coproduct.app)",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/coproduct/coproduct-client-sdks/issues"
+    "url": "https://github.com/coproducthq/coproduct-client-sdks/issues"
   },
-  "homepage": "https://github.com/coproduct/coproduct-client-sdks#readme",
+  "homepage": "https://github.com/coproducthq/coproduct-client-sdks#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
