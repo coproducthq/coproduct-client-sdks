@@ -31,6 +31,7 @@ if (!coproductGlobal.__coproductRustInitialized) {
   coproductGlobal.__coproductRustInitialized = true;
 }
 
+// SCAFFOLD-ONLY: replaced by an internal bucketForVectors at production (exported only from @coproduct/react-native/internal subpath).
 export { computeBucket };
 export type { FlagObserver, HostSecureStore, HostTransport };
 
@@ -135,6 +136,7 @@ export class CoproductClient {
     return this.nativeClient.getBool(key, defaultValue);
   }
 
+  // SCAFFOLD-ONLY: low-level callback API. The production SDK layers useCoproductFlag hook on top.
   observe(
     key: string,
     _defaultValue: boolean,
@@ -153,10 +155,12 @@ export class CoproductClient {
     );
   }
 
+  // SCAFFOLD-ONLY: the Coproduct.snapshot accessor and the provider state machine replace this in the production SDK.
   wasLoadedFromCache(): boolean {
     return this.nativeClient.wasLoadedFromCache();
   }
 
+  // SCAFFOLD-ONLY: real polling-driven snapshot updates plus the setOverride test API replace this in the production SDK.
   async simulateChange(key: string, newValue: boolean): Promise<void> {
     await this.nativeClient.simulateChange(key, newValue);
   }
