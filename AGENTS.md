@@ -162,8 +162,8 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 
 - Golden bucketing vectors live in `tests/bucketing_vectors.json`.
 - Treat vector mismatches as implementation bugs, not permission to change expected values.
-- Phase 2 VC1 is `cargo build --workspace`.
-- iOS package build is not the same as VC2. VC2 requires the demo app to run initialize, host callbacks, sync `getBool`, observer callback, and cache status on a simulator.
+- The initial scaffold validation requires `cargo build --workspace` to succeed.
+- iOS package build is not the same as a full demo validation. The full validation requires the demo app to run initialize, host callbacks, sync `getBool`, observer callback, and cache status on a simulator.
 
 ## Generated And Build Output
 
