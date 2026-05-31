@@ -66,6 +66,24 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
 - `simulate_change` is scaffold-only and exists only to validate observer callbacks before real polling exists.
 - `was_loaded_from_cache` is scaffold-only and exists to validate cache persistence across restart.
 
+## Identifier unification principle
+
+Use identical identifiers across all four SDK surfaces wherever the language permits. Use each language's idiomatic visibility mechanism for access control. Never let identifiers diverge for cosmetic reasons.
+
+Examples this rule covers:
+
+- Public method names: `initialize`, `getBool`, `getString`, `getNumber`, `getInt`, `getJSON`, `identify`, `signOut`, `setContext`, `updateAttributes`, `removeAttributes`, `observe`, `addHandler`, `addEvaluationHook`, `shutdown`
+- Public type names: `CoproductClient`, `CoproductConfig`, `CoproductSnapshot`, `Logger`, `Transport`, `SecureStore`, `EvaluationEvent`, `ProviderState`
+- Thrown error names: `InvalidKeyType`, `UnsupportedSchemaVersion`, `InvalidTargetingKey`, `TransportError`, `SecureStoreError`
+- Internal accessors: `bucketForVectors` (per-platform visibility mechanism: Swift `internal`, Kotlin `internal`, TS `/internal` subpath, Dart `lib/src/`)
+
+Documented per-platform deviations:
+
+- Swift uses all-caps initialisms: `getJSON` (not `getJson`) per Apple convention. Other platforms use camelCase `getJson`.
+- Cancellation semantics for observers follow platform-native idioms (`AnyCancellable` on iOS, `Job.cancel()` on Kotlin, `.unsubscribe()` on RN, `StreamSubscription.cancel()` on Flutter). A unified `Cancellable` type is deliberately NOT in the identifier list because spec §3.3 routes through each platform's native cancel mechanism.
+- Dart's `Coproduct.observe(...)` returns `ValueListenable<T>` because Dart's idiomatic primitive differs. The identifier `observe` is identical across all four platforms. The return type adapts per platform.
+- The OpenFeature `errorCode` enum (`FLAG_NOT_FOUND`, `TYPE_MISMATCH`, etc.) is a separate concept from thrown error names. The codes are data on `FlagEvaluationDetails.errorCode`, not catchable exception types.
+
 ## Rust Practices
 
 - Keep Rust code readable and explicit. Prefer simple structs and conversion helpers over clever abstractions.
