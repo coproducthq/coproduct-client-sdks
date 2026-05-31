@@ -17,6 +17,23 @@ This repository is an architecture-validation scaffold for Coproduct mobile SDKs
 
 A bug like the RN 0.82 + Xcode 26 `fmt` consteval failure, or the cargokit Gradle-9 `project.exec` removal, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
 
+## Bundle ID and applicationId convention (scaffold demos and consumer-tests only)
+
+Demo and consumer-test apps use the convention:
+
+```
+app.coproduct.<role>.<framework>
+```
+
+Where `<role>` is `demo` or `consumer` and `<framework>` is `ios`, `android`, `rn`, or `flutter`. Examples:
+
+- `app.coproduct.demo.ios`
+- `app.coproduct.demo.android`
+- `app.coproduct.consumer.rn`
+- `app.coproduct.consumer.flutter`
+
+This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SDK packages publish under separate ecosystem-specific coordinates (see per-SDK READMEs for the published names).
+
 ## Toolchain
 
 - Use Rust `1.95.0`.
