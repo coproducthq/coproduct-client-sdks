@@ -1,5 +1,5 @@
 name: coproduct
-description: "A new Flutter plugin project."
+description: "Flutter SDK for Coproduct, a feature management and experimentation platform."
 version: 0.0.1
 homepage: https://coproduct.app
 repository: https://github.com/coproducthq/coproduct-client-sdks
