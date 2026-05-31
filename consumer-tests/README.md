@@ -1,21 +1,22 @@
-# consumer-tests/
+# Consumer tests
 
-Fresh third-party apps that install each platform SDK as a **packaged release artifact** (not a workspace source-link) and exercise it end-to-end. The role of these apps is to catch the class of bugs that only appears at publish / install / autolink time — peer-deps, podspec quirks, Gradle plugin compatibility, `package.json` `files` glob omissions, podfile `post_install` requirements — which the source-linked apps under `examples/` and `sdks/<platform>/coproduct/example/` cannot surface.
+Artifact-linked verification apps for SDK release validation. Each app installs the SDK as a packaged release artifact (`.tgz`, mavenLocal, SwiftPM `file:` to a packaged zip, Flutter `path:` to the SDK that mimics a published copy).
 
-This is the release-verification gate, not a developer playground.
+These ARE the release gate. They catch publish, install, and autolink bugs that source-linked [`examples/`](../examples/) cannot.
 
-## Convention
+## Available consumer tests
 
-```
-consumer-tests/
-  ios/             — Xcode project consuming Coproduct via SPM local file: dep
-  android/         — Gradle project consuming Coproduct via mavenLocal / release artifact
-  react-native/    — RN app installing react-native-coproduct from a local .tgz
-  flutter/         — Flutter app consuming coproduct via path: against sdks/flutter/coproduct
-```
+| Platform | Directory | Artifact-linked via |
+|---|---|---|
+| Native iOS | [ios/](./ios/) | SwiftPM `file:` to a `package-ios-spm-fixture.sh`-built zip |
+| Native Android | [android/](./android/) | mavenLocal artifact published via `examples/android-demo`'s `publishToMavenLocal` |
+| React Native | [react-native/](./react-native/) | Fresh RN app installing the SDK from a `yarn pack`-built `.tgz` |
+| Flutter | [flutter/](./flutter/) | Fresh Flutter app consuming the SDK via `path:` reference |
 
-See each subdirectory's `README.md` for that platform's exact run flow and what the green-state demo screen must print.
+## Why this split
 
-## What `examples/` is for instead
+The consumer-test pattern catches three classes of release-shape bug that source-linked `examples/` cannot: pod install failures on modern Xcode, Gradle plugin compatibility on recent Gradle releases, and binary-size or autolink issues that only appear when the SDK is installed via a real package manager. Source-linked example apps run against pre-pinned known-good toolchain versions in their `Podfile` and `build.gradle`. Consumer-test apps run against modern bleeding-edge toolchains the way a real customer would.
 
-Apps under the top-level `examples/` directory (and the framework-nested `sdks/react-native/coproduct/example/`, `sdks/flutter/coproduct/example/` that `bob` and `flutter create --template=plugin` generate) are **source-linked** — they pull the SDK as workspace code and let SDK authors iterate against a sample app in seconds. They demonstrate usage and run fast; they do not test the publish/install pipeline.
+## Build commands
+
+See [DEVELOPMENT.md](../DEVELOPMENT.md) at the repository root for prerequisites and the exact build invocations per platform.
