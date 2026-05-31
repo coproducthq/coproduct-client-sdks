@@ -2,9 +2,7 @@
 .DS_Store
 
 # IDE: JetBrains (IntelliJ, Android Studio)
-**/.idea/workspace.xml
-**/.idea/caches/
-**/.idea/libraries/
+**/.idea/
 
 # Rust / Cargo
 /target/
