@@ -28,6 +28,14 @@ export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/27.1.12297006
 
 ### Native iOS demo (`examples/ios-demo/`)
 
+Prerequisite: build the `CoproductFFI.xcframework` from Rust source. This produces the binary the SwiftPM package depends on at `sdks/ios/CoproductFFI.xcframework/`.
+
+```bash
+./scripts/package-ios-spm-binary.sh
+```
+
+Then build the demo:
+
 ```bash
 cd examples/ios-demo
 xcodebuild -scheme ios-demo -destination 'generic/platform=iOS Simulator' build
@@ -64,13 +72,18 @@ flutter run -d <device_id>
 
 ### iOS consumer-test (`consumer-tests/ios/`)
 
-Prerequisite: package the SwiftPM fixture.
+Two iOS packaging scripts exist with distinct purposes:
+
+- `scripts/package-ios-spm-binary.sh` builds just the `CoproductFFI.xcframework` from Rust source. Use this when the demo or any SwiftPM consumer needs a fresh xcframework.
+- `scripts/package-ios-spm-fixture.sh` packages the full SwiftPM fixture for the consumer-test. It depends on the binary script above and produces the artifact the consumer-test consumes via `file:`.
+
+For the consumer-test, run the fixture script (it triggers the binary build internally):
 
 ```bash
 ./scripts/package-ios-spm-fixture.sh
 ```
 
-Then open the Xcode workspace and run on a simulator.
+Then open the Xcode workspace at `consumer-tests/ios/` and run on a simulator.
 
 ### Android consumer-test (`consumer-tests/android/`)
 
