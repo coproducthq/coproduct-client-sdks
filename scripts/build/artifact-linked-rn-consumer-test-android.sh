@@ -21,6 +21,8 @@ cd "$SCAFFOLD_ROOT/sdks/react-native/coproduct"
 yarn pack
 
 # Install dependencies and build the consumer-test Android side.
+# Plain yarn install (not --immutable): the .tgz integrity hash changes every
+# yarn pack, so a frozen lockfile would fail on every run by design.
 cd "$SCAFFOLD_ROOT/consumer-tests/react-native"
 yarn install
 

@@ -16,10 +16,13 @@ set -euo pipefail
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$SCAFFOLD_ROOT/sdks/react-native/coproduct"
 
+# --immutable: the SDK is consumed as workspace code via a stable file: reference,
+# so the lockfile should not need to mutate between runs. CI catches drift this way.
 yarn install --immutable
 
 # Build the example app's Android side without launching Metro or installing on a device.
+# Debug build: source-linked is the SDK author inner loop, so skip R8 / minification.
 cd example/android
-./gradlew :app:assembleRelease
+./gradlew :app:assembleDebug
 
 echo "COPRODUCT_SOURCE_LINKED_RN_DEMO_ANDROID_BUILD_STATUS pass=true"

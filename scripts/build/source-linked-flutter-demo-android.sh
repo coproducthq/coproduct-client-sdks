@@ -17,6 +17,7 @@ SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$SCAFFOLD_ROOT/sdks/flutter/coproduct/example"
 
 flutter pub get
-flutter build apk --release
+# Debug build: source-linked is the SDK author inner loop, so skip R8 / minification.
+flutter build apk --debug
 
 echo "COPRODUCT_SOURCE_LINKED_FLUTTER_DEMO_ANDROID_BUILD_STATUS pass=true"

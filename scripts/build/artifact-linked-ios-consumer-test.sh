@@ -17,7 +17,9 @@ cd "$SCAFFOLD_ROOT"
 ./scripts/package/ios-spm-fixture.sh
 
 # Build the consumer-test Xcode project against the generic iOS Simulator destination.
+# Release build: artifact-linked is the release gate, so exercise the same
+# configuration a customer would ship.
 cd consumer-tests/ios/CoproductConsumerIOS
-xcodebuild -scheme CoproductConsumerIOS -destination 'generic/platform=iOS Simulator' build
+xcodebuild -scheme CoproductConsumerIOS -destination 'generic/platform=iOS Simulator' -configuration Release build
 
 echo "COPRODUCT_ARTIFACT_LINKED_IOS_CONSUMER_TEST_BUILD_STATUS pass=true"

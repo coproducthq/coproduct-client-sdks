@@ -87,7 +87,7 @@ React Native demo:
 
 ```bash
 cd sdks/react-native/coproduct
-yarn install
+yarn install --immutable
 # Then either:
 yarn example android --no-packager --active-arch-only
 # OR

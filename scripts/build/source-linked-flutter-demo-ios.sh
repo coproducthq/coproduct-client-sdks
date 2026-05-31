@@ -13,6 +13,7 @@ SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$SCAFFOLD_ROOT/sdks/flutter/coproduct/example"
 
 flutter pub get
-flutter build ios --release --no-codesign
+# Debug build: source-linked is the SDK author inner loop, so optimize for build speed.
+flutter build ios --debug --no-codesign
 
 echo "COPRODUCT_SOURCE_LINKED_FLUTTER_DEMO_IOS_BUILD_STATUS pass=true"
