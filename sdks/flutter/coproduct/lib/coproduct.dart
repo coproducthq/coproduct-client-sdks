@@ -83,8 +83,10 @@ class CoproductClient {
   bool getBool(String key, bool defaultValue) =>
       frb.getBool(client: _handle, key: key, defaultValue: defaultValue);
 
+  /// SCAFFOLD-ONLY: the Coproduct.snapshot accessor and the provider state machine replace this in the production SDK.
   bool wasLoadedFromCache() => frb.wasLoadedFromCache(client: _handle);
 
+  /// SCAFFOLD-ONLY: low-level callback API. The production SDK returns `ValueListenable<T>`.
   Future<Cancellable> observe(
     String key,
     bool defaultValue,
@@ -98,6 +100,7 @@ class CoproductClient {
     return Cancellable(subscription);
   }
 
+  /// SCAFFOLD-ONLY: real polling-driven snapshot updates plus the setOverride test API replace this in the production SDK.
   Future<void> simulateChange(String key, bool newValue) =>
       frb.simulateChange(client: _handle, key: key, newValue: newValue);
 }
@@ -147,6 +150,7 @@ class Coproduct {
     return CoproductClient(handle);
   }
 
+  /// SCAFFOLD-ONLY: replaced by an internal bucketForVectors in lib/src/internal.dart in the production SDK.
   static int computeBucket({
     required String ruleId,
     required String targetingKey,
