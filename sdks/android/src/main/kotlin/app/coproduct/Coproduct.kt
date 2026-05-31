@@ -90,6 +90,7 @@ object Coproduct {
         return CoproductClient(nativeClient)
     }
 
+    // SCAFFOLD-ONLY: replaced by an internal bucketForVectors accessor in the production SDK.
     fun computeBucket(ruleId: String, targetingKey: String, suffix: String): UInt {
         return ffiComputeBucket(ruleId, targetingKey, suffix)
     }
@@ -102,6 +103,7 @@ class CoproductClient internal constructor(
         return inner.getBool(key, defaultValue)
     }
 
+    // SCAFFOLD-ONLY: low-level callback API. The production SDK layers Coproduct.rememberFlag composable on top.
     fun observe(
         key: String,
         @Suppress("UNUSED_PARAMETER") defaultValue: Boolean,
@@ -117,10 +119,12 @@ class CoproductClient internal constructor(
         return Cancellable(inner.observe(key, observer))
     }
 
+    // SCAFFOLD-ONLY: the Coproduct.snapshot accessor and the provider state machine replace this in the production SDK.
     fun wasLoadedFromCache(): Boolean {
         return inner.wasLoadedFromCache()
     }
 
+    // SCAFFOLD-ONLY: real polling-driven snapshot updates plus the setOverride test API replace this in the production SDK.
     suspend fun simulateChange(key: String, newValue: Boolean) {
         inner.simulateChange(key, newValue)
     }
