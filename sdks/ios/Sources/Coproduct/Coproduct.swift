@@ -25,6 +25,7 @@ public enum Coproduct {
         )
     }
 
+    // SCAFFOLD-ONLY: replaced by an internal bucketForVectors accessor in the production SDK. Customer-facing bucket access, if added, lands as bucket: Int? on FlagEvaluationDetails.
     public static func computeBucket(
         ruleId: String,
         targetingKey: String,
@@ -65,6 +66,7 @@ public extension CoproductClient {
         getBool(key: key, defaultValue: defaultValue)
     }
 
+    // SCAFFOLD-ONLY: low-level callback API. The production SDK layers @CoproductFlag property wrapper on top.
     func observe(
         _ key: String,
         default _: Bool,
