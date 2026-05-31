@@ -23,6 +23,7 @@
 **/.gradle/
 **/.kotlin/
 **/build/
+!scripts/build/
 **/.cxx/
 **/local.properties
 **/jniLibs/

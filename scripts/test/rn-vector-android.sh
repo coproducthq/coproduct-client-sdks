@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Default emulator serial is emulator-5554
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 emulator="${1:-emulator-5554}"
 adb="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 package="app.coproduct.consumer.rn"

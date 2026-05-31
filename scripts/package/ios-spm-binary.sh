@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 framework_path="$repo_root/sdks/ios/CoproductFFI.xcframework"
 output_dir="$repo_root/build/ios-spm"
 archive_path="$output_dir/CoproductFFI.xcframework.zip"

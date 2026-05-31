@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Default UDID is the iPhone 17 sim used elsewhere in the scaffold
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 udid="${1:-4D5DA91F-2374-4796-8B8A-26B38F325EE3}"
 bundle_id="app.coproduct.consumer.rn"
 metro_log="/tmp/coproduct-rn-vector-metro.log"

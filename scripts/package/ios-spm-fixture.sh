@@ -14,7 +14,7 @@ set -euo pipefail
 # URL+checksum download path gets exercised once a real GitHub release URL
 # exists, which is a separate workstream
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 output_dir="$repo_root/build/ios-spm"
 wrapper_source_dir="$repo_root/sdks/ios/Sources/Coproduct"
 
