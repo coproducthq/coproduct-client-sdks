@@ -1,0 +1,15 @@
+[versions]
+agp = "9.2.1"
+androidBuiltInKotlin = "9.2.1"
+androidxTestExtJunit = "1.2.1"
+androidxTestRunner = "1.6.2"
+coroutines = "1.10.2"
+
+[libraries]
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-built-in1-kotlin = { id = "com.android.built-in-kotlin", version.ref = "androidBuiltInKotlin" }

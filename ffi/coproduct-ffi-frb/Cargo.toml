@@ -1,0 +1,23 @@
+# Package name uses underscores because cargokit (the Flutter build hook) derives
+# the built library file name from the package name verbatim, and a dashed name
+# would make it search for libcoproduct-ffi-frb.a while cargo emits underscores.
+# The directory stays coproduct-ffi-frb to parallel coproduct-ffi-uniffi.
+[package]
+name = "coproduct_ffi_frb"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(frb_expand)"] }
+
+[dependencies]
+anyhow = "1.0.102"
+async-trait.workspace = true
+coproduct-core = { path = "../../core/coproduct-core" }
+flutter_rust_bridge = "=2.12.0"
+thiserror.workspace = true

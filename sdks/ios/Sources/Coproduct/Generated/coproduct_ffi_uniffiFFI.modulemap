@@ -1,0 +1,7 @@
+module coproduct_ffi_uniffiFFI {
+    header "coproduct_ffi_uniffiFFI.h"
+    export *
+    use "Darwin"
+    use "_Builtin_stdbool"
+    use "_Builtin_stdint"
+}

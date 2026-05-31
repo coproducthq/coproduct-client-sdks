@@ -1,0 +1,58 @@
+// The Android Gradle Plugin builds the native code with the Android NDK.
+
+group 'com.flutter_rust_bridge.coproduct'
+version '1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // The Android Gradle Plugin knows how to build native code with the NDK.
+        classpath 'com.android.tools.build:gradle:7.3.0'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.flutter_rust_bridge.coproduct'
+    }
+
+    // compileSdkVersion is the API level the plugin compiles against, not a
+    // runtime requirement on consumers. Track latest stable supported by AGP
+    // to avoid checkDebugAarMetadata conflicts with modern transitives
+    // such as androidx.fragment:fragment:1.7.1 which requires compileSdk >= 34.
+    compileSdkVersion 36
+
+    // Use the NDK version
+    // declared in /android/app/build.gradle file of the Flutter project.
+    // Replace it with a version number if this plugin requires a specfic NDK version.
+    // (e.g. ndkVersion "23.1.7779620")
+    ndkVersion android.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdkVersion 19
+    }
+}
+
+apply from: "../cargokit/gradle/plugin.gradle"
+cargokit {
+    manifestDir = "../../../../ffi/coproduct-ffi-frb"
+    libname = "coproduct_ffi_frb"
+}

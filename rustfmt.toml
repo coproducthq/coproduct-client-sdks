@@ -1,0 +1,1 @@
+ignore = ["ffi/coproduct-ffi-frb/src/frb_generated.rs"]

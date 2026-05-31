@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = ["core/*", "ffi/coproduct-ffi-frb", "ffi/coproduct-ffi-uniffi"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.95.0"
+
+[workspace.dependencies]
+async-trait = "0.1.89"
+parking_lot = "0.12"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+sha2 = "0.11.0"
+thiserror = "2.0.18"
+uniffi = { version = "0.31.1", features = ["cli"] }
+flutter_rust_bridge = "2.12.0"

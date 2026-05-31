@@ -1,0 +1,57 @@
+# macOS
+.DS_Store
+
+# IDE: JetBrains (IntelliJ, Android Studio)
+# Surgical exclusions: share project structure, exclude per-user state
+**/.idea/workspace.xml
+**/.idea/caches/
+**/.idea/libraries/
+
+# Rust / Cargo
+/target/
+
+# Swift / Xcode / SwiftPM
+**/.swiftpm/
+**/xcuserdata/
+**/*.xcuserstate
+/sdks/ios/.build/
+**/CoproductFFI.xcframework/
+
+# CocoaPods (iOS dependency manager)
+**/Pods/
+
+# Android / Gradle / Kotlin / NDK
+**/.gradle/
+**/.kotlin/
+**/build/
+**/.cxx/
+**/local.properties
+**/jniLibs/
+
+# JavaScript / npm / Node
+**/node_modules/
+
+# Yarn 2+ (Berry): keep releases / patches / plugins tracked
+**/.yarn/*
+!**/.yarn/patches
+!**/.yarn/plugins
+!**/.yarn/releases
+!**/.yarn/sdks
+!**/.yarn/versions
+
+# React Native
+**/.xcode.env.local
+**/ios/generated/
+**/android/generated/
+sdks/react-native/coproduct/lib/
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/ephemeral/
+
+# Superpowers plugin: internal design docs intentionally not tracked
+docs/superpowers/

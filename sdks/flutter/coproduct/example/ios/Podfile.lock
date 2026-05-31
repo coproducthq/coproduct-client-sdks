@@ -1,0 +1,22 @@
+PODS:
+  - coproduct (0.0.1):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - coproduct (from `.symlinks/plugins/coproduct/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  coproduct:
+    :path: ".symlinks/plugins/coproduct/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  coproduct: 9924a9e04d4bb59ef8947f8a2f175bf3eed741a0
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+
+PODFILE CHECKSUM: f00001f8834ad5e0c1cdd2f86183444b10c28390
+
+COCOAPODS: 1.16.2

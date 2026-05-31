@@ -1,0 +1,3 @@
+rust_input: crate::api
+rust_root: ../../../ffi/coproduct-ffi-frb/
+dart_output: lib/src/rust

@@ -1,0 +1,28 @@
+rust:
+  directory: ../../..
+  manifestPath: ffi/coproduct-ffi-uniffi/Cargo.toml
+
+bindings:
+  cpp: cpp/generated
+  ts: src/generated
+
+ios:
+  directory: ios
+  targets:
+    - aarch64-apple-ios-sim
+  frameworkName: build/CoproductFFI
+
+android:
+  directory: android
+  targets:
+    - arm64-v8a
+  useSharedLibrary: false
+
+turboModule:
+  cpp: cpp
+  ts: src
+  spec: NativeCoproduct
+  entrypoint: src/index.tsx
+
+noOverwrite:
+  - src/index.tsx

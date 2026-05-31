@@ -1,0 +1,26 @@
+[
+  {
+    "rule_id": "abc12345-6789-4abc-9def-0123456789ab",
+    "targeting_key": "alice",
+    "suffix": "rollout",
+    "expected_bucket": 1676
+  },
+  {
+    "rule_id": "abc12345-6789-4abc-9def-0123456789ab",
+    "targeting_key": "alice",
+    "suffix": "variant",
+    "expected_bucket": 8852
+  },
+  {
+    "rule_id": "00000000-0000-4000-8000-000000000000",
+    "targeting_key": "user-1",
+    "suffix": "rollout",
+    "expected_bucket": 5724
+  },
+  {
+    "rule_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "targeting_key": "user_42",
+    "suffix": "rollout",
+    "expected_bucket": 482
+  }
+]
