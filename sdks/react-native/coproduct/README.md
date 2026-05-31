@@ -58,6 +58,8 @@ function CheckoutScreen() {
 
 ## Known compatibility notes
 
+**`peerDependencies` is intentionally permissive.** The `peerDependencies` range for `react-native` is `"*"` because the SDK has been built and run only against RN 0.82.1. The 0.80 floor in the compatibility table above is a v1.0 goal, contingent on a CI matrix that validates compatibility across the range. Until that CI lands, the package metadata is intentionally permissive.
+
 **RN 0.82 + Xcode 26 fmt consteval failure.** If you are on Xcode 26 (or later) and React Native 0.82+, you may hit a `static_assertion failed` error in the `fmt` library during pod install. This is an upstream React Native bug affecting every RN library on Xcode 26, not specific to Coproduct. Workaround in your `ios/Podfile` `post_install` hook:
 
 ```ruby
