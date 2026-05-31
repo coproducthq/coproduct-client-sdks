@@ -53,17 +53,8 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
 
 ## Toolchain
 
-- Use Rust `1.95.0`.
-- Use Rust edition `2024`.
-- Keep the workspace manifest at the repo root with `resolver = "2"`.
-- Keep `rust-toolchain.toml` targets aligned with the mobile surfaces:
-  - `aarch64-apple-ios`
-  - `aarch64-apple-ios-sim`
-  - `x86_64-apple-ios`
-  - `aarch64-linux-android`
-  - `armv7-linux-androideabi`
-  - `i686-linux-android`
-  - `x86_64-linux-android`
+- Rust `1.95.0`, edition `2024`. Workspace manifest at the repo root with `resolver = "2"`.
+- The canonical target list lives in `rust-toolchain.toml` (3 Apple triples, 4 Android ABIs). Keep it aligned with the mobile surfaces.
 
 ## Current Dependency Choices
 
@@ -111,7 +102,7 @@ Documented per-platform deviations:
 
 ## UniFFI Notes
 
-- Avoid FFI parameter names that are C/Swift keywords. In particular, do not use `default`; use `default_value`.
+- Avoid FFI parameter names that are C/Swift keywords. In particular, do not use `default`. Use `default_value`.
 - Verify more than Rust compilation. A UniFFI crate is not healthy until binding generation works:
   ```bash
   cargo run -p coproduct-ffi-uniffi --features uniffi/cli --bin uniffi-bindgen -- \
@@ -141,39 +132,29 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 
 ## iOS Notes
 
-- The Swift package lives in `sdks/ios`.
 - `CoproductFFI.xcframework` is generated scaffold output from static Rust libraries.
 - The iOS Swift package should use Swift 5 language mode for now. UniFFI-generated Swift currently trips Swift 6 strict-concurrency checks around static callback vtable pointers.
-- Package the current iOS binary artifact for SwiftPM release testing with `./scripts/package/ios-spm-binary.sh`. This produces `build/ios-spm/CoproductFFI.xcframework.zip` plus a SwiftPM checksum. The artifact-linked iOS consumer-test lives at `consumer-tests/ios/CoproductConsumerIOS/` and consumes the SwiftPM fixture built by `./scripts/package/ios-spm-fixture.sh`.
-- `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. The build scripts in the Building section use `xcodebuild -destination 'generic/platform=iOS Simulator'` instead, which is what should be used for any ad-hoc verification.
-- Keep exact iOS build commands documented in `sdks/ios/BUILDING.md`.
+- `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. Any ad-hoc verification should use `xcodebuild -destination 'generic/platform=iOS Simulator'` like the build scripts do.
+- Detailed iOS build commands live in `sdks/ios/BUILDING.md`.
 
 ## Android Notes
 
 - If an Android virtual device is needed for scaffold validation, use a reusable generic name such as `Android_API_36_ARM64` rather than an SDK-specific name.
-- The native Android SDK module lives at `sdks/android` and consumes the UniFFI crate at `ffi/coproduct-ffi-uniffi`.
-- The canonical native Android source-linked demo is at `examples/android-demo`. Keep this as the only native Android example path unless a future task explicitly needs a separate comparison project.
-- Generate Kotlin bindings with the workspace `uniffi-bindgen` binary into `sdks/android/src/main/kotlin`. The generated package is currently `uniffi.coproduct_ffi_uniffi`; the public wrapper lives in `app.coproduct`.
-- Android UniFFI bindings need JNA and coroutines. The module uses `net.java.dev.jna:jna:5.12.0@aar` because UniFFI documents JNA 5.12.0 or newer for Android, plus kotlinx coroutines for suspend functions and foreign callbacks.
+- The canonical native source-linked demo is at `examples/android-demo`. Keep this as the only native Android example path unless a future task explicitly needs a separate comparison project.
+- Generate Kotlin bindings with the workspace `uniffi-bindgen` binary into `sdks/android/src/main/kotlin`. The generated package is `uniffi.coproduct_ffi_uniffi` and the public wrapper lives in `app.coproduct`.
+- Android UniFFI bindings need JNA 5.12.0+ and kotlinx coroutines (for suspend functions and foreign callbacks). The module uses `net.java.dev.jna:jna:5.12.0@aar`.
 - Build the Android `.so` files with `cargo ndk` and copy them into `sdks/android/src/main/jniLibs` for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
-- Android Studio Panda generated the native Android demo that now lives at `examples/android-demo` with Gradle `9.4.1`, AGP `9.2.1`, Kotlin `2.2.10`, and compile SDK `36.1`. Native Android now follows that generated shape: `sdks/android` uses `com.android.library` plus `com.android.built-in-kotlin`, not the legacy `org.jetbrains.kotlin.android` plugin. Do not reintroduce `android.builtInKotlin=false` or `android.newDsl=false` unless a concrete AGP regression requires it.
-- The native Android consumer test lives at `consumer-tests/android` and depends on `app.coproduct:coproduct-android:0.0.1-SNAPSHOT` from `mavenLocal`. The artifact-linked build script wraps the two-step `publishToMavenLocal` from `examples/android-demo` plus `assembleRelease` from `consumer-tests/android` to exercise Maven metadata plus R8/minification.
-- The Android build runs on JDK 17, not the Android Studio bundled JBR 21. The React Native example Gradle wrapper is pinned to `8.14` (unified with the Flutter example, see the Flutter section). Historical note: the `create-react-native-library` template shipped Gradle `9.0.0`, and Gradle 9 with JDK 21 fails at configuration time with `JvmVendorSpec does not have member field 'IBM_SEMERU'`. Gradle 8.14 with JDK 17 does not hit this.
-- `java` is not on `PATH`. Without `JAVA_HOME` set, Gradle fails with "Unable to locate a Java Runtime".
-- The native build needs the NDK at `ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.1.12297006` (the version the scaffold's CMake wiring was validated against).
+- Native Android follows the Android Studio Panda generated shape. `sdks/android` uses `com.android.library` plus `com.android.built-in-kotlin`, not the legacy `org.jetbrains.kotlin.android` plugin. Do not reintroduce `android.builtInKotlin=false` or `android.newDsl=false` unless a concrete AGP regression requires it. Pinned versions: Gradle 9.4.1, AGP 9.2.1, Kotlin 2.2.10, compile SDK 36.1.
+- Historical note on the JDK 17 pin. The `create-react-native-library` template shipped Gradle 9.0.0, and Gradle 9 with JDK 21 fails at configuration time with `JvmVendorSpec does not have member field 'IBM_SEMERU'`. Gradle 8.14 with JDK 17 does not hit this. The RN and Flutter example wrappers are pinned to 8.14 for that reason.
 - After switching JDKs, run `./gradlew --stop` so a daemon started under the wrong JDK is not reused.
 
 ## Validation Anchors
 
-- Golden bucketing vectors live in `tests/bucketing_vectors.json`.
-- Treat vector mismatches as implementation bugs, not permission to change expected values.
-- The initial scaffold validation requires `cargo build --workspace` to succeed.
+- Golden bucketing vectors live in `tests/bucketing_vectors.json`. Treat vector mismatches as implementation bugs, not permission to change expected values.
 - iOS package build is not the same as a full demo validation. The full validation requires the demo app to run initialize, host callbacks, sync `getBool`, observer callback, and cache status on a simulator.
 
 ## Generated And Build Output
 
-- Do not hand-edit files under `target/`.
-- Do not rely on `.build/` contents.
-- Keep local IDE/cache output out of commits: `.DS_Store`, `.gradle/`, `.kotlin/`, `.swiftpm/`, `xcuserdata/`, `*.xcuserstate`, `build/`, and `local.properties`.
-- `sdks/ios/Sources/Coproduct/Generated/` is generated by UniFFI. If edited manually, document why.
-- `sdks/ios/CoproductFFI.xcframework` is generated from local Rust builds and can be large in debug mode.
+- Do not hand-edit files under `target/` or under `sdks/ios/Sources/Coproduct/Generated/` (the latter is generated by UniFFI). If editing the generated Swift becomes necessary, document why.
+- `sdks/ios/CoproductFFI.xcframework` is generated scaffold output and can be large in debug mode.
+- The `.gitignore` covers everything else (`.gradle/`, `.kotlin/`, `.swiftpm/`, `xcuserdata/`, `build/`, `local.properties`, plus the usual `.DS_Store` / `*.xcuserstate`). Don't add tracked equivalents.
