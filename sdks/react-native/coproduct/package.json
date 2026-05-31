@@ -49,7 +49,7 @@
     "url": "git+https://github.com/coproduct/coproduct-client-sdks.git"
   },
   "author": "Coproduct <dev@coproduct.app> (https://coproduct.app)",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/coproduct/coproduct-client-sdks/issues"
   },

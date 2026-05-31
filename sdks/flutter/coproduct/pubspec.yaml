@@ -1,7 +1,7 @@
 name: coproduct
 description: "A new Flutter plugin project."
 version: 0.0.1
-homepage:
+homepage: https://coproduct.app
 
 environment:
   sdk: ^3.12.0
