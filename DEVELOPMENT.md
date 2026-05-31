@@ -24,34 +24,66 @@ export ANDROID_SDK_ROOT=$HOME/Library/Android/sdk
 export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/27.1.12297006
 ```
 
-## Per-surface build commands
+## Build scripts
 
-### Native iOS demo (`examples/ios-demo/`)
+Every SDK surface has a build script under `scripts/build/`. The scripts run on macOS local dev and on GitHub Actions runners (Linux for Android-only surfaces, macOS for iOS-touching surfaces). Each emits a tagged `COPRODUCT_<surface>_<role>_STATUS pass=true` status line on success that CI can grep for.
 
-Prerequisite: build the `CoproductFFI.xcframework` from Rust source. This produces the binary the SwiftPM package depends on at `sdks/ios/CoproductFFI.xcframework/`.
+Two linkage models, named explicitly:
+
+- **`source-linked-*`** — the SDK is consumed as workspace code (Gradle composite build, SwiftPM local reference, npm `path:`, Flutter `path:`). Fast inner loop for SDK authors. Not a release gate.
+- **`artifact-linked-*`** — the SDK is consumed as a packaged release artifact (`.tgz`, mavenLocal, SwiftPM zip+checksum fixture). Catches publish/install/autolink bugs that source-linked builds cannot. Release gate.
+
+### Source-linked (SDK author inner loop)
+
+| Surface | Script |
+|---|---|
+| iOS native demo (`examples/ios-demo/`) | `./scripts/build/source-linked-ios-demo.sh` |
+| Android native demo (`examples/android-demo/`) | `./scripts/build/source-linked-android-demo.sh` |
+| React Native demo, iOS (`sdks/react-native/coproduct/example/`) | `./scripts/build/source-linked-rn-demo-ios.sh` |
+| React Native demo, Android (`sdks/react-native/coproduct/example/`) | `./scripts/build/source-linked-rn-demo-android.sh` |
+| Flutter demo, iOS (`sdks/flutter/coproduct/example/`) | `./scripts/build/source-linked-flutter-demo-ios.sh` |
+| Flutter demo, Android (`sdks/flutter/coproduct/example/`) | `./scripts/build/source-linked-flutter-demo-android.sh` |
+
+### Artifact-linked (release gate)
+
+| Surface | Script |
+|---|---|
+| iOS consumer-test (`consumer-tests/ios/`) | `./scripts/build/artifact-linked-ios-consumer-test.sh` |
+| Android consumer-test (`consumer-tests/android/`) | `./scripts/build/artifact-linked-android-consumer-test.sh` |
+| React Native consumer-test, iOS (`consumer-tests/react-native/`) | `./scripts/build/artifact-linked-rn-consumer-test-ios.sh` |
+| React Native consumer-test, Android (`consumer-tests/react-native/`) | `./scripts/build/artifact-linked-rn-consumer-test-android.sh` |
+| Flutter consumer-test, iOS (`consumer-tests/flutter/`) | `./scripts/build/artifact-linked-flutter-consumer-test-ios.sh` |
+| Flutter consumer-test, Android (`consumer-tests/flutter/`) | `./scripts/build/artifact-linked-flutter-consumer-test-android.sh` |
+
+### Supporting packaging scripts
+
+The iOS scripts depend on two packaging scripts that can also be run on their own:
+
+- `./scripts/package/ios-spm-binary.sh` — builds just the `CoproductFFI.xcframework` from Rust source. Use when any SwiftPM consumer needs a fresh xcframework.
+- `./scripts/package/ios-spm-fixture.sh` — packages the full SwiftPM fixture (zip + checksum) that the iOS consumer-test consumes via `file:`. Invokes the binary script internally.
+
+## Manual build commands
+
+The scripts above wrap these commands. Use them directly when you need partial steps or are debugging a specific stage.
+
+### Source-linked
+
+iOS native demo:
 
 ```bash
 ./scripts/package/ios-spm-binary.sh
-```
-
-Then build the demo:
-
-```bash
 cd examples/ios-demo
 xcodebuild -scheme ios-demo -destination 'generic/platform=iOS Simulator' build
 ```
 
-### Native Android demo (`examples/android-demo/`)
+Android native demo:
 
 ```bash
 cd examples/android-demo
-JAVA_HOME=/opt/homebrew/opt/openjdk@17 \
-ANDROID_HOME=$HOME/Library/Android/sdk \
-ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/27.1.12297006 \
 ./gradlew :app:assembleDebug
 ```
 
-### React Native example (`sdks/react-native/coproduct/example/`)
+React Native demo:
 
 ```bash
 cd sdks/react-native/coproduct
@@ -62,7 +94,7 @@ yarn example android --no-packager --active-arch-only
 yarn example ios --no-packager
 ```
 
-### Flutter example (`sdks/flutter/coproduct/example/`)
+Flutter demo:
 
 ```bash
 cd sdks/flutter/coproduct/example
@@ -70,24 +102,16 @@ flutter pub get
 flutter run -d <device_id>
 ```
 
-### iOS consumer-test (`consumer-tests/ios/`)
+### Artifact-linked
 
-Two iOS packaging scripts exist with distinct purposes:
-
-- `scripts/package/ios-spm-binary.sh` builds just the `CoproductFFI.xcframework` from Rust source. Use this when the demo or any SwiftPM consumer needs a fresh xcframework.
-- `scripts/package/ios-spm-fixture.sh` packages the full SwiftPM fixture for the consumer-test. It depends on the binary script above and produces the artifact the consumer-test consumes via `file:`.
-
-For the consumer-test, run the fixture script (it triggers the binary build internally):
+iOS consumer-test:
 
 ```bash
 ./scripts/package/ios-spm-fixture.sh
+# then open consumer-tests/ios/CoproductConsumerIOS in Xcode and run on a simulator
 ```
 
-Then open the Xcode workspace at `consumer-tests/ios/` and run on a simulator.
-
-### Android consumer-test (`consumer-tests/android/`)
-
-Prerequisite: publish the SDK to mavenLocal.
+Android consumer-test:
 
 ```bash
 cd examples/android-demo
@@ -96,7 +120,7 @@ cd ../../consumer-tests/android
 ./gradlew :app:assembleRelease
 ```
 
-### React Native consumer-test (`consumer-tests/react-native/`)
+React Native consumer-test:
 
 ```bash
 cd sdks/react-native/coproduct
@@ -106,7 +130,7 @@ yarn install
 yarn android  # or yarn ios
 ```
 
-### Flutter consumer-test (`consumer-tests/flutter/`)
+Flutter consumer-test:
 
 ```bash
 cd consumer-tests/flutter
