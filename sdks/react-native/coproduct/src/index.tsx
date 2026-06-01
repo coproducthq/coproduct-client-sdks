@@ -167,7 +167,6 @@ export class CoproductClient {
 }
 
 export type CoproductInitializeOptions = {
-  cacheDir?: string;
   transport?: HostTransport;
   secureStore?: HostSecureStore;
 };
@@ -177,7 +176,9 @@ export class Coproduct {
     sdkKey: string,
     options: CoproductInitializeOptions = {}
   ): Promise<CoproductClient> {
-    const cacheDir = options.cacheDir ?? RNFS.CachesDirectoryPath;
+    // The cache directory is platform-sandboxed and computed automatically.
+    // Customers do not pick cache locations, so no override is exposed.
+    const cacheDir = RNFS.CachesDirectoryPath;
     const transport = options.transport ?? mockTransport;
     const secureStore = options.secureStore ?? mockSecureStore;
     const nativeClient = await nativeInitialize(
