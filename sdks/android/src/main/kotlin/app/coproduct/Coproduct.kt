@@ -12,8 +12,8 @@ import uniffi.coproduct_ffi_uniffi.Subscription
 import uniffi.coproduct_ffi_uniffi.computeBucket as ffiComputeBucket
 import uniffi.coproduct_ffi_uniffi.initialize
 
-// SCAFFOLD-ONLY: replaced by real Transport wiring in M1.
-// M1 door: Coproduct.initialize(sdkKey, context, transport, secureStore) overload below.
+// Validation transport used by the current convenience initializer. The public
+// initializer shape below shows where host transport injection will connect.
 object MockTransport {
     var requestCount: Int = 0
         private set
@@ -36,7 +36,7 @@ object MockTransport {
     }
 }
 
-// SCAFFOLD-ONLY: replaced by real SecureStore wiring in M1.
+// Validation secure store used by the current convenience initializer.
 object MockSecureStore {
     var readCount: Int = 0
         private set
@@ -68,9 +68,8 @@ object MockSecureStore {
 }
 
 object Coproduct {
-    // M1 door (commented out so the scaffold still compiles against the mocks).
-    // M1 fills in the real Transport / SecureStore interfaces and removes the
-    // two-arg overload below in favor of this one.
+    // Future public initializer shape once host Transport / SecureStore
+    // interfaces are exposed by the Android wrapper.
     //
     // suspend fun initialize(
     //     sdkKey: String,
@@ -90,7 +89,8 @@ object Coproduct {
         return CoproductClient(nativeClient)
     }
 
-    // SCAFFOLD-ONLY: replaced by an internal bucketForVectors accessor in the production SDK.
+    // Temporary vector-test hook. Customer-facing bucket access, if added,
+    // belongs on flag evaluation details.
     fun computeBucket(ruleId: String, targetingKey: String, suffix: String): UInt {
         return ffiComputeBucket(ruleId, targetingKey, suffix)
     }
@@ -103,7 +103,8 @@ class CoproductClient internal constructor(
         return inner.getBool(key, defaultValue)
     }
 
-    // SCAFFOLD-ONLY: low-level callback API. The production SDK layers Coproduct.rememberFlag composable on top.
+    // Low-level observer hook used by current demos. Higher-level UI bindings can
+    // layer on top of this cancellation primitive.
     fun observe(
         key: String,
         @Suppress("UNUSED_PARAMETER") defaultValue: Boolean,
@@ -119,12 +120,13 @@ class CoproductClient internal constructor(
         return Cancellable(inner.observe(key, observer))
     }
 
-    // SCAFFOLD-ONLY: the Coproduct.snapshot accessor and the provider state machine replace this in the production SDK.
+    // Temporary cache-status probe used by validation apps.
     fun wasLoadedFromCache(): Boolean {
         return inner.wasLoadedFromCache()
     }
 
-    // SCAFFOLD-ONLY: real polling-driven snapshot updates plus the setOverride test API replace this in the production SDK.
+    // Temporary validation hook used until polling-driven snapshot updates are
+    // available.
     suspend fun simulateChange(key: String, newValue: Boolean) {
         inner.simulateChange(key, newValue)
     }

@@ -690,11 +690,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return InitError_Transport(dco_decode_String(raw[1]));
+        return InitError_InvalidKeyType(prefix: dco_decode_String(raw[1]));
       case 1:
-        return InitError_SecureStore(dco_decode_String(raw[1]));
+        return InitError_MalformedSdkKey(reason: dco_decode_String(raw[1]));
       case 2:
-        return InitError_Cache(dco_decode_String(raw[1]));
+        return InitError_MissingSdkKey();
+      case 3:
+        return InitError_InvalidConfig(
+          field: dco_decode_String(raw[1]),
+          reason: dco_decode_String(raw[2]),
+        );
+      case 4:
+        return InitError_UnsupportedSchemaVersion(
+          actual: dco_decode_u_32(raw[1]),
+          supported: dco_decode_u_32(raw[2]),
+        );
       default:
         throw Exception("unreachable");
     }
@@ -903,14 +913,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        var var_field0 = sse_decode_String(deserializer);
-        return InitError_Transport(var_field0);
+        var var_prefix = sse_decode_String(deserializer);
+        return InitError_InvalidKeyType(prefix: var_prefix);
       case 1:
-        var var_field0 = sse_decode_String(deserializer);
-        return InitError_SecureStore(var_field0);
+        var var_reason = sse_decode_String(deserializer);
+        return InitError_MalformedSdkKey(reason: var_reason);
       case 2:
-        var var_field0 = sse_decode_String(deserializer);
-        return InitError_Cache(var_field0);
+        return InitError_MissingSdkKey();
+      case 3:
+        var var_field = sse_decode_String(deserializer);
+        var var_reason = sse_decode_String(deserializer);
+        return InitError_InvalidConfig(field: var_field, reason: var_reason);
+      case 4:
+        var var_actual = sse_decode_u_32(deserializer);
+        var var_supported = sse_decode_u_32(deserializer);
+        return InitError_UnsupportedSchemaVersion(
+          actual: var_actual,
+          supported: var_supported,
+        );
       default:
         throw UnimplementedError('');
     }
@@ -1184,15 +1204,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_init_error(InitError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case InitError_Transport(field0: final field0):
+      case InitError_InvalidKeyType(prefix: final prefix):
         sse_encode_i_32(0, serializer);
-        sse_encode_String(field0, serializer);
-      case InitError_SecureStore(field0: final field0):
+        sse_encode_String(prefix, serializer);
+      case InitError_MalformedSdkKey(reason: final reason):
         sse_encode_i_32(1, serializer);
-        sse_encode_String(field0, serializer);
-      case InitError_Cache(field0: final field0):
+        sse_encode_String(reason, serializer);
+      case InitError_MissingSdkKey():
         sse_encode_i_32(2, serializer);
-        sse_encode_String(field0, serializer);
+      case InitError_InvalidConfig(field: final field, reason: final reason):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(field, serializer);
+        sse_encode_String(reason, serializer);
+      case InitError_UnsupportedSchemaVersion(
+        actual: final actual,
+        supported: final supported,
+      ):
+        sse_encode_i_32(4, serializer);
+        sse_encode_u_32(actual, serializer);
+        sse_encode_u_32(supported, serializer);
     }
   }
 

@@ -672,16 +672,31 @@ impl SseDecode for crate::api::InitError {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::api::InitError::Transport(var_field0);
+                let mut var_prefix = <String>::sse_decode(deserializer);
+                return crate::api::InitError::InvalidKeyType { prefix: var_prefix };
             }
             1 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::api::InitError::SecureStore(var_field0);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::api::InitError::MalformedSdkKey { reason: var_reason };
             }
             2 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::api::InitError::Cache(var_field0);
+                return crate::api::InitError::MissingSdkKey;
+            }
+            3 => {
+                let mut var_field = <String>::sse_decode(deserializer);
+                let mut var_reason = <String>::sse_decode(deserializer);
+                return crate::api::InitError::InvalidConfig {
+                    field: var_field,
+                    reason: var_reason,
+                };
+            }
+            4 => {
+                let mut var_actual = <u32>::sse_decode(deserializer);
+                let mut var_supported = <u32>::sse_decode(deserializer);
+                return crate::api::InitError::UnsupportedSchemaVersion {
+                    actual: var_actual,
+                    supported: var_supported,
+                };
             }
             _ => {
                 unimplemented!("");
@@ -918,15 +933,25 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::HttpResponse> for crate::api:
 impl flutter_rust_bridge::IntoDart for crate::api::InitError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::api::InitError::Transport(field0) => {
-                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            crate::api::InitError::InvalidKeyType { prefix } => {
+                [0.into_dart(), prefix.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::InitError::SecureStore(field0) => {
-                [1.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            crate::api::InitError::MalformedSdkKey { reason } => {
+                [1.into_dart(), reason.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::InitError::Cache(field0) => {
-                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
+            crate::api::InitError::MissingSdkKey => [2.into_dart()].into_dart(),
+            crate::api::InitError::InvalidConfig { field, reason } => [
+                3.into_dart(),
+                field.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::api::InitError::UnsupportedSchemaVersion { actual, supported } => [
+                4.into_dart(),
+                actual.into_into_dart().into_dart(),
+                supported.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -1065,17 +1090,26 @@ impl SseEncode for crate::api::InitError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::api::InitError::Transport(field0) => {
+            crate::api::InitError::InvalidKeyType { prefix } => {
                 <i32>::sse_encode(0, serializer);
-                <String>::sse_encode(field0, serializer);
+                <String>::sse_encode(prefix, serializer);
             }
-            crate::api::InitError::SecureStore(field0) => {
+            crate::api::InitError::MalformedSdkKey { reason } => {
                 <i32>::sse_encode(1, serializer);
-                <String>::sse_encode(field0, serializer);
+                <String>::sse_encode(reason, serializer);
             }
-            crate::api::InitError::Cache(field0) => {
+            crate::api::InitError::MissingSdkKey => {
                 <i32>::sse_encode(2, serializer);
-                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::InitError::InvalidConfig { field, reason } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(field, serializer);
+                <String>::sse_encode(reason, serializer);
+            }
+            crate::api::InitError::UnsupportedSchemaVersion { actual, supported } => {
+                <i32>::sse_encode(4, serializer);
+                <u32>::sse_encode(actual, serializer);
+                <u32>::sse_encode(supported, serializer);
             }
             _ => {
                 unimplemented!("");

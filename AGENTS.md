@@ -100,6 +100,30 @@ Documented per-platform deviations:
 - Run `cargo fmt --all` before claiming Rust work is complete.
 - Run `cargo build --workspace` and `cargo test -p coproduct-core` for core changes.
 
+## Public Source Hygiene
+
+This repository is public-facing. Code comments, doc comments, public API docs,
+commit messages intended for merge, and user-visible strings should describe
+product behavior and stable engineering rationale, not internal execution
+history.
+
+Avoid internal planning references such as checkpoint names, task numbers, plan
+labels, subagent notes, temporary implementation history, or phrases like "later
+task", "was placeholder", or "preserved from C1". If historical context is
+useful, rewrite it as stable technical rationale.
+
+Good examples:
+
+- "The schema-version fence parses only `schemaVersion` before full snapshot
+  deserialization."
+- "Unknown condition nodes preserve their wire tag for diagnostics."
+
+Avoid examples:
+
+- "Preserved from Checkpoint 1."
+- "Task 2.6 fills this in."
+- "Later checkpoints replace this."
+
 ## UniFFI Notes
 
 - Avoid FFI parameter names that are C/Swift keywords. In particular, do not use `default`. Use `default_value`.

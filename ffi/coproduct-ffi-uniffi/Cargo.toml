@@ -12,8 +12,18 @@ crate-type = ["lib", "cdylib", "staticlib"]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
+[[test]]
+name = "foreign_async_smoke"
+required-features = ["test-helpers"]
+
+[features]
+test-helpers = []
+
 [dependencies]
 async-trait.workspace = true
 coproduct-core = { path = "../../core/coproduct-core" }
 thiserror.workspace = true
 uniffi.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }

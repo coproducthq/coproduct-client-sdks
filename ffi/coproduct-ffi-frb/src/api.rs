@@ -36,12 +36,31 @@ pub struct HttpResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum InitError {
-    #[error("transport handshake failed: {0}")]
-    Transport(String),
-    #[error("secure store handshake failed: {0}")]
-    SecureStore(String),
-    #[error("cache I/O failed: {0}")]
-    Cache(String),
+    #[error("invalid SDK key type: expected cpk_mob_, got {prefix}")]
+    InvalidKeyType { prefix: String },
+    #[error("malformed SDK key: {reason}")]
+    MalformedSdkKey { reason: String },
+    #[error("missing SDK key")]
+    MissingSdkKey,
+    #[error("invalid config: field `{field}` {reason}")]
+    InvalidConfig { field: String, reason: String },
+    #[error("unsupported schema version: snapshot is {actual}, SDK supports {supported}")]
+    UnsupportedSchemaVersion { actual: u32, supported: u32 },
+}
+
+impl From<coproduct_core::error::InitError> for InitError {
+    fn from(err: coproduct_core::error::InitError) -> Self {
+        use coproduct_core::error::InitError as C;
+        match err {
+            C::InvalidKeyType { prefix } => Self::InvalidKeyType { prefix },
+            C::MalformedSdkKey { reason } => Self::MalformedSdkKey { reason },
+            C::MissingSdkKey => Self::MissingSdkKey,
+            C::InvalidConfig { field, reason } => Self::InvalidConfig { field, reason },
+            C::UnsupportedSchemaVersion { actual, supported } => {
+                Self::UnsupportedSchemaVersion { actual, supported }
+            }
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -89,7 +108,7 @@ pub async fn initialize(
     });
     let inner = CoreCoproductClient::initialize(sdk_key, cache_dir, transport, secure_store)
         .await
-        .map_err(to_ffi_init_error)?;
+        .map_err(InitError::from)?;
 
     Ok(CoproductClientHandle { inner })
 }
@@ -166,7 +185,9 @@ impl core_transport::Transport for TransportAdapter {
     ) -> Result<core_transport::HttpResponse, core_transport::TransportError> {
         let response = (self.request)(from_core_request(req))
             .await
-            .map_err(|error| core_transport::TransportError::Other(error.to_string()))?;
+            .map_err(|error| core_transport::TransportError::Other {
+                message: error.to_string(),
+            })?;
 
         Ok(to_core_response(response))
     }
@@ -180,7 +201,7 @@ impl core_secure_store::SecureStore for SecureStoreAdapter {
     ) -> Result<Option<String>, core_secure_store::SecureStoreError> {
         (self.read)(key)
             .await
-            .map_err(|error| core_secure_store::SecureStoreError::Other(error.to_string()))
+            .map_err(|_error| core_secure_store::SecureStoreError::ReadFailed)
     }
 
     async fn write(
@@ -190,7 +211,7 @@ impl core_secure_store::SecureStore for SecureStoreAdapter {
     ) -> Result<(), core_secure_store::SecureStoreError> {
         (self.write)(key, value)
             .await
-            .map_err(|error| core_secure_store::SecureStoreError::Other(error.to_string()))
+            .map_err(|_error| core_secure_store::SecureStoreError::WriteFailed)
     }
 }
 
@@ -237,13 +258,5 @@ fn to_core_header(header: HttpHeader) -> core_transport::HttpHeader {
     core_transport::HttpHeader {
         name: header.name,
         value: header.value,
-    }
-}
-
-fn to_ffi_init_error(error: coproduct_core::client::InitError) -> InitError {
-    match error {
-        coproduct_core::client::InitError::Transport(message) => InitError::Transport(message),
-        coproduct_core::client::InitError::SecureStore(message) => InitError::SecureStore(message),
-        coproduct_core::client::InitError::Cache(message) => InitError::Cache(message),
     }
 }

@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `to_core_header`, `to_core_response`, `to_ffi_init_error`
+// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `to_core_header`, `to_core_response`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ObserverAdapter`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `on_change_bool`, `read`, `request`, `write`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `on_change_bool`, `read`, `request`, `write`
 
 Future<CoproductClientHandle> initialize({
   required String sdkKey,
@@ -151,7 +151,17 @@ class HttpResponse {
 sealed class InitError with _$InitError implements FrbException {
   const InitError._();
 
-  const factory InitError.transport(String field0) = InitError_Transport;
-  const factory InitError.secureStore(String field0) = InitError_SecureStore;
-  const factory InitError.cache(String field0) = InitError_Cache;
+  const factory InitError.invalidKeyType({required String prefix}) =
+      InitError_InvalidKeyType;
+  const factory InitError.malformedSdkKey({required String reason}) =
+      InitError_MalformedSdkKey;
+  const factory InitError.missingSdkKey() = InitError_MissingSdkKey;
+  const factory InitError.invalidConfig({
+    required String field,
+    required String reason,
+  }) = InitError_InvalidConfig;
+  const factory InitError.unsupportedSchemaVersion({
+    required int actual,
+    required int supported,
+  }) = InitError_UnsupportedSchemaVersion;
 }

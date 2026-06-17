@@ -9,7 +9,9 @@ fn final_path(cache_dir: &str) -> PathBuf {
 }
 
 fn temp_path(cache_dir: &str) -> PathBuf {
-    [cache_dir, "coproduct", "snapshot.json.tmp"].iter().collect()
+    [cache_dir, "coproduct", "snapshot.json.tmp"]
+        .iter()
+        .collect()
 }
 
 #[test]
@@ -22,8 +24,14 @@ fn write_snapshot_uses_tmp_plus_rename() {
 
     // After write_snapshot returns, the temp file should NOT exist
     // and the final snapshot.json should contain our bytes.
-    assert!(final_path(&cache_dir).exists(), "final snapshot.json missing");
-    assert!(!temp_path(&cache_dir).exists(), "temp file should have been renamed away");
+    assert!(
+        final_path(&cache_dir).exists(),
+        "final snapshot.json missing"
+    );
+    assert!(
+        !temp_path(&cache_dir).exists(),
+        "temp file should have been renamed away"
+    );
 
     let read_back = fs::read(final_path(&cache_dir)).unwrap();
     assert_eq!(read_back, bytes);
@@ -43,12 +51,23 @@ fn stale_tmp_file_does_not_corrupt_live_snapshot() {
     // The live snapshot.json must be unchanged.
     fs::write(temp_path(&cache_dir), b"PARTIAL_GARBAGE_NEVER_FINISHED").unwrap();
     let read_back = fs::read(final_path(&cache_dir)).unwrap();
-    assert_eq!(read_back.as_slice(), original, "live snapshot must survive a stray tmp file");
+    assert_eq!(
+        read_back.as_slice(),
+        original,
+        "live snapshot must survive a stray tmp file"
+    );
 
     // Now do a real write_snapshot. It overwrites the original cleanly
     // and the stale tmp file is gone (the rename consumed our planted tmp).
     write_snapshot(&cache_dir, replacement).unwrap();
     let after_write = fs::read(final_path(&cache_dir)).unwrap();
-    assert_eq!(after_write.as_slice(), replacement, "second write replaces the snapshot");
-    assert!(!temp_path(&cache_dir).exists(), "second write removes the stale tmp file");
+    assert_eq!(
+        after_write.as_slice(),
+        replacement,
+        "second write replaces the snapshot"
+    );
+    assert!(
+        !temp_path(&cache_dir).exists(),
+        "second write removes the stale tmp file"
+    );
 }

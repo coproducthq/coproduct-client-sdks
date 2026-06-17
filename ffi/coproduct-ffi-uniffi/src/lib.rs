@@ -36,30 +36,85 @@ pub struct HttpResponse {
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum InitError {
-    #[error("transport handshake failed: {0}")]
-    Transport(String),
-    #[error("secure store handshake failed: {0}")]
-    SecureStore(String),
-    #[error("cache I/O failed: {0}")]
-    Cache(String),
+    #[error("invalid SDK key type: expected cpk_mob_, got {prefix}")]
+    InvalidKeyType { prefix: String },
+    #[error("malformed SDK key: {reason}")]
+    MalformedSdkKey { reason: String },
+    #[error("missing SDK key")]
+    MissingSdkKey,
+    #[error("invalid config: field `{field}` {reason}")]
+    InvalidConfig { field: String, reason: String },
+    #[error("unsupported schema version: snapshot is {actual}, SDK supports {supported}")]
+    UnsupportedSchemaVersion { actual: u32, supported: u32 },
+}
+
+impl From<coproduct_core::error::InitError> for InitError {
+    fn from(err: coproduct_core::error::InitError) -> Self {
+        use coproduct_core::error::InitError as C;
+        match err {
+            C::InvalidKeyType { prefix } => Self::InvalidKeyType { prefix },
+            C::MalformedSdkKey { reason } => Self::MalformedSdkKey { reason },
+            C::MissingSdkKey => Self::MissingSdkKey,
+            C::InvalidConfig { field, reason } => Self::InvalidConfig { field, reason },
+            C::UnsupportedSchemaVersion { actual, supported } => {
+                Self::UnsupportedSchemaVersion { actual, supported }
+            }
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum TransportError {
-    #[error("network: {0}")]
-    Network(String),
-    #[error("timeout")]
+    #[error("transport timeout")]
     Timeout,
-    #[error("other: {0}")]
-    Other(String),
+    #[error("network unreachable")]
+    NetworkUnreachable,
+    #[error("unauthorized")]
+    Unauthorized,
+    #[error("server error: status {status}")]
+    ServerError { status: u16 },
+    #[error("malformed response body")]
+    MalformedResponse,
+    #[error("transport error: {message}")]
+    Other { message: String },
+}
+
+impl From<coproduct_core::error::TransportError> for TransportError {
+    fn from(err: coproduct_core::error::TransportError) -> Self {
+        use coproduct_core::error::TransportError as C;
+        match err {
+            C::Timeout => Self::Timeout,
+            C::NetworkUnreachable => Self::NetworkUnreachable,
+            C::Unauthorized => Self::Unauthorized,
+            C::ServerError { status } => Self::ServerError { status },
+            C::MalformedResponse => Self::MalformedResponse,
+            C::Other { message } => Self::Other { message },
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum SecureStoreError {
-    #[error("unavailable: {0}")]
-    Unavailable(String),
-    #[error("other: {0}")]
-    Other(String),
+    #[error("secure store unavailable")]
+    Unavailable,
+    #[error("secure store corrupted")]
+    Corrupted,
+    #[error("secure store write failed")]
+    WriteFailed,
+    #[error("secure store read failed")]
+    ReadFailed,
+}
+
+impl From<coproduct_core::error::SecureStoreError> for SecureStoreError {
+    fn from(err: coproduct_core::error::SecureStoreError) -> Self {
+        use coproduct_core::error::SecureStoreError as C;
+        match err {
+            C::Unavailable => Self::Unavailable,
+            C::Corrupted => Self::Corrupted,
+            C::WriteFailed => Self::WriteFailed,
+            C::ReadFailed => Self::ReadFailed,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -70,13 +125,15 @@ pub enum ObserverError {
 
 impl From<uniffi::UnexpectedUniFFICallbackError> for TransportError {
     fn from(error: uniffi::UnexpectedUniFFICallbackError) -> Self {
-        Self::Other(format!("{error:?}"))
+        Self::Other {
+            message: format!("{error:?}"),
+        }
     }
 }
 
 impl From<uniffi::UnexpectedUniFFICallbackError> for SecureStoreError {
-    fn from(error: uniffi::UnexpectedUniFFICallbackError) -> Self {
-        Self::Other(format!("{error:?}"))
+    fn from(_: uniffi::UnexpectedUniFFICallbackError) -> Self {
+        Self::Unavailable
     }
 }
 
@@ -127,7 +184,7 @@ pub async fn initialize(
     let secure_store = Arc::new(SecureStoreAdapter { host: secure_store });
     let inner = CoreCoproductClient::initialize(sdk_key, cache_dir, transport, secure_store)
         .await
-        .map_err(to_ffi_init_error)?;
+        .map_err(InitError::from)?;
 
     Ok(Arc::new(CoproductClient { inner }))
 }
@@ -263,25 +320,83 @@ fn to_core_header(header: HttpHeader) -> core_transport::HttpHeader {
 
 fn to_core_transport_error(error: TransportError) -> core_transport::TransportError {
     match error {
-        TransportError::Network(message) => core_transport::TransportError::Network(message),
         TransportError::Timeout => core_transport::TransportError::Timeout,
-        TransportError::Other(message) => core_transport::TransportError::Other(message),
+        TransportError::NetworkUnreachable => core_transport::TransportError::NetworkUnreachable,
+        TransportError::Unauthorized => core_transport::TransportError::Unauthorized,
+        TransportError::ServerError { status } => {
+            core_transport::TransportError::ServerError { status }
+        }
+        TransportError::MalformedResponse => core_transport::TransportError::MalformedResponse,
+        TransportError::Other { message } => core_transport::TransportError::Other { message },
     }
 }
 
 fn to_core_secure_store_error(error: SecureStoreError) -> core_secure_store::SecureStoreError {
     match error {
-        SecureStoreError::Unavailable(message) => {
-            core_secure_store::SecureStoreError::Unavailable(message)
-        }
-        SecureStoreError::Other(message) => core_secure_store::SecureStoreError::Other(message),
+        SecureStoreError::Unavailable => core_secure_store::SecureStoreError::Unavailable,
+        SecureStoreError::Corrupted => core_secure_store::SecureStoreError::Corrupted,
+        SecureStoreError::WriteFailed => core_secure_store::SecureStoreError::WriteFailed,
+        SecureStoreError::ReadFailed => core_secure_store::SecureStoreError::ReadFailed,
     }
 }
 
-fn to_ffi_init_error(error: coproduct_core::client::InitError) -> InitError {
-    match error {
-        coproduct_core::client::InitError::Transport(message) => InitError::Transport(message),
-        coproduct_core::client::InitError::SecureStore(message) => InitError::SecureStore(message),
-        coproduct_core::client::InitError::Cache(message) => InitError::Cache(message),
+#[cfg(any(test, feature = "test-helpers"))]
+pub mod test_helpers {
+    use crate::{HostSecureStore, HostTransport, HttpMethod, HttpRequest, HttpResponse};
+    use std::sync::Arc;
+
+    #[derive(Debug)]
+    pub struct NoopTransport;
+
+    #[async_trait::async_trait]
+    impl HostTransport for NoopTransport {
+        async fn request(&self, _req: HttpRequest) -> Result<HttpResponse, crate::TransportError> {
+            Ok(HttpResponse {
+                status: 200,
+                headers: vec![],
+                body: Vec::new(),
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct NoopSecureStore;
+
+    #[async_trait::async_trait]
+    impl HostSecureStore for NoopSecureStore {
+        async fn read(&self, _key: String) -> Result<Option<String>, crate::SecureStoreError> {
+            Ok(None)
+        }
+        async fn write(&self, _key: String, _value: String) -> Result<(), crate::SecureStoreError> {
+            Ok(())
+        }
+    }
+
+    /// Exercise one round-trip through each async trait. The Rust Noop
+    /// implementations run inline here. The Swift smoke (`AsyncSmoke.swift`)
+    /// proves the same traits can be satisfied from Swift instead
+    pub async fn run_async_round_trip(
+        transport: Arc<dyn HostTransport>,
+        secure_store: Arc<dyn HostSecureStore>,
+    ) -> Result<(), String> {
+        let request = HttpRequest {
+            method: HttpMethod::Get,
+            url: "https://sdk.coproduct.app/v1/health".to_string(),
+            headers: vec![],
+            body: None,
+        };
+        transport
+            .request(request)
+            .await
+            .map_err(|e| e.to_string())?;
+        secure_store
+            .write("identity".to_string(), "test-user".to_string())
+            .await
+            .map_err(|e| e.to_string())?;
+        secure_store
+            .read("identity".to_string())
+            .await
+            .map_err(|e| e.to_string())?;
+        Ok(())
     }
 }

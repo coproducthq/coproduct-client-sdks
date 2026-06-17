@@ -1,1 +1,1 @@
-// Stub. Real implementation lands in a future release.
+// Identity state management is added with the identity implementation.

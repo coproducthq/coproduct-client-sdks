@@ -1,9 +1,11 @@
 pub mod bucketing;
 pub mod cache;
 pub mod client;
+pub mod config;
 pub mod error;
 pub mod eval;
 pub mod identity;
+pub mod logger;
 pub mod observer;
 pub mod secure_store;
 pub mod snapshot;

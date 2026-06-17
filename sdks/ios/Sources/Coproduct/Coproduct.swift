@@ -1,9 +1,8 @@
 import Foundation
 
 public enum Coproduct {
-    // M1 door (commented out so the scaffold still compiles against the mocks).
-    // M1 fills in the real Transport / SecureStore protocols and removes the
-    // single-arg overload below in favor of this one.
+    // Future public initializer shape once host Transport / SecureStore
+    // protocols are exposed by the Swift wrapper.
     //
     // public static func initialize(
     //     sdkKey: String,
@@ -25,7 +24,8 @@ public enum Coproduct {
         )
     }
 
-    // SCAFFOLD-ONLY: replaced by an internal bucketForVectors accessor in the production SDK. Customer-facing bucket access, if added, lands as bucket: Int? on FlagEvaluationDetails.
+    // Temporary vector-test hook. Customer-facing bucket access, if added,
+    // belongs on FlagEvaluationDetails.
     public static func computeBucket(
         ruleId: String,
         targetingKey: String,
@@ -66,7 +66,8 @@ public extension CoproductClient {
         getBool(key: key, defaultValue: defaultValue)
     }
 
-    // SCAFFOLD-ONLY: low-level callback API. The production SDK layers @CoproductFlag property wrapper on top.
+    // Low-level observer hook used by current demos. Higher-level Swift bindings
+    // can layer on top of this cancellation primitive.
     func observe(
         _ key: String,
         default _: Bool,
@@ -78,8 +79,8 @@ public extension CoproductClient {
     }
 }
 
-// SCAFFOLD-ONLY: replaced by real Transport wiring in M1.
-// M1 door: `Coproduct.initialize(sdkKey:transport:secureStore:)` overload below.
+// Validation transport used by the current convenience initializer. The public
+// initializer shape above shows where host transport injection will connect.
 public final class MockTransport: HostTransport, @unchecked Sendable {
     nonisolated(unsafe) public private(set) static var requestCount = 0
 
@@ -91,7 +92,7 @@ public final class MockTransport: HostTransport, @unchecked Sendable {
     }
 }
 
-// SCAFFOLD-ONLY: replaced by real SecureStore wiring in M1.
+// Validation secure store used by the current convenience initializer.
 public final class MockSecureStore: HostSecureStore, @unchecked Sendable {
     nonisolated(unsafe) public private(set) static var readCount = 0
     nonisolated(unsafe) public private(set) static var writeCount = 0

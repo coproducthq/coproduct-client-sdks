@@ -11,11 +11,11 @@ import 'src/rust/frb_generated.dart';
 
 export 'src/rust/api.dart' show HttpRequest, HttpResponse, HttpHeader, HttpMethod;
 
-/// Scaffold mock Transport. Counts calls so the demo can prove Rust invoked
-/// the Dart-hosted capability. Returns a stub 200 with an empty JSON body.
+/// Validation transport. Counts calls so demos can prove Rust invoked the
+/// Dart-hosted capability. Returns a 200 with an empty JSON body.
 ///
-/// SCAFFOLD-ONLY: replaced by real Transport wiring in M1.
-/// M1 door: Coproduct.initialize(sdkKey: ..., transport: ..., secureStore: ...) overload.
+/// The public initializer shape below shows where host transport injection will
+/// connect.
 class MockTransport {
   int requestCount = 0;
 
@@ -35,9 +35,7 @@ class MockTransport {
   }
 }
 
-/// Scaffold mock SecureStore. Identity-only: write then read back, no delete.
-///
-/// SCAFFOLD-ONLY: replaced by real SecureStore wiring in M1.
+/// Validation secure store. Identity-only: write then read back, no delete.
 class MockSecureStore {
   int readCount = 0;
   int writeCount = 0;
@@ -66,7 +64,7 @@ class MockSecureStore {
 final mockTransport = MockTransport();
 final mockSecureStore = MockSecureStore();
 
-/// Handle to a live observer registration. M1 makes this a real cancellation.
+/// Handle to a live observer registration.
 class Cancellable {
   Cancellable(this._subscription);
 
@@ -83,10 +81,10 @@ class CoproductClient {
   bool getBool(String key, bool defaultValue) =>
       frb.getBool(client: _handle, key: key, defaultValue: defaultValue);
 
-  /// SCAFFOLD-ONLY: the Coproduct.snapshot accessor and the provider state machine replace this in the production SDK.
+  /// Temporary cache-status probe used by validation apps.
   bool wasLoadedFromCache() => frb.wasLoadedFromCache(client: _handle);
 
-  /// SCAFFOLD-ONLY: low-level callback API. The production SDK returns `ValueListenable<T>`.
+  /// Low-level observer hook used by current demos.
   Future<Cancellable> observe(
     String key,
     bool defaultValue,
@@ -100,7 +98,8 @@ class CoproductClient {
     return Cancellable(subscription);
   }
 
-  /// SCAFFOLD-ONLY: real polling-driven snapshot updates plus the setOverride test API replace this in the production SDK.
+  /// Temporary validation hook used until polling-driven snapshot updates are
+  /// available.
   Future<void> simulateChange(String key, bool newValue) =>
       frb.simulateChange(client: _handle, key: key, newValue: newValue);
 }
@@ -108,9 +107,8 @@ class CoproductClient {
 class Coproduct {
   static bool _rustInitialized = false;
 
-  // M1 door (commented out so the scaffold still compiles against the mocks).
-  // M1 fills in the real Transport / SecureStore interfaces and removes the
-  // single-arg overload below in favor of this one.
+  // Future public initializer shape once host Transport / SecureStore
+  // interfaces are exposed by the Flutter wrapper.
   //
   // static Future<CoproductClient> initialize({
   //   required String sdkKey,
@@ -119,7 +117,7 @@ class Coproduct {
   // }) async { ... }
 
   static Future<CoproductClient> initialize({required String sdkKey}) async {
-    // Reset scaffold mocks so a hot-restart or repeated initialize re-runs the
+    // Reset validation mocks so a hot-restart or repeated initialize re-runs the
     // handshake from a clean slate. The integration test asserts requestCount
     // is exactly 1 after initialize returns, which would fail without this.
     mockTransport.reset();
@@ -150,7 +148,8 @@ class Coproduct {
     return CoproductClient(handle);
   }
 
-  /// SCAFFOLD-ONLY: replaced by an internal bucketForVectors in lib/src/internal.dart in the production SDK.
+  /// Temporary vector-test hook. Customer-facing bucket access, if added,
+  /// belongs on flag evaluation details.
   static int computeBucket({
     required String ruleId,
     required String targetingKey,
