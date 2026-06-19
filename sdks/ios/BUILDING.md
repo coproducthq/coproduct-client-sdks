@@ -2,6 +2,11 @@
 
 This package consumes the UniFFI static library through `CoproductFFI.xcframework`.
 
+The fastest path is `scripts/package/ios-build-xcframework.sh` from the repository
+root, which runs every step below in one shot. The source-linked iOS demo build
+invokes it automatically. The manual commands here are for debugging an
+individual stage.
+
 From the repository root:
 
 ```bash

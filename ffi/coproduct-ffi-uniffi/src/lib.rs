@@ -192,10 +192,182 @@ pub async fn initialize(
     Ok(Arc::new(CoproductClient { inner }))
 }
 
+/// FFI mirror of the core details payload. UniFFI cannot express generics, so
+/// there is one record per value type. `reason` and `error_code` are the wire
+/// strings. The JSON record ships its value as a JSON-encoded string because
+/// UniFFI has no native JSON type
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsBool {
+    pub value: bool,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsString {
+    pub value: String,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsInt {
+    pub value: i64,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsNumber {
+    pub value: f64,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsJson {
+    pub value_json: String,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+fn details_bool_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<bool>,
+) -> FlagEvaluationDetailsBool {
+    FlagEvaluationDetailsBool {
+        value: d.value,
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
+fn details_string_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<String>,
+) -> FlagEvaluationDetailsString {
+    FlagEvaluationDetailsString {
+        value: d.value,
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
+fn details_int_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<i64>,
+) -> FlagEvaluationDetailsInt {
+    FlagEvaluationDetailsInt {
+        value: d.value,
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
+fn details_number_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<f64>,
+) -> FlagEvaluationDetailsNumber {
+    FlagEvaluationDetailsNumber {
+        value: d.value,
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
+fn details_json_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<serde_json::Value>,
+) -> FlagEvaluationDetailsJson {
+    FlagEvaluationDetailsJson {
+        value_json: d.value.to_string(),
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
 #[uniffi::export]
 impl CoproductClient {
     pub fn get_bool(&self, key: String, default_value: bool) -> bool {
         self.inner.get_bool(key, default_value)
+    }
+
+    pub fn get_string(&self, key: String, default_value: String) -> String {
+        self.inner.get_string(key, default_value)
+    }
+
+    pub fn get_int(&self, key: String, default_value: i64) -> i64 {
+        self.inner.get_int(key, default_value)
+    }
+
+    pub fn get_number(&self, key: String, default_value: f64) -> f64 {
+        self.inner.get_number(key, default_value)
+    }
+
+    /// Returns the JSON flag value as a JSON-encoded string. The platform
+    /// wrappers decode it into the native type. `default_value_json` is the
+    /// customer's JSON-encoded default, where `"null"` is a valid fallback
+    pub fn get_json(&self, key: String, default_value_json: String) -> String {
+        let default = serde_json::from_str(&default_value_json).unwrap_or(serde_json::Value::Null);
+        self.inner.get_json(key, default).to_string()
+    }
+
+    pub fn get_bool_details(&self, key: String, default_value: bool) -> FlagEvaluationDetailsBool {
+        details_bool_to_ffi(self.inner.get_bool_details(key, default_value))
+    }
+
+    pub fn get_string_details(
+        &self,
+        key: String,
+        default_value: String,
+    ) -> FlagEvaluationDetailsString {
+        details_string_to_ffi(self.inner.get_string_details(key, default_value))
+    }
+
+    pub fn get_int_details(&self, key: String, default_value: i64) -> FlagEvaluationDetailsInt {
+        details_int_to_ffi(self.inner.get_int_details(key, default_value))
+    }
+
+    pub fn get_number_details(
+        &self,
+        key: String,
+        default_value: f64,
+    ) -> FlagEvaluationDetailsNumber {
+        details_number_to_ffi(self.inner.get_number_details(key, default_value))
+    }
+
+    pub fn get_json_details(
+        &self,
+        key: String,
+        default_value_json: String,
+    ) -> FlagEvaluationDetailsJson {
+        let default = serde_json::from_str(&default_value_json).unwrap_or(serde_json::Value::Null);
+        details_json_to_ffi(self.inner.get_json_details(key, default))
     }
 
     pub fn observe(&self, key: String, observer: Arc<dyn FlagObserver>) -> Arc<Subscription> {

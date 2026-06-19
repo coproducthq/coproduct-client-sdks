@@ -1,0 +1,3 @@
+# UniFFI-generated Swift bindings and C headers. They are tool output, so do not
+# flag their trailing whitespace and collapse them in diffs.
+sdks/ios/Sources/Coproduct/Generated/** -whitespace linguist-generated

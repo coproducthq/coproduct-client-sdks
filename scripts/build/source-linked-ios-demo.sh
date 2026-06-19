@@ -12,7 +12,10 @@ set -euo pipefail
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$SCAFFOLD_ROOT"
 
-# Build the xcframework first so the SwiftPM package has the binary it depends on.
+# Rebuild the xcframework from the current Rust FFI surface so the SwiftPM
+# package links against bindings and headers that match the live symbols, then
+# archive it. ios-spm-binary.sh only archives, it does not build.
+./scripts/package/ios-build-xcframework.sh
 ./scripts/package/ios-spm-binary.sh
 
 # Build the demo via xcodebuild against the generic iOS Simulator destination.

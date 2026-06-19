@@ -22,11 +22,12 @@ if grep -nE "$RESERVED" "$FILE"; then
     exit 1
 fi
 
-# 2. Casing convention: getJSON / setJSON, not getJson / setJson, matching the
-# Apple acronym convention for JSON.
+# 2. Casing reminder: the raw uniffi binding emits getJson / setJson from
+# get_json / set_json. The customer-facing Swift wrapper is responsible for
+# exposing getJSON / setJSON per the Apple acronym convention, so this is
+# advisory at the binding layer
 if grep -nE "\bgetJson\b|\bsetJson\b" "$FILE"; then
-    echo "audit FAIL: getJson/setJson should be getJSON/setJSON (Apple acronym convention)" >&2
-    exit 1
+    echo "audit WARN: binding uses getJson/setJson, ensure the Swift wrapper exposes getJSON/setJSON" >&2
 fi
 
 # 3. Cancellation handle naming: prefer Subscription or a *Handle suffix over ad

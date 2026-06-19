@@ -57,9 +57,10 @@ Two linkage models, named explicitly:
 
 ### Supporting packaging scripts
 
-The iOS scripts depend on two packaging scripts that can also be run on their own:
+The iOS scripts depend on these packaging scripts that can also be run on their own:
 
-- `./scripts/package/ios-spm-binary.sh` — builds just the `CoproductFFI.xcframework` from Rust source. Use when any SwiftPM consumer needs a fresh xcframework.
+- `./scripts/package/ios-build-xcframework.sh` — builds `CoproductFFI.xcframework` from Rust source: the three iOS triples, regenerated Swift bindings and C header, a lipo of the two simulator slices, then `xcodebuild -create-xcframework`. Run it whenever the Rust FFI surface changes so any SwiftPM consumer links against an xcframework that matches the live symbols. `source-linked-ios-demo.sh` runs it automatically.
+- `./scripts/package/ios-spm-binary.sh` — archives the existing `CoproductFFI.xcframework` into a SwiftPM zip plus checksum under `build/ios-spm/`. It does not build the xcframework, so build it first.
 - `./scripts/package/ios-spm-fixture.sh` — packages the full SwiftPM fixture (zip + checksum) that the iOS consumer-test consumes via `file:`. Invokes the binary script internally.
 
 ## Manual build commands
@@ -71,7 +72,7 @@ The scripts above wrap these commands. Use them directly when you need partial s
 iOS native demo:
 
 ```bash
-./scripts/package/ios-spm-binary.sh
+./scripts/package/ios-build-xcframework.sh
 cd examples/ios-demo
 xcodebuild -scheme ios-demo -destination 'generic/platform=iOS Simulator' build
 ```
@@ -150,7 +151,7 @@ Every gitignored directory is a regenerable cache or build output. None of these
 | `**/.dart_tool/` (Dart analyzer and build cache) | automatic on `flutter pub get` | seconds |
 | `**/node_modules/` (npm / yarn install output) | `rm -rf node_modules && yarn install` | 30s-2 min per dir |
 | `**/Pods/` (CocoaPods install output) | `cd <ios dir> && pod install` | 1-3 min per dir |
-| `sdks/ios/CoproductFFI.xcframework/` (Rust to iOS binary) | `scripts/package/ios-spm-binary.sh` | ~30s |
+| `sdks/ios/CoproductFFI.xcframework/` (Rust to iOS binary) | `scripts/package/ios-build-xcframework.sh` | ~1-2 min |
 | `build/ios-spm/` (SwiftPM fixture build output) | `scripts/package/ios-spm-fixture.sh` | ~30s |
 
 Worst-case full-cold rebuild after deleting all 25+ GB is roughly 15-25 minutes assuming dependency downloads succeed.

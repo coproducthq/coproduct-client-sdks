@@ -4,6 +4,7 @@ pub mod client;
 pub mod condition;
 pub mod config;
 pub mod context;
+pub mod details;
 pub mod error;
 pub mod eval;
 pub mod hooks;

@@ -30,7 +30,7 @@ Every SDK surface has a build script under `scripts/build/`. Use these rather th
 | Flutter (iOS) | `scripts/build/source-linked-flutter-demo-ios.sh` | `scripts/build/artifact-linked-flutter-consumer-test-ios.sh` |
 | Flutter (Android) | `scripts/build/source-linked-flutter-demo-android.sh` | `scripts/build/artifact-linked-flutter-consumer-test-android.sh` |
 
-Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set. iOS-touching scripts require Xcode and CocoaPods on PATH. Supporting packaging scripts live under `scripts/package/` (e.g. `ios-spm-binary.sh`, `ios-spm-fixture.sh`).
+Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set. iOS-touching scripts require Xcode and CocoaPods on PATH. Supporting packaging scripts live under `scripts/package/` (`ios-build-xcframework.sh` rebuilds `CoproductFFI.xcframework` from Rust source, `ios-spm-binary.sh` archives it, `ios-spm-fixture.sh` packages the consumer-test fixture). When a change alters the UniFFI-exposed surface, rebuild the xcframework (the source-linked iOS build does this automatically) so the iOS bindings link against the live symbols.
 
 `DEVELOPMENT.md` documents the underlying manual commands for stage-by-stage debugging.
 

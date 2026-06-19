@@ -402,6 +402,7 @@ version = "0.0.1"
 dependencies = [
  "async-trait",
  "coproduct-core",
+ "serde_json",
  "thiserror",
  "tokio",
  "uniffi",
