@@ -3,14 +3,20 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use crate::context::EvaluationContext;
 use crate::error::InitError;
+use crate::hooks::HookRegistry;
 use crate::observer::{FlagObserver, Subscription};
+use crate::pipeline::{EvaluationReason, RequestedType, evaluate};
 use crate::secure_store::SecureStore;
+use crate::snapshot::{IndexedSnapshot, VariationValue};
 use crate::transport::{HttpHeader, HttpMethod, HttpRequest, Transport};
 
 pub struct CoproductClient {
     observers: Mutex<HashMap<String, Vec<Arc<dyn FlagObserver>>>>,
     loaded_from_cache: bool,
+    snapshot: Arc<Mutex<Option<Arc<IndexedSnapshot>>>>,
+    hooks: HookRegistry,
 }
 
 impl CoproductClient {
@@ -77,6 +83,8 @@ impl CoproductClient {
         Ok(Arc::new(CoproductClient {
             observers: Mutex::new(HashMap::new()),
             loaded_from_cache,
+            snapshot: Arc::new(Mutex::new(None)),
+            hooks: HookRegistry::default(),
         }))
     }
 
@@ -103,6 +111,78 @@ impl CoproductClient {
 
         for observer in observers {
             let _ = observer.on_change_bool(new_value).await;
+        }
+    }
+}
+
+/// Internal pipeline output carrying the pipeline's `EvaluationReason`. Used for
+/// white-box pipeline testing. The customer-facing typed-detail surface is built
+/// on top of this later
+#[derive(Debug, Clone)]
+pub struct EvaluationOutcome<T> {
+    pub value: T,
+    pub variant: Option<String>,
+    pub reason: EvaluationReason,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+impl CoproductClient {
+    /// Construct a client around a populated snapshot without going through
+    /// initialize. Used by unit tests that exercise the pipeline end to end
+    pub fn for_testing(snapshot: IndexedSnapshot) -> Arc<Self> {
+        Arc::new(CoproductClient {
+            observers: Mutex::new(HashMap::new()),
+            loaded_from_cache: false,
+            snapshot: Arc::new(Mutex::new(Some(Arc::new(snapshot)))),
+            hooks: HookRegistry::default(),
+        })
+    }
+
+    /// Internal pipeline-testing entry point returning the bool outcome with the
+    /// pipeline's `EvaluationReason`. Not exported over the FFI boundary
+    pub fn evaluate_bool_outcome(
+        &self,
+        flag_key: &str,
+        default_value: bool,
+        ctx: &EvaluationContext,
+    ) -> EvaluationOutcome<bool> {
+        let snapshot_guard = self.snapshot.lock();
+        let snapshot_ref = snapshot_guard.as_ref().map(|s| s.as_ref());
+        let pipeline_outcome = evaluate(
+            snapshot_ref,
+            flag_key,
+            RequestedType::Bool,
+            ctx,
+            &self.hooks,
+        );
+
+        let value = pipeline_outcome
+            .variation_key
+            .as_ref()
+            .and_then(|v| {
+                snapshot_guard
+                    .as_ref()?
+                    .flags
+                    .get(flag_key)?
+                    .variations
+                    .iter()
+                    .find(|var| &var.key == v)
+                    .and_then(|var| match &var.value {
+                        VariationValue::Bool(b) => Some(*b),
+                        _ => None,
+                    })
+            })
+            .unwrap_or(default_value);
+
+        EvaluationOutcome {
+            value,
+            variant: pipeline_outcome.variation_key,
+            reason: pipeline_outcome.reason,
+            error_code: pipeline_outcome.error_code.map(|c| c.as_wire().to_string()),
+            error_message: pipeline_outcome.error_message,
+            flag_key: flag_key.to_string(),
         }
     }
 }

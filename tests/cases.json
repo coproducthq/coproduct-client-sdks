@@ -1,0 +1,230 @@
+{
+  "comment": "Shared cross-SDK conformance corpus. Cases are namespaced by category so the Rust, Swift, Android, Flutter, and React Native runners can read the same file without schema drift: each runner parses the root object and consumes only its own array. Within operator_cases, rule values are JSON strings matching the platform value schema, which is a list of strings. Numeric operators parse the strings, semver operators parse them as semantic versions, and string operators use them directly.",
+  "operator_cases": [
+    { "name": "equals/string/match", "operator": "equals", "lhs": "premium", "values": ["premium"], "expected": true },
+    { "name": "equals/string/miss", "operator": "equals", "lhs": "free", "values": ["premium"], "expected": false },
+    { "name": "equals/number_attr_via_stringify", "operator": "equals", "lhs": 42, "values": ["42"], "expected": true },
+    { "name": "equals/number_decimal_via_stringify", "operator": "equals", "lhs": 3.14, "values": ["3.14"], "expected": true },
+    { "name": "equals/bool/match", "operator": "equals", "lhs": true, "values": ["true"], "expected": true },
+    { "name": "equals/null_lhs_returns_false", "operator": "equals", "lhs": null, "values": [""], "expected": false },
+
+    { "name": "not_equals/string/inverts", "operator": "not_equals", "lhs": "free", "values": ["premium"], "expected": true },
+    { "name": "not_equals/string/match", "operator": "not_equals", "lhs": "premium", "values": ["premium"], "expected": false },
+    { "name": "not_equals/empty/false", "operator": "not_equals", "lhs": "any", "values": [], "expected": false },
+
+    { "name": "gt/number/yes", "operator": "gt", "lhs": 60, "values": ["50"], "expected": true },
+    { "name": "gt/number/no", "operator": "gt", "lhs": 50, "values": ["50"], "expected": false },
+    { "name": "gt/string_lhs/false", "operator": "gt", "lhs": "high", "values": ["50"], "expected": false },
+    { "name": "gt/scientific_rhs_rejected", "operator": "gt", "lhs": 1000, "values": ["1e3"], "expected": false },
+    { "name": "gt/hex_rhs_rejected", "operator": "gt", "lhs": 100, "values": ["0x10"], "expected": false },
+
+    { "name": "gte/equal", "operator": "gte", "lhs": 50, "values": ["50"], "expected": true },
+    { "name": "gte/strict", "operator": "gte", "lhs": 49, "values": ["50"], "expected": false },
+    { "name": "gte/null_lhs_returns_false", "operator": "gte", "lhs": null, "values": ["50"], "expected": false },
+
+    { "name": "lt/less", "operator": "lt", "lhs": 49, "values": ["50"], "expected": true },
+    { "name": "lt/equal", "operator": "lt", "lhs": 50, "values": ["50"], "expected": false },
+    { "name": "lt/string_lhs/false", "operator": "lt", "lhs": "x", "values": ["50"], "expected": false },
+
+    { "name": "lte/equal", "operator": "lte", "lhs": 50, "values": ["50"], "expected": true },
+    { "name": "lte/over", "operator": "lte", "lhs": 51, "values": ["50"], "expected": false },
+    { "name": "lte/bool_lhs/false", "operator": "lte", "lhs": true, "values": ["50"], "expected": false },
+
+    { "name": "in/member", "operator": "in", "lhs": "us", "values": ["us", "ca", "uk"], "expected": true },
+    { "name": "in/nonmember", "operator": "in", "lhs": "fr", "values": ["us", "ca", "uk"], "expected": false },
+    { "name": "in/number_lhs_stringify_miss", "operator": "in", "lhs": 42, "values": ["us"], "expected": false },
+
+    { "name": "not_in/nonmember", "operator": "not_in", "lhs": "fr", "values": ["us", "ca"], "expected": true },
+    { "name": "not_in/member", "operator": "not_in", "lhs": "us", "values": ["us", "ca"], "expected": false },
+    { "name": "not_in/empty/false", "operator": "not_in", "lhs": "fr", "values": [], "expected": false },
+
+    { "name": "starts_with/yes", "operator": "starts_with", "lhs": "alice@x.com", "values": ["alice"], "expected": true },
+    { "name": "starts_with/no", "operator": "starts_with", "lhs": "bob@x.com", "values": ["alice"], "expected": false },
+    { "name": "starts_with/non_string_lhs/false", "operator": "starts_with", "lhs": 42, "values": ["4"], "expected": false },
+
+    { "name": "ends_with/yes", "operator": "ends_with", "lhs": "alice@example.com", "values": ["@example.com"], "expected": true },
+    { "name": "ends_with/no", "operator": "ends_with", "lhs": "alice@other.com", "values": ["@example.com"], "expected": false },
+    { "name": "ends_with/null_lhs/false", "operator": "ends_with", "lhs": null, "values": [".com"], "expected": false },
+
+    { "name": "contains/yes", "operator": "contains", "lhs": "alice@example.com", "values": ["@example"], "expected": true },
+    { "name": "contains/no", "operator": "contains", "lhs": "alice@other.com", "values": ["@example"], "expected": false },
+    { "name": "contains/non_string_lhs/false", "operator": "contains", "lhs": 42, "values": ["4"], "expected": false },
+
+    { "name": "not_contains/yes", "operator": "not_contains", "lhs": "alice@x.com", "values": ["@example"], "expected": true },
+    { "name": "not_contains/no", "operator": "not_contains", "lhs": "alice@example.com", "values": ["@example"], "expected": false },
+    { "name": "not_contains/empty/false", "operator": "not_contains", "lhs": "any", "values": [], "expected": false },
+
+    { "name": "sem_ver_eq/yes", "operator": "sem_ver_eq", "lhs": "1.2.3", "values": ["1.2.3"], "expected": true },
+    { "name": "sem_ver_eq/no", "operator": "sem_ver_eq", "lhs": "1.2.4", "values": ["1.2.3"], "expected": false },
+    { "name": "sem_ver_eq/unparseable_lhs", "operator": "sem_ver_eq", "lhs": "v1", "values": ["1.0.0"], "expected": false },
+
+    { "name": "sem_ver_gt/yes", "operator": "sem_ver_gt", "lhs": "2.0.0", "values": ["1.9.9"], "expected": true },
+    { "name": "sem_ver_gt/no", "operator": "sem_ver_gt", "lhs": "1.0.0", "values": ["1.0.0"], "expected": false },
+    { "name": "sem_ver_gt/non_string_lhs/false", "operator": "sem_ver_gt", "lhs": 1, "values": ["1.0.0"], "expected": false },
+
+    { "name": "sem_ver_gte/equal", "operator": "sem_ver_gte", "lhs": "1.0.0", "values": ["1.0.0"], "expected": true },
+    { "name": "sem_ver_gte/below", "operator": "sem_ver_gte", "lhs": "0.9.9", "values": ["1.0.0"], "expected": false },
+    { "name": "sem_ver_gte/unparseable_rhs", "operator": "sem_ver_gte", "lhs": "1.0.0", "values": ["garbage"], "expected": false },
+
+    { "name": "sem_ver_lt/yes", "operator": "sem_ver_lt", "lhs": "1.0.0", "values": ["2.0.0"], "expected": true },
+    { "name": "sem_ver_lt/equal", "operator": "sem_ver_lt", "lhs": "2.0.0", "values": ["2.0.0"], "expected": false },
+    { "name": "sem_ver_lt/non_string_lhs/false", "operator": "sem_ver_lt", "lhs": true, "values": ["1.0.0"], "expected": false },
+
+    { "name": "sem_ver_lte/equal", "operator": "sem_ver_lte", "lhs": "1.0.0", "values": ["1.0.0"], "expected": true },
+    { "name": "sem_ver_lte/above", "operator": "sem_ver_lte", "lhs": "1.0.1", "values": ["1.0.0"], "expected": false },
+    { "name": "sem_ver_lte/prerelease_below_release", "operator": "sem_ver_lte", "lhs": "1.0.0-rc.1", "values": ["1.0.0"], "expected": true },
+
+    { "name": "is_set/missing/false", "operator": "is_set", "lhs": null, "values": [], "expected": false },
+    { "name": "is_set/empty_string/true", "operator": "is_set", "lhs": "", "values": [], "expected": true },
+    { "name": "is_set/zero/true", "operator": "is_set", "lhs": 0, "values": [], "expected": true },
+    { "name": "is_set/false/true", "operator": "is_set", "lhs": false, "values": [], "expected": true },
+
+    { "name": "is_not_set/missing/true", "operator": "is_not_set", "lhs": null, "values": [], "expected": true },
+    { "name": "is_not_set/empty_string/false", "operator": "is_not_set", "lhs": "", "values": [], "expected": false },
+    { "name": "is_not_set/zero/false", "operator": "is_not_set", "lhs": 0, "values": [], "expected": false }
+  ],
+  "rule_walker_cases": [
+    {
+      "id": "rw_always_match",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": {
+          "key": "f",
+          "type": "BOOL",
+          "enabled": true,
+          "isPaused": false,
+          "variations": [
+            { "key": "on", "value": true },
+            { "key": "off", "value": false }
+          ],
+          "offVariation": "off",
+          "fallthroughVariation": "off",
+          "targetingRules": [
+            {
+              "rule_id": "00000000-0000-4000-8000-000000000001",
+              "condition": { "type": "always" },
+              "coverage": 10000,
+              "rollout": { "type": "variation", "variation": "on" }
+            }
+          ],
+          "prerequisites": [],
+          "experiment": null
+        },
+        "segments": {}
+      },
+      "expected": { "outcome": "match", "rule_id": "00000000-0000-4000-8000-000000000001", "variation": "on" }
+    },
+    {
+      "id": "rw_fallthrough_no_rules",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": {
+          "key": "f", "type": "BOOL", "enabled": true, "isPaused": false,
+          "variations": [{ "key": "off", "value": false }],
+          "offVariation": "off", "fallthroughVariation": "off",
+          "targetingRules": [], "prerequisites": [], "experiment": null
+        },
+        "segments": {}
+      },
+      "expected": { "outcome": "fallthrough" }
+    },
+    {
+      "id": "rw_coverage_excludes_user",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": {
+          "key": "f", "type": "BOOL", "enabled": true, "isPaused": false,
+          "variations": [{ "key": "on", "value": true }, { "key": "off", "value": false }],
+          "offVariation": "off", "fallthroughVariation": "off",
+          "targetingRules": [
+            {
+              "rule_id": "00000000-0000-4000-8000-000000000002",
+              "condition": { "type": "always" },
+              "coverage": 0,
+              "rollout": { "type": "variation", "variation": "on" }
+            }
+          ],
+          "prerequisites": [], "experiment": null
+        },
+        "segments": {}
+      },
+      "expected": { "outcome": "fallthrough" }
+    },
+    {
+      "id": "rw_missing_segment_no_match",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": {
+          "key": "f", "type": "BOOL", "enabled": true, "isPaused": false,
+          "variations": [{ "key": "off", "value": false }],
+          "offVariation": "off", "fallthroughVariation": "off",
+          "targetingRules": [
+            {
+              "rule_id": "00000000-0000-4000-8000-000000000003",
+              "condition": { "type": "segment", "segment_key": "absent" },
+              "coverage": 10000,
+              "rollout": { "type": "variation", "variation": "off" }
+            }
+          ],
+          "prerequisites": [], "experiment": null
+        },
+        "segments": {}
+      },
+      "expected": { "outcome": "fallthrough" }
+    },
+    {
+      "id": "rw_unknown_node_circuit_break",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": {
+          "key": "f", "type": "BOOL", "enabled": true, "isPaused": false,
+          "variations": [{ "key": "off", "value": false }],
+          "offVariation": "off", "fallthroughVariation": "off",
+          "targetingRules": [
+            {
+              "rule_id": "00000000-0000-4000-8000-000000000004",
+              "condition": { "type": "future_op_v9" },
+              "coverage": 10000,
+              "rollout": { "type": "variation", "variation": "off" }
+            }
+          ],
+          "prerequisites": [], "experiment": null
+        },
+        "segments": {}
+      },
+      "expected": { "outcome": "circuit_break" }
+    },
+    {
+      "id": "rw_paused_serves_off",
+      "kind": "off_gate",
+      "input": { "flag": { "enabled": true, "isPaused": true } },
+      "expected": { "reason": "paused" }
+    },
+    {
+      "id": "rw_disabled_serves_off",
+      "kind": "off_gate",
+      "input": { "flag": { "enabled": false, "isPaused": false } },
+      "expected": { "reason": "disabled" }
+    }
+  ],
+  "pipeline_cases": [
+    { "name": "step1_no_snapshot", "snapshot": null, "flag_key": "any", "requested_type": "bool", "expected_error_code": "PROVIDER_NOT_READY" },
+    { "name": "step2_missing_flag", "snapshot_template": "empty", "flag_key": "ghost", "requested_type": "bool", "expected_error_code": "FLAG_NOT_FOUND" },
+    { "name": "step3_type_mismatch", "snapshot_template": "single_bool_flag", "snapshot_args": { "key": "bool-flag" }, "flag_key": "bool-flag", "requested_type": "string", "expected_error_code": "TYPE_MISMATCH" },
+    { "name": "step4_is_paused", "snapshot_template": "single_bool_flag", "snapshot_args": { "key": "paused", "is_paused": true }, "flag_key": "paused", "requested_type": "bool", "expected_variation": "off", "expected_reason": "off" },
+    { "name": "step5_disabled", "snapshot_template": "single_bool_flag", "snapshot_args": { "key": "disabled", "enabled": false }, "flag_key": "disabled", "requested_type": "bool", "expected_variation": "off", "expected_reason": "off" },
+    { "name": "step6_failed_prereq", "snapshot_template": "dependent_with_gate", "snapshot_args": { "required": "treatment", "gate_serves": "on" }, "flag_key": "dependent", "requested_type": "bool", "expected_variation": "off", "expected_reason": "prerequisite_failed" },
+    { "name": "step6_cycle", "snapshot_template": "two_flag_cycle", "flag_key": "a", "requested_type": "bool", "expected_error_code": "RULE_CIRCUIT_BREAK" },
+    { "name": "step6_depth_boundary_pass", "snapshot_template": "chain_length", "snapshot_args": { "length": 5 }, "flag_key": "f0", "requested_type": "bool", "expected_variation": "on", "expected_reason": "fallthrough" },
+    { "name": "step6_depth_boundary_break", "snapshot_template": "chain_length", "snapshot_args": { "length": 6 }, "flag_key": "f0", "requested_type": "bool", "expected_error_code": "RULE_CIRCUIT_BREAK" },
+    { "name": "step7_rule_match", "snapshot_template": "single_bool_flag_with_always_on_rule", "snapshot_args": { "key": "targeted", "rule_variation": "on" }, "flag_key": "targeted", "requested_type": "bool", "expected_variation": "on", "expected_reason": "targeting_match" },
+    { "name": "step8_fallthrough", "snapshot_template": "single_bool_flag", "snapshot_args": { "key": "plain", "fallthrough": "on" }, "flag_key": "plain", "requested_type": "bool", "expected_variation": "on", "expected_reason": "fallthrough" },
+    { "name": "step8_null_fallthrough", "snapshot_template": "single_bool_flag", "snapshot_args": { "key": "no-fallthrough", "fallthrough": null }, "flag_key": "no-fallthrough", "requested_type": "bool", "expected_error_code": "RULE_CIRCUIT_BREAK" }
+  ],
+  "typed_getter_cases": []
+}

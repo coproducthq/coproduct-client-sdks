@@ -143,7 +143,7 @@ pub async fn simulate_change(client: &CoproductClientHandle, key: String, new_va
 
 #[frb(sync)]
 pub fn compute_bucket(rule_id: String, targeting_key: String, suffix: String) -> u32 {
-    coproduct_core::bucketing::compute_bucket(&rule_id, &targeting_key, &suffix)
+    coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
 }
 
 struct TransportAdapter {

@@ -98,16 +98,13 @@ fn unknown_node_type_preserves_tag_through_round_trip() {
 }
 
 #[test]
-fn malformed_known_type_errors_rather_than_becoming_unknown() {
-    // A recognized node `type` with a structurally invalid body hard-errors at
-    // the wire parsing boundary. Runtime rule walking can add broader malformed
-    // subtree tolerance without changing this parser contract.
+fn malformed_known_type_decodes_to_unknown() {
+    // A recognized node type with a structurally invalid body now decodes to
+    // Unknown so a single bad subtree cannot wedge the whole snapshot parse. The
+    // rule walker trips RULE_CIRCUIT_BREAK on any rule that references it
     let wire = r#"{ "type": "and", "rules": "not-an-array" }"#;
-    let result: Result<Condition, _> = serde_json::from_str(wire);
-    assert!(
-        result.is_err(),
-        "malformed known type must error, not silently become Unknown"
-    );
+    let c: Condition = serde_json::from_str(wire).expect("tolerant deserialize");
+    assert!(matches!(c, Condition::Unknown { tag } if tag == "and"));
 }
 
 #[test]

@@ -352,7 +352,7 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-// Initial value and increment amount for handles.
+// Initial value and increment amount for handles. 
 // These ensure that SWIFT handles always have the lowest bit set
 fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
 fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
@@ -457,6 +457,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
+    typealias FfiType = Double
+    typealias SwiftType = Double
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+        return try lift(readDouble(&buf))
+    }
+
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
+        writeDouble(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -541,15 +557,15 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 public protocol CoproductClientProtocol: AnyObject, Sendable {
-
+    
     func getBool(key: String, defaultValue: Bool)  -> Bool
-
+    
     func observe(key: String, observer: FlagObserver)  -> Subscription
-
-    func simulateChange(key: String, newValue: Bool) async
-
+    
+    func simulateChange(key: String, newValue: Bool) async 
+    
     func wasLoadedFromCache()  -> Bool
-
+    
 }
 open class CoproductClient: CoproductClientProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -601,9 +617,9 @@ open class CoproductClient: CoproductClientProtocol, @unchecked Sendable {
         try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_coproductclient(handle, $0) }
     }
 
+    
 
-
-
+    
 open func getBool(key: String, defaultValue: Bool) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(
@@ -613,7 +629,7 @@ open func getBool(key: String, defaultValue: Bool) -> Bool  {
     )
 })
 }
-
+    
 open func observe(key: String, observer: FlagObserver) -> Subscription  {
     return try!  FfiConverterTypeSubscription_lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe(
@@ -623,7 +639,7 @@ open func observe(key: String, observer: FlagObserver) -> Subscription  {
     )
 })
 }
-
+    
 open func simulateChange(key: String, newValue: Bool)async   {
     return
         try!  await uniffiRustCallAsync(
@@ -638,10 +654,10 @@ open func simulateChange(key: String, newValue: Bool)async   {
             freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
             liftFunc: { $0 },
             errorHandler: nil
-
+            
         )
 }
-
+    
 open func wasLoadedFromCache() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_was_loaded_from_cache(
@@ -649,9 +665,9 @@ open func wasLoadedFromCache() -> Bool  {
     )
 })
 }
+    
 
-
-
+    
 }
 
 
@@ -700,10 +716,164 @@ public func FfiConverterTypeCoproductClient_lower(_ value: CoproductClient) -> U
 
 
 
+/**
+ * FFI handle wrapping the evaluation context. The interior is a `Mutex` so the
+ * handle stays Send and Sync across the binding boundary
+ */
+public protocol EvaluationContextHandleProtocol: AnyObject, Sendable {
+    
+    func getAttribute(name: String)  -> AttributeValueFfi?
+    
+    func setAttribute(name: String, value: AttributeValueFfi) 
+    
+    func targetingKey()  -> String
+    
+}
+/**
+ * FFI handle wrapping the evaluation context. The interior is a `Mutex` so the
+ * handle stays Send and Sync across the binding boundary
+ */
+open class EvaluationContextHandle: EvaluationContextHandleProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_evaluationcontexthandle(self.handle, $0) }
+    }
+public convenience init(targetingKey: String) {
+    let handle =
+        try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_constructor_evaluationcontexthandle_new(
+        FfiConverterString.lower(targetingKey),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_evaluationcontexthandle(handle, $0) }
+    }
+
+    
+
+    
+open func getAttribute(name: String) -> AttributeValueFfi?  {
+    return try!  FfiConverterOptionTypeAttributeValueFfi.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_get_attribute(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),$0
+    )
+})
+}
+    
+open func setAttribute(name: String, value: AttributeValueFfi)  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_set_attribute(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(name),
+        FfiConverterTypeAttributeValueFfi_lower(value),$0
+    )
+}
+}
+    
+open func targetingKey() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_targeting_key(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvaluationContextHandle: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = EvaluationContextHandle
+
+    public static func lift(_ handle: UInt64) throws -> EvaluationContextHandle {
+        return EvaluationContextHandle(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: EvaluationContextHandle) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvaluationContextHandle {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: EvaluationContextHandle, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationContextHandle_lift(_ handle: UInt64) throws -> EvaluationContextHandle {
+    return try FfiConverterTypeEvaluationContextHandle.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationContextHandle_lower(_ value: EvaluationContextHandle) -> UInt64 {
+    return FfiConverterTypeEvaluationContextHandle.lower(value)
+}
+
+
+
+
+
+
 public protocol FlagObserver: AnyObject, Sendable {
-
-    func onChangeBool(value: Bool) async throws
-
+    
+    func onChangeBool(value: Bool) async throws 
+    
 }
 open class FlagObserverImpl: FlagObserver, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -755,9 +925,9 @@ open class FlagObserverImpl: FlagObserver, @unchecked Sendable {
         try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(handle, $0) }
     }
 
+    
 
-
-
+    
 open func onChangeBool(value: Bool)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -774,9 +944,9 @@ open func onChangeBool(value: Bool)async throws   {
             errorHandler: FfiConverterTypeObserverError_lift
         )
 }
+    
 
-
-
+    
 }
 
 
@@ -920,11 +1090,11 @@ public func FfiConverterTypeFlagObserver_lower(_ value: FlagObserver) -> UInt64 
 
 
 public protocol HostSecureStore: AnyObject, Sendable {
-
+    
     func read(key: String) async throws  -> String?
-
-    func write(key: String, value: String) async throws
-
+    
+    func write(key: String, value: String) async throws 
+    
 }
 open class HostSecureStoreImpl: HostSecureStore, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -976,9 +1146,9 @@ open class HostSecureStoreImpl: HostSecureStore, @unchecked Sendable {
         try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_hostsecurestore(handle, $0) }
     }
 
+    
 
-
-
+    
 open func read(key: String)async throws  -> String?  {
     return
         try  await uniffiRustCallAsync(
@@ -995,7 +1165,7 @@ open func read(key: String)async throws  -> String?  {
             errorHandler: FfiConverterTypeSecureStoreError_lift
         )
 }
-
+    
 open func write(key: String, value: String)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -1012,9 +1182,9 @@ open func write(key: String, value: String)async throws   {
             errorHandler: FfiConverterTypeSecureStoreError_lift
         )
 }
+    
 
-
-
+    
 }
 
 
@@ -1203,9 +1373,9 @@ public func FfiConverterTypeHostSecureStore_lower(_ value: HostSecureStore) -> U
 
 
 public protocol HostTransport: AnyObject, Sendable {
-
+    
     func request(req: HttpRequest) async throws  -> HttpResponse
-
+    
 }
 open class HostTransportImpl: HostTransport, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -1257,9 +1427,9 @@ open class HostTransportImpl: HostTransport, @unchecked Sendable {
         try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_hosttransport(handle, $0) }
     }
 
+    
 
-
-
+    
 open func request(req: HttpRequest)async throws  -> HttpResponse  {
     return
         try  await uniffiRustCallAsync(
@@ -1276,9 +1446,9 @@ open func request(req: HttpRequest)async throws  -> HttpResponse  {
             errorHandler: FfiConverterTypeTransportError_lift
         )
 }
+    
 
-
-
+    
 }
 
 
@@ -1424,7 +1594,7 @@ public func FfiConverterTypeHostTransport_lower(_ value: HostTransport) -> UInt6
 
 
 public protocol SubscriptionProtocol: AnyObject, Sendable {
-
+    
 }
 open class Subscription: SubscriptionProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -1476,11 +1646,11 @@ open class Subscription: SubscriptionProtocol, @unchecked Sendable {
         try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_subscription(handle, $0) }
     }
 
+    
 
+    
 
-
-
-
+    
 }
 
 
@@ -1538,9 +1708,9 @@ public struct HttpHeader: Equatable, Hashable {
         self.value = value
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1554,7 +1724,7 @@ public struct FfiConverterTypeHttpHeader: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpHeader {
         return
             try HttpHeader(
-                name: FfiConverterString.read(from: &buf),
+                name: FfiConverterString.read(from: &buf), 
                 value: FfiConverterString.read(from: &buf)
         )
     }
@@ -1596,9 +1766,9 @@ public struct HttpRequest: Equatable, Hashable {
         self.body = body
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1612,9 +1782,9 @@ public struct FfiConverterTypeHttpRequest: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpRequest {
         return
             try HttpRequest(
-                method: FfiConverterTypeHttpMethod.read(from: &buf),
-                url: FfiConverterString.read(from: &buf),
-                headers: FfiConverterSequenceTypeHttpHeader.read(from: &buf),
+                method: FfiConverterTypeHttpMethod.read(from: &buf), 
+                url: FfiConverterString.read(from: &buf), 
+                headers: FfiConverterSequenceTypeHttpHeader.read(from: &buf), 
                 body: FfiConverterOptionData.read(from: &buf)
         )
     }
@@ -1656,9 +1826,9 @@ public struct HttpResponse: Equatable, Hashable {
         self.headers = headers
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -1672,8 +1842,8 @@ public struct FfiConverterTypeHttpResponse: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpResponse {
         return
             try HttpResponse(
-                status: FfiConverterUInt16.read(from: &buf),
-                body: FfiConverterData.read(from: &buf),
+                status: FfiConverterUInt16.read(from: &buf), 
+                body: FfiConverterData.read(from: &buf), 
                 headers: FfiConverterSequenceTypeHttpHeader.read(from: &buf)
         )
     }
@@ -1702,9 +1872,104 @@ public func FfiConverterTypeHttpResponse_lower(_ value: HttpResponse) -> RustBuf
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * FFI wrapper for the typed-sum attribute value. UniFFI cannot represent the
+ * recursive Array and Object variants, so the wire surface flattens to the four
+ * primitive shapes and rejects the recursive shapes at the boundary
+ */
+
+public enum AttributeValueFfi: Equatable, Hashable {
+    
+    case bool(value: Bool
+    )
+    case string(value: String
+    )
+    case number(value: Double
+    )
+    case null
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AttributeValueFfi: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAttributeValueFfi: FfiConverterRustBuffer {
+    typealias SwiftType = AttributeValueFfi
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeValueFfi {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .bool(value: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .string(value: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .number(value: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 4: return .null
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AttributeValueFfi, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .bool(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterBool.write(value, into: &buf)
+            
+        
+        case let .string(value):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .number(value):
+            writeInt(&buf, Int32(3))
+            FfiConverterDouble.write(value, into: &buf)
+            
+        
+        case .null:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAttributeValueFfi_lift(_ buf: RustBuffer) throws -> AttributeValueFfi {
+    return try FfiConverterTypeAttributeValueFfi.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAttributeValueFfi_lower(_ value: AttributeValueFfi) -> RustBuffer {
+    return FfiConverterTypeAttributeValueFfi.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum HttpMethod: Equatable, Hashable {
-
+    
     case get
     case post
 
@@ -1727,26 +1992,26 @@ public struct FfiConverterTypeHttpMethod: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpMethod {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .get
-
+        
         case 2: return .post
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: HttpMethod, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .get:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .post:
             writeInt(&buf, Int32(2))
-
+        
         }
     }
 }
@@ -1770,8 +2035,8 @@ public func FfiConverterTypeHttpMethod_lower(_ value: HttpMethod) -> RustBuffer 
 
 public enum InitError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-
-
+    
+    
     case InvalidKeyType(prefix: String
     )
     case MalformedSdkKey(reason: String
@@ -1782,15 +2047,15 @@ public enum InitError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErr
     case UnsupportedSchemaVersion(actual: UInt32, supported: UInt32
     )
 
+    
 
+    
 
-
-
-
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
@@ -1807,9 +2072,9 @@ public struct FfiConverterTypeInitError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
 
-
-
+        
         case 1: return .InvalidKeyType(
             prefix: try FfiConverterString.read(from: &buf)
             )
@@ -1818,11 +2083,11 @@ public struct FfiConverterTypeInitError: FfiConverterRustBuffer {
             )
         case 3: return .MissingSdkKey
         case 4: return .InvalidConfig(
-            field: try FfiConverterString.read(from: &buf),
+            field: try FfiConverterString.read(from: &buf), 
             reason: try FfiConverterString.read(from: &buf)
             )
         case 5: return .UnsupportedSchemaVersion(
-            actual: try FfiConverterUInt32.read(from: &buf),
+            actual: try FfiConverterUInt32.read(from: &buf), 
             supported: try FfiConverterUInt32.read(from: &buf)
             )
 
@@ -1833,35 +2098,35 @@ public struct FfiConverterTypeInitError: FfiConverterRustBuffer {
     public static func write(_ value: InitError, into buf: inout [UInt8]) {
         switch value {
 
+        
 
-
-
-
+        
+        
         case let .InvalidKeyType(prefix):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(prefix, into: &buf)
-
-
+            
+        
         case let .MalformedSdkKey(reason):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(reason, into: &buf)
-
-
+            
+        
         case .MissingSdkKey:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case let .InvalidConfig(field,reason):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(field, into: &buf)
             FfiConverterString.write(reason, into: &buf)
-
-
+            
+        
         case let .UnsupportedSchemaVersion(actual,supported):
             writeInt(&buf, Int32(5))
             FfiConverterUInt32.write(actual, into: &buf)
             FfiConverterUInt32.write(supported, into: &buf)
-
+            
         }
     }
 }
@@ -1884,20 +2149,20 @@ public func FfiConverterTypeInitError_lower(_ value: InitError) -> RustBuffer {
 
 public enum ObserverError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-
-
+    
+    
     case Callback(String
     )
 
+    
 
+    
 
-
-
-
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
@@ -1914,9 +2179,9 @@ public struct FfiConverterTypeObserverError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
 
-
-
+        
         case 1: return .Callback(
             try FfiConverterString.read(from: &buf)
             )
@@ -1928,14 +2193,14 @@ public struct FfiConverterTypeObserverError: FfiConverterRustBuffer {
     public static func write(_ value: ObserverError, into buf: inout [UInt8]) {
         switch value {
 
+        
 
-
-
-
+        
+        
         case let .Callback(v1):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(v1, into: &buf)
-
+            
         }
     }
 }
@@ -1958,22 +2223,22 @@ public func FfiConverterTypeObserverError_lower(_ value: ObserverError) -> RustB
 
 public enum SecureStoreError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-
-
+    
+    
     case Unavailable
     case Corrupted
     case WriteFailed
     case ReadFailed
 
+    
 
+    
 
-
-
-
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
@@ -1990,9 +2255,9 @@ public struct FfiConverterTypeSecureStoreError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
 
-
-
+        
         case 1: return .Unavailable
         case 2: return .Corrupted
         case 3: return .WriteFailed
@@ -2005,25 +2270,25 @@ public struct FfiConverterTypeSecureStoreError: FfiConverterRustBuffer {
     public static func write(_ value: SecureStoreError, into buf: inout [UInt8]) {
         switch value {
 
+        
 
-
-
-
+        
+        
         case .Unavailable:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .Corrupted:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .WriteFailed:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case .ReadFailed:
             writeInt(&buf, Int32(4))
-
+        
         }
     }
 }
@@ -2046,8 +2311,8 @@ public func FfiConverterTypeSecureStoreError_lower(_ value: SecureStoreError) ->
 
 public enum TransportError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-
-
+    
+    
     case Timeout
     case NetworkUnreachable
     case Unauthorized
@@ -2057,15 +2322,15 @@ public enum TransportError: Swift.Error, Equatable, Hashable, Foundation.Localiz
     case Other(message: String
     )
 
+    
 
+    
 
-
-
-
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
@@ -2082,9 +2347,9 @@ public struct FfiConverterTypeTransportError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
 
-
-
+        
         case 1: return .Timeout
         case 2: return .NetworkUnreachable
         case 3: return .Unauthorized
@@ -2103,35 +2368,35 @@ public struct FfiConverterTypeTransportError: FfiConverterRustBuffer {
     public static func write(_ value: TransportError, into buf: inout [UInt8]) {
         switch value {
 
+        
 
-
-
-
+        
+        
         case .Timeout:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .NetworkUnreachable:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .Unauthorized:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case let .ServerError(status):
             writeInt(&buf, Int32(4))
             FfiConverterUInt16.write(status, into: &buf)
-
-
+            
+        
         case .MalformedResponse:
             writeInt(&buf, Int32(5))
-
-
+        
+        
         case let .Other(message):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(message, into: &buf)
-
+            
         }
     }
 }
@@ -2194,6 +2459,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeAttributeValueFfi: FfiConverterRustBuffer {
+    typealias SwiftType = AttributeValueFfi?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeAttributeValueFfi.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeAttributeValueFfi.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -2418,6 +2707,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_was_loaded_from_cache() != 61481) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute() != 55087) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_set_attribute() != 49057) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key() != 63268) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change_bool() != 8587) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -2428,6 +2726,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request() != 50214) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new() != 4096) {
         return InitializationResult.apiChecksumMismatch
     }
 

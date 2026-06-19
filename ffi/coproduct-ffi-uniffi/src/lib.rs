@@ -1,8 +1,11 @@
 uniffi::setup_scaffolding!();
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
+use coproduct_core::context::{
+    AttributeValue as CoreAttributeValue, EvaluationContext as CoreEvaluationContext,
+};
 use coproduct_core::observer as core_observer;
 use coproduct_core::secure_store as core_secure_store;
 use coproduct_core::transport as core_transport;
@@ -212,7 +215,7 @@ impl CoproductClient {
 
 #[uniffi::export]
 pub fn compute_bucket(rule_id: String, targeting_key: String, suffix: String) -> u32 {
-    coproduct_core::bucketing::compute_bucket(&rule_id, &targeting_key, &suffix)
+    coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
 }
 
 #[derive(Debug)]
@@ -398,5 +401,75 @@ pub mod test_helpers {
             .await
             .map_err(|e| e.to_string())?;
         Ok(())
+    }
+}
+
+/// FFI wrapper for the typed-sum attribute value. UniFFI cannot represent the
+/// recursive Array and Object variants, so the wire surface flattens to the four
+/// primitive shapes and rejects the recursive shapes at the boundary
+#[derive(uniffi::Enum)]
+pub enum AttributeValueFfi {
+    Bool { value: bool },
+    String { value: String },
+    Number { value: f64 },
+    Null,
+}
+
+impl From<AttributeValueFfi> for CoreAttributeValue {
+    fn from(v: AttributeValueFfi) -> Self {
+        match v {
+            AttributeValueFfi::Bool { value } => CoreAttributeValue::Bool(value),
+            AttributeValueFfi::String { value } => CoreAttributeValue::String(value),
+            AttributeValueFfi::Number { value } => CoreAttributeValue::Number(value),
+            AttributeValueFfi::Null => CoreAttributeValue::Null,
+        }
+    }
+}
+
+/// Convert a core attribute value to the flattened FFI shape. Returns `None` for
+/// the recursive Array and Object variants, which never appear in the primitive
+/// getter surface
+fn core_attribute_to_ffi(v: CoreAttributeValue) -> Option<AttributeValueFfi> {
+    Some(match v {
+        CoreAttributeValue::Bool(b) => AttributeValueFfi::Bool { value: b },
+        CoreAttributeValue::String(s) => AttributeValueFfi::String { value: s },
+        CoreAttributeValue::Number(n) => AttributeValueFfi::Number { value: n },
+        CoreAttributeValue::Null => AttributeValueFfi::Null,
+        CoreAttributeValue::Array(_) | CoreAttributeValue::Object(_) => return None,
+    })
+}
+
+/// FFI handle wrapping the evaluation context. The interior is a `Mutex` so the
+/// handle stays Send and Sync across the binding boundary
+#[derive(uniffi::Object)]
+pub struct EvaluationContextHandle {
+    inner: Mutex<CoreEvaluationContext>,
+}
+
+#[uniffi::export]
+impl EvaluationContextHandle {
+    #[uniffi::constructor]
+    pub fn new(targeting_key: String) -> Self {
+        Self {
+            inner: Mutex::new(CoreEvaluationContext::new(targeting_key)),
+        }
+    }
+
+    pub fn targeting_key(&self) -> String {
+        self.inner
+            .lock()
+            .expect("context lock poisoned")
+            .targeting_key()
+            .to_string()
+    }
+
+    pub fn get_attribute(&self, name: String) -> Option<AttributeValueFfi> {
+        let guard = self.inner.lock().expect("context lock poisoned");
+        guard.get_attribute(&name).and_then(core_attribute_to_ffi)
+    }
+
+    pub fn set_attribute(&self, name: String, value: AttributeValueFfi) {
+        let mut guard = self.inner.lock().expect("context lock poisoned");
+        guard.set_attribute(name, value.into());
     }
 }

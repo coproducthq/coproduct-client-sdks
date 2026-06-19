@@ -22,5 +22,13 @@
     "targeting_key": "user_42",
     "suffix": "rollout",
     "expected_bucket": 482
+  },
+  {
+    "seed": "abc12345-6789-4abc-9def-0123456789ab.alice.rollout",
+    "expected_bucket": 1676
+  },
+  {
+    "seed": "f47ac10b-58cc-4372-a567-0e02b2c3d479.user_42.rollout",
+    "expected_bucket": 482
   }
 ]

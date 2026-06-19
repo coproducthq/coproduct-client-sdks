@@ -2,6 +2,7 @@
 
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
 
 use super::coverage::{Coverage, deserialize_coverage};
 
@@ -114,65 +115,94 @@ impl<'de> Deserialize<'de> for Condition {
     where
         D: Deserializer<'de>,
     {
-        use serde::de::Error;
+        let raw = Value::deserialize(deserializer)?;
+        Ok(Self::from_value(raw))
+    }
+}
 
-        // Private helper that derive-deserializes the known node types. The
-        // outer impl dispatches on `type` so an unrecognized node becomes
-        // `Unknown { tag }` instead of a hard parse error
-        #[derive(Deserialize)]
-        #[serde(tag = "type", rename_all = "snake_case")]
-        enum Known {
-            Attribute {
-                attribute: String,
-                operator: Operator,
-                #[serde(default)]
-                values: Vec<String>,
-            },
-            Segment {
-                segment_key: String,
-            },
-            Always,
-            And {
-                rules: Vec<Condition>,
-            },
-            Or {
-                rules: Vec<Condition>,
-            },
-            Not {
-                rule: Box<Condition>,
-            },
-        }
-
-        let value = serde_json::Value::deserialize(deserializer)?;
-        let tag = value
-            .get("type")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
-
-        match tag.as_str() {
-            "attribute" | "segment" | "always" | "and" | "or" | "not" => {
-                let known: Known = serde_json::from_value(value).map_err(Error::custom)?;
-                Ok(match known {
-                    Known::Attribute {
-                        attribute,
-                        operator,
-                        values,
-                    } => Condition::Attribute {
-                        attribute,
+impl Condition {
+    /// Tolerant decode. An unrecognized node type, or a known type with a
+    /// structurally invalid body, becomes `Unknown { tag }` instead of failing
+    /// the whole snapshot parse, so a single bad subtree from a newer server
+    /// cannot wedge an otherwise-valid snapshot. The rule walker then trips
+    /// RULE_CIRCUIT_BREAK on any rule that references an `Unknown` node
+    fn from_value(raw: Value) -> Condition {
+        let obj = match raw.as_object() {
+            Some(o) => o,
+            None => {
+                return Condition::Unknown {
+                    tag: "non_object".into(),
+                };
+            }
+        };
+        let tag = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        match tag {
+            "always" => Condition::Always,
+            "attribute" => {
+                let attribute = obj.get("attribute").and_then(|v| v.as_str());
+                let operator = obj
+                    .get("operator")
+                    .and_then(|v| serde_json::from_value::<Operator>(v.clone()).ok());
+                // The wire `values` field must be present, be an array, and hold
+                // only strings. A missing field, a non-array, or any non-string
+                // entry makes the whole node decode to Unknown so a structurally
+                // invalid RHS fails the rule closed rather than silently repairing
+                // into a node that could still match
+                let values = obj.get("values").and_then(values_as_string_vec);
+                match (attribute, operator, values) {
+                    (Some(attribute), Some(operator), Some(values)) => Condition::Attribute {
+                        attribute: attribute.to_string(),
                         operator,
                         values,
                     },
-                    Known::Segment { segment_key } => Condition::Segment { segment_key },
-                    Known::Always => Condition::Always,
-                    Known::And { rules } => Condition::And { rules },
-                    Known::Or { rules } => Condition::Or { rules },
-                    Known::Not { rule } => Condition::Not { rule },
-                })
+                    _ => Condition::Unknown {
+                        tag: "attribute".into(),
+                    },
+                }
             }
-            _ => Ok(Condition::Unknown { tag }),
+            "segment" => match obj.get("segment_key").and_then(|v| v.as_str()) {
+                Some(s) => Condition::Segment {
+                    segment_key: s.to_string(),
+                },
+                None => Condition::Unknown {
+                    tag: "segment".into(),
+                },
+            },
+            "and" => match obj.get("rules").and_then(|v| v.as_array()) {
+                Some(arr) => Condition::And {
+                    rules: arr.iter().cloned().map(Condition::from_value).collect(),
+                },
+                None => Condition::Unknown { tag: "and".into() },
+            },
+            "or" => match obj.get("rules").and_then(|v| v.as_array()) {
+                Some(arr) => Condition::Or {
+                    rules: arr.iter().cloned().map(Condition::from_value).collect(),
+                },
+                None => Condition::Unknown { tag: "or".into() },
+            },
+            "not" => match obj.get("rule") {
+                Some(inner) => Condition::Not {
+                    rule: Box::new(Condition::from_value(inner.clone())),
+                },
+                None => Condition::Unknown { tag: "not".into() },
+            },
+            other => Condition::Unknown {
+                tag: other.to_string(),
+            },
         }
     }
+}
+
+/// Parse the wire `values` field of an attribute condition. Returns `None` when
+/// the value is not an array or contains any non-string entry, which routes the
+/// surrounding node to `Unknown` so a malformed RHS fails closed
+fn values_as_string_vec(v: &Value) -> Option<Vec<String>> {
+    let arr = v.as_array()?;
+    let mut out = Vec::with_capacity(arr.len());
+    for item in arr {
+        out.push(item.as_str()?.to_string());
+    }
+    Some(out)
 }
 
 /// How a matching rule picks a flag value: either a single fixed variation

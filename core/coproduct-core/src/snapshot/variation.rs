@@ -32,3 +32,16 @@ pub enum VariationValue {
     String(String),
     Json(serde_json::Value),
 }
+
+impl VariationValue {
+    /// Stable string form of the value, used as the memoization label during
+    /// prerequisite descent and carried on the evaluation outcome
+    pub fn label(&self) -> String {
+        match self {
+            VariationValue::Bool(b) => b.to_string(),
+            VariationValue::Number(n) => n.to_string(),
+            VariationValue::String(s) => s.clone(),
+            VariationValue::Json(v) => v.to_string(),
+        }
+    }
+}
