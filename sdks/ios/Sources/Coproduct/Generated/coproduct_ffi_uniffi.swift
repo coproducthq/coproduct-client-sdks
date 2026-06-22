@@ -599,9 +599,21 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func getStringDetails(key: String, defaultValue: String)  -> FlagEvaluationDetailsString
     
+    func identify(userId: String, attributes: [String: ContextValue], linkAnonymous: Bool) async throws 
+    
     func observe(key: String, observer: FlagObserver)  -> Subscription
     
+    func previousAnonymousId()  -> String?
+    
+    func removeAttributes(names: [String]) async 
+    
+    func setContext(targetingKey: String, attributes: [String: ContextValue]) async throws 
+    
+    func signOut() async 
+    
     func simulateChange(key: String, newValue: Bool) async 
+    
+    func updateAttributes(attributes: [String: ContextValue]) async 
     
     func wasLoadedFromCache()  -> Bool
     
@@ -764,6 +776,23 @@ open func getStringDetails(key: String, defaultValue: String) -> FlagEvaluationD
 })
 }
     
+open func identify(userId: String, attributes: [String: ContextValue], linkAnonymous: Bool)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_identify(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(userId),FfiConverterDictionaryStringTypeContextValue.lower(attributes),FfiConverterBool.lower(linkAnonymous)
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeFfiIdentityError_lift
+        )
+}
+    
 open func observe(key: String, observer: FlagObserver) -> Subscription  {
     return try!  FfiConverterTypeSubscription_lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe(
@@ -774,6 +803,67 @@ open func observe(key: String, observer: FlagObserver) -> Subscription  {
 })
 }
     
+open func previousAnonymousId() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_previous_anonymous_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func removeAttributes(names: [String])async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceString.lower(names)
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+open func setContext(targetingKey: String, attributes: [String: ContextValue])async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(targetingKey),FfiConverterDictionaryStringTypeContextValue.lower(attributes)
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeFfiIdentityError_lift
+        )
+}
+    
+open func signOut()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_sign_out(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
 open func simulateChange(key: String, newValue: Bool)async   {
     return
         try!  await uniffiRustCallAsync(
@@ -781,6 +871,24 @@ open func simulateChange(key: String, newValue: Bool)async   {
                 uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_simulate_change(
                     self.uniffiCloneHandle(),
                     FfiConverterString.lower(key),FfiConverterBool.lower(newValue)
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+open func updateAttributes(attributes: [String: ContextValue])async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_update_attributes(
+                    self.uniffiCloneHandle(),
+                    FfiConverterDictionaryStringTypeContextValue.lower(attributes)
                 )
             },
             pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
@@ -2457,6 +2565,180 @@ public func FfiConverterTypeAttributeValueFfi_lower(_ value: AttributeValueFfi) 
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Context attribute value crossing the binding boundary. The core attribute
+ * type is not exported directly so the boundary keeps a stable local shape
+ */
+
+public enum ContextValue: Equatable, Hashable {
+    
+    case string(value: String
+    )
+    case number(value: Double
+    )
+    case bool(value: Bool
+    )
+    case stringList(values: [String]
+    )
+    case null
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ContextValue: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContextValue: FfiConverterRustBuffer {
+    typealias SwiftType = ContextValue
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContextValue {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .string(value: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .number(value: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 3: return .bool(value: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 4: return .stringList(values: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 5: return .null
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ContextValue, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .string(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .number(value):
+            writeInt(&buf, Int32(2))
+            FfiConverterDouble.write(value, into: &buf)
+            
+        
+        case let .bool(value):
+            writeInt(&buf, Int32(3))
+            FfiConverterBool.write(value, into: &buf)
+            
+        
+        case let .stringList(values):
+            writeInt(&buf, Int32(4))
+            FfiConverterSequenceString.write(values, into: &buf)
+            
+        
+        case .null:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextValue_lift(_ buf: RustBuffer) throws -> ContextValue {
+    return try FfiConverterTypeContextValue.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContextValue_lower(_ value: ContextValue) -> RustBuffer {
+    return FfiConverterTypeContextValue.lower(value)
+}
+
+
+
+public enum FfiIdentityError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case InvalidTargetingKey
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension FfiIdentityError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiIdentityError: FfiConverterRustBuffer {
+    typealias SwiftType = FfiIdentityError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiIdentityError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidTargetingKey
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FfiIdentityError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .InvalidTargetingKey:
+            writeInt(&buf, Int32(1))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiIdentityError_lift(_ buf: RustBuffer) throws -> FfiIdentityError {
+    return try FfiConverterTypeFfiIdentityError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiIdentityError_lower(_ value: FfiIdentityError) -> RustBuffer {
+    return FfiConverterTypeFfiIdentityError.lower(value)
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum HttpMethod: Equatable, Hashable {
     
@@ -2981,6 +3263,31 @@ fileprivate struct FfiConverterOptionTypeAttributeValueFfi: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer {
     typealias SwiftType = [HttpHeader]
 
@@ -3000,6 +3307,32 @@ fileprivate struct FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer {
             seq.append(try FfiConverterTypeHttpHeader.read(from: &buf))
         }
         return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringTypeContextValue: FfiConverterRustBuffer {
+    public static func write(_ value: [String: ContextValue], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterTypeContextValue.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: ContextValue] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: ContextValue]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeContextValue.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
     }
 }
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
@@ -3215,10 +3548,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details() != 55912) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe() != 2120) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id() != 54885) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes() != 44822) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out() != 19109) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_simulate_change() != 45381) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes() != 28839) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_was_loaded_from_cache() != 61481) {

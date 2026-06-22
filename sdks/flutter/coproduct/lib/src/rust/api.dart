@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `to_core_header`, `to_core_response`
+// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `to_core_header`, `to_core_response`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ObserverAdapter`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `on_change_bool`, `read`, `request`, `write`
 
@@ -59,6 +59,48 @@ Future<void> simulateChange({
   newValue: newValue,
 );
 
+Future<void> identify({
+  required CoproductClientHandle handle,
+  required String userId,
+  required Map<String, FrbContextValue> attributes,
+  required bool linkAnonymous,
+}) => RustLib.instance.api.crateApiIdentify(
+  handle: handle,
+  userId: userId,
+  attributes: attributes,
+  linkAnonymous: linkAnonymous,
+);
+
+Future<void> signOut({required CoproductClientHandle handle}) =>
+    RustLib.instance.api.crateApiSignOut(handle: handle);
+
+Future<void> setContext({
+  required CoproductClientHandle handle,
+  required String targetingKey,
+  required Map<String, FrbContextValue> attributes,
+}) => RustLib.instance.api.crateApiSetContext(
+  handle: handle,
+  targetingKey: targetingKey,
+  attributes: attributes,
+);
+
+Future<void> updateAttributes({
+  required CoproductClientHandle handle,
+  required Map<String, FrbContextValue> attributes,
+}) => RustLib.instance.api.crateApiUpdateAttributes(
+  handle: handle,
+  attributes: attributes,
+);
+
+Future<void> removeAttributes({
+  required CoproductClientHandle handle,
+  required List<String> names,
+}) =>
+    RustLib.instance.api.crateApiRemoveAttributes(handle: handle, names: names);
+
+Future<String?> previousAnonymousId({required CoproductClientHandle handle}) =>
+    RustLib.instance.api.crateApiPreviousAnonymousId(handle: handle);
+
 int computeBucket({
   required String ruleId,
   required String targetingKey,
@@ -74,6 +116,18 @@ abstract class CoproductClientHandle implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SubscriptionHandle>>
 abstract class SubscriptionHandle implements RustOpaqueInterface {}
+
+@freezed
+sealed class FrbContextValue with _$FrbContextValue {
+  const FrbContextValue._();
+
+  const factory FrbContextValue.string(String field0) = FrbContextValue_String;
+  const factory FrbContextValue.number(double field0) = FrbContextValue_Number;
+  const factory FrbContextValue.bool(bool field0) = FrbContextValue_Bool;
+  const factory FrbContextValue.stringList(List<String> field0) =
+      FrbContextValue_StringList;
+  const factory FrbContextValue.null_() = FrbContextValue_Null;
+}
 
 class HttpHeader {
   final String name;

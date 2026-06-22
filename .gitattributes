@@ -1,3 +1,8 @@
 # UniFFI-generated Swift bindings and C headers. They are tool output, so do not
 # flag their trailing whitespace and collapse them in diffs.
 sdks/ios/Sources/Coproduct/Generated/** -whitespace linguist-generated
+
+# Flutter Rust Bridge generated Dart and Rust bindings. They are tool output, so
+# do not flag their trailing whitespace and collapse them in diffs.
+sdks/flutter/coproduct/lib/src/rust/** -whitespace linguist-generated
+ffi/coproduct-ffi-frb/src/frb_generated.rs -whitespace linguist-generated

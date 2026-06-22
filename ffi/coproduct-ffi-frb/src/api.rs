@@ -141,6 +141,92 @@ pub async fn simulate_change(client: &CoproductClientHandle, key: String, new_va
     client.inner.simulate_change(key, new_value).await;
 }
 
+// Identity mutators for the evaluation context. These are async because an
+// identity change fires identity-lifecycle events, and the sign-out path awaits
+// the persistence queue so the restored anonymous identity is durable before the
+// call returns. The fallible ones surface a thrown Dart exception as anyhow::Error
+// because FRB does not support a custom error type as the future error
+pub async fn identify(
+    handle: &CoproductClientHandle,
+    user_id: String,
+    attributes: std::collections::HashMap<String, FrbContextValue>,
+    link_anonymous: bool,
+) -> anyhow::Result<()> {
+    let attrs = attributes
+        .into_iter()
+        .map(|(k, v)| (k, v.into_core()))
+        .collect();
+    handle
+        .inner
+        .identify(user_id, attrs, link_anonymous)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+pub async fn sign_out(handle: &CoproductClientHandle) {
+    handle.inner.sign_out().await;
+}
+
+pub async fn set_context(
+    handle: &CoproductClientHandle,
+    targeting_key: String,
+    attributes: std::collections::HashMap<String, FrbContextValue>,
+) -> anyhow::Result<()> {
+    let attrs = attributes
+        .into_iter()
+        .map(|(k, v)| (k, v.into_core()))
+        .collect();
+    handle
+        .inner
+        .set_context(targeting_key, attrs)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
+
+pub async fn update_attributes(
+    handle: &CoproductClientHandle,
+    attributes: std::collections::HashMap<String, FrbContextValue>,
+) {
+    let attrs = attributes
+        .into_iter()
+        .map(|(k, v)| (k, v.into_core()))
+        .collect();
+    handle.inner.update_attributes(attrs).await;
+}
+
+pub async fn remove_attributes(handle: &CoproductClientHandle, names: Vec<String>) {
+    handle.inner.remove_attributes(&names).await;
+}
+
+pub fn previous_anonymous_id(handle: &CoproductClientHandle) -> Option<String> {
+    handle.inner.previous_anonymous_id()
+}
+
+// Context attribute value crossing the binding boundary. The core attribute type
+// is not exported directly so the boundary keeps a stable local shape
+pub enum FrbContextValue {
+    String(String),
+    Number(f64),
+    Bool(bool),
+    StringList(Vec<String>),
+    Null,
+}
+
+impl FrbContextValue {
+    fn into_core(self) -> coproduct_core::context::AttributeValue {
+        use coproduct_core::context::AttributeValue;
+        match self {
+            FrbContextValue::String(v) => AttributeValue::String(v),
+            FrbContextValue::Number(v) => AttributeValue::Number(v),
+            FrbContextValue::Bool(v) => AttributeValue::Bool(v),
+            FrbContextValue::StringList(v) => {
+                AttributeValue::Array(v.into_iter().map(AttributeValue::String).collect())
+            }
+            FrbContextValue::Null => AttributeValue::Null,
+        }
+    }
+}
+
 #[frb(sync)]
 pub fn compute_bucket(rule_id: String, targeting_key: String, suffix: String) -> u32 {
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)

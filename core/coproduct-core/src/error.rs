@@ -140,3 +140,9 @@ pub enum SecureStoreError {
     #[error("secure store read failed")]
     ReadFailed,
 }
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum IdentityError {
+    #[error("targeting key cannot be empty")]
+    InvalidTargetingKey,
+}

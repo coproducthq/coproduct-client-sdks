@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1713944179;
+  int get rustContentHash => -319705962;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -88,6 +88,13 @@ abstract class RustLibApi extends BaseApi {
     required bool defaultValue,
   });
 
+  Future<void> crateApiIdentify({
+    required CoproductClientHandle handle,
+    required String userId,
+    required Map<String, FrbContextValue> attributes,
+    required bool linkAnonymous,
+  });
+
   Future<CoproductClientHandle> crateApiInitialize({
     required String sdkKey,
     required String cacheDir,
@@ -102,10 +109,32 @@ abstract class RustLibApi extends BaseApi {
     required FutureOr<void> Function(bool) onChange,
   });
 
+  Future<String?> crateApiPreviousAnonymousId({
+    required CoproductClientHandle handle,
+  });
+
+  Future<void> crateApiRemoveAttributes({
+    required CoproductClientHandle handle,
+    required List<String> names,
+  });
+
+  Future<void> crateApiSetContext({
+    required CoproductClientHandle handle,
+    required String targetingKey,
+    required Map<String, FrbContextValue> attributes,
+  });
+
+  Future<void> crateApiSignOut({required CoproductClientHandle handle});
+
   Future<void> crateApiSimulateChange({
     required CoproductClientHandle client,
     required String key,
     required bool newValue,
+  });
+
+  Future<void> crateApiUpdateAttributes({
+    required CoproductClientHandle handle,
+    required Map<String, FrbContextValue> attributes,
   });
 
   bool crateApiWasLoadedFromCache({required CoproductClientHandle client});
@@ -203,6 +232,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiIdentify({
+    required CoproductClientHandle handle,
+    required String userId,
+    required Map<String, FrbContextValue> attributes,
+    required bool linkAnonymous,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(userId, serializer);
+          sse_encode_Map_String_frb_context_value_None(attributes, serializer);
+          sse_encode_bool(linkAnonymous, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiIdentifyConstMeta,
+        argValues: [handle, userId, attributes, linkAnonymous],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiIdentifyConstMeta => const TaskConstMeta(
+    debugName: "identify",
+    argNames: ["handle", "userId", "attributes", "linkAnonymous"],
+  );
+
+  @override
   Future<CoproductClientHandle> crateApiInitialize({
     required String sdkKey,
     required String cacheDir,
@@ -231,7 +301,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -286,7 +356,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -308,6 +378,149 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<String?> crateApiPreviousAnonymousId({
+    required CoproductClientHandle handle,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPreviousAnonymousIdConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPreviousAnonymousIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "previous_anonymous_id",
+        argNames: ["handle"],
+      );
+
+  @override
+  Future<void> crateApiRemoveAttributes({
+    required CoproductClientHandle handle,
+    required List<String> names,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_list_String(names, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiRemoveAttributesConstMeta,
+        argValues: [handle, names],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiRemoveAttributesConstMeta => const TaskConstMeta(
+    debugName: "remove_attributes",
+    argNames: ["handle", "names"],
+  );
+
+  @override
+  Future<void> crateApiSetContext({
+    required CoproductClientHandle handle,
+    required String targetingKey,
+    required Map<String, FrbContextValue> attributes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(targetingKey, serializer);
+          sse_encode_Map_String_frb_context_value_None(attributes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiSetContextConstMeta,
+        argValues: [handle, targetingKey, attributes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetContextConstMeta => const TaskConstMeta(
+    debugName: "set_context",
+    argNames: ["handle", "targetingKey", "attributes"],
+  );
+
+  @override
+  Future<void> crateApiSignOut({required CoproductClientHandle handle}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSignOutConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSignOutConstMeta =>
+      const TaskConstMeta(debugName: "sign_out", argNames: ["handle"]);
+
+  @override
   Future<void> crateApiSimulateChange({
     required CoproductClientHandle client,
     required String key,
@@ -326,7 +539,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 10,
             port: port_,
           );
         },
@@ -347,6 +560,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiUpdateAttributes({
+    required CoproductClientHandle handle,
+    required Map<String, FrbContextValue> attributes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_Map_String_frb_context_value_None(attributes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiUpdateAttributesConstMeta,
+        argValues: [handle, attributes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiUpdateAttributesConstMeta => const TaskConstMeta(
+    debugName: "update_attributes",
+    argNames: ["handle", "attributes"],
+  );
+
+  @override
   bool crateApiWasLoadedFromCache({required CoproductClientHandle client}) {
     return handler.executeSync(
       SyncTask(
@@ -356,7 +606,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             client,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -605,6 +855,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Map<String, FrbContextValue> dco_decode_Map_String_frb_context_value_None(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(
+      dco_decode_list_record_string_frb_context_value(
+        raw,
+      ).map((e) => MapEntry(e.$1, e.$2)),
+    );
+  }
+
+  @protected
   CoproductClientHandle
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
     dynamic raw,
@@ -632,6 +894,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  FrbContextValue dco_decode_frb_context_value(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return FrbContextValue_String(dco_decode_String(raw[1]));
+      case 1:
+        return FrbContextValue_Number(dco_decode_f_64(raw[1]));
+      case 2:
+        return FrbContextValue_Bool(dco_decode_bool(raw[1]));
+      case 3:
+        return FrbContextValue_StringList(dco_decode_list_String(raw[1]));
+      case 4:
+        return FrbContextValue_Null();
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -717,6 +1004,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
   List<HttpHeader> dco_decode_list_http_header(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_http_header).toList();
@@ -729,6 +1022,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<(String, FrbContextValue)>
+  dco_decode_list_record_string_frb_context_value(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_frb_context_value)
+        .toList();
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -738,6 +1040,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
+  }
+
+  @protected
+  (String, FrbContextValue) dco_decode_record_string_frb_context_value(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_String(arr[0]), dco_decode_frb_context_value(arr[1]));
   }
 
   @protected
@@ -821,6 +1135,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Map<String, FrbContextValue> sse_decode_Map_String_frb_context_value_None(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_string_frb_context_value(deserializer);
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
   CoproductClientHandle
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
     SseDeserializer deserializer,
@@ -855,6 +1178,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  FrbContextValue sse_decode_frb_context_value(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_String(deserializer);
+        return FrbContextValue_String(var_field0);
+      case 1:
+        var var_field0 = sse_decode_f_64(deserializer);
+        return FrbContextValue_Number(var_field0);
+      case 2:
+        var var_field0 = sse_decode_bool(deserializer);
+        return FrbContextValue_Bool(var_field0);
+      case 3:
+        var var_field0 = sse_decode_list_String(deserializer);
+        return FrbContextValue_StringList(var_field0);
+      case 4:
+        return FrbContextValue_Null();
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -943,6 +1297,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<HttpHeader> sse_decode_list_http_header(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -959,6 +1325,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<(String, FrbContextValue)>
+  sse_decode_list_record_string_frb_context_value(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, FrbContextValue)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_frb_context_value(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -981,6 +1362,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  (String, FrbContextValue) sse_decode_record_string_frb_context_value(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_frb_context_value(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -1127,6 +1518,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_Map_String_frb_context_value_None(
+    Map<String, FrbContextValue> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_string_frb_context_value(
+      self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
+  }
+
+  @protected
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
     CoproductClientHandle self,
@@ -1162,6 +1565,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_frb_context_value(
+    FrbContextValue self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case FrbContextValue_String(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(field0, serializer);
+      case FrbContextValue_Number(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_f_64(field0, serializer);
+      case FrbContextValue_Bool(field0: final field0):
+        sse_encode_i_32(2, serializer);
+        sse_encode_bool(field0, serializer);
+      case FrbContextValue_StringList(field0: final field0):
+        sse_encode_i_32(3, serializer);
+        sse_encode_list_String(field0, serializer);
+      case FrbContextValue_Null():
+        sse_encode_i_32(4, serializer);
+    }
   }
 
   @protected
@@ -1233,6 +1666,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_http_header(
     List<HttpHeader> self,
     SseSerializer serializer,
@@ -1252,6 +1694,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_record_string_frb_context_value(
+    List<(String, FrbContextValue)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_frb_context_value(item, serializer);
+    }
   }
 
   @protected
@@ -1275,6 +1729,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_list_prim_u_8_strict(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_record_string_frb_context_value(
+    (String, FrbContextValue) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_frb_context_value(self.$2, serializer);
   }
 
   @protected

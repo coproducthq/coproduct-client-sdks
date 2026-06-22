@@ -1,5 +1,6 @@
 uniffi::setup_scaffolding!();
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
@@ -164,6 +165,48 @@ pub trait HostSecureStore: Send + Sync + std::fmt::Debug {
 #[async_trait::async_trait]
 pub trait FlagObserver: Send + Sync + std::fmt::Debug {
     async fn on_change_bool(&self, value: bool) -> Result<(), ObserverError>;
+}
+
+/// Context attribute value crossing the binding boundary. The core attribute
+/// type is not exported directly so the boundary keeps a stable local shape
+#[derive(uniffi::Enum)]
+pub enum ContextValue {
+    String { value: String },
+    Number { value: f64 },
+    Bool { value: bool },
+    StringList { values: Vec<String> },
+    Null,
+}
+
+impl ContextValue {
+    fn into_core(self) -> coproduct_core::context::AttributeValue {
+        use coproduct_core::context::AttributeValue;
+        match self {
+            ContextValue::String { value } => AttributeValue::String(value),
+            ContextValue::Number { value } => AttributeValue::Number(value),
+            ContextValue::Bool { value } => AttributeValue::Bool(value),
+            ContextValue::StringList { values } => {
+                AttributeValue::Array(values.into_iter().map(AttributeValue::String).collect())
+            }
+            ContextValue::Null => AttributeValue::Null,
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum FfiIdentityError {
+    #[error("targeting key cannot be empty")]
+    InvalidTargetingKey,
+}
+
+impl From<coproduct_core::error::IdentityError> for FfiIdentityError {
+    fn from(value: coproduct_core::error::IdentityError) -> Self {
+        match value {
+            coproduct_core::error::IdentityError::InvalidTargetingKey => {
+                FfiIdentityError::InvalidTargetingKey
+            }
+        }
+    }
 }
 
 #[derive(uniffi::Object)]
@@ -382,6 +425,64 @@ impl CoproductClient {
 
     pub async fn simulate_change(&self, key: String, new_value: bool) {
         self.inner.simulate_change(key, new_value).await;
+    }
+}
+
+/// Identity mutators for the evaluation context. These are async because an
+/// identity change fires identity-lifecycle events, and the sign-out path awaits
+/// the persistence queue so the restored anonymous identity is durable before
+/// the call returns
+#[uniffi::export]
+impl CoproductClient {
+    pub async fn identify(
+        &self,
+        user_id: String,
+        attributes: HashMap<String, ContextValue>,
+        link_anonymous: bool,
+    ) -> Result<(), FfiIdentityError> {
+        let attrs = attributes
+            .into_iter()
+            .map(|(k, v)| (k, v.into_core()))
+            .collect();
+        self.inner
+            .identify(user_id, attrs, link_anonymous)
+            .await
+            .map_err(FfiIdentityError::from)
+    }
+
+    pub async fn sign_out(&self) {
+        self.inner.sign_out().await;
+    }
+
+    pub async fn set_context(
+        &self,
+        targeting_key: String,
+        attributes: HashMap<String, ContextValue>,
+    ) -> Result<(), FfiIdentityError> {
+        let attrs = attributes
+            .into_iter()
+            .map(|(k, v)| (k, v.into_core()))
+            .collect();
+        self.inner
+            .set_context(targeting_key, attrs)
+            .await
+            .map_err(FfiIdentityError::from)
+    }
+
+    pub async fn update_attributes(&self, attributes: HashMap<String, ContextValue>) {
+        let attrs = attributes
+            .into_iter()
+            .map(|(k, v)| (k, v.into_core()))
+            .collect();
+        self.inner.update_attributes(attrs).await;
+    }
+
+    pub async fn remove_attributes(&self, names: Vec<String>) {
+        self.inner.remove_attributes(&names).await;
+    }
+
+    pub fn previous_anonymous_id(&self) -> Option<String> {
+        self.inner.previous_anonymous_id()
     }
 }
 

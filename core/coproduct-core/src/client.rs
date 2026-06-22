@@ -3,21 +3,45 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-use crate::context::EvaluationContext;
+use crate::context::{AttributeValue, EvaluationContext};
 use crate::details::{FlagEvaluationDetails, build_details};
-use crate::error::InitError;
+use crate::error::{IdentityError, InitError};
 use crate::hooks::HookRegistry;
+use crate::identity::{cold_start_anonymous_id, generate_anonymous_id};
+use crate::identity_state::IdentityState;
+use crate::identity_writer::IdentityWriter;
 use crate::observer::{FlagObserver, Subscription};
 use crate::pipeline::{EvaluationReason, RequestedType, evaluate};
-use crate::secure_store::SecureStore;
+use crate::secure_store::{SecureStore, SecureStoreError};
 use crate::snapshot::{IndexedSnapshot, Snapshot, VariationValue};
 use crate::transport::{HttpHeader, HttpMethod, HttpRequest, Transport};
+
+/// In-memory secure store that backs identity for snapshot-only test clients
+/// which never exercise persistence
+#[derive(Debug)]
+struct NoopSecureStore;
+
+#[async_trait::async_trait]
+impl SecureStore for NoopSecureStore {
+    async fn read(&self, _key: String) -> Result<Option<String>, SecureStoreError> {
+        Ok(None)
+    }
+    async fn write(&self, _key: String, _value: String) -> Result<(), SecureStoreError> {
+        Ok(())
+    }
+}
 
 pub struct CoproductClient {
     observers: Mutex<HashMap<String, Vec<Arc<dyn FlagObserver>>>>,
     loaded_from_cache: bool,
     snapshot: Arc<Mutex<Option<Arc<IndexedSnapshot>>>>,
     hooks: HookRegistry,
+    /// Server-derived SDK context layer merged into every evaluation context
+    sdk_context: Arc<Mutex<HashMap<String, AttributeValue>>>,
+    /// Held identity, including the targeting key and developer attribute layer
+    identity: Mutex<IdentityState>,
+    /// Single-writer persistence queue for the auto-anonymous identifier
+    identity_writer: Arc<IdentityWriter>,
 }
 
 impl CoproductClient {
@@ -81,11 +105,18 @@ impl CoproductClient {
                 reason: error.to_string(),
             })?;
 
+        let cold = cold_start_anonymous_id(secure_store.clone(), None).await;
+        let identity = Mutex::new(IdentityState::new_anonymous(cold.anonymous_id));
+        let identity_writer = Arc::new(IdentityWriter::new(secure_store.clone()));
+
         Ok(Arc::new(CoproductClient {
             observers: Mutex::new(HashMap::new()),
             loaded_from_cache,
             snapshot: Arc::new(Mutex::new(None)),
             hooks: HookRegistry::default(),
+            sdk_context: Arc::new(Mutex::new(HashMap::new())),
+            identity,
+            identity_writer,
         }))
     }
 
@@ -112,6 +143,90 @@ impl CoproductClient {
     }
 }
 
+impl CoproductClient {
+    /// Construct a client by running the cold-start sequence against the supplied
+    /// store without any transport calls
+    pub async fn for_test_with_store(store: Arc<dyn SecureStore>) -> Arc<CoproductClient> {
+        let cold = cold_start_anonymous_id(store.clone(), None).await;
+        Arc::new(CoproductClient {
+            observers: Mutex::new(HashMap::new()),
+            loaded_from_cache: false,
+            snapshot: Arc::new(Mutex::new(None)),
+            hooks: HookRegistry::default(),
+            sdk_context: Arc::new(Mutex::new(HashMap::new())),
+            identity: Mutex::new(IdentityState::new_anonymous(cold.anonymous_id)),
+            identity_writer: Arc::new(IdentityWriter::new(store)),
+        })
+    }
+
+    pub async fn identify(
+        &self,
+        user_id: String,
+        attributes: HashMap<String, AttributeValue>,
+        link_anonymous: bool,
+    ) -> Result<(), IdentityError> {
+        // Async so identity-change lifecycle events can be fired around the
+        // mutation. The mutation itself is a guarded in-memory edit. The
+        // identifier is deliberately not persisted: the stored anonymous-id slot
+        // is reserved for the auto-anonymous identity and persists across cold
+        // starts, so writing a user-supplied id there would surface it as a
+        // prior anonymous id on the next start. Identified state is rebuilt by
+        // the application calling identify again after a restart
+        self.identity
+            .lock()
+            .identify(user_id, attributes, link_anonymous)
+    }
+
+    pub async fn sign_out(&self) {
+        let anonymous_id = {
+            let mut guard = self.identity.lock();
+            guard.sign_out();
+            guard.original_anonymous_id().to_string()
+        };
+        // Re-assert the anonymous id in the persisted slot. This is the only
+        // normal write after cold start, so the supersession queue mainly absorbs
+        // concurrent sign-outs
+        self.identity_writer.enqueue(anonymous_id).await;
+    }
+
+    pub async fn set_context(
+        &self,
+        targeting_key: String,
+        attributes: HashMap<String, AttributeValue>,
+    ) -> Result<(), IdentityError> {
+        // Async for the same reason as identify. The targeting key here is
+        // caller-supplied and must not be written to the anonymous-id slot
+        self.identity.lock().set_context(targeting_key, attributes)
+    }
+
+    pub async fn update_attributes(&self, attributes: HashMap<String, AttributeValue>) {
+        self.identity.lock().update_attributes(attributes);
+    }
+
+    pub async fn remove_attributes(&self, names: &[String]) {
+        self.identity.lock().remove_attributes(names);
+    }
+
+    pub fn previous_anonymous_id(&self) -> Option<String> {
+        self.identity.lock().previous_anonymous_id()
+    }
+
+    #[doc(hidden)]
+    pub fn targeting_key_for_test(&self) -> String {
+        self.identity.lock().targeting_key().to_string()
+    }
+
+    #[doc(hidden)]
+    pub fn get_attribute_for_test(&self, name: &str) -> Option<AttributeValue> {
+        self.identity.lock().context().get_attribute(name)
+    }
+
+    #[doc(hidden)]
+    pub async fn wait_identity_idle_for_test(&self) {
+        self.identity_writer.wait_idle().await;
+    }
+}
+
 /// Internal pipeline output carrying the pipeline's `EvaluationReason`. Used for
 /// white-box pipeline testing. The customer-facing typed-detail surface is
 /// `details::FlagEvaluationDetails<T>`, returned by the `*_details` getters
@@ -134,6 +249,9 @@ impl CoproductClient {
             loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(Some(Arc::new(snapshot)))),
             hooks: HookRegistry::default(),
+            sdk_context: Arc::new(Mutex::new(HashMap::new())),
+            identity: Mutex::new(IdentityState::new_anonymous(generate_anonymous_id())),
+            identity_writer: Arc::new(IdentityWriter::new(Arc::new(NoopSecureStore))),
         })
     }
 
@@ -225,6 +343,9 @@ impl CoproductClient {
             loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(Some(Arc::new(indexed)))),
             hooks: HookRegistry::default(),
+            sdk_context: Arc::new(Mutex::new(HashMap::new())),
+            identity: Mutex::new(IdentityState::new_anonymous(generate_anonymous_id())),
+            identity_writer: Arc::new(IdentityWriter::new(Arc::new(NoopSecureStore))),
         })
     }
 
@@ -236,6 +357,9 @@ impl CoproductClient {
             loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(None)),
             hooks: HookRegistry::default(),
+            sdk_context: Arc::new(Mutex::new(HashMap::new())),
+            identity: Mutex::new(IdentityState::new_anonymous(generate_anonymous_id())),
+            identity_writer: Arc::new(IdentityWriter::new(Arc::new(NoopSecureStore))),
         })
     }
 
@@ -243,11 +367,13 @@ impl CoproductClient {
         self.snapshot.lock().clone()
     }
 
-    /// Anonymous evaluation context with no merged attributes. The full identity
-    /// and context merge is built out alongside the identity work. The typed
-    /// getters call this so the merge has a single seam to replace later
+    /// Evaluation context for the current identity with the server-derived SDK
+    /// context layer merged in. The typed getters call this so the merge has a
+    /// single seam
     pub(crate) fn build_evaluation_context(&self) -> EvaluationContext {
-        EvaluationContext::new("anonymous".to_string())
+        let mut ctx = self.identity.lock().context().clone();
+        ctx.replace_sdk_context(self.sdk_context.lock().clone());
+        ctx
     }
 }
 

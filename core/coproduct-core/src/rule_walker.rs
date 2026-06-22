@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::bucketing::bucket_for_vectors;
 use crate::condition::evaluate_condition;
-use crate::context::{AttributeValue, EvaluationContext};
+use crate::context::EvaluationContext;
 use crate::snapshot::{ConditionOutcome, Flag, Rollout, Segment, TargetingRule};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,10 +28,10 @@ pub fn walk_rules(
     ctx: &EvaluationContext,
     segments: &HashMap<String, Segment>,
 ) -> RuleWalkResult {
-    let targeting_key = match ctx.get_attribute("targetingKey") {
-        Some(AttributeValue::String(k)) => k,
-        _ => return RuleWalkResult::Fallthrough,
-    };
+    let targeting_key = ctx.targeting_key();
+    if targeting_key.is_empty() {
+        return RuleWalkResult::Fallthrough;
+    }
     for rule in &flag.targeting_rules {
         match evaluate_condition(&rule.condition, ctx, segments) {
             // Indeterminate is treated identically to NoMatch at the rule-walker
@@ -40,7 +40,7 @@ pub fn walk_rules(
             ConditionOutcome::NoMatch | ConditionOutcome::Indeterminate => continue,
             ConditionOutcome::CircuitBreak => return RuleWalkResult::CircuitBreak,
             ConditionOutcome::Match => {
-                if let Some(variation) = apply_coverage_and_rollout(rule, &targeting_key) {
+                if let Some(variation) = apply_coverage_and_rollout(rule, targeting_key) {
                     return RuleWalkResult::Match {
                         rule_id: rule.rule_id.clone(),
                         variation,

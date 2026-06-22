@@ -12,6 +12,486 @@ part of 'api.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
+mixin _$FrbContextValue {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'FrbContextValue()';
+}
+
+
+}
+
+/// @nodoc
+class $FrbContextValueCopyWith<$Res>  {
+$FrbContextValueCopyWith(FrbContextValue _, $Res Function(FrbContextValue) __);
+}
+
+
+/// Adds pattern-matching-related methods to [FrbContextValue].
+extension FrbContextValuePatterns on FrbContextValue {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbContextValue_String value)?  string,TResult Function( FrbContextValue_Number value)?  number,TResult Function( FrbContextValue_Bool value)?  bool,TResult Function( FrbContextValue_StringList value)?  stringList,TResult Function( FrbContextValue_Null value)?  null_,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case FrbContextValue_String() when string != null:
+return string(_that);case FrbContextValue_Number() when number != null:
+return number(_that);case FrbContextValue_Bool() when bool != null:
+return bool(_that);case FrbContextValue_StringList() when stringList != null:
+return stringList(_that);case FrbContextValue_Null() when null_ != null:
+return null_(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbContextValue_String value)  string,required TResult Function( FrbContextValue_Number value)  number,required TResult Function( FrbContextValue_Bool value)  bool,required TResult Function( FrbContextValue_StringList value)  stringList,required TResult Function( FrbContextValue_Null value)  null_,}){
+final _that = this;
+switch (_that) {
+case FrbContextValue_String():
+return string(_that);case FrbContextValue_Number():
+return number(_that);case FrbContextValue_Bool():
+return bool(_that);case FrbContextValue_StringList():
+return stringList(_that);case FrbContextValue_Null():
+return null_(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbContextValue_String value)?  string,TResult? Function( FrbContextValue_Number value)?  number,TResult? Function( FrbContextValue_Bool value)?  bool,TResult? Function( FrbContextValue_StringList value)?  stringList,TResult? Function( FrbContextValue_Null value)?  null_,}){
+final _that = this;
+switch (_that) {
+case FrbContextValue_String() when string != null:
+return string(_that);case FrbContextValue_Number() when number != null:
+return number(_that);case FrbContextValue_Bool() when bool != null:
+return bool(_that);case FrbContextValue_StringList() when stringList != null:
+return stringList(_that);case FrbContextValue_Null() when null_ != null:
+return null_(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field0)?  string,TResult Function( double field0)?  number,TResult Function( bool field0)?  bool,TResult Function( List<String> field0)?  stringList,TResult Function()?  null_,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case FrbContextValue_String() when string != null:
+return string(_that.field0);case FrbContextValue_Number() when number != null:
+return number(_that.field0);case FrbContextValue_Bool() when bool != null:
+return bool(_that.field0);case FrbContextValue_StringList() when stringList != null:
+return stringList(_that.field0);case FrbContextValue_Null() when null_ != null:
+return null_();case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field0)  string,required TResult Function( double field0)  number,required TResult Function( bool field0)  bool,required TResult Function( List<String> field0)  stringList,required TResult Function()  null_,}) {final _that = this;
+switch (_that) {
+case FrbContextValue_String():
+return string(_that.field0);case FrbContextValue_Number():
+return number(_that.field0);case FrbContextValue_Bool():
+return bool(_that.field0);case FrbContextValue_StringList():
+return stringList(_that.field0);case FrbContextValue_Null():
+return null_();}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field0)?  string,TResult? Function( double field0)?  number,TResult? Function( bool field0)?  bool,TResult? Function( List<String> field0)?  stringList,TResult? Function()?  null_,}) {final _that = this;
+switch (_that) {
+case FrbContextValue_String() when string != null:
+return string(_that.field0);case FrbContextValue_Number() when number != null:
+return number(_that.field0);case FrbContextValue_Bool() when bool != null:
+return bool(_that.field0);case FrbContextValue_StringList() when stringList != null:
+return stringList(_that.field0);case FrbContextValue_Null() when null_ != null:
+return null_();case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class FrbContextValue_String extends FrbContextValue {
+  const FrbContextValue_String(this.field0): super._();
+  
+
+ final  String field0;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbContextValue_StringCopyWith<FrbContextValue_String> get copyWith => _$FrbContextValue_StringCopyWithImpl<FrbContextValue_String>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_String&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'FrbContextValue.string(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbContextValue_StringCopyWith<$Res> implements $FrbContextValueCopyWith<$Res> {
+  factory $FrbContextValue_StringCopyWith(FrbContextValue_String value, $Res Function(FrbContextValue_String) _then) = _$FrbContextValue_StringCopyWithImpl;
+@useResult
+$Res call({
+ String field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbContextValue_StringCopyWithImpl<$Res>
+    implements $FrbContextValue_StringCopyWith<$Res> {
+  _$FrbContextValue_StringCopyWithImpl(this._self, this._then);
+
+  final FrbContextValue_String _self;
+  final $Res Function(FrbContextValue_String) _then;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FrbContextValue_String(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbContextValue_Number extends FrbContextValue {
+  const FrbContextValue_Number(this.field0): super._();
+  
+
+ final  double field0;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbContextValue_NumberCopyWith<FrbContextValue_Number> get copyWith => _$FrbContextValue_NumberCopyWithImpl<FrbContextValue_Number>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_Number&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'FrbContextValue.number(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbContextValue_NumberCopyWith<$Res> implements $FrbContextValueCopyWith<$Res> {
+  factory $FrbContextValue_NumberCopyWith(FrbContextValue_Number value, $Res Function(FrbContextValue_Number) _then) = _$FrbContextValue_NumberCopyWithImpl;
+@useResult
+$Res call({
+ double field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbContextValue_NumberCopyWithImpl<$Res>
+    implements $FrbContextValue_NumberCopyWith<$Res> {
+  _$FrbContextValue_NumberCopyWithImpl(this._self, this._then);
+
+  final FrbContextValue_Number _self;
+  final $Res Function(FrbContextValue_Number) _then;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FrbContextValue_Number(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as double,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbContextValue_Bool extends FrbContextValue {
+  const FrbContextValue_Bool(this.field0): super._();
+  
+
+ final  bool field0;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbContextValue_BoolCopyWith<FrbContextValue_Bool> get copyWith => _$FrbContextValue_BoolCopyWithImpl<FrbContextValue_Bool>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_Bool&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'FrbContextValue.bool(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbContextValue_BoolCopyWith<$Res> implements $FrbContextValueCopyWith<$Res> {
+  factory $FrbContextValue_BoolCopyWith(FrbContextValue_Bool value, $Res Function(FrbContextValue_Bool) _then) = _$FrbContextValue_BoolCopyWithImpl;
+@useResult
+$Res call({
+ bool field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbContextValue_BoolCopyWithImpl<$Res>
+    implements $FrbContextValue_BoolCopyWith<$Res> {
+  _$FrbContextValue_BoolCopyWithImpl(this._self, this._then);
+
+  final FrbContextValue_Bool _self;
+  final $Res Function(FrbContextValue_Bool) _then;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FrbContextValue_Bool(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbContextValue_StringList extends FrbContextValue {
+  const FrbContextValue_StringList(final  List<String> field0): _field0 = field0,super._();
+  
+
+ final  List<String> _field0;
+ List<String> get field0 {
+  if (_field0 is EqualUnmodifiableListView) return _field0;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_field0);
+}
+
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbContextValue_StringListCopyWith<FrbContextValue_StringList> get copyWith => _$FrbContextValue_StringListCopyWithImpl<FrbContextValue_StringList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_StringList&&const DeepCollectionEquality().equals(other._field0, _field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_field0));
+
+@override
+String toString() {
+  return 'FrbContextValue.stringList(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbContextValue_StringListCopyWith<$Res> implements $FrbContextValueCopyWith<$Res> {
+  factory $FrbContextValue_StringListCopyWith(FrbContextValue_StringList value, $Res Function(FrbContextValue_StringList) _then) = _$FrbContextValue_StringListCopyWithImpl;
+@useResult
+$Res call({
+ List<String> field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbContextValue_StringListCopyWithImpl<$Res>
+    implements $FrbContextValue_StringListCopyWith<$Res> {
+  _$FrbContextValue_StringListCopyWithImpl(this._self, this._then);
+
+  final FrbContextValue_StringList _self;
+  final $Res Function(FrbContextValue_StringList) _then;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FrbContextValue_StringList(
+null == field0 ? _self._field0 : field0 // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbContextValue_Null extends FrbContextValue {
+  const FrbContextValue_Null(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_Null);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'FrbContextValue.null_()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
 mixin _$InitError {
 
 

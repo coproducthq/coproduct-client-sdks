@@ -391,6 +391,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "time",
+ "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
