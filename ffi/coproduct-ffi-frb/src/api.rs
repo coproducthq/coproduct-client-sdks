@@ -142,7 +142,7 @@ pub fn observe(
     let observer = Arc::new(ObserverAdapter {
         on_change: Arc::new(on_change),
     });
-    let inner = client.inner.observe(key, observer);
+    let inner = client.inner.observe_key(key, observer);
     SubscriptionHandle { _inner: inner }
 }
 
@@ -310,11 +310,14 @@ impl core_secure_store::SecureStore for SecureStoreAdapter {
     }
 }
 
+// The shim observes only boolean changes for now, pending the typed
+// host-observer surface. Non-bool values are dropped at this layer
 #[async_trait::async_trait]
-impl core_observer::FlagObserver for ObserverAdapter {
-    async fn on_change_bool(&self, value: bool) -> Result<(), core_observer::ObserverError> {
-        (self.on_change)(value).await;
-        Ok(())
+impl core_observer::TypedFlagObserver for ObserverAdapter {
+    async fn on_change(&self, _key: &str, value: &core_observer::FlagValue) {
+        if let core_observer::FlagValue::Bool(b) = value {
+            (self.on_change)(*b).await;
+        }
     }
 }
 

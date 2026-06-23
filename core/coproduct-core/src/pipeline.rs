@@ -98,7 +98,6 @@ impl VisitingSet {
 }
 
 use crate::context::EvaluationContext;
-use crate::hooks::{HookContext, HookOutcome, HookRegistry};
 use crate::snapshot::{Flag, IndexedSnapshot};
 
 /// Prerequisite depth cap. The counter starts at 0 at the top-level call. Five
@@ -107,24 +106,16 @@ use crate::snapshot::{Flag, IndexedSnapshot};
 pub const MAX_PREREQ_DEPTH: u32 = 5;
 
 /// Recursively evaluate a flag through the full pipeline. This shell wires the
-/// depth guard, the hook firing skeleton, and the memoization read. The numbered
-/// steps are filled into `run_pipeline_body`
+/// depth guard and the memoization read. The numbered steps are filled into
+/// `run_pipeline_body`
 pub fn evaluate_recursive(
     snapshot: &IndexedSnapshot,
     flag_key: &str,
     ctx: &EvaluationContext,
-    hooks: &HookRegistry,
     visiting: &mut VisitingSet,
     depth: u32,
 ) -> EvaluationOutcome {
-    let hook_ctx = HookContext {
-        flag_key,
-        default_value_label: "",
-    };
-
-    fire_before(hooks, &hook_ctx);
-
-    let outcome = if depth > MAX_PREREQ_DEPTH {
+    if depth > MAX_PREREQ_DEPTH {
         circuit_break_off(
             snapshot,
             flag_key,
@@ -133,50 +124,8 @@ pub fn evaluate_recursive(
     } else if let Some(VisitingState::Resolved(memo)) = visiting.get(flag_key).cloned() {
         memo
     } else {
-        run_pipeline_body(snapshot, flag_key, ctx, hooks, visiting, depth)
-    };
-
-    fire_after(hooks, &hook_ctx, &outcome);
-
-    outcome
-}
-
-/// Fire the before callback on every hook in registration order
-fn fire_before(hooks: &HookRegistry, hook_ctx: &HookContext<'_>) {
-    for hook in hooks.iter() {
-        match hook.before(hook_ctx) {
-            HookOutcome::Proceed => (),
-        }
+        run_pipeline_body(snapshot, flag_key, ctx, visiting, depth)
     }
-}
-
-/// Fire the error-or-after callback then finally on every hook. The error arm
-/// runs when the outcome carries an error code, otherwise the after arm runs
-fn fire_after(hooks: &HookRegistry, hook_ctx: &HookContext<'_>, outcome: &EvaluationOutcome) {
-    for hook in hooks.iter() {
-        match outcome.error_code {
-            Some(code) => hook.error(
-                hook_ctx,
-                code,
-                outcome.error_message.as_deref().unwrap_or(""),
-            ),
-            None => hook.after(hook_ctx, outcome.variation_key.as_deref().unwrap_or("")),
-        }
-        hook.finally(hook_ctx);
-    }
-}
-
-/// Fire the full hook bracket for a terminal outcome that short-circuits before
-/// the recursive body runs, so the early pipeline steps still see before, error,
-/// and finally
-fn fire_terminal(
-    hooks: &HookRegistry,
-    hook_ctx: &HookContext<'_>,
-    outcome: EvaluationOutcome,
-) -> EvaluationOutcome {
-    fire_before(hooks, hook_ctx);
-    fire_after(hooks, hook_ctx, &outcome);
-    outcome
 }
 
 fn circuit_break_off(
@@ -211,7 +160,6 @@ fn run_pipeline_body(
     snapshot: &IndexedSnapshot,
     flag_key: &str,
     ctx: &EvaluationContext,
-    hooks: &HookRegistry,
     visiting: &mut VisitingSet,
     depth: u32,
 ) -> EvaluationOutcome {
@@ -244,7 +192,7 @@ fn run_pipeline_body(
     // it is detected while its prereqs evaluate
     visiting.mark_visiting(flag_key);
     for prereq in flag.prerequisites.iter() {
-        match check_prerequisite(snapshot, flag, prereq, ctx, hooks, visiting, depth) {
+        match check_prerequisite(snapshot, flag, prereq, ctx, visiting, depth) {
             PrereqOutcome::Satisfied => continue,
             PrereqOutcome::Failed => {
                 let outcome = serve_variation(
@@ -289,13 +237,11 @@ enum PrereqOutcome {
     CircuitBreak(String),
 }
 
-#[allow(clippy::too_many_arguments)]
 fn check_prerequisite(
     snapshot: &IndexedSnapshot,
     parent: &Flag,
     prereq: &crate::snapshot::Prerequisite,
     ctx: &EvaluationContext,
-    hooks: &HookRegistry,
     visiting: &mut VisitingSet,
     depth: u32,
 ) -> PrereqOutcome {
@@ -338,7 +284,7 @@ fn check_prerequisite(
     }
 
     // Recursively evaluate the prereq flag through its own full pipeline
-    let resolved = evaluate_recursive(snapshot, &prereq.flag_key, ctx, hooks, visiting, depth + 1);
+    let resolved = evaluate_recursive(snapshot, &prereq.flag_key, ctx, visiting, depth + 1);
 
     if let Some(EvaluationErrorCode::RuleCircuitBreak) = resolved.error_code {
         return PrereqOutcome::CircuitBreak(
@@ -451,49 +397,28 @@ pub fn evaluate(
     flag_key: &str,
     requested_type: RequestedType,
     ctx: &EvaluationContext,
-    hooks: &HookRegistry,
 ) -> EvaluationOutcome {
-    // Steps 1-3 short-circuit before the recursive body, so they fire their own
-    // full hook bracket. The recursive path fires its bracket inside
-    // evaluate_recursive, so a normal evaluation is never double-fired
-    let hook_ctx = HookContext {
-        flag_key,
-        default_value_label: "",
-    };
-
     let Some(snapshot) = snapshot else {
-        return fire_terminal(
-            hooks,
-            &hook_ctx,
-            EvaluationOutcome::default_with_error(
-                EvaluationErrorCode::ProviderNotReady,
-                "SDK not started or no snapshot loaded",
-            ),
+        return EvaluationOutcome::default_with_error(
+            EvaluationErrorCode::ProviderNotReady,
+            "SDK not started or no snapshot loaded",
         );
     };
 
     let Some(flag) = snapshot.flags.get(flag_key) else {
-        return fire_terminal(
-            hooks,
-            &hook_ctx,
-            EvaluationOutcome::default_with_error(
-                EvaluationErrorCode::FlagNotFound,
-                "flag not in snapshot",
-            ),
+        return EvaluationOutcome::default_with_error(
+            EvaluationErrorCode::FlagNotFound,
+            "flag not in snapshot",
         );
     };
 
     if !requested_type.matches(flag.r#type) {
-        return fire_terminal(
-            hooks,
-            &hook_ctx,
-            EvaluationOutcome::default_with_error(
-                EvaluationErrorCode::TypeMismatch,
-                "flag type does not match the requested getter",
-            ),
+        return EvaluationOutcome::default_with_error(
+            EvaluationErrorCode::TypeMismatch,
+            "flag type does not match the requested getter",
         );
     }
 
     let mut visiting = VisitingSet::new();
-    evaluate_recursive(snapshot, flag_key, ctx, hooks, &mut visiting, 0)
+    evaluate_recursive(snapshot, flag_key, ctx, &mut visiting, 0)
 }

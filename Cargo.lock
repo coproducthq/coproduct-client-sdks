@@ -406,6 +406,7 @@ dependencies = [
  "coproduct-core",
  "serde_json",
  "thiserror",
+ "time",
  "tokio",
  "uniffi",
 ]

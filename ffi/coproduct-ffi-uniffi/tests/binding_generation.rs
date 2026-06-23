@@ -57,6 +57,30 @@ fn committed_swift_bindings_expose_lifecycle_surface() {
 }
 
 #[test]
+fn committed_swift_bindings_expose_observer_and_lifecycle_handlers() {
+    let src = std::fs::read_to_string(generated_swift()).expect("committed swift bindings exist");
+    for symbol in [
+        "func observeKey",
+        "func observeKeys",
+        "func addHandler",
+        "func addEvaluationHook",
+        "func setEvaluationListener",
+        "func shutdown",
+        "enum LifecycleEvent",
+        "enum EvaluationStage",
+        "enum EvaluationReason",
+        "enum FlagValue",
+        "struct EvaluationEvent",
+        "struct HookContext",
+    ] {
+        assert!(
+            src.contains(symbol),
+            "committed bindings missing symbol: {symbol}"
+        );
+    }
+}
+
+#[test]
 fn committed_swift_bindings_expose_identity_surface() {
     let src = std::fs::read_to_string(generated_swift()).expect("committed swift bindings exist");
     for symbol in [

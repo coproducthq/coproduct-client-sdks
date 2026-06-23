@@ -24,8 +24,9 @@ public enum Coproduct {
         )
     }
 
-    // Temporary vector-test hook. Customer-facing bucket access, if added,
-    // belongs on FlagEvaluationDetails.
+    // Internal bucketing accessor exposed for cross-platform parity
+    // verification. Customer-facing bucket access, if added, belongs on
+    // FlagEvaluationDetails.
     public static func computeBucket(
         ruleId: String,
         targetingKey: String,
@@ -66,15 +67,15 @@ public extension CoproductClient {
         getBool(key: key, defaultValue: defaultValue)
     }
 
-    // Low-level observer hook used by current demos. Higher-level Swift bindings
-    // can layer on top of this cancellation primitive.
+    // Low-level observer primitive returning a cancellation handle. Higher-level
+    // Swift bindings can layer on top of this cancellation primitive.
     func observe(
         _ key: String,
         default _: Bool,
         _ handler: @escaping @Sendable (Bool) -> Void
     ) -> Cancellable {
         let observer = ClosureFlagObserver(handler: handler)
-        let subscription = observe(key: key, observer: observer)
+        let subscription = observeKey(key: key, observer: observer)
         return CoproductSubscription(subscription: subscription, observer: observer)
     }
 }
@@ -122,8 +123,12 @@ private final class ClosureFlagObserver: FlagObserver, @unchecked Sendable {
         self.handler = handler
     }
 
-    func onChangeBool(value: Bool) async throws {
-        handler(value)
+    func onChange(key _: String, value: FlagValue) async throws {
+        // The convenience boolean observer reports only boolean changes. Other
+        // typed values are ignored by this low-level hook.
+        if case let .bool(value) = value {
+            handler(value)
+        }
     }
 }
 

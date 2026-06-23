@@ -590,6 +590,10 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 public protocol CoproductClientProtocol: AnyObject, Sendable {
     
+    func addEvaluationHook(hook: EvaluationHook)  -> HookHandle
+    
+    func addHandler(event: LifecycleEvent, handler: LifecycleHandler)  -> HandlerHandle
+    
     func getBool(key: String, defaultValue: Bool)  -> Bool
     
     func getBoolDetails(key: String, defaultValue: Bool)  -> FlagEvaluationDetailsBool
@@ -617,7 +621,9 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func identify(userId: String, attributes: [String: ContextValue], linkAnonymous: Bool) async throws 
     
-    func observe(key: String, observer: FlagObserver)  -> Subscription
+    func observeKey(key: String, observer: FlagObserver)  -> Subscription
+    
+    func observeKeys(keys: [String], observer: FlagObserver)  -> Subscription
     
     func pollNow() async  -> PollOutcome
     
@@ -626,6 +632,10 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     func removeAttributes(names: [String]) async 
     
     func setContext(targetingKey: String, attributes: [String: ContextValue]) async throws 
+    
+    func setEvaluationListener(listener: EvaluationListener) 
+    
+    func shutdown() async 
     
     func signOut() async 
     
@@ -690,6 +700,25 @@ open class CoproductClient: CoproductClientProtocol, @unchecked Sendable {
 
     
 
+    
+open func addEvaluationHook(hook: EvaluationHook) -> HookHandle  {
+    return try!  FfiConverterTypeHookHandle_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_evaluation_hook(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEvaluationHook_lower(hook),$0
+    )
+})
+}
+    
+open func addHandler(event: LifecycleEvent, handler: LifecycleHandler) -> HandlerHandle  {
+    return try!  FfiConverterTypeHandlerHandle_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_handler(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLifecycleEvent_lower(event),
+        FfiConverterTypeLifecycleHandler_lower(handler),$0
+    )
+})
+}
     
 open func getBool(key: String, defaultValue: Bool) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -813,11 +842,21 @@ open func identify(userId: String, attributes: [String: ContextValue], linkAnony
         )
 }
     
-open func observe(key: String, observer: FlagObserver) -> Subscription  {
+open func observeKey(key: String, observer: FlagObserver) -> Subscription  {
     return try!  FfiConverterTypeSubscription_lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe(
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(key),
+        FfiConverterTypeFlagObserver_lower(observer),$0
+    )
+})
+}
+    
+open func observeKeys(keys: [String], observer: FlagObserver) -> Subscription  {
+    return try!  FfiConverterTypeSubscription_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(keys),
         FfiConverterTypeFlagObserver_lower(observer),$0
     )
 })
@@ -881,6 +920,32 @@ open func setContext(targetingKey: String, attributes: [String: ContextValue])as
             freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
             liftFunc: { $0 },
             errorHandler: FfiConverterTypeFfiIdentityError_lift
+        )
+}
+    
+open func setEvaluationListener(listener: EvaluationListener)  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_evaluation_listener(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEvaluationListener_lower(listener),$0
+    )
+}
+}
+    
+open func shutdown()async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_shutdown(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
         )
 }
     
@@ -1158,9 +1223,414 @@ public func FfiConverterTypeEvaluationContextHandle_lower(_ value: EvaluationCon
 
 
 
+/**
+ * Host-supplied evaluation hook. Fired synchronously around each typed-getter
+ * call, matching the synchronous getter path
+ */
+public protocol EvaluationHook: AnyObject, Sendable {
+    
+    func onStage(stage: EvaluationStage, ctx: HookContext) 
+    
+}
+/**
+ * Host-supplied evaluation hook. Fired synchronously around each typed-getter
+ * call, matching the synchronous getter path
+ */
+open class EvaluationHookImpl: EvaluationHook, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_evaluationhook(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_evaluationhook(handle, $0) }
+    }
+
+    
+
+    
+open func onStage(stage: EvaluationStage, ctx: HookContext)  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_evaluationhook_on_stage(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEvaluationStage_lower(stage),
+        FfiConverterTypeHookContext_lower(ctx),$0
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceEvaluationHook {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceEvaluationHook = UniffiVTableCallbackInterfaceEvaluationHook(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeEvaluationHook.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface EvaluationHook: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeEvaluationHook.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface EvaluationHook: handle missing in uniffiClone")
+            }
+        },
+        onStage: { (
+            uniffiHandle: UInt64,
+            stage: RustBuffer,
+            ctx: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeEvaluationHook.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onStage(
+                     stage: try FfiConverterTypeEvaluationStage_lift(stage),
+                     ctx: try FfiConverterTypeHookContext_lift(ctx)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceEvaluationHook> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceEvaluationHook>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitEvaluationHook() {
+    uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationhook(UniffiCallbackInterfaceEvaluationHook.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvaluationHook: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<EvaluationHook>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = EvaluationHook
+
+    public static func lift(_ handle: UInt64) throws -> EvaluationHook {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return EvaluationHookImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: EvaluationHook) -> UInt64 {
+         if let rustImpl = value as? EvaluationHookImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvaluationHook {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: EvaluationHook, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationHook_lift(_ handle: UInt64) throws -> EvaluationHook {
+    return try FfiConverterTypeEvaluationHook.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationHook_lower(_ value: EvaluationHook) -> UInt64 {
+    return FfiConverterTypeEvaluationHook.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Host-supplied evaluation listener. Called synchronously after each getter
+ * resolves so the host can forward the event to an analytics sink
+ */
+public protocol EvaluationListener: AnyObject, Sendable {
+    
+    func onEvaluation(event: EvaluationEvent) 
+    
+}
+/**
+ * Host-supplied evaluation listener. Called synchronously after each getter
+ * resolves so the host can forward the event to an analytics sink
+ */
+open class EvaluationListenerImpl: EvaluationListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_evaluationlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_evaluationlistener(handle, $0) }
+    }
+
+    
+
+    
+open func onEvaluation(event: EvaluationEvent)  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_evaluationlistener_on_evaluation(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEvaluationEvent_lower(event),$0
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceEvaluationListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceEvaluationListener = UniffiVTableCallbackInterfaceEvaluationListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeEvaluationListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface EvaluationListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeEvaluationListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface EvaluationListener: handle missing in uniffiClone")
+            }
+        },
+        onEvaluation: { (
+            uniffiHandle: UInt64,
+            event: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeEvaluationListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onEvaluation(
+                     event: try FfiConverterTypeEvaluationEvent_lift(event)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceEvaluationListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceEvaluationListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitEvaluationListener() {
+    uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationlistener(UniffiCallbackInterfaceEvaluationListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvaluationListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<EvaluationListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = EvaluationListener
+
+    public static func lift(_ handle: UInt64) throws -> EvaluationListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return EvaluationListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: EvaluationListener) -> UInt64 {
+         if let rustImpl = value as? EvaluationListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvaluationListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: EvaluationListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationListener_lift(_ handle: UInt64) throws -> EvaluationListener {
+    return try FfiConverterTypeEvaluationListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationListener_lower(_ value: EvaluationListener) -> UInt64 {
+    return FfiConverterTypeEvaluationListener.lower(value)
+}
+
+
+
+
+
+
 public protocol FlagObserver: AnyObject, Sendable {
     
-    func onChangeBool(value: Bool) async throws 
+    func onChange(key: String, value: FlagValue) async throws 
     
 }
 open class FlagObserverImpl: FlagObserver, @unchecked Sendable {
@@ -1216,13 +1686,13 @@ open class FlagObserverImpl: FlagObserver, @unchecked Sendable {
     
 
     
-open func onChangeBool(value: Bool)async throws   {
+open func onChange(key: String, value: FlagValue)async throws   {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change_bool(
+                uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(
                     self.uniffiCloneHandle(),
-                    FfiConverterBool.lower(value)
+                    FfiConverterString.lower(key),FfiConverterTypeFlagValue_lower(value)
                 )
             },
             pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
@@ -1261,9 +1731,10 @@ fileprivate struct UniffiCallbackInterfaceFlagObserver {
                 fatalError("Uniffi callback interface FlagObserver: handle missing in uniffiClone")
             }
         },
-        onChangeBool: { (
+        onChange: { (
             uniffiHandle: UInt64,
-            value: Int8,
+            key: RustBuffer,
+            value: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
             uniffiCallbackData: UInt64,
             uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
@@ -1273,8 +1744,9 @@ fileprivate struct UniffiCallbackInterfaceFlagObserver {
                 guard let uniffiObj = try? FfiConverterTypeFlagObserver.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try await uniffiObj.onChangeBool(
-                     value: try FfiConverterBool.lift(value)
+                return try await uniffiObj.onChange(
+                     key: try FfiConverterString.lift(key),
+                     value: try FfiConverterTypeFlagValue_lift(value)
                 )
             }
 
@@ -1370,6 +1842,288 @@ public func FfiConverterTypeFlagObserver_lift(_ handle: UInt64) throws -> FlagOb
 #endif
 public func FfiConverterTypeFlagObserver_lower(_ value: FlagObserver) -> UInt64 {
     return FfiConverterTypeFlagObserver.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Opaque handle returned from add_handler. Cancellation is idempotent
+ */
+public protocol HandlerHandleProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func id()  -> UInt64
+    
+    func isCancelled()  -> Bool
+    
+}
+/**
+ * Opaque handle returned from add_handler. Cancellation is idempotent
+ */
+open class HandlerHandle: HandlerHandleProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_handlerhandle(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func id() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHandlerHandle: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = HandlerHandle
+
+    public static func lift(_ handle: UInt64) throws -> HandlerHandle {
+        return HandlerHandle(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: HandlerHandle) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HandlerHandle {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: HandlerHandle, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHandlerHandle_lift(_ handle: UInt64) throws -> HandlerHandle {
+    return try FfiConverterTypeHandlerHandle.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHandlerHandle_lower(_ value: HandlerHandle) -> UInt64 {
+    return FfiConverterTypeHandlerHandle.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Opaque handle returned from add_evaluation_hook. Cancellation is idempotent
+ */
+public protocol HookHandleProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func id()  -> UInt64
+    
+    func isCancelled()  -> Bool
+    
+}
+/**
+ * Opaque handle returned from add_evaluation_hook. Cancellation is idempotent
+ */
+open class HookHandle: HookHandleProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_hookhandle(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_hookhandle(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func id() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHookHandle: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = HookHandle
+
+    public static func lift(_ handle: UInt64) throws -> HookHandle {
+        return HookHandle(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: HookHandle) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HookHandle {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: HookHandle, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHookHandle_lift(_ handle: UInt64) throws -> HookHandle {
+    return try FfiConverterTypeHookHandle.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHookHandle_lower(_ value: HookHandle) -> UInt64 {
+    return FfiConverterTypeHookHandle.lower(value)
 }
 
 
@@ -1881,7 +2635,242 @@ public func FfiConverterTypeHostTransport_lower(_ value: HostTransport) -> UInt6
 
 
 
+/**
+ * Host-supplied lifecycle handler. Fired asynchronously when the registered
+ * event occurs so the host can run async work such as cache invalidation
+ */
+public protocol LifecycleHandler: AnyObject, Sendable {
+    
+    func onEvent(event: LifecycleEvent) async 
+    
+}
+/**
+ * Host-supplied lifecycle handler. Fired asynchronously when the registered
+ * event occurs so the host can run async work such as cache invalidation
+ */
+open class LifecycleHandlerImpl: LifecycleHandler, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_lifecyclehandler(handle, $0) }
+    }
+
+    
+
+    
+open func onEvent(event: LifecycleEvent)async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_lifecyclehandler_on_event(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeLifecycleEvent_lower(event)
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLifecycleHandler {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLifecycleHandler = UniffiVTableCallbackInterfaceLifecycleHandler(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLifecycleHandler.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LifecycleHandler: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLifecycleHandler.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LifecycleHandler: handle missing in uniffiClone")
+            }
+        },
+        onEvent: { (
+            uniffiHandle: UInt64,
+            event: RustBuffer,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
+            uniffiCallbackData: UInt64,
+            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
+        ) in
+            let makeCall = {
+                () async throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeLifecycleHandler.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return await uniffiObj.onEvent(
+                     event: try FfiConverterTypeLifecycleEvent_lift(event)
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: ()) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultVoid(
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultVoid(
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            uniffiTraitInterfaceCallAsync(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                droppedCallback: uniffiOutDroppedCallback
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLifecycleHandler> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLifecycleHandler>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLifecycleHandler() {
+    uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_lifecyclehandler(UniffiCallbackInterfaceLifecycleHandler.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLifecycleHandler: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LifecycleHandler>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LifecycleHandler
+
+    public static func lift(_ handle: UInt64) throws -> LifecycleHandler {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LifecycleHandlerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LifecycleHandler) -> UInt64 {
+         if let rustImpl = value as? LifecycleHandlerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LifecycleHandler {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LifecycleHandler, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLifecycleHandler_lift(_ handle: UInt64) throws -> LifecycleHandler {
+    return try FfiConverterTypeLifecycleHandler.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLifecycleHandler_lower(_ value: LifecycleHandler) -> UInt64 {
+    return FfiConverterTypeLifecycleHandler.lower(value)
+}
+
+
+
+
+
+
 public protocol SubscriptionProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func id()  -> UInt64
+    
+    func isCancelled()  -> Bool
+    
+    func keys()  -> [String]
     
 }
 open class Subscription: SubscriptionProtocol, @unchecked Sendable {
@@ -1937,6 +2926,37 @@ open class Subscription: SubscriptionProtocol, @unchecked Sendable {
     
 
     
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func id() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func keys() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
 
     
 }
@@ -1983,6 +3003,93 @@ public func FfiConverterTypeSubscription_lower(_ value: Subscription) -> UInt64 
 }
 
 
+
+
+/**
+ * One flag evaluation rendered as an analytics record. The evaluation time is
+ * serialized as an RFC 3339 timestamp string because the binding layer has no
+ * native date type
+ */
+public struct EvaluationEvent: Equatable, Hashable {
+    public var flagKey: String
+    public var flagType: FlagType
+    public var value: FlagValue
+    public var defaultValue: FlagValue
+    public var variant: String?
+    public var reason: EvaluationReason
+    public var ruleId: String?
+    public var errorCode: String?
+    public var evaluatedAt: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(flagKey: String, flagType: FlagType, value: FlagValue, defaultValue: FlagValue, variant: String?, reason: EvaluationReason, ruleId: String?, errorCode: String?, evaluatedAt: String) {
+        self.flagKey = flagKey
+        self.flagType = flagType
+        self.value = value
+        self.defaultValue = defaultValue
+        self.variant = variant
+        self.reason = reason
+        self.ruleId = ruleId
+        self.errorCode = errorCode
+        self.evaluatedAt = evaluatedAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EvaluationEvent: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvaluationEvent: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvaluationEvent {
+        return
+            try EvaluationEvent(
+                flagKey: FfiConverterString.read(from: &buf), 
+                flagType: FfiConverterTypeFlagType.read(from: &buf), 
+                value: FfiConverterTypeFlagValue.read(from: &buf), 
+                defaultValue: FfiConverterTypeFlagValue.read(from: &buf), 
+                variant: FfiConverterOptionString.read(from: &buf), 
+                reason: FfiConverterTypeEvaluationReason.read(from: &buf), 
+                ruleId: FfiConverterOptionString.read(from: &buf), 
+                errorCode: FfiConverterOptionString.read(from: &buf), 
+                evaluatedAt: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EvaluationEvent, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.flagKey, into: &buf)
+        FfiConverterTypeFlagType.write(value.flagType, into: &buf)
+        FfiConverterTypeFlagValue.write(value.value, into: &buf)
+        FfiConverterTypeFlagValue.write(value.defaultValue, into: &buf)
+        FfiConverterOptionString.write(value.variant, into: &buf)
+        FfiConverterTypeEvaluationReason.write(value.reason, into: &buf)
+        FfiConverterOptionString.write(value.ruleId, into: &buf)
+        FfiConverterOptionString.write(value.errorCode, into: &buf)
+        FfiConverterString.write(value.evaluatedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationEvent_lift(_ buf: RustBuffer) throws -> EvaluationEvent {
+    return try FfiConverterTypeEvaluationEvent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationEvent_lower(_ value: EvaluationEvent) -> RustBuffer {
+    return FfiConverterTypeEvaluationEvent.lower(value)
+}
 
 
 /**
@@ -2338,6 +3445,75 @@ public func FfiConverterTypeFlagEvaluationDetailsString_lift(_ buf: RustBuffer) 
 #endif
 public func FfiConverterTypeFlagEvaluationDetailsString_lower(_ value: FlagEvaluationDetailsString) -> RustBuffer {
     return FfiConverterTypeFlagEvaluationDetailsString.lower(value)
+}
+
+
+/**
+ * Snapshot of one getter evaluation handed to every hook stage
+ */
+public struct HookContext: Equatable, Hashable {
+    public var flagKey: String
+    public var flagType: FlagType
+    public var defaultValue: FlagValue
+    public var value: FlagValue?
+    public var errorCode: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(flagKey: String, flagType: FlagType, defaultValue: FlagValue, value: FlagValue?, errorCode: String?) {
+        self.flagKey = flagKey
+        self.flagType = flagType
+        self.defaultValue = defaultValue
+        self.value = value
+        self.errorCode = errorCode
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HookContext: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHookContext: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HookContext {
+        return
+            try HookContext(
+                flagKey: FfiConverterString.read(from: &buf), 
+                flagType: FfiConverterTypeFlagType.read(from: &buf), 
+                defaultValue: FfiConverterTypeFlagValue.read(from: &buf), 
+                value: FfiConverterOptionTypeFlagValue.read(from: &buf), 
+                errorCode: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HookContext, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.flagKey, into: &buf)
+        FfiConverterTypeFlagType.write(value.flagType, into: &buf)
+        FfiConverterTypeFlagValue.write(value.defaultValue, into: &buf)
+        FfiConverterOptionTypeFlagValue.write(value.value, into: &buf)
+        FfiConverterOptionString.write(value.errorCode, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHookContext_lift(_ buf: RustBuffer) throws -> HookContext {
+    return try FfiConverterTypeHookContext.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHookContext_lower(_ value: HookContext) -> RustBuffer {
+    return FfiConverterTypeHookContext.lower(value)
 }
 
 
@@ -2713,6 +3889,181 @@ public func FfiConverterTypeContextValue_lower(_ value: ContextValue) -> RustBuf
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why an evaluation resolved the way it did, mirrored onto the event surface
+ */
+
+public enum EvaluationReason: Equatable, Hashable {
+    
+    case targetingMatch
+    case `fallthrough`
+    case off
+    case prerequisiteFailed
+    case error
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EvaluationReason: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvaluationReason: FfiConverterRustBuffer {
+    typealias SwiftType = EvaluationReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvaluationReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .targetingMatch
+        
+        case 2: return .`fallthrough`
+        
+        case 3: return .off
+        
+        case 4: return .prerequisiteFailed
+        
+        case 5: return .error
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EvaluationReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .targetingMatch:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .`fallthrough`:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .off:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .prerequisiteFailed:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .error:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationReason_lift(_ buf: RustBuffer) throws -> EvaluationReason {
+    return try FfiConverterTypeEvaluationReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationReason_lower(_ value: EvaluationReason) -> RustBuffer {
+    return FfiConverterTypeEvaluationReason.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The four stages of a single typed-getter evaluation
+ */
+
+public enum EvaluationStage: Equatable, Hashable {
+    
+    case before
+    case after
+    case error
+    case finally
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EvaluationStage: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEvaluationStage: FfiConverterRustBuffer {
+    typealias SwiftType = EvaluationStage
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EvaluationStage {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .before
+        
+        case 2: return .after
+        
+        case 3: return .error
+        
+        case 4: return .finally
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EvaluationStage, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .before:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .after:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .error:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .finally:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationStage_lift(_ buf: RustBuffer) throws -> EvaluationStage {
+    return try FfiConverterTypeEvaluationStage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEvaluationStage_lower(_ value: EvaluationStage) -> RustBuffer {
+    return FfiConverterTypeEvaluationStage.lower(value)
+}
+
+
 
 public enum FfiIdentityError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -2782,6 +4133,206 @@ public func FfiConverterTypeFfiIdentityError_lift(_ buf: RustBuffer) throws -> F
 public func FfiConverterTypeFfiIdentityError_lower(_ value: FfiIdentityError) -> RustBuffer {
     return FfiConverterTypeFfiIdentityError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The requested-getter type that triggered an evaluation
+ */
+
+public enum FlagType: Equatable, Hashable {
+    
+    case bool
+    case string
+    case int
+    case number
+    case json
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FlagType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFlagType: FfiConverterRustBuffer {
+    typealias SwiftType = FlagType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlagType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .bool
+        
+        case 2: return .string
+        
+        case 3: return .int
+        
+        case 4: return .number
+        
+        case 5: return .json
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FlagType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .bool:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .string:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .int:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .number:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .json:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagType_lift(_ buf: RustBuffer) throws -> FlagType {
+    return try FfiConverterTypeFlagType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagType_lower(_ value: FlagType) -> RustBuffer {
+    return FfiConverterTypeFlagType.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Typed flag value crossing the observer, hook, and event callback boundaries.
+ * Mirrors the core typed-value shape so the host receives Bool, String, Int,
+ * Number, or JSON without runtime casting. The JSON variant ships its value as a
+ * JSON-encoded string because the binding layer has no native JSON type
+ */
+
+public enum FlagValue: Equatable, Hashable {
+    
+    case bool(value: Bool
+    )
+    case string(value: String
+    )
+    case int(value: Int64
+    )
+    case number(value: Double
+    )
+    case json(value: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FlagValue: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFlagValue: FfiConverterRustBuffer {
+    typealias SwiftType = FlagValue
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlagValue {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .bool(value: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .string(value: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .int(value: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 4: return .number(value: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 5: return .json(value: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FlagValue, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .bool(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterBool.write(value, into: &buf)
+            
+        
+        case let .string(value):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .int(value):
+            writeInt(&buf, Int32(3))
+            FfiConverterInt64.write(value, into: &buf)
+            
+        
+        case let .number(value):
+            writeInt(&buf, Int32(4))
+            FfiConverterDouble.write(value, into: &buf)
+            
+        
+        case let .json(value):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(value, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagValue_lift(_ buf: RustBuffer) throws -> FlagValue {
+    return try FfiConverterTypeFlagValue.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagValue_lower(_ value: FlagValue) -> RustBuffer {
+    return FfiConverterTypeFlagValue.lower(value)
+}
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -2963,6 +4514,113 @@ public func FfiConverterTypeInitError_lift(_ buf: RustBuffer) throws -> InitErro
 public func FfiConverterTypeInitError_lower(_ value: InitError) -> RustBuffer {
     return FfiConverterTypeInitError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Lifecycle event crossing the binding boundary. Mirrors the core provider
+ * event vocabulary so the host can react to readiness, configuration, and
+ * context transitions without depending on core types directly
+ */
+
+public enum LifecycleEvent: Equatable, Hashable {
+    
+    case ready
+    case configurationChanged
+    case contextChanged
+    case reconciling
+    case retrying
+    case stale
+    case fatal
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LifecycleEvent: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLifecycleEvent: FfiConverterRustBuffer {
+    typealias SwiftType = LifecycleEvent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LifecycleEvent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .ready
+        
+        case 2: return .configurationChanged
+        
+        case 3: return .contextChanged
+        
+        case 4: return .reconciling
+        
+        case 5: return .retrying
+        
+        case 6: return .stale
+        
+        case 7: return .fatal
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LifecycleEvent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .ready:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .configurationChanged:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .contextChanged:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .reconciling:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .retrying:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .stale:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .fatal:
+            writeInt(&buf, Int32(7))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLifecycleEvent_lift(_ buf: RustBuffer) throws -> LifecycleEvent {
+    return try FfiConverterTypeLifecycleEvent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLifecycleEvent_lower(_ value: LifecycleEvent) -> RustBuffer {
+    return FfiConverterTypeLifecycleEvent.lower(value)
+}
+
 
 
 public enum ObserverError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
@@ -3518,6 +5176,30 @@ fileprivate struct FfiConverterOptionTypeAttributeValueFfi: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeFlagValue: FfiConverterRustBuffer {
+    typealias SwiftType = FlagValue?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeFlagValue.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeFlagValue.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
@@ -3773,6 +5455,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 49737) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook() != 40101) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler() != 19994) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3806,7 +5494,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe() != 2120) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key() != 60160) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys() != 20186) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now() != 20968) {
@@ -3819,6 +5510,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener() != 40640) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown() != 35784) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out() != 19109) {
@@ -3845,7 +5542,31 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key() != 63268) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change_bool() != 8587) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage() != 42144) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation() != 49466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change() != 44507) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel() != 5211) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id() != 34719) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled() != 24796) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_cancel() != 34361) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_id() != 54555) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_is_cancelled() != 40394) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read() != 59578) {
@@ -3857,13 +5578,31 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request() != 50214) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event() != 35580) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel() != 277) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id() != 50269) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled() != 2778) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys() != 2901) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new() != 4096) {
         return InitializationResult.apiChecksumMismatch
     }
 
+    uniffiCallbackInitEvaluationHook()
+    uniffiCallbackInitEvaluationListener()
     uniffiCallbackInitFlagObserver()
     uniffiCallbackInitHostSecureStore()
     uniffiCallbackInitHostTransport()
+    uniffiCallbackInitLifecycleHandler()
     return InitializationResult.ok
 }()
 

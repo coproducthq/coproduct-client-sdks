@@ -1,6 +1,5 @@
 use coproduct_core::context::EvaluationContext;
 use coproduct_core::error::EvaluationErrorCode;
-use coproduct_core::hooks::HookRegistry;
 use coproduct_core::pipeline::{EvaluationReason, RequestedType, evaluate};
 use coproduct_core::snapshot::test_support::{bool_flag_with_prereqs, snapshot_with_flags};
 use coproduct_core::snapshot::{Flag, Prerequisite};
@@ -12,14 +11,7 @@ fn satisfied_prereq_proceeds_to_step7() {
         bool_flag_with_prereqs("gate", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "dependent",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "dependent", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("on"));
     assert_eq!(outcome.reason, EvaluationReason::Fallthrough);
     assert_eq!(outcome.error_code, None);
@@ -32,14 +24,7 @@ fn unsatisfied_prereq_serves_off_with_prerequisite_failed_reason() {
         bool_flag_with_prereqs("gate", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "dependent",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "dependent", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
     assert_eq!(outcome.reason, EvaluationReason::PrerequisiteFailed);
     assert_eq!(outcome.error_code, None);
@@ -52,14 +37,7 @@ fn missing_prereq_flag_treated_as_failed() {
         &[("ghost-flag", "on")],
     )]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "dependent",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "dependent", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
     assert_eq!(outcome.reason, EvaluationReason::PrerequisiteFailed);
 }
@@ -71,14 +49,7 @@ fn required_variation_that_does_not_exist_is_failed() {
         bool_flag_with_prereqs("gate", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "dependent",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "dependent", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
     assert_eq!(outcome.reason, EvaluationReason::PrerequisiteFailed);
 }
@@ -90,8 +61,7 @@ fn cycle_between_two_flags_trips_rule_circuit_break() {
         bool_flag_with_prereqs("b", &[("a", "on")]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx, &registry);
+    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx);
     assert_eq!(
         outcome.error_code,
         Some(EvaluationErrorCode::RuleCircuitBreak)
@@ -120,8 +90,7 @@ fn diamond_dependency_memoizes_shared_node() {
         bool_flag_with_prereqs("d", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx, &registry);
+    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("on"));
     assert_eq!(outcome.reason, EvaluationReason::Fallthrough);
     assert_eq!(outcome.error_code, None);

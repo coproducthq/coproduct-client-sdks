@@ -1,6 +1,5 @@
 use coproduct_core::context::EvaluationContext;
 use coproduct_core::error::EvaluationErrorCode;
-use coproduct_core::hooks::HookRegistry;
 use coproduct_core::pipeline::{EvaluationReason, RequestedType, evaluate};
 use coproduct_core::snapshot::test_support::{bool_flag_with_prereqs, snapshot_with_flags};
 use coproduct_core::snapshot::{Condition, Coverage, Rollout, TargetingRule};
@@ -23,14 +22,7 @@ fn rule_matches_returns_targeting_match_reason() {
     flag.targeting_rules = vec![rule_always_on()];
     let snapshot = snapshot_with_flags(vec![flag]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "targeted-flag",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "targeted-flag", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("on"));
     assert_eq!(outcome.reason, EvaluationReason::TargetingMatch);
     assert_eq!(outcome.error_code, None);
@@ -52,14 +44,7 @@ fn rule_walker_circuit_break_propagates() {
     }];
     let snapshot = snapshot_with_flags(vec![flag]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "malformed-flag",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "malformed-flag", RequestedType::Bool, &ctx);
     assert_eq!(
         outcome.error_code,
         Some(EvaluationErrorCode::RuleCircuitBreak)
@@ -82,14 +67,7 @@ fn matched_rule_pointing_at_missing_variation_absorbs_to_off() {
     }];
     let snapshot = snapshot_with_flags(vec![flag]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "dangling-flag",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "dangling-flag", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
     assert_eq!(outcome.reason, EvaluationReason::Off);
     assert_eq!(outcome.error_code, None);

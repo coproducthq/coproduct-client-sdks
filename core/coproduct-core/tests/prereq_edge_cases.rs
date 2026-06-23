@@ -1,6 +1,5 @@
 use coproduct_core::context::EvaluationContext;
 use coproduct_core::error::EvaluationErrorCode;
-use coproduct_core::hooks::HookRegistry;
 use coproduct_core::pipeline::{EvaluationReason, RequestedType, evaluate};
 use coproduct_core::snapshot::test_support::{bool_flag_with_prereqs, snapshot_with_flags};
 use coproduct_core::snapshot::{Flag, Prerequisite};
@@ -9,14 +8,7 @@ use coproduct_core::snapshot::{Flag, Prerequisite};
 fn self_cycle_short_circuits() {
     let snapshot = snapshot_with_flags(vec![bool_flag_with_prereqs("self", &[("self", "on")])]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "self",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "self", RequestedType::Bool, &ctx);
     assert_eq!(
         outcome.error_code,
         Some(EvaluationErrorCode::RuleCircuitBreak)
@@ -32,8 +24,7 @@ fn three_node_cycle_short_circuits() {
         bool_flag_with_prereqs("c", &[("a", "on")]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx, &registry);
+    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx);
     assert_eq!(
         outcome.error_code,
         Some(EvaluationErrorCode::RuleCircuitBreak)
@@ -51,8 +42,7 @@ fn depth_exactly_at_boundary_passes() {
         bool_flag_with_prereqs("f5", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(Some(&snapshot), "f0", RequestedType::Bool, &ctx, &registry);
+    let outcome = evaluate(Some(&snapshot), "f0", RequestedType::Bool, &ctx);
     assert_eq!(outcome.error_code, None);
     assert_eq!(outcome.variation_key.as_deref(), Some("on"));
 }
@@ -69,8 +59,7 @@ fn depth_just_past_boundary_circuit_breaks() {
         bool_flag_with_prereqs("f6", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(Some(&snapshot), "f0", RequestedType::Bool, &ctx, &registry);
+    let outcome = evaluate(Some(&snapshot), "f0", RequestedType::Bool, &ctx);
     assert_eq!(
         outcome.error_code,
         Some(EvaluationErrorCode::RuleCircuitBreak)
@@ -98,8 +87,7 @@ fn diamond_memoization_returns_consistent_result() {
         bool_flag_with_prereqs("d", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx, &registry);
+    let outcome = evaluate(Some(&snapshot), "a", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("on"));
     assert_eq!(outcome.reason, EvaluationReason::Fallthrough);
 }
@@ -111,13 +99,11 @@ fn missing_prereq_does_not_circuit_break() {
         &[("ghost", "on")],
     )]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
     let outcome = evaluate(
         Some(&snapshot),
         "depends-on-ghost",
         RequestedType::Bool,
         &ctx,
-        &registry,
     );
     assert_eq!(outcome.reason, EvaluationReason::PrerequisiteFailed);
     assert_eq!(outcome.error_code, None);
@@ -130,14 +116,7 @@ fn missing_required_variation_does_not_circuit_break() {
         bool_flag_with_prereqs("gate", &[]),
     ]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "dependent",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "dependent", RequestedType::Bool, &ctx);
     assert_eq!(outcome.reason, EvaluationReason::PrerequisiteFailed);
     assert_eq!(outcome.error_code, None);
 }

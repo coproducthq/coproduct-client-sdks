@@ -24,6 +24,7 @@ async-trait.workspace = true
 coproduct-core = { path = "../../core/coproduct-core" }
 serde_json = { workspace = true }
 thiserror.workspace = true
+time.workspace = true
 uniffi.workspace = true
 
 [dev-dependencies]

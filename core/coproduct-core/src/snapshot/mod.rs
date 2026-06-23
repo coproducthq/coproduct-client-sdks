@@ -112,6 +112,30 @@ pub mod test_support {
         }
     }
 
+    /// Bool flag with no rules or prerequisites whose fallthrough deterministically
+    /// resolves to `value` under any context. The `on` variation carries `true`
+    /// and the `off` variation carries `false`, and the fallthrough points at
+    /// whichever variation matches `value`
+    /// Build an `IndexedSnapshot` carrying a specific `version` and no flags so
+    /// swap-path tests can assert version-driven lifecycle behavior
+    pub fn snapshot_with_version(version: u64) -> IndexedSnapshot {
+        Snapshot {
+            schema_version: 1,
+            generated_at: String::new(),
+            version,
+            environment: Default::default(),
+            flags: vec![],
+            segments: vec![],
+        }
+        .into()
+    }
+
+    pub fn bool_flag(key: &str, value: bool) -> Flag {
+        let mut flag = bool_flag_with_prereqs(key, &[]);
+        flag.fallthrough_variation = Some(if value { "on" } else { "off" }.to_string());
+        flag
+    }
+
     pub fn bool_flag_with_prereqs(key: &str, prereqs: &[(&str, &str)]) -> Flag {
         Flag {
             key: key.to_string(),

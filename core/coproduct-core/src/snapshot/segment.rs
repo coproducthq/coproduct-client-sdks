@@ -71,6 +71,22 @@ pub struct IndexedSnapshot {
     pub segments: std::collections::HashMap<String, Segment>,
 }
 
+impl IndexedSnapshot {
+    /// Project the in-memory indexed snapshot back into the wire-format
+    /// `Snapshot`, collecting the re-keyed flag and segment maps into the vecs
+    /// the wire shape uses. The inverse of `From<Snapshot>` for persistence
+    pub fn to_wire(&self) -> Snapshot {
+        Snapshot {
+            schema_version: self.schema_version,
+            generated_at: self.generated_at.clone(),
+            version: self.version,
+            environment: self.environment.clone(),
+            flags: self.flags.values().cloned().collect(),
+            segments: self.segments.values().cloned().collect(),
+        }
+    }
+}
+
 impl From<Snapshot> for IndexedSnapshot {
     fn from(wire: Snapshot) -> Self {
         let flags = wire.flags.into_iter().map(|f| (f.key.clone(), f)).collect();

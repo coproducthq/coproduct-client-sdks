@@ -7,6 +7,9 @@ use coproduct_core::client::CoproductClient as CoreCoproductClient;
 use coproduct_core::context::{
     AttributeValue as CoreAttributeValue, EvaluationContext as CoreEvaluationContext,
 };
+use coproduct_core::evaluation_event as core_evaluation_event;
+use coproduct_core::events as core_events;
+use coproduct_core::hooks as core_hooks;
 use coproduct_core::observer as core_observer;
 use coproduct_core::secure_store as core_secure_store;
 use coproduct_core::transport as core_transport;
@@ -161,10 +164,38 @@ pub trait HostSecureStore: Send + Sync + std::fmt::Debug {
     async fn write(&self, key: String, value: String) -> Result<(), SecureStoreError>;
 }
 
+/// Typed flag value crossing the observer, hook, and event callback boundaries.
+/// Mirrors the core typed-value shape so the host receives Bool, String, Int,
+/// Number, or JSON without runtime casting. The JSON variant ships its value as a
+/// JSON-encoded string because the binding layer has no native JSON type
+#[derive(Debug, Clone, uniffi::Enum)]
+pub enum FlagValue {
+    Bool { value: bool },
+    String { value: String },
+    Int { value: i64 },
+    Number { value: f64 },
+    Json { value: String },
+}
+
+impl From<coproduct_core::observer::FlagValue> for FlagValue {
+    fn from(value: coproduct_core::observer::FlagValue) -> Self {
+        use coproduct_core::observer::FlagValue as C;
+        match value {
+            C::Bool(value) => FlagValue::Bool { value },
+            C::String(value) => FlagValue::String { value },
+            C::Int(value) => FlagValue::Int { value },
+            C::Number(value) => FlagValue::Number { value },
+            C::Json(value) => FlagValue::Json {
+                value: value.to_string(),
+            },
+        }
+    }
+}
+
 #[uniffi::export(with_foreign)]
 #[async_trait::async_trait]
 pub trait FlagObserver: Send + Sync + std::fmt::Debug {
-    async fn on_change_bool(&self, value: bool) -> Result<(), ObserverError>;
+    async fn on_change(&self, key: String, value: FlagValue) -> Result<(), ObserverError>;
 }
 
 /// Context attribute value crossing the binding boundary. The core attribute
@@ -271,7 +302,26 @@ pub struct CoproductClient {
 
 #[derive(uniffi::Object)]
 pub struct Subscription {
-    _inner: Arc<core_observer::Subscription>,
+    inner: Arc<core_observer::Subscription>,
+}
+
+#[uniffi::export]
+impl Subscription {
+    pub fn id(&self) -> u64 {
+        self.inner.id()
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.is_cancelled()
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
 }
 
 #[uniffi::export]
@@ -477,10 +527,20 @@ impl CoproductClient {
         details_json_to_ffi(self.inner.get_json_details(key, default))
     }
 
-    pub fn observe(&self, key: String, observer: Arc<dyn FlagObserver>) -> Arc<Subscription> {
+    pub fn observe_key(&self, key: String, observer: Arc<dyn FlagObserver>) -> Arc<Subscription> {
         let observer = Arc::new(ObserverAdapter { host: observer });
-        let inner = self.inner.observe(key, observer);
-        Arc::new(Subscription { _inner: inner })
+        let inner = self.inner.observe_key(key, observer);
+        Arc::new(Subscription { inner })
+    }
+
+    pub fn observe_keys(
+        &self,
+        keys: Vec<String>,
+        observer: Arc<dyn FlagObserver>,
+    ) -> Arc<Subscription> {
+        let observer = Arc::new(ObserverAdapter { host: observer });
+        let inner = self.inner.observe_keys(keys, observer);
+        Arc::new(Subscription { inner })
     }
 
     pub fn was_loaded_from_cache(&self) -> bool {
@@ -489,6 +549,10 @@ impl CoproductClient {
 
     pub async fn simulate_change(&self, key: String, new_value: bool) {
         self.inner.simulate_change(key, new_value).await;
+    }
+
+    pub async fn shutdown(&self) {
+        self.inner.shutdown().await;
     }
 }
 
@@ -563,6 +627,264 @@ impl CoproductClient {
     }
 }
 
+/// Lifecycle event crossing the binding boundary. Mirrors the core provider
+/// event vocabulary so the host can react to readiness, configuration, and
+/// context transitions without depending on core types directly
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum LifecycleEvent {
+    Ready,
+    ConfigurationChanged,
+    ContextChanged,
+    Reconciling,
+    Retrying,
+    Stale,
+    Fatal,
+}
+
+impl From<core_events::LifecycleEvent> for LifecycleEvent {
+    fn from(value: core_events::LifecycleEvent) -> Self {
+        use core_events::LifecycleEvent as C;
+        match value {
+            C::Ready => LifecycleEvent::Ready,
+            C::ConfigurationChanged => LifecycleEvent::ConfigurationChanged,
+            C::ContextChanged => LifecycleEvent::ContextChanged,
+            C::Reconciling => LifecycleEvent::Reconciling,
+            C::Retrying => LifecycleEvent::Retrying,
+            C::Stale => LifecycleEvent::Stale,
+            C::Fatal => LifecycleEvent::Fatal,
+        }
+    }
+}
+
+impl From<LifecycleEvent> for core_events::LifecycleEvent {
+    fn from(value: LifecycleEvent) -> Self {
+        use core_events::LifecycleEvent as C;
+        match value {
+            LifecycleEvent::Ready => C::Ready,
+            LifecycleEvent::ConfigurationChanged => C::ConfigurationChanged,
+            LifecycleEvent::ContextChanged => C::ContextChanged,
+            LifecycleEvent::Reconciling => C::Reconciling,
+            LifecycleEvent::Retrying => C::Retrying,
+            LifecycleEvent::Stale => C::Stale,
+            LifecycleEvent::Fatal => C::Fatal,
+        }
+    }
+}
+
+/// Host-supplied lifecycle handler. Fired asynchronously when the registered
+/// event occurs so the host can run async work such as cache invalidation
+#[uniffi::export(with_foreign)]
+#[async_trait::async_trait]
+pub trait LifecycleHandler: Send + Sync + std::fmt::Debug {
+    async fn on_event(&self, event: LifecycleEvent);
+}
+
+/// Opaque handle returned from add_handler. Cancellation is idempotent
+#[derive(uniffi::Object)]
+pub struct HandlerHandle {
+    inner: Arc<core_events::HandlerHandle>,
+}
+
+#[uniffi::export]
+impl HandlerHandle {
+    pub fn id(&self) -> u64 {
+        self.inner.id()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.is_cancelled()
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+}
+
+/// The four stages of a single typed-getter evaluation
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum EvaluationStage {
+    Before,
+    After,
+    Error,
+    Finally,
+}
+
+impl From<core_hooks::EvaluationStage> for EvaluationStage {
+    fn from(value: core_hooks::EvaluationStage) -> Self {
+        use core_hooks::EvaluationStage as C;
+        match value {
+            C::Before => EvaluationStage::Before,
+            C::After => EvaluationStage::After,
+            C::Error => EvaluationStage::Error,
+            C::Finally => EvaluationStage::Finally,
+        }
+    }
+}
+
+/// The requested-getter type that triggered an evaluation
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum FlagType {
+    Bool,
+    String,
+    Int,
+    Number,
+    Json,
+}
+
+impl From<core_hooks::FlagType> for FlagType {
+    fn from(value: core_hooks::FlagType) -> Self {
+        use core_hooks::FlagType as C;
+        match value {
+            C::Bool => FlagType::Bool,
+            C::String => FlagType::String,
+            C::Int => FlagType::Int,
+            C::Number => FlagType::Number,
+            C::Json => FlagType::Json,
+        }
+    }
+}
+
+/// Snapshot of one getter evaluation handed to every hook stage
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct HookContext {
+    pub flag_key: String,
+    pub flag_type: FlagType,
+    pub default_value: FlagValue,
+    pub value: Option<FlagValue>,
+    pub error_code: Option<String>,
+}
+
+impl From<&core_hooks::HookContext> for HookContext {
+    fn from(ctx: &core_hooks::HookContext) -> Self {
+        HookContext {
+            flag_key: ctx.flag_key().to_string(),
+            flag_type: FlagType::from(ctx.flag_type()),
+            default_value: FlagValue::from(ctx.default_value().clone()),
+            value: ctx.value().cloned().map(FlagValue::from),
+            error_code: ctx.error_code().map(|code| code.as_wire().to_string()),
+        }
+    }
+}
+
+/// Host-supplied evaluation hook. Fired synchronously around each typed-getter
+/// call, matching the synchronous getter path
+#[uniffi::export(with_foreign)]
+pub trait EvaluationHook: Send + Sync + std::fmt::Debug {
+    fn on_stage(&self, stage: EvaluationStage, ctx: HookContext);
+}
+
+/// Opaque handle returned from add_evaluation_hook. Cancellation is idempotent
+#[derive(uniffi::Object)]
+pub struct HookHandle {
+    inner: Arc<core_hooks::HookHandle>,
+}
+
+#[uniffi::export]
+impl HookHandle {
+    pub fn id(&self) -> u64 {
+        self.inner.id()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.is_cancelled()
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+}
+
+/// Why an evaluation resolved the way it did, mirrored onto the event surface
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum EvaluationReason {
+    TargetingMatch,
+    Fallthrough,
+    Off,
+    PrerequisiteFailed,
+    Error,
+}
+
+impl From<core_evaluation_event::EvaluationReason> for EvaluationReason {
+    fn from(value: core_evaluation_event::EvaluationReason) -> Self {
+        use core_evaluation_event::EvaluationReason as C;
+        match value {
+            C::TargetingMatch => EvaluationReason::TargetingMatch,
+            C::Fallthrough => EvaluationReason::Fallthrough,
+            C::Off => EvaluationReason::Off,
+            C::PrerequisiteFailed => EvaluationReason::PrerequisiteFailed,
+            C::Error => EvaluationReason::Error,
+        }
+    }
+}
+
+/// One flag evaluation rendered as an analytics record. The evaluation time is
+/// serialized as an RFC 3339 timestamp string because the binding layer has no
+/// native date type
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct EvaluationEvent {
+    pub flag_key: String,
+    pub flag_type: FlagType,
+    pub value: FlagValue,
+    pub default_value: FlagValue,
+    pub variant: Option<String>,
+    pub reason: EvaluationReason,
+    pub rule_id: Option<String>,
+    pub error_code: Option<String>,
+    pub evaluated_at: String,
+}
+
+impl From<core_evaluation_event::EvaluationEvent> for EvaluationEvent {
+    fn from(event: core_evaluation_event::EvaluationEvent) -> Self {
+        EvaluationEvent {
+            flag_key: event.flag_key,
+            flag_type: FlagType::from(event.flag_type),
+            value: FlagValue::from(event.value),
+            default_value: FlagValue::from(event.default_value),
+            variant: event.variant,
+            reason: EvaluationReason::from(event.reason),
+            rule_id: event.rule_id,
+            error_code: event.error_code.map(|code| code.as_wire().to_string()),
+            evaluated_at: event
+                .evaluated_at
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+/// Host-supplied evaluation listener. Called synchronously after each getter
+/// resolves so the host can forward the event to an analytics sink
+#[uniffi::export(with_foreign)]
+pub trait EvaluationListener: Send + Sync + std::fmt::Debug {
+    fn on_evaluation(&self, event: EvaluationEvent);
+}
+
+/// Lifecycle, hook, and event registration entry points. These let the host
+/// observe provider transitions, bracket each evaluation, and capture analytics
+#[uniffi::export]
+impl CoproductClient {
+    pub fn add_handler(
+        &self,
+        event: LifecycleEvent,
+        handler: Arc<dyn LifecycleHandler>,
+    ) -> Arc<HandlerHandle> {
+        let handler = Arc::new(LifecycleHandlerAdapter { host: handler });
+        let inner = self.inner.add_handler(event.into(), handler);
+        Arc::new(HandlerHandle { inner })
+    }
+
+    pub fn add_evaluation_hook(&self, hook: Arc<dyn EvaluationHook>) -> Arc<HookHandle> {
+        let hook = Arc::new(EvaluationHookAdapter { host: hook });
+        let inner = self.inner.add_evaluation_hook(hook);
+        Arc::new(HookHandle { inner })
+    }
+
+    pub fn set_evaluation_listener(&self, listener: Arc<dyn EvaluationListener>) {
+        let listener = Arc::new(EvaluationListenerAdapter { host: listener });
+        self.inner.set_evaluation_listener(listener);
+    }
+}
+
 #[uniffi::export]
 pub fn compute_bucket(rule_id: String, targeting_key: String, suffix: String) -> u32 {
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
@@ -581,6 +903,21 @@ struct SecureStoreAdapter {
 #[derive(Debug)]
 struct ObserverAdapter {
     host: Arc<dyn FlagObserver>,
+}
+
+#[derive(Debug)]
+struct LifecycleHandlerAdapter {
+    host: Arc<dyn LifecycleHandler>,
+}
+
+#[derive(Debug)]
+struct EvaluationHookAdapter {
+    host: Arc<dyn EvaluationHook>,
+}
+
+#[derive(Debug)]
+struct EvaluationListenerAdapter {
+    host: Arc<dyn EvaluationListener>,
 }
 
 #[async_trait::async_trait]
@@ -623,13 +960,35 @@ impl core_secure_store::SecureStore for SecureStoreAdapter {
     }
 }
 
+// Maps the core typed value onto the FFI value and forwards it to the host
+// observer. A host callback error is ignored so one failing observer cannot
+// abort fanout to the others
 #[async_trait::async_trait]
-impl core_observer::FlagObserver for ObserverAdapter {
-    async fn on_change_bool(&self, value: bool) -> Result<(), core_observer::ObserverError> {
+impl core_observer::TypedFlagObserver for ObserverAdapter {
+    async fn on_change(&self, key: &str, value: &core_observer::FlagValue) {
+        let ffi_value = FlagValue::from(value.clone());
+        let _ = self.host.on_change(key.to_string(), ffi_value).await;
+    }
+}
+
+#[async_trait::async_trait]
+impl core_events::LifecycleHandler for LifecycleHandlerAdapter {
+    async fn on_event(&self, event: core_events::LifecycleEvent) {
+        self.host.on_event(LifecycleEvent::from(event)).await;
+    }
+}
+
+impl core_hooks::EvaluationHook for EvaluationHookAdapter {
+    fn on_stage(&self, stage: core_hooks::EvaluationStage, ctx: &core_hooks::HookContext) {
         self.host
-            .on_change_bool(value)
-            .await
-            .map_err(|error| core_observer::ObserverError::Callback(error.to_string()))
+            .on_stage(EvaluationStage::from(stage), HookContext::from(ctx));
+    }
+}
+
+impl core_evaluation_event::EvaluationListener for EvaluationListenerAdapter {
+    fn on_evaluation(&self, event: &core_evaluation_event::EvaluationEvent) {
+        self.host
+            .on_evaluation(EvaluationEvent::from(event.clone()));
     }
 }
 

@@ -1,5 +1,4 @@
 use coproduct_core::context::EvaluationContext;
-use coproduct_core::hooks::HookRegistry;
 use coproduct_core::pipeline::{EvaluationReason, RequestedType, evaluate};
 use coproduct_core::snapshot::test_support::{bool_flag_with_prereqs, snapshot_with_flags};
 
@@ -9,14 +8,7 @@ fn step4_is_paused_serves_off_variation() {
     flag.is_paused = true;
     let snapshot = snapshot_with_flags(vec![flag]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "paused-flag",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "paused-flag", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
     assert_eq!(outcome.reason, EvaluationReason::Off);
     assert_eq!(outcome.error_code, None);
@@ -29,14 +21,7 @@ fn step5_disabled_serves_off_variation() {
     flag.enabled = false;
     let snapshot = snapshot_with_flags(vec![flag]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "disabled-flag",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "disabled-flag", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
     assert_eq!(outcome.reason, EvaluationReason::Off);
     assert_eq!(outcome.error_code, None);
@@ -49,13 +34,6 @@ fn step4_is_paused_wins_before_step5_enabled() {
     flag.enabled = false;
     let snapshot = snapshot_with_flags(vec![flag]);
     let ctx = EvaluationContext::with_targeting_key("u1");
-    let registry = HookRegistry::default();
-    let outcome = evaluate(
-        Some(&snapshot),
-        "both-off",
-        RequestedType::Bool,
-        &ctx,
-        &registry,
-    );
+    let outcome = evaluate(Some(&snapshot), "both-off", RequestedType::Bool, &ctx);
     assert_eq!(outcome.variation_key.as_deref(), Some("off"));
 }

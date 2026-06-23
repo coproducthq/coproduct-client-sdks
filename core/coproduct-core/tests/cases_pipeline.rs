@@ -1,5 +1,4 @@
 use coproduct_core::context::EvaluationContext;
-use coproduct_core::hooks::HookRegistry;
 use coproduct_core::pipeline::{RequestedType, evaluate};
 use coproduct_core::snapshot::test_support::case_runner::{
     PipelineCase, expand_template, load_pipeline_cases,
@@ -20,7 +19,6 @@ fn requested_type_from_str(s: &str) -> RequestedType {
 fn all_pipeline_cases_match_expected_output() {
     let cases: Vec<PipelineCase> = load_pipeline_cases("../../tests/cases.json");
     let ctx = EvaluationContext::with_targeting_key("conformance-user");
-    let registry = HookRegistry::default();
 
     for case in cases {
         let snapshot = expand_template(&case);
@@ -29,7 +27,6 @@ fn all_pipeline_cases_match_expected_output() {
             &case.flag_key,
             requested_type_from_str(&case.requested_type),
             &ctx,
-            &registry,
         );
 
         if let Some(expected) = case.expected_error_code.as_deref() {
