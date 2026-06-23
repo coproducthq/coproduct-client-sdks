@@ -209,6 +209,61 @@ impl From<coproduct_core::error::IdentityError> for FfiIdentityError {
     }
 }
 
+/// Provider lifecycle state crossing the binding boundary. Mirrors the core
+/// state machine so the host can render readiness without depending on core
+/// types directly
+#[derive(uniffi::Enum)]
+pub enum ProviderState {
+    NotReady,
+    Ready,
+    Reconciling,
+    Retrying,
+    Stale,
+    Fatal,
+}
+
+impl From<coproduct_core::state::ProviderState> for ProviderState {
+    fn from(value: coproduct_core::state::ProviderState) -> Self {
+        use coproduct_core::state::ProviderState as C;
+        match value {
+            C::NotReady => ProviderState::NotReady,
+            C::Ready => ProviderState::Ready,
+            C::Reconciling => ProviderState::Reconciling,
+            C::Retrying => ProviderState::Retrying,
+            C::Stale => ProviderState::Stale,
+            C::Fatal => ProviderState::Fatal,
+        }
+    }
+}
+
+/// Outcome of a single poll tick crossing the binding boundary. Mirrors the core
+/// poll result so the host scheduler can react to back-off and dedup signals
+#[derive(uniffi::Enum)]
+pub enum PollOutcome {
+    Updated,
+    NotModified,
+    Fatal,
+    Retrying,
+    RateLimited { retry_after_secs: u64 },
+    Stale,
+    DedupedSkipped,
+}
+
+impl From<coproduct_core::polling::PollOutcome> for PollOutcome {
+    fn from(value: coproduct_core::polling::PollOutcome) -> Self {
+        use coproduct_core::polling::PollOutcome as C;
+        match value {
+            C::Updated => PollOutcome::Updated,
+            C::NotModified => PollOutcome::NotModified,
+            C::Fatal => PollOutcome::Fatal,
+            C::Retrying => PollOutcome::Retrying,
+            C::RateLimited { retry_after_secs } => PollOutcome::RateLimited { retry_after_secs },
+            C::Stale => PollOutcome::Stale,
+            C::DedupedSkipped => PollOutcome::DedupedSkipped,
+        }
+    }
+}
+
 #[derive(uniffi::Object)]
 pub struct CoproductClient {
     inner: Arc<CoreCoproductClient>,
@@ -228,9 +283,18 @@ pub async fn initialize(
 ) -> Result<Arc<CoproductClient>, InitError> {
     let transport = Arc::new(TransportAdapter { host: transport });
     let secure_store = Arc::new(SecureStoreAdapter { host: secure_store });
-    let inner = CoreCoproductClient::initialize(sdk_key, cache_dir, transport, secure_store)
-        .await
-        .map_err(InitError::from)?;
+    // The user agent and config are defaulted at this layer pending the full
+    // host-config surface
+    let inner = CoreCoproductClient::initialize(
+        sdk_key,
+        "coproduct-uniffi".to_string(),
+        coproduct_core::config::CoproductConfig::default(),
+        cache_dir,
+        transport,
+        secure_store,
+    )
+    .await
+    .map_err(InitError::from)?;
 
     Ok(Arc::new(CoproductClient { inner }))
 }
@@ -483,6 +547,19 @@ impl CoproductClient {
 
     pub fn previous_anonymous_id(&self) -> Option<String> {
         self.inner.previous_anonymous_id()
+    }
+}
+
+/// Provider-state accessor and single-shot poll entry point. The host scheduler
+/// drives cadence and reads `state` to render readiness
+#[uniffi::export]
+impl CoproductClient {
+    pub fn state(&self) -> ProviderState {
+        self.inner.state().into()
+    }
+
+    pub async fn poll_now(&self) -> PollOutcome {
+        self.inner.poll_now().await.into()
     }
 }
 

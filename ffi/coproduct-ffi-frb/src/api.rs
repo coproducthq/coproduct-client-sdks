@@ -106,9 +106,18 @@ pub async fn initialize(
         read: Arc::new(secure_read),
         write: Arc::new(secure_write),
     });
-    let inner = CoreCoproductClient::initialize(sdk_key, cache_dir, transport, secure_store)
-        .await
-        .map_err(InitError::from)?;
+    // The user agent and config are defaulted at this layer pending the full
+    // host-config surface
+    let inner = CoreCoproductClient::initialize(
+        sdk_key,
+        "coproduct-frb".to_string(),
+        coproduct_core::config::CoproductConfig::default(),
+        cache_dir,
+        transport,
+        secure_store,
+    )
+    .await
+    .map_err(InitError::from)?;
 
     Ok(CoproductClientHandle { inner })
 }

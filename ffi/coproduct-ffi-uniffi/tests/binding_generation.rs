@@ -41,6 +41,22 @@ fn committed_swift_bindings_expose_typed_getters_and_details() {
 }
 
 #[test]
+fn committed_swift_bindings_expose_lifecycle_surface() {
+    let src = std::fs::read_to_string(generated_swift()).expect("committed swift bindings exist");
+    for symbol in [
+        "func state(",
+        "func pollNow(",
+        "enum ProviderState",
+        "enum PollOutcome",
+    ] {
+        assert!(
+            src.contains(symbol),
+            "committed bindings missing symbol: {symbol}"
+        );
+    }
+}
+
+#[test]
 fn committed_swift_bindings_expose_identity_surface() {
     let src = std::fs::read_to_string(generated_swift()).expect("committed swift bindings exist");
     for symbol in [

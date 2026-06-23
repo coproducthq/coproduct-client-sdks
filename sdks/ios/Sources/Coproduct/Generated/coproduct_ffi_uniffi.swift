@@ -457,6 +457,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
+    typealias FfiType = UInt64
+    typealias SwiftType = UInt64
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
     typealias FfiType = Int64
     typealias SwiftType = Int64
@@ -603,6 +619,8 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func observe(key: String, observer: FlagObserver)  -> Subscription
     
+    func pollNow() async  -> PollOutcome
+    
     func previousAnonymousId()  -> String?
     
     func removeAttributes(names: [String]) async 
@@ -612,6 +630,8 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     func signOut() async 
     
     func simulateChange(key: String, newValue: Bool) async 
+    
+    func state()  -> ProviderState
     
     func updateAttributes(attributes: [String: ContextValue]) async 
     
@@ -803,6 +823,24 @@ open func observe(key: String, observer: FlagObserver) -> Subscription  {
 })
 }
     
+open func pollNow()async  -> PollOutcome  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypePollOutcome_lift,
+            errorHandler: nil
+            
+        )
+}
+    
 open func previousAnonymousId() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_previous_anonymous_id(
@@ -880,6 +918,14 @@ open func simulateChange(key: String, newValue: Bool)async   {
             errorHandler: nil
             
         )
+}
+    
+open func state() -> ProviderState  {
+    return try!  FfiConverterTypeProviderState_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_state(
+            self.uniffiCloneHandle(),$0
+    )
+})
 }
     
 open func updateAttributes(attributes: [String: ContextValue])async   {
@@ -2992,6 +3038,215 @@ public func FfiConverterTypeObserverError_lower(_ value: ObserverError) -> RustB
     return FfiConverterTypeObserverError.lower(value)
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Outcome of a single poll tick crossing the binding boundary. Mirrors the core
+ * poll result so the host scheduler can react to back-off and dedup signals
+ */
+
+public enum PollOutcome: Equatable, Hashable {
+    
+    case updated
+    case notModified
+    case fatal
+    case retrying
+    case rateLimited(retryAfterSecs: UInt64
+    )
+    case stale
+    case dedupedSkipped
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PollOutcome: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePollOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = PollOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PollOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .updated
+        
+        case 2: return .notModified
+        
+        case 3: return .fatal
+        
+        case 4: return .retrying
+        
+        case 5: return .rateLimited(retryAfterSecs: try FfiConverterUInt64.read(from: &buf)
+        )
+        
+        case 6: return .stale
+        
+        case 7: return .dedupedSkipped
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PollOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .updated:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .notModified:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .fatal:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .retrying:
+            writeInt(&buf, Int32(4))
+        
+        
+        case let .rateLimited(retryAfterSecs):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt64.write(retryAfterSecs, into: &buf)
+            
+        
+        case .stale:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .dedupedSkipped:
+            writeInt(&buf, Int32(7))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePollOutcome_lift(_ buf: RustBuffer) throws -> PollOutcome {
+    return try FfiConverterTypePollOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePollOutcome_lower(_ value: PollOutcome) -> RustBuffer {
+    return FfiConverterTypePollOutcome.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Provider lifecycle state crossing the binding boundary. Mirrors the core
+ * state machine so the host can render readiness without depending on core
+ * types directly
+ */
+
+public enum ProviderState: Equatable, Hashable {
+    
+    case notReady
+    case ready
+    case reconciling
+    case retrying
+    case stale
+    case fatal
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ProviderState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProviderState: FfiConverterRustBuffer {
+    typealias SwiftType = ProviderState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProviderState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .notReady
+        
+        case 2: return .ready
+        
+        case 3: return .reconciling
+        
+        case 4: return .retrying
+        
+        case 5: return .stale
+        
+        case 6: return .fatal
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ProviderState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .notReady:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .ready:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .reconciling:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .retrying:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .stale:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .fatal:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProviderState_lift(_ buf: RustBuffer) throws -> ProviderState {
+    return try FfiConverterTypeProviderState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProviderState_lower(_ value: ProviderState) -> RustBuffer {
+    return FfiConverterTypeProviderState.lower(value)
+}
+
+
 
 public enum SecureStoreError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -3554,6 +3809,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe() != 2120) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now() != 20968) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id() != 54885) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -3567,6 +3825,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_simulate_change() != 45381) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state() != 23491) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes() != 28839) {

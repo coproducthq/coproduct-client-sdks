@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use crate::config::{CoproductConfig, validate_config};
 use crate::context::{AttributeValue, EvaluationContext};
 use crate::details::{FlagEvaluationDetails, build_details};
 use crate::error::{IdentityError, InitError};
@@ -12,9 +13,11 @@ use crate::identity_state::IdentityState;
 use crate::identity_writer::IdentityWriter;
 use crate::observer::{FlagObserver, Subscription};
 use crate::pipeline::{EvaluationReason, RequestedType, evaluate};
+use crate::polling::{PollContext, poll_now};
 use crate::secure_store::{SecureStore, SecureStoreError};
 use crate::snapshot::{IndexedSnapshot, Snapshot, VariationValue};
-use crate::transport::{HttpHeader, HttpMethod, HttpRequest, Transport};
+use crate::state::{ProviderState, ProviderStateCell};
+use crate::transport::Transport;
 
 /// In-memory secure store that backs identity for snapshot-only test clients
 /// which never exercise persistence
@@ -31,6 +34,43 @@ impl SecureStore for NoopSecureStore {
     }
 }
 
+/// Transport that always fails for the snapshot-only test constructors. Those
+/// clients are built around a fixed in-memory snapshot and never poll, so the
+/// transport is never exercised
+#[derive(Debug)]
+struct NoopTransport;
+
+#[async_trait::async_trait]
+impl Transport for NoopTransport {
+    async fn request(
+        &self,
+        _req: crate::transport::HttpRequest,
+    ) -> Result<crate::transport::HttpResponse, crate::transport::TransportError> {
+        Err(crate::transport::TransportError::NetworkUnreachable)
+    }
+}
+
+const KEY_PREFIX: &str = "cpk_mob_";
+const KEY_BODY_LEN: usize = 32;
+const KEY_TOTAL_LEN: usize = KEY_PREFIX.len() + KEY_BODY_LEN;
+const DEFAULT_ENDPOINT: &str = "https://sdk.coproduct.app";
+
+/// Validate one SDK key body character against the platform's Crockford base32
+/// alphabet. The platform's edge worker validates the body against
+/// `[0-9a-z&&[^ilou]]{32}`. Crockford base32 excludes `i`, `l`, `o`, `u` to
+/// avoid visual ambiguity with `1` and `0` and to leave digit room. The
+/// platform uses the lowercase form on the wire, so uppercase input is rejected
+/// rather than normalized to surface copy-paste mangling at the source
+fn is_crockford_lower(c: char) -> bool {
+    if c.is_ascii_digit() {
+        return true;
+    }
+    if !c.is_ascii_lowercase() {
+        return false;
+    }
+    !matches!(c, 'i' | 'l' | 'o' | 'u')
+}
+
 pub struct CoproductClient {
     observers: Mutex<HashMap<String, Vec<Arc<dyn FlagObserver>>>>,
     loaded_from_cache: bool,
@@ -42,82 +82,229 @@ pub struct CoproductClient {
     identity: Mutex<IdentityState>,
     /// Single-writer persistence queue for the auto-anonymous identifier
     identity_writer: Arc<IdentityWriter>,
+    /// Credentials and polling inputs shared with each `poll_now` invocation
+    sdk_key: String,
+    endpoint: String,
+    user_agent: String,
+    cache_dir: String,
+    transport: Arc<dyn Transport>,
+    state: Arc<ProviderStateCell>,
+    in_flight: Arc<Mutex<bool>>,
+    consecutive_failures: Arc<Mutex<u32>>,
+    retry_budget: u32,
+}
+
+impl std::fmt::Debug for CoproductClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The SDK key is a secret and is deliberately omitted
+        f.debug_struct("CoproductClient")
+            .field("state", &self.state.get())
+            .field("loaded_from_cache", &self.loaded_from_cache)
+            .field("endpoint", &self.endpoint)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CoproductClient {
-    /// Validates the host callbacks during initialization and reports any
-    /// callback failure as `InvalidConfig`.
+    /// Internal initialize entry point invoked by each platform binding's public
+    /// `initialize` wrapper. The binding owns the `user_agent` string because the
+    /// platform identifier (`coproduct-ios`, `coproduct-android`, and so on) and
+    /// the wrapper version live in the binding layer, not the core.
+    ///
+    /// The first poll is awaited inline. The core does not enforce
+    /// `startup_timeout`: each HTTP call is bounded by the platform transport's
+    /// own per-request timeout, and the host wrapper races `initialize` against
+    /// its platform-native sleep to honor the startup deadline
     pub async fn initialize(
         sdk_key: String,
+        user_agent: String,
+        config: CoproductConfig,
         cache_dir: String,
         transport: Arc<dyn Transport>,
         secure_store: Arc<dyn SecureStore>,
     ) -> Result<Arc<CoproductClient>, InitError> {
-        let req = HttpRequest {
-            method: HttpMethod::Get,
-            url: "https://edge.coproduct.app/v1/scaffold-handshake".to_string(),
-            headers: vec![HttpHeader {
-                name: "authorization".to_string(),
-                value: format!("Bearer {sdk_key}"),
-            }],
-            body: None,
-        };
+        if sdk_key.is_empty() {
+            return Err(InitError::MissingSdkKey);
+        }
+        if !sdk_key.starts_with(KEY_PREFIX) {
+            let prefix = sdk_key.split('_').take(2).collect::<Vec<_>>().join("_");
+            return Err(InitError::InvalidKeyType {
+                prefix: format!("{prefix}_"),
+            });
+        }
+        // Beyond the prefix, the platform validates a Crockford base32 lowercase
+        // body of exactly 32 chars (40 total). Catching typos and length errors
+        // at init time fails fast with a clear error rather than after a network
+        // round trip and a 401
+        if sdk_key.len() != KEY_TOTAL_LEN {
+            return Err(InitError::MalformedSdkKey {
+                reason: format!(
+                    "expected {KEY_TOTAL_LEN} characters total, got {}",
+                    sdk_key.len()
+                ),
+            });
+        }
+        if let Some((index, bad)) = sdk_key[KEY_PREFIX.len()..]
+            .chars()
+            .enumerate()
+            .find(|(_, c)| !is_crockford_lower(*c))
+        {
+            return Err(InitError::MalformedSdkKey {
+                reason: format!(
+                    "invalid character `{bad}` at position {}, expected lowercase Crockford base32",
+                    KEY_PREFIX.len() + index
+                ),
+            });
+        }
 
-        transport
-            .request(req)
-            .await
-            .map_err(|error| InitError::InvalidConfig {
-                field: "transport".to_string(),
-                reason: error.to_string(),
-            })?;
+        validate_config(&config)?;
 
-        let loaded_from_cache = match crate::cache::read_snapshot(&cache_dir).map_err(|error| {
-            InitError::InvalidConfig {
-                field: "cache".to_string(),
-                reason: error.to_string(),
-            }
-        })? {
-            Some(_) => true,
-            None => {
-                crate::cache::write_snapshot(&cache_dir, br#"{"stub":true,"version":1}"#).map_err(
-                    |error| InitError::InvalidConfig {
-                        field: "cache".to_string(),
-                        reason: error.to_string(),
-                    },
-                )?;
-                false
-            }
-        };
-
-        secure_store
-            .write("scaffold-handshake-id".to_string(), "ok".to_string())
-            .await
-            .map_err(|error| InitError::InvalidConfig {
-                field: "secureStore".to_string(),
-                reason: error.to_string(),
-            })?;
-
-        let _ = secure_store
-            .read("scaffold-handshake-id".to_string())
-            .await
-            .map_err(|error| InitError::InvalidConfig {
-                field: "secureStore".to_string(),
-                reason: error.to_string(),
-            })?;
-
-        let cold = cold_start_anonymous_id(secure_store.clone(), None).await;
+        // Cold-start identity sequence. Yields the resolved anonymous id used to
+        // seed identity state plus the persistence writer that serializes
+        // attribute updates back to SecureStore. `cold_start_anonymous_id` is
+        // infallible: SecureStore unavailability folds into the session-only
+        // branch at the identity layer, so transient SecureStore failures at
+        // initialize never become an `InitError`
+        let cold = cold_start_anonymous_id(secure_store.clone(), config.anonymous_id.clone()).await;
         let identity = Mutex::new(IdentityState::new_anonymous(cold.anonymous_id));
         let identity_writer = Arc::new(IdentityWriter::new(secure_store.clone()));
+
+        // Pre-warm in-memory state from disk if present. The cache holds raw
+        // bytes from a prior 200 swap. Run them through the same version fence
+        // the 200 handler uses before attempting the v1 parse: a future schema
+        // bump that adds a required field would fail the v1 parse with a
+        // confusing missing-field error if these ran in the other order. On any
+        // mismatch or parse failure the cache is ignored and the next successful
+        // poll fills the slot. The sdkContext sibling is parsed the same way and
+        // a malformed block surfaces as an empty map.
+        //
+        // A cache read failure is treated as a cache miss, not an `InitError`:
+        // transient I/O failures at initialize fold into no-prior-snapshot, the
+        // provider starts NotReady, and the first poll fills the slot. The error
+        // is logged so a real disk-permission issue stays visible without
+        // failing customer init
+        let cached_bytes = match crate::cache::read_snapshot(&cache_dir) {
+            Ok(opt) => opt,
+            Err(error) => {
+                tracing::warn!(%error, "snapshot cache read failed, proceeding as cache miss");
+                None
+            }
+        };
+        let (initial_snapshot, initial_sdk_context): (
+            Option<Arc<IndexedSnapshot>>,
+            HashMap<String, AttributeValue>,
+        ) = match cached_bytes {
+            Some(bytes) => std::str::from_utf8(&bytes)
+                .ok()
+                .and_then(|raw| {
+                    // Version fence first. Any error, including an unsupported
+                    // schema version, drops the cache. The fence returns the
+                    // snapshot body's `RawValue`, but the envelope is re-parsed
+                    // to recover `sdkContext`
+                    let body = crate::snapshot::check_envelope_schema_version(raw).ok()?;
+                    let envelope =
+                        serde_json::from_str::<crate::snapshot::SnapshotEnvelope>(raw).ok()?;
+                    let wire = serde_json::from_str::<Snapshot>(body.get()).ok()?;
+                    let snap = Arc::new(IndexedSnapshot::from(wire));
+                    let sdk_ctx = envelope
+                        .sdk_context
+                        .and_then(|raw| {
+                            serde_json::from_str::<crate::snapshot::SdkContext>(raw.get()).ok()
+                        })
+                        .map(crate::context::sdk_context_to_attribute_map)
+                        .unwrap_or_default();
+                    Some((Some(snap), sdk_ctx))
+                })
+                .unwrap_or((None, HashMap::new())),
+            None => (None, HashMap::new()),
+        };
+
+        let snapshot_cell = Arc::new(Mutex::new(initial_snapshot.clone()));
+        let sdk_context_cell = Arc::new(Mutex::new(initial_sdk_context));
+        let initial_state = if initial_snapshot.is_some() {
+            ProviderState::Ready
+        } else {
+            ProviderState::NotReady
+        };
+
+        let endpoint = config
+            .endpoint
+            .clone()
+            .unwrap_or_else(|| DEFAULT_ENDPOINT.to_string());
+        let state = Arc::new(ProviderStateCell::new(initial_state));
+        let in_flight = Arc::new(Mutex::new(false));
+        let failures = Arc::new(Mutex::new(0));
+        let retry_budget = 5;
+
+        // PollContext carries Arc clones of the client-owned cells, so the first
+        // poll's 200 handler updates the snapshot and sdkContext slots the
+        // returned client observes through the same Arcs. The first poll runs
+        // before `Arc<CoproductClient>` exists, so no swap hook is installed yet
+        let poll_ctx = PollContext {
+            sdk_key: sdk_key.clone(),
+            endpoint: endpoint.clone(),
+            user_agent: user_agent.clone(),
+            cache_dir: cache_dir.clone(),
+            transport: transport.clone(),
+            state: state.clone(),
+            in_flight: in_flight.clone(),
+            snapshot: snapshot_cell.clone(),
+            sdk_context: sdk_context_cell.clone(),
+            consecutive_failures: failures.clone(),
+            retry_budget,
+            on_snapshot_swapped: None,
+        };
+
+        // Drive the first poll inline. The await is bounded by the platform
+        // transport's per-request timeout rather than a Rust-side wall-clock
+        // timer, keeping the core free of any runtime-specific timer dependency
+        let _ = poll_now(poll_ctx).await;
+
+        let loaded_from_cache = initial_snapshot.is_some();
 
         Ok(Arc::new(CoproductClient {
             observers: Mutex::new(HashMap::new()),
             loaded_from_cache,
-            snapshot: Arc::new(Mutex::new(None)),
+            snapshot: snapshot_cell,
             hooks: HookRegistry::default(),
-            sdk_context: Arc::new(Mutex::new(HashMap::new())),
+            sdk_context: sdk_context_cell,
             identity,
             identity_writer,
+            sdk_key,
+            endpoint,
+            user_agent,
+            cache_dir,
+            transport,
+            state,
+            in_flight,
+            consecutive_failures: failures,
+            retry_budget,
         }))
+    }
+
+    /// Current provider lifecycle state
+    pub fn state(&self) -> ProviderState {
+        self.state.get()
+    }
+
+    /// Host-driven poll trigger. The platform loop calls this on its timer and
+    /// on foreground events. Returns when the poll completes or is deduped
+    pub async fn poll_now(self: &Arc<Self>) -> crate::polling::PollOutcome {
+        let ctx = PollContext {
+            sdk_key: self.sdk_key.clone(),
+            endpoint: self.endpoint.clone(),
+            user_agent: self.user_agent.clone(),
+            cache_dir: self.cache_dir.clone(),
+            transport: self.transport.clone(),
+            state: self.state.clone(),
+            in_flight: self.in_flight.clone(),
+            snapshot: self.snapshot.clone(),
+            sdk_context: self.sdk_context.clone(),
+            consecutive_failures: self.consecutive_failures.clone(),
+            retry_budget: self.retry_budget,
+            on_snapshot_swapped: None,
+        };
+        poll_now(ctx).await
     }
 
     pub fn was_loaded_from_cache(&self) -> bool {
@@ -156,6 +343,15 @@ impl CoproductClient {
             sdk_context: Arc::new(Mutex::new(HashMap::new())),
             identity: Mutex::new(IdentityState::new_anonymous(cold.anonymous_id)),
             identity_writer: Arc::new(IdentityWriter::new(store)),
+            sdk_key: String::new(),
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            user_agent: String::new(),
+            cache_dir: String::new(),
+            transport: Arc::new(NoopTransport),
+            state: Arc::new(ProviderStateCell::new(ProviderState::NotReady)),
+            in_flight: Arc::new(Mutex::new(false)),
+            consecutive_failures: Arc::new(Mutex::new(0)),
+            retry_budget: 5,
         })
     }
 
@@ -252,6 +448,15 @@ impl CoproductClient {
             sdk_context: Arc::new(Mutex::new(HashMap::new())),
             identity: Mutex::new(IdentityState::new_anonymous(generate_anonymous_id())),
             identity_writer: Arc::new(IdentityWriter::new(Arc::new(NoopSecureStore))),
+            sdk_key: String::new(),
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            user_agent: String::new(),
+            cache_dir: String::new(),
+            transport: Arc::new(NoopTransport),
+            state: Arc::new(ProviderStateCell::new(ProviderState::Ready)),
+            in_flight: Arc::new(Mutex::new(false)),
+            consecutive_failures: Arc::new(Mutex::new(0)),
+            retry_budget: 5,
         })
     }
 
@@ -346,6 +551,15 @@ impl CoproductClient {
             sdk_context: Arc::new(Mutex::new(HashMap::new())),
             identity: Mutex::new(IdentityState::new_anonymous(generate_anonymous_id())),
             identity_writer: Arc::new(IdentityWriter::new(Arc::new(NoopSecureStore))),
+            sdk_key: String::new(),
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            user_agent: String::new(),
+            cache_dir: String::new(),
+            transport: Arc::new(NoopTransport),
+            state: Arc::new(ProviderStateCell::new(ProviderState::Ready)),
+            in_flight: Arc::new(Mutex::new(false)),
+            consecutive_failures: Arc::new(Mutex::new(0)),
+            retry_budget: 5,
         })
     }
 
@@ -360,6 +574,15 @@ impl CoproductClient {
             sdk_context: Arc::new(Mutex::new(HashMap::new())),
             identity: Mutex::new(IdentityState::new_anonymous(generate_anonymous_id())),
             identity_writer: Arc::new(IdentityWriter::new(Arc::new(NoopSecureStore))),
+            sdk_key: String::new(),
+            endpoint: DEFAULT_ENDPOINT.to_string(),
+            user_agent: String::new(),
+            cache_dir: String::new(),
+            transport: Arc::new(NoopTransport),
+            state: Arc::new(ProviderStateCell::new(ProviderState::NotReady)),
+            in_flight: Arc::new(Mutex::new(false)),
+            consecutive_failures: Arc::new(Mutex::new(0)),
+            retry_budget: 5,
         })
     }
 
