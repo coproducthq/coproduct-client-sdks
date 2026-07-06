@@ -59,6 +59,16 @@ pub struct EnvironmentMetadata {
     pub project_key: String,
 }
 
+/// Flat read-only projection of the held snapshot for host wrappers. Carries
+/// only the scalar facts a host UI surfaces about the loaded configuration
+/// without exposing the full flag map across a binding boundary
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SnapshotView {
+    pub version: u64,
+    pub flag_count: u32,
+    pub environment: String,
+}
+
 /// In-memory snapshot used by the evaluation pipeline. Wraps the wire-format
 /// `Snapshot` and re-keys flags and segments as hash maps for O(1) lookup
 #[derive(Debug, Clone, PartialEq)]

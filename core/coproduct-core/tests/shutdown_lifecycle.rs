@@ -38,6 +38,14 @@ async fn shutdown_drains_registries_and_persists_snapshot() {
     // held snapshot has been persisted to the cache directory
     assert!(client.is_shutdown_for_test());
     assert_eq!(client.observer_count_for_test("k"), 0);
-    let persisted = std::fs::read(tmp.path().join("coproduct").join("snapshot.json")).unwrap();
+    // The cache is scoped per sdk key. This test client is constructed with an
+    // empty key, so the persisted snapshot lives under that key's scope
+    let persisted = std::fs::read(
+        tmp.path()
+            .join("coproduct")
+            .join(coproduct_core::cache::key_scope(""))
+            .join("snapshot.json"),
+    )
+    .unwrap();
     assert!(!persisted.is_empty());
 }

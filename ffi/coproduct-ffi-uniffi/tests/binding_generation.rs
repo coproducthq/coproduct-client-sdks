@@ -9,7 +9,7 @@ fn generated_swift() -> PathBuf {
     manifest
         .parent()
         .and_then(|p| p.parent())
-        .map(|p| p.join("sdks/ios/Sources/Coproduct/Generated/coproduct_ffi_uniffi.swift"))
+        .map(|p| p.join("sdks/ios/Sources/CoproductFFI/coproduct_ffi_uniffi.swift"))
         .expect("workspace root resolves from the ffi crate")
 }
 

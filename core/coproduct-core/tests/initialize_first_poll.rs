@@ -56,12 +56,11 @@ impl Transport for Immediate503Transport {
 }
 
 #[test]
-fn initialize_returns_after_first_poll_resolves_without_snapshot() {
-    // The core no longer enforces `startup_timeout` itself. The host wrapper
-    // owns that race. From the core's perspective, `initialize` resolves
-    // once the first poll's future resolves. A Transport that responds with
-    // 503 immediately exercises the failure-path branch and leaves the
-    // provider in Retrying with no snapshot loaded
+fn initialize_returns_without_polling_and_starts_not_ready() {
+    // initialize no longer drives a network poll. It resolves once the client is
+    // built from cache, so with no cached snapshot the provider starts NotReady.
+    // The first poll is host-driven: driving poll_now afterward routes the 503
+    // through the failure path and advances the provider to Retrying
     let dir = TempDir::new().unwrap();
     let config = CoproductConfig::default();
 
@@ -73,10 +72,13 @@ fn initialize_returns_after_first_poll_resolves_without_snapshot() {
         Arc::new(Immediate503Transport),
         Arc::new(InMemorySecureStore::default()),
     ))
-    .expect("initialize returns Ok with provider in Retrying");
+    .expect("initialize returns Ok without polling");
 
-    assert_eq!(client.state(), ProviderState::Retrying);
+    assert_eq!(client.state(), ProviderState::NotReady);
     assert!(!client.get_bool("any-flag".to_string(), false));
+
+    let _ = futures::executor::block_on(client.poll_now());
+    assert_eq!(client.state(), ProviderState::Retrying);
 }
 
 fn run_initialize(sdk_key: &str, dir: &TempDir) -> Result<Arc<CoproductClient>, InitError> {
@@ -143,13 +145,11 @@ fn initialize_rejects_excluded_crockford_chars() {
 
 #[test]
 fn initialize_accepts_well_formed_key_prefix() {
-    // Smoke test for the happy validation path. `initialize` awaits the first
-    // poll inline with no Rust-side timeout, so this drives an immediate 503
-    // transport rather than the never-resolving one. The validation gate must
-    // accept a regex-valid key, after which the cold-start identity sequence
-    // runs against the in-memory secure store and the first poll leaves the
-    // provider in Retrying. The assertion only checks that a well-formed key is
-    // not rejected at the validation gate
+    // Smoke test for the happy validation path. initialize does not poll, so the
+    // transport is never called here. The validation gate must accept a regex
+    // valid key, after which the cold-start identity sequence runs against the
+    // in-memory secure store and the client is returned. The assertion only
+    // checks that a well-formed key is not rejected at the validation gate
     let dir = TempDir::new().unwrap();
     let key = "cpk_mob_abcdefghjkmnpqrstvwxyz0123456789";
     let result = futures::executor::block_on(CoproductClient::initialize(

@@ -48,7 +48,7 @@ impl Transport for StubTransport {
 fn poll_304_keeps_snapshot_and_persists_new_etag() {
     let dir = TempDir::new().unwrap();
     let cache_dir = dir.path().to_string_lossy().into_owned();
-    cache::write_etag(&cache_dir, "\"prior-etag\"").unwrap();
+    cache::write_etag(&cache_dir, "cpk_mob_test", "\"prior-etag\"").unwrap();
 
     let transport = Arc::new(StubTransport {
         captured: Mutex::new(Vec::new()),
@@ -69,6 +69,7 @@ fn poll_304_keeps_snapshot_and_persists_new_etag() {
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: Arc::new(Mutex::new(0)),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
 
@@ -85,7 +86,9 @@ fn poll_304_keeps_snapshot_and_persists_new_etag() {
     );
     // ETag persisted with the echoed value from the 304 response
     assert_eq!(
-        cache::read_etag(&cache_dir).unwrap().as_deref(),
+        cache::read_etag(&cache_dir, "cpk_mob_test")
+            .unwrap()
+            .as_deref(),
         Some("\"echo-etag\"")
     );
     // If-None-Match was sent with the prior etag

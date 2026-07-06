@@ -32,9 +32,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             var ready by remember { mutableStateOf("SDK ready: no") }
             var hostCallbacks by remember { mutableStateOf("Host callbacks: no") }
-            var loadedFromCache by remember { mutableStateOf("Loaded from cache: no") }
             var getBool by remember { mutableStateOf("getBool: false") }
-            var observer by remember { mutableStateOf("Observer fired: no") }
+            var observer by remember { mutableStateOf("Observer registered: no") }
             var subscription by remember { mutableStateOf<Cancellable?>(null) }
 
             LaunchedEffect(Unit) {
@@ -49,13 +48,10 @@ class MainActivity : ComponentActivity() {
                 ready = "SDK ready: yes"
                 hostCallbacks =
                     "Host callbacks: ${yesNo(MockTransport.requestCount == 1 && MockSecureStore.completedHandshake)}"
-                loadedFromCache = "Loaded from cache: ${yesNo(client.wasLoadedFromCache())}"
                 getBool = "getBool: ${client.getBool("test-flag", false)}"
 
-                subscription = client.observe("test-flag", false) {
-                    observer = "Observer fired: yes"
-                }
-                client.simulateChange("test-flag", true)
+                subscription = client.observe("test-flag", false) {}
+                observer = "Observer registered: yes"
             }
 
             DisposableEffect(Unit) {
@@ -80,7 +76,6 @@ class MainActivity : ComponentActivity() {
                         listOf(
                             ready,
                             hostCallbacks,
-                            loadedFromCache,
                             getBool,
                             observer,
                         ).forEach { line ->

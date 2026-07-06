@@ -37,5 +37,5 @@ adb logcat -d -s CoproductConsumer:I '*:S'
 Green when logcat includes:
 
 ```text
-COPRODUCT_ANDROID_CONSUMER_STATUS ready=true hostCallbacks=true loadedFromCache=true getBool=false observerFired=true
+COPRODUCT_ANDROID_CONSUMER_STATUS ready=true hostCallbacks=true getBool=false observerRegistered=true
 ```

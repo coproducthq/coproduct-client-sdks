@@ -65,6 +65,7 @@ fn poll_200_swaps_snapshot_persists_disk_and_etag() {
         sdk_context: ctx_sdk_context.clone(),
         consecutive_failures: failures.clone(),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
 
@@ -96,12 +97,16 @@ fn poll_200_swaps_snapshot_persists_disk_and_etag() {
     // shape is intentionally bytes (not the parsed struct) because cold
     // start re-runs the schema-version fence on the bytes before parsing
     assert_eq!(
-        cache::read_snapshot(&cache_dir).unwrap().as_deref(),
+        cache::read_snapshot(&cache_dir, "cpk_mob_test")
+            .unwrap()
+            .as_deref(),
         Some(FRESH_BODY)
     );
     // ETag persisted
     assert_eq!(
-        cache::read_etag(&cache_dir).unwrap().as_deref(),
+        cache::read_etag(&cache_dir, "cpk_mob_test")
+            .unwrap()
+            .as_deref(),
         Some("\"fresh-etag\"")
     );
     // State advanced NotReady -> Ready

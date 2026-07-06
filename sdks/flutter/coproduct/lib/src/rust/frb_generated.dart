@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -319705962;
+  int get rustContentHash => -885634815;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -76,7 +76,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  int crateApiComputeBucket({
+  int crateApiBucketForVectors({
     required String ruleId,
     required String targetingKey,
     required String suffix,
@@ -126,18 +126,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSignOut({required CoproductClientHandle handle});
 
-  Future<void> crateApiSimulateChange({
-    required CoproductClientHandle client,
-    required String key,
-    required bool newValue,
-  });
-
   Future<void> crateApiUpdateAttributes({
     required CoproductClientHandle handle,
     required Map<String, FrbContextValue> attributes,
   });
-
-  bool crateApiWasLoadedFromCache({required CoproductClientHandle client});
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_CoproductClientHandle;
@@ -167,7 +159,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  int crateApiComputeBucket({
+  int crateApiBucketForVectors({
     required String ruleId,
     required String targetingKey,
     required String suffix,
@@ -185,15 +177,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_u_32,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiComputeBucketConstMeta,
+        constMeta: kCrateApiBucketForVectorsConstMeta,
         argValues: [ruleId, targetingKey, suffix],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiComputeBucketConstMeta => const TaskConstMeta(
-    debugName: "compute_bucket",
+  TaskConstMeta get kCrateApiBucketForVectorsConstMeta => const TaskConstMeta(
+    debugName: "bucket_for_vectors",
     argNames: ["ruleId", "targetingKey", "suffix"],
   );
 
@@ -521,45 +513,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "sign_out", argNames: ["handle"]);
 
   @override
-  Future<void> crateApiSimulateChange({
-    required CoproductClientHandle client,
-    required String key,
-    required bool newValue,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
-            client,
-            serializer,
-          );
-          sse_encode_String(key, serializer);
-          sse_encode_bool(newValue, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 10,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimulateChangeConstMeta,
-        argValues: [client, key, newValue],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimulateChangeConstMeta => const TaskConstMeta(
-    debugName: "simulate_change",
-    argNames: ["client", "key", "newValue"],
-  );
-
-  @override
   Future<void> crateApiUpdateAttributes({
     required CoproductClientHandle handle,
     required Map<String, FrbContextValue> attributes,
@@ -576,7 +529,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 10,
             port: port_,
           );
         },
@@ -594,34 +547,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiUpdateAttributesConstMeta => const TaskConstMeta(
     debugName: "update_attributes",
     argNames: ["handle", "attributes"],
-  );
-
-  @override
-  bool crateApiWasLoadedFromCache({required CoproductClientHandle client}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
-            client,
-            serializer,
-          );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiWasLoadedFromCacheConstMeta,
-        argValues: [client],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiWasLoadedFromCacheConstMeta => const TaskConstMeta(
-    debugName: "was_loaded_from_cache",
-    argNames: ["client"],
   );
 
   Future<void> Function(int, dynamic)

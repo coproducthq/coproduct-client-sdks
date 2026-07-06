@@ -139,6 +139,24 @@ flutter pub get
 flutter run -d <device_id>
 ```
 
+## Releasing
+
+Before publishing an SDK for a platform, its version identity must agree across four
+places or the release is blocked. See the Release Identity invariant in `AGENTS.md`.
+
+Per-platform release checklist (repeat for each platform you publish):
+
+- [ ] The `User-Agent` version (`coproduct-<platform>/<version>`) equals the version
+      being published, and carries no `-dev` suffix.
+- [ ] The published package or git tag matches that version.
+- [ ] The built/packaged artifact version matches that version.
+- [ ] The install instructions in the platform README point at the real published
+      repo and version, and read as installable now rather than aspirational.
+
+On a development branch these stay at an explicit dev value (for example
+`coproduct-ios/0.0.1-dev`), and the README install is phrased as a post-release
+instruction, not a copy-pasteable command for an unpublished tag.
+
 ## Recovering local disk space
 
 Every gitignored directory is a regenerable cache or build output. None of these contain durable work.

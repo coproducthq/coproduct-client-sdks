@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use parking_lot::Mutex;
@@ -32,6 +33,10 @@ pub struct PollContext {
     pub sdk_context: Arc<Mutex<std::collections::HashMap<String, crate::context::AttributeValue>>>,
     pub consecutive_failures: Arc<Mutex<u32>>,
     pub retry_budget: u32,
+    /// Shutdown latch shared with the owning client. Re-checked after the network
+    /// request returns so a poll that was in flight when the client shut down
+    /// does not write its snapshot to disk or swap provider state
+    pub shutdown: Arc<AtomicBool>,
     /// Optional hook fired after a successful snapshot swap. Receives
     /// `(prev, next)` so a registered listener can diff and notify only the
     /// keys whose values changed. Leaving it `None` disables fanout for that
@@ -124,7 +129,9 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
     // with no usable snapshot. Omitting the header forces a full 200 that
     // rehydrates the snapshot and overwrites the stale ETag
     let conditional_etag = if ctx.snapshot.lock().is_some() {
-        crate::cache::read_etag(&ctx.cache_dir).ok().flatten()
+        crate::cache::read_etag(&ctx.cache_dir, &ctx.sdk_key)
+            .ok()
+            .flatten()
     } else {
         None
     };
@@ -142,10 +149,21 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
         body: None,
     };
 
-    match ctx.transport.request(req).await {
+    let response = ctx.transport.request(req).await;
+    // Re-check shutdown after the network returns. The generated async FFI poll
+    // cannot be cancelled from the host, so a poll that fired just before
+    // shutdown can still be in flight here. A shut-down client must not persist
+    // its snapshot or swap provider state. `_release` still resets in_flight.
+    // DedupedSkipped is reused because the host treats it as a no-op poll, which
+    // is the right outcome for a shutdown skip as well
+    if ctx.shutdown.load(Ordering::Acquire) {
+        return PollOutcome::DedupedSkipped;
+    }
+
+    match response {
         Ok(resp) if resp.status == 304 => {
             if let Some(etag) = extract_etag(&resp.headers) {
-                let _ = crate::cache::write_etag(&ctx.cache_dir, &etag);
+                let _ = crate::cache::write_etag(&ctx.cache_dir, &ctx.sdk_key, &etag);
             }
             // A 304 is a successful round-trip with the server: it
             // confirmed our snapshot is current. Reset the failure
@@ -247,9 +265,9 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             // the on-disk copy here is consulted only by `initialize` at
             // cold start, never short-circuits a request, and is replaced
             // on every successful poll. See the module doc on `cache.rs`
-            let _ = crate::cache::write_snapshot(&ctx.cache_dir, &resp.body);
+            let _ = crate::cache::write_snapshot(&ctx.cache_dir, &ctx.sdk_key, &resp.body);
             if let Some(etag) = extract_etag(&resp.headers) {
-                let _ = crate::cache::write_etag(&ctx.cache_dir, &etag);
+                let _ = crate::cache::write_etag(&ctx.cache_dir, &ctx.sdk_key, &etag);
             }
             // Snapshot the prior value before swapping so the
             // snapshot-swap hook can diff. Hold each lock only for the
@@ -279,11 +297,11 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             // which never happens for a revoked key because the
             // provider is in Fatal. Clearing the disk cache enforces
             // operator intent end-to-end. ETag is removed alongside the
-            // snapshot so a future re-keyed install starts clean and
-            // does not send a stale If-None-Match
+            // snapshot so a later session on this same key starts clean
+            // and does not send a stale If-None-Match
             *ctx.snapshot.lock() = None;
-            let _ = crate::cache::clear_snapshot(&ctx.cache_dir);
-            let _ = crate::cache::clear_etag(&ctx.cache_dir);
+            let _ = crate::cache::clear_snapshot(&ctx.cache_dir, &ctx.sdk_key);
+            let _ = crate::cache::clear_etag(&ctx.cache_dir, &ctx.sdk_key);
             ctx.state.set(ProviderState::Fatal);
             PollOutcome::Fatal
         }
@@ -312,8 +330,8 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
 /// 401 means the SDK key was revoked, so operator intent is "stop this
 /// SDK"; dropping the snapshot enforces that. 400 / 404 mean the SDK
 /// is misconfigured (endpoint, header). The held flag values are still
-/// valid, and customers should keep evaluating against them while
-/// operators correct the configuration. The Fatal state already stops
+/// valid, and the host keeps evaluating against them while operators
+/// correct the configuration. The Fatal state already stops
 /// background polls, which is the actionable safety property
 fn handle_permanent_client_error(ctx: &PollContext, status: u16) -> PollOutcome {
     tracing::error!(

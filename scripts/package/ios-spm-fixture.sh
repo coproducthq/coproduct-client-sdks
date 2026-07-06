@@ -17,6 +17,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 output_dir="$repo_root/build/ios-spm"
 wrapper_source_dir="$repo_root/sdks/ios/Sources/Coproduct"
+ffi_source_dir="$repo_root/sdks/ios/Sources/CoproductFFI"
 
 # Step 1: produce the binary artifact (zip + checksum). This wipes and
 # repopulates $output_dir, so any prior fixture state is discarded
@@ -24,9 +25,12 @@ wrapper_source_dir="$repo_root/sdks/ios/Sources/Coproduct"
 
 # Step 2: vendor the wrapper Swift source into the fixture. SwiftPM requires
 # a target's source to live inside the package's own directory tree, so we
-# copy rather than reference sdks/ios/Sources/Coproduct/ directly
+# copy rather than reference sdks/ios/Sources/ directly. The generated bindings
+# live in their own CoproductFFI target that is not a product, mirroring the
+# real package so the consumer can only reach the wrapper's public surface
 mkdir -p "$output_dir/Sources"
 cp -R "$wrapper_source_dir" "$output_dir/Sources/Coproduct"
+cp -R "$ffi_source_dir" "$output_dir/Sources/CoproductFFI"
 
 # Step 3: emit the fixture's Package.swift. The binary target's name and
 # language-mode settings match sdks/ios/Package.swift so the wrapper source
@@ -55,8 +59,12 @@ let package = Package(
             path: "CoproductFFI.xcframework.zip"
         ),
         .target(
-            name: "Coproduct",
+            name: "CoproductFFI",
             dependencies: ["coproduct_ffi_uniffiFFI"]
+        ),
+        .target(
+            name: "Coproduct",
+            dependencies: ["CoproductFFI"]
         ),
     ],
     swiftLanguageModes: [.v5]

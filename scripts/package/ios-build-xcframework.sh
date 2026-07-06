@@ -13,7 +13,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-GEN_DIR="sdks/ios/Sources/Coproduct/Generated"
+GEN_DIR="sdks/ios/Sources/CoproductFFI"
 FRAMEWORK="sdks/ios/CoproductFFI.xcframework"
 HEADERS_DIR="target/ios-xcframework-headers"
 SIM_UNIVERSAL="target/ios-sim-universal/debug"

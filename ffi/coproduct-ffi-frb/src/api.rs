@@ -89,6 +89,16 @@ type SecureWriteFn =
     dyn Fn(String, String) -> DartFnFuture<anyhow::Result<()>> + Send + Sync + 'static;
 type ObserverFn = dyn Fn(bool) -> DartFnFuture<()> + Send + Sync + 'static;
 
+// Construct the client. This does not poll the network: it returns once the
+// client is built from cache, so reads evaluate against cache or defaults and
+// the provider starts Ready from a cached snapshot or NotReady otherwise.
+// Driving polling, including the first poll, is the host wrapper's job. A
+// wrapper that wants fresh values at launch must call poll_now after this
+// returns and bound any readiness wait with its own startup timeout.
+//
+// Kept a plain comment rather than a doc comment so it does not flow into the
+// generated Dart bindings and require a codegen sweep. The developer-facing
+// contract lives in AGENTS.md and the core initialize doc instead.
 pub async fn initialize(
     sdk_key: String,
     cache_dir: String,
@@ -129,11 +139,6 @@ pub fn get_bool(client: &CoproductClientHandle, key: String, default_value: bool
     client.inner.get_bool(key, default_value)
 }
 
-#[frb(sync)]
-pub fn was_loaded_from_cache(client: &CoproductClientHandle) -> bool {
-    client.inner.was_loaded_from_cache()
-}
-
 pub fn observe(
     client: &CoproductClientHandle,
     key: String,
@@ -144,10 +149,6 @@ pub fn observe(
     });
     let inner = client.inner.observe_key(key, observer);
     SubscriptionHandle { _inner: inner }
-}
-
-pub async fn simulate_change(client: &CoproductClientHandle, key: String, new_value: bool) {
-    client.inner.simulate_change(key, new_value).await;
 }
 
 // Identity mutators for the evaluation context. These are async because an
@@ -236,8 +237,10 @@ impl FrbContextValue {
     }
 }
 
+// Internal conformance accessor exposing the canonical bucketing primitive to
+// the cross-evaluator conformance harness. Not part of the public SDK surface
 #[frb(sync)]
-pub fn compute_bucket(rule_id: String, targeting_key: String, suffix: String) -> u32 {
+pub fn bucket_for_vectors(rule_id: String, targeting_key: String, suffix: String) -> u32 {
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
 }
 
@@ -281,7 +284,7 @@ impl core_transport::Transport for TransportAdapter {
         let response = (self.request)(from_core_request(req))
             .await
             .map_err(|error| core_transport::TransportError::Other {
-                message: error.to_string(),
+                reason: error.to_string(),
             })?;
 
         Ok(to_core_response(response))

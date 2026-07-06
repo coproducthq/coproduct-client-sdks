@@ -40,7 +40,7 @@ impl Transport for OkOnceTransport {
         let mut served = self.0.lock();
         if *served {
             Err(TransportError::Other {
-                message: "only one success".to_string(),
+                reason: "only one success".to_string(),
             })
         } else {
             *served = true;
@@ -73,6 +73,7 @@ fn successful_poll_in_stale_restores_to_ready() {
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: failures.clone(),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
 

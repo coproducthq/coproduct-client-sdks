@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Guidance for agents working in this scaffold repository.
+Guidance for agents working in this repository.
 
 ## Purpose
 
-This repository is an architecture-validation scaffold for Coproduct mobile SDKs. The goal is minimum feasibility learning, not a production SDK. Keep changes small and oriented around proving whether the shared Rust core can be consumed from iOS, Android, React Native, and Flutter.
+This repository builds Coproduct's mobile SDKs (iOS, Android, React Native, Flutter) on a shared Rust evaluation core. Hold the Rust core and any implemented platform SDK to a production quality bar, with rigorous tests and review rather than feasibility-grade shortcuts. Where a platform's generated bindings build but its full ergonomic SDK is not yet written, that platform is still at the binding-validation stage: keep changes focused on proving the shared core can be consumed cleanly. Check the code and the plans under `docs/` for what is implemented rather than assuming.
 
 ## Repository Layout
 
@@ -14,6 +14,7 @@ This repository is an architecture-validation scaffold for Coproduct mobile SDKs
 - `examples/<platform>-demo/` and `sdks/<framework>/coproduct/example/` — **source-linked** sample apps. Pull the SDK as workspace code via composite build / SPM local ref / `path:` / `file:`. SDK author dev inner loop. Fast iteration; not a release gate.
 - `consumer-tests/<platform>/` — **artifact-linked** verification apps. Install the SDK as a packaged release artifact (`.tgz`, `path:` to the SDK that mimics a published copy, SPM file: dep to a packaged zip, mavenLocal). Catch publish/install/autolink bugs that source-linked examples cannot. Release gate.
 - `tests/` — cross-cutting fixtures (e.g. `bucketing_vectors.json`).
+- `docs/` — design specs and implementation plans (under `docs/superpowers/plans/`).
 
 A bug like the RN 0.82 + Xcode 26 `fmt` consteval failure, or the cargokit Gradle-9 `project.exec` removal, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
 
@@ -60,19 +61,18 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
 
 - UniFFI: use `uniffi = "0.31.1"` unless a concrete integration failure requires falling back.
 - Flutter Rust Bridge: use `flutter_rust_bridge = "2.12.0"`.
-- Core dependencies are intentionally minimal: `async-trait`, `serde`, `serde_json`, `sha2`, and `thiserror`.
+- Core dependencies are kept lean. The current set is `async-trait`, `http`, `parking_lot`, `semver`, `serde`, `serde_json`, `sha2`, `thiserror`, `time`, `tracing`, `tracing-subscriber`, and `uuid`. Add a dependency only when a capability genuinely warrants it.
 
 ## Architecture Rules
 
 - `coproduct-core` owns business logic and Rust-owned snapshot file I/O.
-- Host languages provide only platform capabilities:
-  - async `Transport`
-  - async identity-only `SecureStore`
+- Host languages provide only platform capabilities. The core defines the internal `Transport` and `SecureStore` traits; the host-facing FFI protocols that adapt to them are `HostTransport` and `HostSecureStore`. Hosts implement:
+  - async `HostTransport`
+  - async identity-only `HostSecureStore`
   - async observer callbacks
 - Snapshot cache must not cross the FFI boundary. Rust reads and writes `{cache_dir}/coproduct/snapshot.json` directly.
 - FFI crates should expose local wrapper and adapter types, not raw `coproduct-core` types.
-- `simulate_change` is scaffold-only and exists only to validate observer callbacks before real polling exists.
-- `was_loaded_from_cache` is scaffold-only and exists to validate cache persistence across restart.
+- `initialize` does not perform a network poll. The contract is: the client is constructed, the cache is loaded if present (so the provider starts `Ready` from cache, otherwise `NotReady`), and reads can immediately evaluate against cache or developer defaults. Driving polling is the host wrapper's responsibility, including the first poll. Do not assume `initialize` has fetched a fresh snapshot. A production wrapper that wants fresh values at launch must start polling right after `initialize` (call `poll_now()` / `pollNow()` or start a host timer whose first tick fires immediately) and, if it wants to wait for readiness, bound that wait with its own `startup_timeout` rather than expecting `initialize` to block. The iOS wrapper already does this (immediate first tick plus a bounded wait for readiness); Android, React Native, and Flutter are scaffold-level and must adopt the same pattern when they grow real polling.
 
 ## Identifier unification principle
 
@@ -81,7 +81,7 @@ Use identical identifiers across all four SDK surfaces wherever the language per
 Examples this rule covers:
 
 - Public method names: `initialize`, `getBool`, `getString`, `getNumber`, `getInt`, `getJSON`, `identify`, `signOut`, `setContext`, `updateAttributes`, `removeAttributes`, `observe`, `addHandler`, `addEvaluationHook`, `shutdown`
-- Public type names: `CoproductClient`, `CoproductConfig`, `CoproductSnapshot`, `Logger`, `Transport`, `SecureStore`, `EvaluationEvent`, `ProviderState`
+- Public type names: `CoproductClient`, `CoproductConfig`, `CoproductSnapshot`, `Logger`, `HostTransport`, `HostSecureStore`, `EvaluationEvent`, `ProviderState`
 - Thrown error names: `InvalidKeyType`, `UnsupportedSchemaVersion`, `InvalidTargetingKey`, `TransportError`, `SecureStoreError`
 - Internal accessors: `bucketForVectors` (per-platform visibility mechanism: Swift `internal`, Kotlin `internal`, TS `/internal` subpath, Dart `lib/src/`)
 
@@ -97,8 +97,10 @@ Documented per-platform deviations:
 - Keep Rust code readable and explicit. Prefer simple structs and conversion helpers over clever abstractions.
 - Do not hold a `MutexGuard` across `.await`.
 - Keep all FFI/core record conversion in one obvious adapter section per FFI crate.
+- Never name an error-enum variant field `message`. UniFFI maps each error variant to a Kotlin class that extends `Throwable`, which already defines `message`, so a field named `message` produces a conflicting declaration and the generated Kotlin will not compile. Swift is unaffected, so the breakage is silent until a Kotlin build. Use `reason` or another name.
 - Run `cargo fmt --all` before claiming Rust work is complete.
-- Run `cargo build --workspace` and `cargo test -p coproduct-core` for core changes.
+- Run `cargo build --workspace` and `cargo test --workspace` for Rust changes. Use the whole workspace, not `cargo test -p coproduct-core`: the FFI crates carry their own tests (for example the `ffi/coproduct-ffi-uniffi` binding-generation tests that read committed paths), so a single-package run passes while the workspace is red.
+- When you move or rename a path that is referenced by convention (the generated bindings directory, a fixture, a cache location), grep the whole repo for the old path before claiming done. The iOS generated bindings path alone is referenced by `scripts/audit/swift-binding-check.sh`, `scripts/package/ios-build-xcframework.sh`, `scripts/package/ios-spm-fixture.sh`, `sdks/ios/BUILDING.md`, the `ffi/coproduct-ffi-uniffi` binding-generation test, and `.gitattributes`.
 
 ## Public Source Hygiene
 
@@ -124,6 +126,36 @@ Avoid examples:
 - "Task 2.6 fills this in."
 - "Later checkpoints replace this."
 
+Comment and doc terminology. Reserve `user` for the evaluated end-user (the targeting subject: `userId`, `targetingKey`, the evaluation context), never the integrator. Use `caller` for who invoked a function or supplied a value, and `public` or `developer` for the API audience. Do not use `customer`.
+
+## Release Identity
+
+Each SDK carries a version identity in four places that must agree at release: the
+install instructions (the repo URL and version a developer copies), the published
+package or release tag, the built artifact version, and the `User-Agent` the SDK
+sends (`coproduct-<platform>/<version>`, set in the wrapper). These are the same
+concern seen from four angles, and they drift because they live in different
+files.
+
+Invariants (a release-blocking check, applied per platform: iOS, Android, React
+Native, Flutter):
+
+- A development branch keeps an explicit dev `User-Agent` such as
+  `coproduct-ios/0.0.1-dev`. Do not raise it to a release version until that
+  platform's package or tag is actually published.
+- A public release must not ship a `-dev` `User-Agent`, and the `User-Agent`
+  version must equal the published package version for that platform.
+- Install docs must not present a copy-pasteable command for a repo or tag that is
+  not yet published. Before a public release, update the install docs, the
+  package/release tag, the artifact version, and the `User-Agent` together for
+  that platform, in one change.
+
+Where each lives today (keep this list current as platforms ship): iOS
+`User-Agent` is `coproductUserAgent` in `sdks/ios/Sources/Coproduct/Coproduct.swift`
+and the install doc is `sdks/ios/README.md`; Android and React Native set a
+`USER_AGENT` constant in their wrapper; Flutter sends its own value from the FRB
+path. See `DEVELOPMENT.md` for the release checklist.
+
 ## UniFFI Notes
 
 - Avoid FFI parameter names that are C/Swift keywords. In particular, do not use `default`. Use `default_value`.
@@ -136,6 +168,15 @@ Avoid examples:
     --out-dir /tmp/swift-bindings
   ```
 - The generated Swift, header, and modulemap are expected outputs.
+- Regenerate the React Native bindings with the locally installed `uniffi-bindgen-react-native` (not on PATH, it lives at `sdks/react-native/coproduct/node_modules/.bin/ubrn`). After `cargo build -p coproduct-ffi-uniffi`, run from the repo root:
+  ```bash
+  sdks/react-native/coproduct/node_modules/.bin/ubrn generate jsi bindings \
+    --library --crate coproduct_ffi_uniffi \
+    --ts-dir sdks/react-native/coproduct/src/generated \
+    --cpp-dir sdks/react-native/coproduct/cpp/generated \
+    target/debug/libcoproduct_ffi_uniffi.dylib
+  ```
+  The RN native ABI changes whenever the FFI surface does, so verify with a native build (`scripts/build/source-linked-rn-demo-android.sh`), not just a typecheck.
 
 ## Flutter Rust Bridge Notes
 
@@ -150,6 +191,7 @@ Load-bearing invariants. Breaking any of these breaks the build or runtime:
 - The plugin is an FFI plugin: `pubspec.yaml` declares `ffiPlugin: true` for android and ios with no `pluginClass`, and there are no Kotlin/Swift plugin classes. FRB loads the native library directly.
 - On iOS and macOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true))`, because cargokit force-loads the static library into the app executable and the default Apple loader looks for a non-existent `<stem>.framework`. Android uses the default loader (`lib<crate>.so`).
 - Regenerate bindings with `flutter_rust_bridge_codegen generate` after editing `api.rs`. The codegen binary is pinned to the same version as the `flutter_rust_bridge` crate (`2.12.0`). Codegen rewrites `frb_generated.rs`, `lib/src/rust/*`, and re-injects the `mod frb_generated;` line.
+- Run `cargo fmt --all` after regenerating FRB bindings. `rustfmt.toml` lists `frb_generated.rs` in `ignore`, but `ignore` is a nightly-only feature, so on the stable toolchain rustfmt still formats the file. The committed `frb_generated.rs` must be fmt-formatted or `cargo fmt --all --check` fails the green gate, and the codegen output is not fmt-clean on its own.
 - Avoid FFI parameter names that are Dart reserved words. Do not use `default`; use `default_value`. This matches the UniFFI crate, where `default` is also a Swift keyword.
 
 Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9; the vendored cargokit at `sdks/flutter/coproduct/cargokit/gradle/plugin.gradle` carries a `ProcessBuilder` patch (see [FRB issue #3007](https://github.com/fzyzcjy/flutter_rust_bridge/issues/3007), marked wontfix upstream) so the SDK works on Gradle 9. The patch must be re-applied if the vendored cargokit is updated; the file carries an inline comment marking the patched region. `sdks/flutter/coproduct/example/` and `sdks/react-native/coproduct/example/` remain unified on **Gradle 8.14 + JDK 17 + AGP 8.12.0** to match the React Native example template's defaults, while native Android source-linked demos use **Gradle 9.4.1 + JDK 17 + AGP 9.2.1** to match Android Studio Panda's generated defaults. `consumer-tests/flutter/` runs on bleeding-edge **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20** to verify the patched cargokit holds for real adopters on modern toolchains. The SDK's `compileSdkVersion` is `36.1` for native Android and `36` for Flutter's current AGP path. cargokit downloads its own NDK if the configured one is absent. Do not enable Swift Package Manager for the plugin: FRB needs the CocoaPods `Classes/` layout, and Flutter only warns about the missing SwiftPM support.
@@ -159,6 +201,9 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 - `CoproductFFI.xcframework` is generated scaffold output from static Rust libraries.
 - The iOS Swift package should use Swift 5 language mode for now. UniFFI-generated Swift currently trips Swift 6 strict-concurrency checks around static callback vtable pointers.
 - `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. Any ad-hoc verification should use `xcodebuild -destination 'generic/platform=iOS Simulator'` like the build scripts do.
+- The generated UniFFI Swift bindings live in their own `CoproductFFI` target under `sdks/ios/Sources/CoproductFFI/`. That target is deliberately not a library product, which keeps the raw generated surface (the top-level `initialize`, `CoproductClient`, `FfiConfig`, `bucketForVectors`, the converters, and the handle types) out of autocomplete and out of a plain `import Coproduct`. This is hidden by default, not an enforced boundary: SwiftPM builds every target's module into the products directory, so `import CoproductFFI` still resolves for a determined consumer. Do not rely on the split for anything security-shaped. The wrapper re-exposes the genuinely public generated types via per-declaration `@_exported import` in `Sources/Coproduct/PublicFFISurface.swift` (per-declaration rather than typealiases so enum cases and struct members come across; `@_exported` is an accepted underscored-attribute risk). Add a line there when a new generated type legitimately joins the public contract, and never make `CoproductFFI` a product.
+- When the FFI surface changes, regenerate and verify the committed Swift bindings with `scripts/audit/swift-binding-check.sh`. It rebuilds the crate, regenerates the bindings in place under `Sources/CoproductFFI/`, runs the name audit, typechecks the bindings plus the `Tests/BindingSmoke/` smokes, and emits `COPRODUCT_IOS_BINDING_STATUS pass=true`. Commit the resulting `CoproductFFI/` diff.
+- The binding check does not rebuild the xcframework, and neither does the `xcodebuild test` path. Regenerating the bindings without rebuilding `CoproductFFI.xcframework` leaves the committed bindings ahead of the linked binary, which surfaces at test runtime as a `UniFFI API checksum mismatch`, not as a build error. After a binding regen, rebuild the xcframework with `scripts/package/ios-build-xcframework.sh` (the source-linked iOS build also rebuilds it) before running the test target.
 - Detailed iOS build commands live in `sdks/ios/BUILDING.md`.
 
 ## Android Notes
@@ -175,10 +220,10 @@ Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9
 ## Validation Anchors
 
 - Golden bucketing vectors live in `tests/bucketing_vectors.json`. Treat vector mismatches as implementation bugs, not permission to change expected values.
-- iOS package build is not the same as a full demo validation. The full validation requires the demo app to run initialize, host callbacks, sync `getBool`, observer callback, and cache status on a simulator.
+- iOS package build is not the same as a full demo validation. The full validation runs the demo app on a simulator exercising initialize, host callbacks, sync `getBool`, observer registration, and provider state.
 
 ## Generated And Build Output
 
-- Do not hand-edit files under `target/` or under `sdks/ios/Sources/Coproduct/Generated/` (the latter is generated by UniFFI). If editing the generated Swift becomes necessary, document why.
+- Do not hand-edit generated output: `target/`, the UniFFI Swift bindings under `sdks/ios/Sources/CoproductFFI/`, the UniFFI Kotlin bindings under `sdks/android/src/main/kotlin/uniffi/`, the React Native bindings under `sdks/react-native/coproduct/cpp/generated/` and `sdks/react-native/coproduct/src/generated/`, and the Flutter Rust Bridge output (`ffi/coproduct-ffi-frb/src/frb_generated.rs` and `sdks/flutter/coproduct/lib/src/rust/`). Regenerate with the per-platform commands above. If editing generated output becomes necessary, document why.
 - `sdks/ios/CoproductFFI.xcframework` is generated scaffold output and can be large in debug mode.
 - The `.gitignore` covers everything else (`.gradle/`, `.kotlin/`, `.swiftpm/`, `xcuserdata/`, `build/`, `local.properties`, plus the usual `.DS_Store` / `*.xcuserstate`). Don't add tracked equivalents.

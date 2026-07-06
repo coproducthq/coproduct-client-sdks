@@ -20,10 +20,3 @@ pub fn bucket_for_vectors(rule_id: &str, targeting_key: &str, suffix: &str) -> u
     let seed = format!("{rule_id}.{targeting_key}.{suffix}");
     bucket_for_seed(&seed)
 }
-
-/// Back-compat alias retained for the legacy host bindings. Superseded by
-/// `bucket_for_vectors`
-#[deprecated(note = "use bucket_for_vectors instead")]
-pub fn compute_bucket(rule_id: &str, targeting_key: &str, suffix: &str) -> u32 {
-    bucket_for_vectors(rule_id, targeting_key, suffix)
-}

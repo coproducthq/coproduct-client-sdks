@@ -41,8 +41,10 @@ class MockSecureStore {
   int writeCount = 0;
   final Map<String, String> _values = {};
 
-  bool get completedHandshake =>
-      writeCount > 0 && readCount > 0 && _values['scaffold-handshake-id'] == 'ok';
+  // The core's cold-start identity sequence reads the stored anonymous id and
+  // writes one when none exists, so a completed round trip means the secure
+  // store host bridge was exercised during initialize
+  bool get completedHandshake => writeCount > 0 && readCount > 0;
 
   void reset() {
     readCount = 0;
@@ -81,9 +83,6 @@ class CoproductClient {
   bool getBool(String key, bool defaultValue) =>
       frb.getBool(client: _handle, key: key, defaultValue: defaultValue);
 
-  /// Temporary cache-status probe used by validation apps.
-  bool wasLoadedFromCache() => frb.wasLoadedFromCache(client: _handle);
-
   /// Low-level observer hook used by current demos.
   Future<Cancellable> observe(
     String key,
@@ -97,11 +96,6 @@ class CoproductClient {
     );
     return Cancellable(subscription);
   }
-
-  /// Temporary validation hook used until polling-driven snapshot updates are
-  /// available.
-  Future<void> simulateChange(String key, bool newValue) =>
-      frb.simulateChange(client: _handle, key: key, newValue: newValue);
 }
 
 class Coproduct {
@@ -147,16 +141,4 @@ class Coproduct {
     );
     return CoproductClient(handle);
   }
-
-  /// Temporary vector-test hook. Customer-facing bucket access, if added,
-  /// belongs on flag evaluation details.
-  static int computeBucket({
-    required String ruleId,
-    required String targetingKey,
-    required String suffix,
-  }) => frb.computeBucket(
-        ruleId: ruleId,
-        targetingKey: targetingKey,
-        suffix: suffix,
-      );
 }

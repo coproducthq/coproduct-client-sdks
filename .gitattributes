@@ -1,8 +1,18 @@
 # UniFFI-generated Swift bindings and C headers. They are tool output, so do not
 # flag their trailing whitespace and collapse them in diffs.
-sdks/ios/Sources/Coproduct/Generated/** -whitespace linguist-generated
+sdks/ios/Sources/CoproductFFI/** -whitespace linguist-generated
 
 # Flutter Rust Bridge generated Dart and Rust bindings. They are tool output, so
 # do not flag their trailing whitespace and collapse them in diffs.
 sdks/flutter/coproduct/lib/src/rust/** -whitespace linguist-generated
 ffi/coproduct-ffi-frb/src/frb_generated.rs -whitespace linguist-generated
+
+# UniFFI-generated Kotlin bindings. They are tool output, so do not flag their
+# trailing whitespace and collapse them in diffs.
+sdks/android/src/main/kotlin/uniffi/** -whitespace linguist-generated
+
+# uniffi-bindgen-react-native generated TypeScript and C++ bindings. They are
+# tool output, so do not flag their trailing whitespace and collapse them in
+# diffs.
+sdks/react-native/coproduct/src/generated/** -whitespace linguist-generated
+sdks/react-native/coproduct/cpp/generated/** -whitespace linguist-generated

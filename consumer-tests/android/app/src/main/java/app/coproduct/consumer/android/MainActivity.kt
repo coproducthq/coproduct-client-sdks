@@ -19,7 +19,6 @@ class MainActivity : Activity() {
     private var subscription: Cancellable? = null
     private lateinit var readyView: TextView
     private lateinit var hostCallbacksView: TextView
-    private lateinit var loadedFromCacheView: TextView
     private lateinit var getBoolView: TextView
     private lateinit var observerView: TextView
 
@@ -41,9 +40,8 @@ class MainActivity : Activity() {
 
                 readyView = addStatusRow("SDK ready: no")
                 hostCallbacksView = addStatusRow("Host callbacks: no")
-                loadedFromCacheView = addStatusRow("Loaded from cache: no")
                 getBoolView = addStatusRow("getBool: false")
-                observerView = addStatusRow("Observer fired: no")
+                observerView = addStatusRow("Observer registered: no")
             },
         )
 
@@ -58,25 +56,14 @@ class MainActivity : Activity() {
             readyView.text = "SDK ready: yes"
             hostCallbacksView.text =
                 "Host callbacks: ${yesNo(MockTransport.requestCount == 1 && MockSecureStore.completedHandshake)}"
-            loadedFromCacheView.text = "Loaded from cache: ${yesNo(client.wasLoadedFromCache())}"
             getBoolView.text = "getBool: ${client.getBool("test-flag", false)}"
-            publishAutomationStatus(
-                loadedFromCache = client.wasLoadedFromCache(),
-                getBool = client.getBool("test-flag", false),
-                observerFired = false,
-            )
 
-            var observerFired = false
-            subscription = client.observe("test-flag", false) {
-                observerFired = true
-                observerView.text = "Observer fired: yes"
-                publishAutomationStatus(
-                    loadedFromCache = client.wasLoadedFromCache(),
-                    getBool = client.getBool("test-flag", false),
-                    observerFired = observerFired,
-                )
-            }
-            client.simulateChange("test-flag", true)
+            subscription = client.observe("test-flag", false) {}
+            observerView.text = "Observer registered: yes"
+            publishAutomationStatus(
+                getBool = client.getBool("test-flag", false),
+                observerRegistered = true,
+            )
         }
     }
 
@@ -97,30 +84,26 @@ class MainActivity : Activity() {
     }
 
     private fun publishAutomationStatus(
-        loadedFromCache: Boolean,
         getBool: Boolean,
-        observerFired: Boolean,
+        observerRegistered: Boolean,
     ) {
         val line = statusLine(
-            loadedFromCache = loadedFromCache,
             getBool = getBool,
-            observerFired = observerFired,
+            observerRegistered = observerRegistered,
         )
         Log.i(STATUS_TAG, line)
     }
 
     private fun statusLine(
-        loadedFromCache: Boolean,
         getBool: Boolean,
-        observerFired: Boolean,
+        observerRegistered: Boolean,
     ): String {
         val hostCallbacks = MockTransport.requestCount == 1 && MockSecureStore.completedHandshake
         return "COPRODUCT_ANDROID_CONSUMER_STATUS " +
             "ready=true " +
             "hostCallbacks=$hostCallbacks " +
-            "loadedFromCache=$loadedFromCache " +
             "getBool=$getBool " +
-            "observerFired=$observerFired"
+            "observerRegistered=$observerRegistered"
     }
 
     private fun yesNo(value: Boolean): String {

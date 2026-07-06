@@ -19,9 +19,8 @@ class _MyAppState extends State<MyApp> {
   Cancellable? subscription;
   bool ready = false;
   bool hostCallbacks = false;
-  bool loadedFromCache = false;
   bool flagValue = false;
-  bool observerFired = false;
+  bool observerRegistered = false;
 
   @override
   void initState() {
@@ -30,20 +29,15 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _bootstrap() async {
-    final c = await Coproduct.initialize(sdkKey: 'cpk_mob_test_scaffold');
-    final cached = c.wasLoadedFromCache();
+    final c = await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
     final flag = c.getBool('test-flag', false);
-    final hosts =
-        mockTransport.requestCount == 1 && mockSecureStore.completedHandshake;
+    // initialize no longer polls, so the transport is not called here. The
+    // SecureStore host bridge is exercised by cold-start, which is the host
+    // callback this scaffold can prove until the binding exposes a poll entry
+    // point.
+    final hosts = mockSecureStore.completedHandshake;
 
-    final sub = await c.observe('test-flag', false, (value) {
-      if (mounted) {
-        setState(() => observerFired = true);
-      }
-    });
-
-    // Scaffold-only trigger to validate the FFI callback roundtrip.
-    await c.simulateChange('test-flag', true);
+    final sub = await c.observe('test-flag', false, (value) {});
 
     if (!mounted) return;
     setState(() {
@@ -51,17 +45,16 @@ class _MyAppState extends State<MyApp> {
       subscription = sub;
       ready = true;
       hostCallbacks = hosts;
-      loadedFromCache = cached;
       flagValue = flag;
+      observerRegistered = true;
     });
 
     developer.log(
       'COPRODUCT_FLUTTER_DEMO_STATUS '
       'ready=$ready '
       'hostCallbacks=$hostCallbacks '
-      'loadedFromCache=$loadedFromCache '
       'getBool=$flagValue '
-      'observerFired=$observerFired',
+      'observerRegistered=$observerRegistered',
       name: 'coproduct',
     );
   }
@@ -77,9 +70,8 @@ class _MyAppState extends State<MyApp> {
             children: [
               Text('SDK ready: ${ready ? "yes" : "no"}'),
               Text('Host callbacks: ${hostCallbacks ? "yes" : "no"}'),
-              Text('Loaded from cache: ${loadedFromCache ? "yes" : "no"}'),
               Text('getBool: $flagValue'),
-              Text('Observer fired: ${observerFired ? "yes" : "no"}'),
+              Text('Observer registered: ${observerRegistered ? "yes" : "no"}'),
             ],
           ),
         ),

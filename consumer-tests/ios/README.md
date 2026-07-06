@@ -28,24 +28,22 @@ The app `CoproductConsumerIOS/` was generated from Xcode's iOS App template (Swi
 - Display Name: `Coproduct consumer (iOS)`
 - Deployment Target: iOS 15.0, matching the native iOS SDK package minimum
 - SwiftPM dependency added via **Add Local…** pointing at `build/ios-spm` (the fixture), NOT at `../../sdks/ios`. After running the fixture script, refresh package resolution if Xcode complains: **File -> Packages -> Reset Package Caches**.
-- `ContentView.swift` wires the scaffold `MockTransport` / `MockSecureStore`, `initialize`, `getBool`, `observe`, `simulateChange`, and cache check identically to `examples/ios-demo/`, then logs the canonical status line:
+- `ContentView.swift` drives the public API against the default host implementations (`URLSessionTransport` plus `KeychainSecureStore`): `initialize`, the typed getters, `snapshot`, `observe`, and `identify`, identically to `examples/ios-demo/`, then logs the canonical status line:
 
 ```text
-COPRODUCT_IOS_CONSUMER_STATUS ready=true hostCallbacks=true loadedFromCache=false getBool=false observerFired=true
+COPRODUCT_IOS_CONSUMER_STATUS ready=true state=ready getBool=false observerRegistered=true
 ```
 
 ## Verifying green
 
-Run the app on a simulator. The five-indicator UI should read:
+Run the app on a simulator. The indicator UI should read:
 
-- Coproduct iOS scaffold
+- Coproduct iOS consumer
 - SDK ready: yes
-- Host callbacks: yes
-- Loaded from cache: no (first run) / yes (subsequent runs, after the snapshot is on disk)
-- getBool: false (stub default)
-- Observer fired: yes
+- getBool: false (default until a live snapshot arrives)
+- Observer registered: yes
 
-The same `COPRODUCT_IOS_CONSUMER_STATUS` tagged line appears via public `OSLog` and is grep-able from `xcrun simctl spawn <udid> log stream` or Xcode's console. `loadedFromCache=false` is expected on a fresh install; after terminating and relaunching without wiping app data, it should flip to `loadedFromCache=true`.
+The same `COPRODUCT_IOS_CONSUMER_STATUS` tagged line appears via public `OSLog` and is grep-able from `xcrun simctl spawn <udid> log stream` or Xcode's console.
 
 ## What this fixture proves, and what it does not
 

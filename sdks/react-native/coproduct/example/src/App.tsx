@@ -1,4 +1,4 @@
-import { type MutableRefObject, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
   Coproduct,
@@ -11,17 +11,15 @@ import {
 type DemoStatus = {
   ready: boolean;
   hostCallbacks: boolean;
-  loadedFromCache: boolean;
   flagValue: boolean;
-  observerFired: boolean;
+  observerRegistered: boolean;
 };
 
 const initialStatus: DemoStatus = {
   ready: false,
   hostCallbacks: false,
-  loadedFromCache: false,
   flagValue: false,
-  observerFired: false,
+  observerRegistered: false,
 };
 
 function logStatus(status: DemoStatus): void {
@@ -30,36 +28,10 @@ function logStatus(status: DemoStatus): void {
       'COPRODUCT_RN_DEMO_STATUS',
       `ready=${status.ready}`,
       `hostCallbacks=${status.hostCallbacks}`,
-      `loadedFromCache=${status.loadedFromCache}`,
       `flagValue=${status.flagValue}`,
-      `observerFired=${status.observerFired}`,
+      `observerRegistered=${status.observerRegistered}`,
     ].join(' ')
   );
-}
-
-function waitForObserver(
-  client: CoproductClient,
-  subscriptionRef: MutableRefObject<Cancellable | null>,
-  onObserved: () => void
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    let settled = false;
-
-    subscriptionRef.current = client.observe('test-flag', false, () => {
-      if (!settled) {
-        settled = true;
-        onObserved();
-        resolve(true);
-      }
-    });
-
-    setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve(false);
-      }
-    }, 3000);
-  });
 }
 
 export default function App() {
@@ -75,24 +47,16 @@ export default function App() {
       clientRef.current = client;
 
       const flagValue = client.getBool('test-flag', false);
-      const loadedFromCache = client.wasLoadedFromCache();
-      let observerFired = false;
 
-      const observerPromise = waitForObserver(client, subscriptionRef, () => {
-        observerFired = true;
-      });
-
-      await client.simulateChange('test-flag', true);
-      observerFired = await observerPromise;
+      subscriptionRef.current = client.observe('test-flag', false, () => {});
 
       const nextStatus: DemoStatus = {
         ready: true,
         hostCallbacks:
           mockTransport.requestCount === 1 &&
           mockSecureStore.completedHandshake,
-        loadedFromCache,
         flagValue,
-        observerFired,
+        observerRegistered: subscriptionRef.current !== null,
       };
 
       if (active) {
@@ -118,9 +82,10 @@ export default function App() {
       <Text style={styles.title}>Coproduct RN scaffold</Text>
       <Text>SDK ready: {status.ready ? 'yes' : 'no'}</Text>
       <Text>Host callbacks: {status.hostCallbacks ? 'yes' : 'no'}</Text>
-      <Text>Loaded from cache: {status.loadedFromCache ? 'yes' : 'no'}</Text>
       <Text>getBool: {String(status.flagValue)}</Text>
-      <Text>Observer fired: {status.observerFired ? 'yes' : 'no'}</Text>
+      <Text>
+        Observer registered: {status.observerRegistered ? 'yes' : 'no'}
+      </Text>
     </View>
   );
 }

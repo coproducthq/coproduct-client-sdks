@@ -42,25 +42,38 @@
 //! and a stale snapshot is fail-soft (the provider stays in `Stale`
 //! and the host scheduler keeps retrying)
 
+use sha2::{Digest, Sha256};
 use std::io;
 use std::path::PathBuf;
 
-fn snapshot_path(cache_dir: &str) -> PathBuf {
+/// Directory-safe scope derived from the sdk key. The persisted snapshot and
+/// ETag live under this scope so a different key never hydrates or overwrites
+/// another key's cache. The README documents `shutdown()` then `initialize` with
+/// a new key as the way to switch environments, and without this binding the new
+/// key would hydrate the old key's snapshot and report `ready` while serving the
+/// old environment's values. The key is a secret, so it is hashed, not embedded
+pub fn key_scope(sdk_key: &str) -> String {
+    let digest = Sha256::digest(sdk_key.as_bytes());
+    digest[..16].iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn snapshot_path(cache_dir: &str, sdk_key: &str) -> PathBuf {
     PathBuf::from(cache_dir)
         .join("coproduct")
+        .join(key_scope(sdk_key))
         .join("snapshot.json")
 }
 
-pub fn read_snapshot(cache_dir: &str) -> io::Result<Option<Vec<u8>>> {
-    match std::fs::read(snapshot_path(cache_dir)) {
+pub fn read_snapshot(cache_dir: &str, sdk_key: &str) -> io::Result<Option<Vec<u8>>> {
+    match std::fs::read(snapshot_path(cache_dir, sdk_key)) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error),
     }
 }
 
-pub fn write_snapshot(cache_dir: &str, bytes: &[u8]) -> io::Result<()> {
-    let path = snapshot_path(cache_dir);
+pub fn write_snapshot(cache_dir: &str, sdk_key: &str, bytes: &[u8]) -> io::Result<()> {
+    let path = snapshot_path(cache_dir, sdk_key);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -70,22 +83,23 @@ pub fn write_snapshot(cache_dir: &str, bytes: &[u8]) -> io::Result<()> {
     std::fs::rename(&temp, &path)
 }
 
-fn etag_path(cache_dir: &str) -> PathBuf {
+fn etag_path(cache_dir: &str, sdk_key: &str) -> PathBuf {
     PathBuf::from(cache_dir)
         .join("coproduct")
+        .join(key_scope(sdk_key))
         .join("snapshot.etag")
 }
 
-pub fn read_etag(cache_dir: &str) -> io::Result<Option<String>> {
-    match std::fs::read_to_string(etag_path(cache_dir)) {
+pub fn read_etag(cache_dir: &str, sdk_key: &str) -> io::Result<Option<String>> {
+    match std::fs::read_to_string(etag_path(cache_dir, sdk_key)) {
         Ok(value) => Ok(Some(value)),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error),
     }
 }
 
-pub fn write_etag(cache_dir: &str, etag: &str) -> io::Result<()> {
-    let path = etag_path(cache_dir);
+pub fn write_etag(cache_dir: &str, sdk_key: &str, etag: &str) -> io::Result<()> {
+    let path = etag_path(cache_dir, sdk_key);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -94,17 +108,17 @@ pub fn write_etag(cache_dir: &str, etag: &str) -> io::Result<()> {
     std::fs::rename(&temp, &path)
 }
 
-pub fn clear_snapshot(cache_dir: &str) -> io::Result<()> {
+pub fn clear_snapshot(cache_dir: &str, sdk_key: &str) -> io::Result<()> {
     // Idempotent: a missing file is not an error
-    match std::fs::remove_file(snapshot_path(cache_dir)) {
+    match std::fs::remove_file(snapshot_path(cache_dir, sdk_key)) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error),
     }
 }
 
-pub fn clear_etag(cache_dir: &str) -> io::Result<()> {
-    match std::fs::remove_file(etag_path(cache_dir)) {
+pub fn clear_etag(cache_dir: &str, sdk_key: &str) -> io::Result<()> {
+    match std::fs::remove_file(etag_path(cache_dir, sdk_key)) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error),

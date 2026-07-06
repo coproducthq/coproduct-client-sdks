@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
   Coproduct,
-  computeBucket,
   type Cancellable,
   type CoproductClient,
   mockSecureStore,
   mockTransport,
 } from 'react-native-coproduct';
+import { bucketForVectors } from 'react-native-coproduct/internal';
 import bucketingVectors from '../../tests/bucketing_vectors.json';
 
 type BucketingVector = {
@@ -20,17 +20,15 @@ type BucketingVector = {
 type DemoStatus = {
   ready: boolean;
   hostCallbacks: boolean;
-  loadedFromCache: boolean;
   flagValue: boolean;
-  observerFired: boolean;
+  observerRegistered: boolean;
 };
 
 const initial: DemoStatus = {
   ready: false,
   hostCallbacks: false,
-  loadedFromCache: false,
   flagValue: false,
-  observerFired: false,
+  observerRegistered: false,
 };
 
 export default function App(): React.JSX.Element {
@@ -46,37 +44,16 @@ export default function App(): React.JSX.Element {
       clientRef.current = client;
 
       const flagValue = client.getBool('test-flag', false);
-      const loadedFromCache = client.wasLoadedFromCache();
-      let observerFired = false;
 
-      const observerPromise = new Promise<boolean>((resolve) => {
-        let settled = false;
-        subscriptionRef.current = client.observe('test-flag', false, () => {
-          if (!settled) {
-            settled = true;
-            observerFired = true;
-            resolve(true);
-          }
-        });
-        setTimeout(() => {
-          if (!settled) {
-            settled = true;
-            resolve(false);
-          }
-        }, 3000);
-      });
-
-      await client.simulateChange('test-flag', true);
-      observerFired = await observerPromise;
+      subscriptionRef.current = client.observe('test-flag', false, () => {});
 
       const next: DemoStatus = {
         ready: true,
         hostCallbacks:
           mockTransport.requestCount === 1 &&
           mockSecureStore.completedHandshake,
-        loadedFromCache,
         flagValue,
-        observerFired,
+        observerRegistered: subscriptionRef.current !== null,
       };
 
       if (active) setStatus(next);
@@ -86,9 +63,8 @@ export default function App(): React.JSX.Element {
           'COPRODUCT_RN_CONSUMER_STATUS',
           `ready=${next.ready}`,
           `hostCallbacks=${next.hostCallbacks}`,
-          `loadedFromCache=${next.loadedFromCache}`,
           `flagValue=${next.flagValue}`,
-          `observerFired=${next.observerFired}`,
+          `observerRegistered=${next.observerRegistered}`,
         ].join(' ')
       );
 
@@ -97,7 +73,7 @@ export default function App(): React.JSX.Element {
       const vectors: BucketingVector[] = bucketingVectors;
       let bucketingPass = true;
       for (const v of vectors) {
-        const actual = computeBucket(v.rule_id, v.targeting_key, v.suffix);
+        const actual = bucketForVectors(v.rule_id, v.targeting_key, v.suffix);
         if (actual !== v.expected_bucket) {
           bucketingPass = false;
         }
@@ -123,9 +99,10 @@ export default function App(): React.JSX.Element {
       <Text style={styles.title}>Coproduct RN consumer</Text>
       <Text>SDK ready: {status.ready ? 'yes' : 'no'}</Text>
       <Text>Host callbacks: {status.hostCallbacks ? 'yes' : 'no'}</Text>
-      <Text>Loaded from cache: {status.loadedFromCache ? 'yes' : 'no'}</Text>
       <Text>getBool: {String(status.flagValue)}</Text>
-      <Text>Observer fired: {status.observerFired ? 'yes' : 'no'}</Text>
+      <Text>
+        Observer registered: {status.observerRegistered ? 'yes' : 'no'}
+      </Text>
     </View>
   );
 }

@@ -60,6 +60,7 @@ fn fresh_ctx(
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: Arc::new(Mutex::new(0)),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
     (ctx, state, held)
@@ -131,6 +132,7 @@ fn permanent_client_error_does_not_bump_consecutive_failures() {
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: failures.clone(),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
     let _ = futures::executor::block_on(poll_now(ctx));

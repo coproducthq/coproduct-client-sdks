@@ -47,6 +47,7 @@ fn poll_now_issues_get_to_snapshot_endpoint() {
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: Arc::new(Mutex::new(0)),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
 

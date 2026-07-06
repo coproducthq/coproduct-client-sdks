@@ -620,8 +620,14 @@ internal open class UniffiForeignFutureResultVoid(
 internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
     fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultVoid.UniffiByValue,)
 }
+internal interface UniffiCallbackInterfaceEvaluationHookMethod0 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`stage`: RustBuffer.ByValue,`ctx`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
+internal interface UniffiCallbackInterfaceEvaluationListenerMethod0 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`event`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
 internal interface UniffiCallbackInterfaceFlagObserverMethod0 : com.sun.jna.Callback {
-    fun callback(`uniffiHandle`: Long,`value`: Byte,`uniffiFutureCallback`: UniffiForeignFutureCompleteVoid,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,)
+    fun callback(`uniffiHandle`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,`uniffiFutureCallback`: UniffiForeignFutureCompleteVoid,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,)
 }
 internal interface UniffiCallbackInterfaceHostSecureStoreMethod0 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`key`: RustBuffer.ByValue,`uniffiFutureCallback`: UniffiForeignFutureCompleteRustBuffer,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,)
@@ -632,22 +638,63 @@ internal interface UniffiCallbackInterfaceHostSecureStoreMethod1 : com.sun.jna.C
 internal interface UniffiCallbackInterfaceHostTransportMethod0 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`req`: RustBuffer.ByValue,`uniffiFutureCallback`: UniffiForeignFutureCompleteRustBuffer,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,)
 }
-@Structure.FieldOrder("uniffiFree", "uniffiClone", "onChangeBool")
-internal open class UniffiVTableCallbackInterfaceFlagObserver(
+internal interface UniffiCallbackInterfaceLifecycleHandlerMethod0 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`event`: RustBuffer.ByValue,`uniffiFutureCallback`: UniffiForeignFutureCompleteVoid,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,)
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onStage")
+internal open class UniffiVTableCallbackInterfaceEvaluationHook(
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
     @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
-    @JvmField internal var `onChangeBool`: UniffiCallbackInterfaceFlagObserverMethod0? = null,
+    @JvmField internal var `onStage`: UniffiCallbackInterfaceEvaluationHookMethod0? = null,
 ) : Structure() {
     class UniffiByValue(
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
         `uniffiClone`: UniffiCallbackInterfaceClone? = null,
-        `onChangeBool`: UniffiCallbackInterfaceFlagObserverMethod0? = null,
-    ): UniffiVTableCallbackInterfaceFlagObserver(`uniffiFree`,`uniffiClone`,`onChangeBool`,), Structure.ByValue
+        `onStage`: UniffiCallbackInterfaceEvaluationHookMethod0? = null,
+    ): UniffiVTableCallbackInterfaceEvaluationHook(`uniffiFree`,`uniffiClone`,`onStage`,), Structure.ByValue
+
+   internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceEvaluationHook) {
+        `uniffiFree` = other.`uniffiFree`
+        `uniffiClone` = other.`uniffiClone`
+        `onStage` = other.`onStage`
+    }
+
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onEvaluation")
+internal open class UniffiVTableCallbackInterfaceEvaluationListener(
+    @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+    @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+    @JvmField internal var `onEvaluation`: UniffiCallbackInterfaceEvaluationListenerMethod0? = null,
+) : Structure() {
+    class UniffiByValue(
+        `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+        `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+        `onEvaluation`: UniffiCallbackInterfaceEvaluationListenerMethod0? = null,
+    ): UniffiVTableCallbackInterfaceEvaluationListener(`uniffiFree`,`uniffiClone`,`onEvaluation`,), Structure.ByValue
+
+   internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceEvaluationListener) {
+        `uniffiFree` = other.`uniffiFree`
+        `uniffiClone` = other.`uniffiClone`
+        `onEvaluation` = other.`onEvaluation`
+    }
+
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onChange")
+internal open class UniffiVTableCallbackInterfaceFlagObserver(
+    @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+    @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+    @JvmField internal var `onChange`: UniffiCallbackInterfaceFlagObserverMethod0? = null,
+) : Structure() {
+    class UniffiByValue(
+        `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+        `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+        `onChange`: UniffiCallbackInterfaceFlagObserverMethod0? = null,
+    ): UniffiVTableCallbackInterfaceFlagObserver(`uniffiFree`,`uniffiClone`,`onChange`,), Structure.ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceFlagObserver) {
         `uniffiFree` = other.`uniffiFree`
         `uniffiClone` = other.`uniffiClone`
-        `onChangeBool` = other.`onChangeBool`
+        `onChange` = other.`onChange`
     }
 
 }
@@ -692,6 +739,25 @@ internal open class UniffiVTableCallbackInterfaceHostTransport(
     }
 
 }
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onEvent")
+internal open class UniffiVTableCallbackInterfaceLifecycleHandler(
+    @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+    @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+    @JvmField internal var `onEvent`: UniffiCallbackInterfaceLifecycleHandlerMethod0? = null,
+) : Structure() {
+    class UniffiByValue(
+        `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+        `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+        `onEvent`: UniffiCallbackInterfaceLifecycleHandlerMethod0? = null,
+    ): UniffiVTableCallbackInterfaceLifecycleHandler(`uniffiFree`,`uniffiClone`,`onEvent`,), Structure.ByValue
+
+   internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceLifecycleHandler) {
+        `uniffiFree` = other.`uniffiFree`
+        `uniffiClone` = other.`uniffiClone`
+        `onEvent` = other.`onEvent`
+    }
+
+}
 
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
@@ -715,25 +781,103 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
-    external fun uniffi_coproduct_ffi_uniffi_checksum_func_compute_bucket(
+    external fun uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(
     ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_func_initialize(
     ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(
+    ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool(
     ): Short
-    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe(
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details(
     ): Short
-    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_simulate_change(
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int(
     ): Short
-    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_was_loaded_from_cache(
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int_details(
     ): Short
-    external fun uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change_bool(
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_snapshot_view(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_set_attribute(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_cancel(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_id(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_is_cancelled(
     ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read(
     ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_write(
     ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys(
+    ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new(
     ): Short
     external fun ffi_coproduct_ffi_uniffi_uniffi_contract_version(
     ): Int
@@ -751,163 +895,274 @@ internal object UniffiLib {
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "coproduct_ffi_uniffi"))
+        uniffiCallbackInterfaceEvaluationHook.register(this)
+        uniffiCallbackInterfaceEvaluationListener.register(this)
         uniffiCallbackInterfaceFlagObserver.register(this)
         uniffiCallbackInterfaceHostSecureStore.register(this)
         uniffiCallbackInterfaceHostTransport.register(this)
+        uniffiCallbackInterfaceLifecycleHandler.register(this)
         
     }
     external fun uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_free_coproductclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Byte,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe(`ptr`: Long,`key`: RustBuffer.ByValue,`observer`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_simulate_change(`ptr`: Long,`key`: RustBuffer.ByValue,`newValue`: Byte,
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_was_loaded_from_cache(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(`vtable`: UniffiVTableCallbackInterfaceFlagObserver,
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change_bool(`ptr`: Long,`value`: Byte,
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_clone_hostsecurestore(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_free_hostsecurestore(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_hostsecurestore(`vtable`: UniffiVTableCallbackInterfaceHostSecureStore,
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_hostsecurestore_read(`ptr`: Long,`key`: RustBuffer.ByValue,
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_hostsecurestore_write(`ptr`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_clone_hosttransport(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_free_hosttransport(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_hosttransport(`vtable`: UniffiVTableCallbackInterfaceHostTransport,
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_method_hosttransport_request(`ptr`: Long,`req`: RustBuffer.ByValue,
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_clone_subscription(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun uniffi_coproduct_ffi_uniffi_fn_free_subscription(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun uniffi_coproduct_ffi_uniffi_fn_func_compute_bucket(`ruleId`: RustBuffer.ByValue,`targetingKey`: RustBuffer.ByValue,`suffix`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    external fun uniffi_coproduct_ffi_uniffi_fn_func_initialize(`sdkKey`: RustBuffer.ByValue,`cacheDir`: RustBuffer.ByValue,`transport`: Long,`secureStore`: Long,
-    ): Long
-    external fun ffi_coproduct_ffi_uniffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_coproduct_ffi_uniffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_coproduct_ffi_uniffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u8(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_u8(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i8(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_i8(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u16(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_u16(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i16(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_i16(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u32(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_u32(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i32(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_i32(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Int
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u64(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_u64(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i64(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_i64(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Long
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_f32(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_f32(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Float
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_f64(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_f64(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Double
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_rust_buffer(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): RustBuffer.ByValue
-    external fun ffi_coproduct_ffi_uniffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_void(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_free_void(`handle`: Long,
-    ): Unit
-    external fun ffi_coproduct_ffi_uniffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Unit
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_coproductclient(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_evaluation_hook(`ptr`: Long,`hook`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_handler(`ptr`: Long,`event`: RustBuffer.ByValue,`handler`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(`ptr`: Long,`keys`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_int(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_int_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_json(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValueJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_json_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValueJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Double,uniffi_out_err: UniffiRustCallStatus, 
+): Double
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Double,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_identify(`ptr`: Long,`userId`: RustBuffer.ByValue,`attributes`: RustBuffer.ByValue,`linkAnonymous`: Byte,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(`ptr`: Long,`key`: RustBuffer.ByValue,`observer`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(`ptr`: Long,`keys`: RustBuffer.ByValue,`observer`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(`ptr`: Long,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_previous_anonymous_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(`ptr`: Long,`names`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(`ptr`: Long,`targetingKey`: RustBuffer.ByValue,`attributes`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_evaluation_listener(`ptr`: Long,`listener`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_shutdown(`ptr`: Long,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_sign_out(`ptr`: Long,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_snapshot_view(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_state(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_update_attributes(`ptr`: Long,`attributes`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_evaluationcontexthandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_evaluationcontexthandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_constructor_evaluationcontexthandle_new(`targetingKey`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_get_attribute(`ptr`: Long,`name`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_set_attribute(`ptr`: Long,`name`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_targeting_key(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_evaluationhook(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_evaluationhook(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationhook(`vtable`: UniffiVTableCallbackInterfaceEvaluationHook,
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_evaluationhook_on_stage(`ptr`: Long,`stage`: RustBuffer.ByValue,`ctx`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_evaluationlistener(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_evaluationlistener(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationlistener(`vtable`: UniffiVTableCallbackInterfaceEvaluationListener,
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_evaluationlistener_on_evaluation(`ptr`: Long,`event`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(`vtable`: UniffiVTableCallbackInterfaceFlagObserver,
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(`ptr`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_handlerhandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_is_cancelled(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_hookhandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_hookhandle(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_is_cancelled(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_hostsecurestore(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_hostsecurestore(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_hostsecurestore(`vtable`: UniffiVTableCallbackInterfaceHostSecureStore,
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_hostsecurestore_read(`ptr`: Long,`key`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_hostsecurestore_write(`ptr`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_hosttransport(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_hosttransport(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_hosttransport(`vtable`: UniffiVTableCallbackInterfaceHostTransport,
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_hosttransport_request(`ptr`: Long,`req`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_lifecyclehandler(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_lifecyclehandler(`vtable`: UniffiVTableCallbackInterfaceLifecycleHandler,
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_lifecyclehandler_on_event(`ptr`: Long,`event`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_clone_subscription(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_free_subscription(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(`ruleId`: RustBuffer.ByValue,`targetingKey`: RustBuffer.ByValue,`suffix`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun uniffi_coproduct_ffi_uniffi_fn_func_initialize(`sdkKey`: RustBuffer.ByValue,`userAgent`: RustBuffer.ByValue,`cacheDir`: RustBuffer.ByValue,`config`: RustBuffer.ByValue,`transport`: Long,`secureStore`: Long,
+): Long
+external fun ffi_coproduct_ffi_uniffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_coproduct_ffi_uniffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_coproduct_ffi_uniffi_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u8(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_u8(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i8(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_i8(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Byte
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u16(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_u16(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Short
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i16(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_i16(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Short
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u32(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_u32(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i32(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_i32(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Int
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u64(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_u64(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i64(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_i64(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_f32(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_f32(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Float
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_f64(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_f64(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Double
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_rust_buffer(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun ffi_coproduct_ffi_uniffi_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_void(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_free_void(`handle`: Long,
+): Unit
+external fun ffi_coproduct_ffi_uniffi_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Unit
 
-        
+    
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -921,25 +1176,124 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_compute_bucket() != 57946.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors() != 46291.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 49737.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook() != 40101.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler() != 19994.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values() != 36853.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe() != 2120.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details() != 52006.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_simulate_change() != 45381.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int() != 11663.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_was_loaded_from_cache() != 61481.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int_details() != 45983.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change_bool() != 8587.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json() != 47890.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details() != 57801.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number() != 22829.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details() != 55106.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string() != 49273.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details() != 55912.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key() != 60160.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys() != 20186.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now() != 20968.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id() != 54885.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes() != 44822.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener() != 40640.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown() != 35784.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out() != 19109.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_snapshot_view() != 3540.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state() != 23491.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes() != 28839.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute() != 55087.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_set_attribute() != 49057.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key() != 63268.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage() != 42144.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation() != 49466.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change() != 44507.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel() != 5211.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id() != 34719.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled() != 24796.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_cancel() != 34361.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_id() != 54555.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_is_cancelled() != 40394.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read() != 59578.toShort()) {
@@ -949,6 +1303,24 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request() != 50214.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event() != 35580.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel() != 277.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id() != 50269.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled() != 2778.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys() != 2901.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new() != 4096.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1317,6 +1689,75 @@ public object FfiConverterUInt: FfiConverter<UInt, Int> {
 /**
  * @suppress
  */
+public object FfiConverterULong: FfiConverter<ULong, Long> {
+    override fun lift(value: Long): ULong {
+        return value.toULong()
+    }
+
+    override fun read(buf: ByteBuffer): ULong {
+        return lift(buf.getLong())
+    }
+
+    override fun lower(value: ULong): Long {
+        return value.toLong()
+    }
+
+    override fun allocationSize(value: ULong) = 8UL
+
+    override fun write(value: ULong, buf: ByteBuffer) {
+        buf.putLong(value.toLong())
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterLong: FfiConverter<Long, Long> {
+    override fun lift(value: Long): Long {
+        return value
+    }
+
+    override fun read(buf: ByteBuffer): Long {
+        return buf.getLong()
+    }
+
+    override fun lower(value: Long): Long {
+        return value
+    }
+
+    override fun allocationSize(value: Long) = 8UL
+
+    override fun write(value: Long, buf: ByteBuffer) {
+        buf.putLong(value)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterDouble: FfiConverter<Double, Double> {
+    override fun lift(value: Double): Double {
+        return value
+    }
+
+    override fun read(buf: ByteBuffer): Double {
+        return buf.getDouble()
+    }
+
+    override fun lower(value: Double): Double {
+        return value
+    }
+
+    override fun allocationSize(value: Double) = 8UL
+
+    override fun write(value: Double, buf: ByteBuffer) {
+        buf.putDouble(value)
+    }
+}
+
+/**
+ * @suppress
+ */
 public object FfiConverterBoolean: FfiConverter<Boolean, Byte> {
     override fun lift(value: Byte): Boolean {
         return value.toInt() != 0
@@ -1511,13 +1952,66 @@ public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
 
 public interface CoproductClientInterface {
     
+    fun `addEvaluationHook`(`hook`: EvaluationHook): HookHandle
+    
+    fun `addHandler`(`event`: LifecycleEvent, `handler`: LifecycleHandler): HandlerHandle
+    
+    /**
+     * Current value of each key, for seeding a multi-key observation so it is
+     * populated at subscription. Keys absent from the snapshot are omitted
+     */
+    fun `currentFlagValues`(`keys`: List<kotlin.String>): Map<kotlin.String, FlagValue>
+    
     fun `getBool`(`key`: kotlin.String, `defaultValue`: kotlin.Boolean): kotlin.Boolean
     
-    fun `observe`(`key`: kotlin.String, `observer`: FlagObserver): Subscription
+    fun `getBoolDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Boolean): FlagEvaluationDetailsBool
     
-    suspend fun `simulateChange`(`key`: kotlin.String, `newValue`: kotlin.Boolean)
+    fun `getInt`(`key`: kotlin.String, `defaultValue`: kotlin.Long): kotlin.Long
     
-    fun `wasLoadedFromCache`(): kotlin.Boolean
+    fun `getIntDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Long): FlagEvaluationDetailsInt
+    
+    /**
+     * Returns the JSON flag value as a JSON-encoded string. The platform
+     * wrappers decode it into the native type. `default_value_json` is the
+     * caller's JSON-encoded default, where `"null"` is a valid fallback
+     */
+    fun `getJson`(`key`: kotlin.String, `defaultValueJson`: kotlin.String): kotlin.String
+    
+    fun `getJsonDetails`(`key`: kotlin.String, `defaultValueJson`: kotlin.String): FlagEvaluationDetailsJson
+    
+    fun `getNumber`(`key`: kotlin.String, `defaultValue`: kotlin.Double): kotlin.Double
+    
+    fun `getNumberDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Double): FlagEvaluationDetailsNumber
+    
+    fun `getString`(`key`: kotlin.String, `defaultValue`: kotlin.String): kotlin.String
+    
+    fun `getStringDetails`(`key`: kotlin.String, `defaultValue`: kotlin.String): FlagEvaluationDetailsString
+    
+    suspend fun `identify`(`userId`: kotlin.String, `attributes`: Map<kotlin.String, ContextValue>, `linkAnonymous`: kotlin.Boolean)
+    
+    fun `observeKey`(`key`: kotlin.String, `observer`: FlagObserver): Subscription
+    
+    fun `observeKeys`(`keys`: List<kotlin.String>, `observer`: FlagObserver): Subscription
+    
+    suspend fun `pollNow`(): PollOutcome
+    
+    fun `previousAnonymousId`(): kotlin.String?
+    
+    suspend fun `removeAttributes`(`names`: List<kotlin.String>)
+    
+    suspend fun `setContext`(`targetingKey`: kotlin.String, `attributes`: Map<kotlin.String, ContextValue>)
+    
+    fun `setEvaluationListener`(`listener`: EvaluationListener)
+    
+    suspend fun `shutdown`()
+    
+    suspend fun `signOut`()
+    
+    fun `snapshotView`(): CoproductSnapshot
+    
+    fun `state`(): ProviderState
+    
+    suspend fun `updateAttributes`(`attributes`: Map<kotlin.String, ContextValue>)
     
     companion object
 }
@@ -1618,6 +2112,49 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
         }
     }
 
+    override fun `addEvaluationHook`(`hook`: EvaluationHook): HookHandle {
+            return FfiConverterTypeHookHandle.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_evaluation_hook(
+        it,
+        FfiConverterTypeEvaluationHook.lower(`hook`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `addHandler`(`event`: LifecycleEvent, `handler`: LifecycleHandler): HandlerHandle {
+            return FfiConverterTypeHandlerHandle.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_handler(
+        it,
+        FfiConverterTypeLifecycleEvent.lower(`event`),FfiConverterTypeLifecycleHandler.lower(`handler`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Current value of each key, for seeding a multi-key observation so it is
+     * populated at subscription. Keys absent from the snapshot are omitted
+     */override fun `currentFlagValues`(`keys`: List<kotlin.String>): Map<kotlin.String, FlagValue> {
+            return FfiConverterMapStringTypeFlagValue.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(
+        it,
+        FfiConverterSequenceString.lower(`keys`),_status)
+}
+    }
+    )
+    }
+    
+
     override fun `getBool`(`key`: kotlin.String, `defaultValue`: kotlin.Boolean): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     callWithHandle {
@@ -1631,11 +2168,155 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     }
     
 
-    override fun `observe`(`key`: kotlin.String, `observer`: FlagObserver): Subscription {
+    override fun `getBoolDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Boolean): FlagEvaluationDetailsBool {
+            return FfiConverterTypeFlagEvaluationDetailsBool.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterBoolean.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getInt`(`key`: kotlin.String, `defaultValue`: kotlin.Long): kotlin.Long {
+            return FfiConverterLong.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_int(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterLong.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getIntDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Long): FlagEvaluationDetailsInt {
+            return FfiConverterTypeFlagEvaluationDetailsInt.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_int_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterLong.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Returns the JSON flag value as a JSON-encoded string. The platform
+     * wrappers decode it into the native type. `default_value_json` is the
+     * caller's JSON-encoded default, where `"null"` is a valid fallback
+     */override fun `getJson`(`key`: kotlin.String, `defaultValueJson`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_json(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterString.lower(`defaultValueJson`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getJsonDetails`(`key`: kotlin.String, `defaultValueJson`: kotlin.String): FlagEvaluationDetailsJson {
+            return FfiConverterTypeFlagEvaluationDetailsJson.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_json_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterString.lower(`defaultValueJson`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getNumber`(`key`: kotlin.String, `defaultValue`: kotlin.Double): kotlin.Double {
+            return FfiConverterDouble.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterDouble.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getNumberDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Double): FlagEvaluationDetailsNumber {
+            return FfiConverterTypeFlagEvaluationDetailsNumber.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterDouble.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getString`(`key`: kotlin.String, `defaultValue`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterString.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getStringDetails`(`key`: kotlin.String, `defaultValue`: kotlin.String): FlagEvaluationDetailsString {
+            return FfiConverterTypeFlagEvaluationDetailsString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterString.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Throws(FfiIdentityException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `identify`(`userId`: kotlin.String, `attributes`: Map<kotlin.String, ContextValue>, `linkAnonymous`: kotlin.Boolean) {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_identify(
+                uniffiHandle,
+                FfiConverterString.lower(`userId`),FfiConverterMapStringTypeContextValue.lower(`attributes`),FfiConverterBoolean.lower(`linkAnonymous`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        FfiIdentityException.ErrorHandler,
+    )
+    }
+
+    override fun `observeKey`(`key`: kotlin.String, `observer`: FlagObserver): Subscription {
             return FfiConverterTypeSubscription.lift(
     callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe(
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(
         it,
         FfiConverterString.lower(`key`),FfiConverterTypeFlagObserver.lower(`observer`),_status)
 }
@@ -1644,14 +2325,60 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     }
     
 
+    override fun `observeKeys`(`keys`: List<kotlin.String>, `observer`: FlagObserver): Subscription {
+            return FfiConverterTypeSubscription.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(
+        it,
+        FfiConverterSequenceString.lower(`keys`),FfiConverterTypeFlagObserver.lower(`observer`),_status)
+}
+    }
+    )
+    }
+    
+
     
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `simulateChange`(`key`: kotlin.String, `newValue`: kotlin.Boolean) {
+    override suspend fun `pollNow`() : PollOutcome {
         return uniffiRustCallAsync(
         callWithHandle { uniffiHandle ->
-            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_simulate_change(
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(
                 uniffiHandle,
-                FfiConverterString.lower(`key`),FfiConverterBoolean.lower(`newValue`),
+                
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer(future) },
+        // lift function
+        { FfiConverterTypePollOutcome.lift(it) },
+        // Error FFI converter
+        UniffiNullRustCallStatusErrorHandler,
+    )
+    }
+
+    override fun `previousAnonymousId`(): kotlin.String? {
+            return FfiConverterOptionalString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_previous_anonymous_id(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `removeAttributes`(`names`: List<kotlin.String>) {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(
+                uniffiHandle,
+                FfiConverterSequenceString.lower(`names`),
             )
         },
         { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
@@ -1665,11 +2392,87 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     )
     }
 
-    override fun `wasLoadedFromCache`(): kotlin.Boolean {
-            return FfiConverterBoolean.lift(
+    
+    @Throws(FfiIdentityException::class)
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `setContext`(`targetingKey`: kotlin.String, `attributes`: Map<kotlin.String, ContextValue>) {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(
+                uniffiHandle,
+                FfiConverterString.lower(`targetingKey`),FfiConverterMapStringTypeContextValue.lower(`attributes`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        FfiIdentityException.ErrorHandler,
+    )
+    }
+
+    override fun `setEvaluationListener`(`listener`: EvaluationListener)
+        = 
     callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_was_loaded_from_cache(
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_evaluation_listener(
+        it,
+        FfiConverterTypeEvaluationListener.lower(`listener`),_status)
+}
+    }
+    
+    
+
+    
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `shutdown`() {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_shutdown(
+                uniffiHandle,
+                
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        UniffiNullRustCallStatusErrorHandler,
+    )
+    }
+
+    
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `signOut`() {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_sign_out(
+                uniffiHandle,
+                
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        UniffiNullRustCallStatusErrorHandler,
+    )
+    }
+
+    override fun `snapshotView`(): CoproductSnapshot {
+            return FfiConverterTypeCoproductSnapshot.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_snapshot_view(
         it,
         _status)
 }
@@ -1677,6 +2480,40 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     )
     }
     
+
+    override fun `state`(): ProviderState {
+            return FfiConverterTypeProviderState.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_state(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `updateAttributes`(`attributes`: Map<kotlin.String, ContextValue>) {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_update_attributes(
+                uniffiHandle,
+                FfiConverterMapStringTypeContextValue.lower(`attributes`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        UniffiNullRustCallStatusErrorHandler,
+    )
+    }
 
     
 
@@ -1812,9 +2649,931 @@ public object FfiConverterTypeCoproductClient: FfiConverter<CoproductClient, Lon
 //
 
 
+/**
+ * FFI handle wrapping the evaluation context. The interior is a `Mutex` so the
+ * handle stays Send and Sync across the binding boundary
+ */
+public interface EvaluationContextHandleInterface {
+    
+    fun `getAttribute`(`name`: kotlin.String): AttributeValueFfi?
+    
+    fun `setAttribute`(`name`: kotlin.String, `value`: AttributeValueFfi)
+    
+    fun `targetingKey`(): kotlin.String
+    
+    companion object
+}
+
+/**
+ * FFI handle wrapping the evaluation context. The interior is a `Mutex` so the
+ * handle stays Send and Sync across the binding boundary
+ */
+open class EvaluationContextHandle: Disposable, AutoCloseable, EvaluationContextHandleInterface
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+    constructor(`targetingKey`: kotlin.String) :
+        this(UniffiWithHandle, 
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_constructor_evaluationcontexthandle_new(
+    
+        FfiConverterString.lower(`targetingKey`),_status)
+}
+    )
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_coproduct_ffi_uniffi_fn_free_evaluationcontexthandle(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_clone_evaluationcontexthandle(handle, status)
+        }
+    }
+
+    override fun `getAttribute`(`name`: kotlin.String): AttributeValueFfi? {
+            return FfiConverterOptionalTypeAttributeValueFfi.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_get_attribute(
+        it,
+        FfiConverterString.lower(`name`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `setAttribute`(`name`: kotlin.String, `value`: AttributeValueFfi)
+        = 
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_set_attribute(
+        it,
+        FfiConverterString.lower(`name`),FfiConverterTypeAttributeValueFfi.lower(`value`),_status)
+}
+    }
+    
+    
+
+    override fun `targetingKey`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_evaluationcontexthandle_targeting_key(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+
+    
+
+
+    
+    
+    /**
+     * @suppress
+     */
+    companion object
+    
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeEvaluationContextHandle: FfiConverter<EvaluationContextHandle, Long> {
+    override fun lower(value: EvaluationContextHandle): Long {
+        return value.uniffiCloneHandle()
+    }
+
+    override fun lift(value: Long): EvaluationContextHandle {
+        return EvaluationContextHandle(UniffiWithHandle, value)
+    }
+
+    override fun read(buf: ByteBuffer): EvaluationContextHandle {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: EvaluationContextHandle) = 8UL
+
+    override fun write(value: EvaluationContextHandle, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * Host-supplied evaluation hook. Fired synchronously around each typed-getter
+ * call, matching the synchronous getter path
+ */
+public interface EvaluationHook {
+    
+    fun `onStage`(`stage`: EvaluationStage, `ctx`: HookContext)
+    
+    companion object
+}
+
+/**
+ * Host-supplied evaluation hook. Fired synchronously around each typed-getter
+ * call, matching the synchronous getter path
+ */
+open class EvaluationHookImpl: Disposable, AutoCloseable, EvaluationHook
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_coproduct_ffi_uniffi_fn_free_evaluationhook(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_clone_evaluationhook(handle, status)
+        }
+    }
+
+    override fun `onStage`(`stage`: EvaluationStage, `ctx`: HookContext)
+        = 
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_evaluationhook_on_stage(
+        it,
+        FfiConverterTypeEvaluationStage.lower(`stage`),FfiConverterTypeHookContext.lower(`ctx`),_status)
+}
+    }
+    
+    
+
+    
+
+    
+
+
+    
+    
+    /**
+     * @suppress
+     */
+    companion object
+    
+}
+
+
+
+// Put the implementation in an object so we don't pollute the top-level namespace
+internal object uniffiCallbackInterfaceEvaluationHook {
+    internal object `onStage`: UniffiCallbackInterfaceEvaluationHookMethod0 {
+        override fun callback(`uniffiHandle`: Long,`stage`: RustBuffer.ByValue,`ctx`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeEvaluationHook.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`onStage`(
+                    FfiConverterTypeEvaluationStage.lift(`stage`),
+                    FfiConverterTypeHookContext.lift(`ctx`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+
+    internal object uniffiFree: UniffiCallbackInterfaceFree {
+        override fun callback(handle: Long) {
+            FfiConverterTypeEvaluationHook.handleMap.remove(handle)
+        }
+    }
+
+    internal object uniffiClone: UniffiCallbackInterfaceClone {
+        override fun callback(handle: Long): Long {
+            return FfiConverterTypeEvaluationHook.handleMap.clone(handle)
+        }
+    }
+
+    internal var vtable = UniffiVTableCallbackInterfaceEvaluationHook.UniffiByValue(
+        uniffiFree,
+        uniffiClone,
+        `onStage`,
+    )
+
+    // Registers the foreign callback with the Rust side.
+    // This method is generated for each callback interface.
+    internal fun register(lib: UniffiLib) {
+        lib.uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationhook(vtable)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeEvaluationHook: FfiConverter<EvaluationHook, Long> {
+    internal val handleMap = UniffiHandleMap<EvaluationHook>()
+
+    override fun lower(value: EvaluationHook): Long {
+        if (value is EvaluationHookImpl) {
+             // Rust-implemented object.  Clone the handle and return it
+            return value.uniffiCloneHandle()
+         } else {
+            // Kotlin object, generate a new vtable handle and return that.
+            return handleMap.insert(value)
+         }
+    }
+
+    override fun lift(value: Long): EvaluationHook {
+        if ((value and 1.toLong()) == 0.toLong()) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return EvaluationHookImpl(UniffiWithHandle, value)
+        } else {
+            // Kotlin-generated handle, get the object from the handle map
+            return handleMap.remove(value)
+        }
+    }
+
+    override fun read(buf: ByteBuffer): EvaluationHook {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: EvaluationHook) = 8UL
+
+    override fun write(value: EvaluationHook, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * Host-supplied evaluation listener. Called synchronously after each getter
+ * resolves so the host can forward the event to an analytics sink
+ */
+public interface EvaluationListener {
+    
+    fun `onEvaluation`(`event`: EvaluationEvent)
+    
+    companion object
+}
+
+/**
+ * Host-supplied evaluation listener. Called synchronously after each getter
+ * resolves so the host can forward the event to an analytics sink
+ */
+open class EvaluationListenerImpl: Disposable, AutoCloseable, EvaluationListener
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_coproduct_ffi_uniffi_fn_free_evaluationlistener(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_clone_evaluationlistener(handle, status)
+        }
+    }
+
+    override fun `onEvaluation`(`event`: EvaluationEvent)
+        = 
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_evaluationlistener_on_evaluation(
+        it,
+        FfiConverterTypeEvaluationEvent.lower(`event`),_status)
+}
+    }
+    
+    
+
+    
+
+    
+
+
+    
+    
+    /**
+     * @suppress
+     */
+    companion object
+    
+}
+
+
+
+// Put the implementation in an object so we don't pollute the top-level namespace
+internal object uniffiCallbackInterfaceEvaluationListener {
+    internal object `onEvaluation`: UniffiCallbackInterfaceEvaluationListenerMethod0 {
+        override fun callback(`uniffiHandle`: Long,`event`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeEvaluationListener.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`onEvaluation`(
+                    FfiConverterTypeEvaluationEvent.lift(`event`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+
+    internal object uniffiFree: UniffiCallbackInterfaceFree {
+        override fun callback(handle: Long) {
+            FfiConverterTypeEvaluationListener.handleMap.remove(handle)
+        }
+    }
+
+    internal object uniffiClone: UniffiCallbackInterfaceClone {
+        override fun callback(handle: Long): Long {
+            return FfiConverterTypeEvaluationListener.handleMap.clone(handle)
+        }
+    }
+
+    internal var vtable = UniffiVTableCallbackInterfaceEvaluationListener.UniffiByValue(
+        uniffiFree,
+        uniffiClone,
+        `onEvaluation`,
+    )
+
+    // Registers the foreign callback with the Rust side.
+    // This method is generated for each callback interface.
+    internal fun register(lib: UniffiLib) {
+        lib.uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationlistener(vtable)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeEvaluationListener: FfiConverter<EvaluationListener, Long> {
+    internal val handleMap = UniffiHandleMap<EvaluationListener>()
+
+    override fun lower(value: EvaluationListener): Long {
+        if (value is EvaluationListenerImpl) {
+             // Rust-implemented object.  Clone the handle and return it
+            return value.uniffiCloneHandle()
+         } else {
+            // Kotlin object, generate a new vtable handle and return that.
+            return handleMap.insert(value)
+         }
+    }
+
+    override fun lift(value: Long): EvaluationListener {
+        if ((value and 1.toLong()) == 0.toLong()) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return EvaluationListenerImpl(UniffiWithHandle, value)
+        } else {
+            // Kotlin-generated handle, get the object from the handle map
+            return handleMap.remove(value)
+        }
+    }
+
+    override fun read(buf: ByteBuffer): EvaluationListener {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: EvaluationListener) = 8UL
+
+    override fun write(value: EvaluationListener, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
 public interface FlagObserver {
     
-    suspend fun `onChangeBool`(`value`: kotlin.Boolean)
+    suspend fun `onChange`(`key`: kotlin.String, `value`: FlagValue)
     
     companion object
 }
@@ -1918,12 +3677,12 @@ open class FlagObserverImpl: Disposable, AutoCloseable, FlagObserver
     
     @Throws(ObserverException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    override suspend fun `onChangeBool`(`value`: kotlin.Boolean) {
+    override suspend fun `onChange`(`key`: kotlin.String, `value`: FlagValue) {
         return uniffiRustCallAsync(
         callWithHandle { uniffiHandle ->
-            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change_bool(
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(
                 uniffiHandle,
-                FfiConverterBoolean.lower(`value`),
+                FfiConverterString.lower(`key`),FfiConverterTypeFlagValue.lower(`value`),
             )
         },
         { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
@@ -1955,12 +3714,13 @@ open class FlagObserverImpl: Disposable, AutoCloseable, FlagObserver
 
 // Put the implementation in an object so we don't pollute the top-level namespace
 internal object uniffiCallbackInterfaceFlagObserver {
-    internal object `onChangeBool`: UniffiCallbackInterfaceFlagObserverMethod0 {
-        override fun callback(`uniffiHandle`: Long,`value`: Byte,`uniffiFutureCallback`: UniffiForeignFutureCompleteVoid,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,) {
+    internal object `onChange`: UniffiCallbackInterfaceFlagObserverMethod0 {
+        override fun callback(`uniffiHandle`: Long,`key`: RustBuffer.ByValue,`value`: RustBuffer.ByValue,`uniffiFutureCallback`: UniffiForeignFutureCompleteVoid,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,) {
             val uniffiObj = FfiConverterTypeFlagObserver.handleMap.get(uniffiHandle)
             val makeCall = suspend { ->
-                uniffiObj.`onChangeBool`(
-                    FfiConverterBoolean.lift(`value`),
+                uniffiObj.`onChange`(
+                    FfiConverterString.lift(`key`),
+                    FfiConverterTypeFlagValue.lift(`value`),
                 )
             }
             val uniffiHandleSuccess = { _: Unit ->
@@ -2003,7 +3763,7 @@ internal object uniffiCallbackInterfaceFlagObserver {
     internal var vtable = UniffiVTableCallbackInterfaceFlagObserver.UniffiByValue(
         uniffiFree,
         uniffiClone,
-        `onChangeBool`,
+        `onChange`,
     )
 
     // Registers the foreign callback with the Rust side.
@@ -2047,6 +3807,576 @@ public object FfiConverterTypeFlagObserver: FfiConverter<FlagObserver, Long> {
     override fun allocationSize(value: FlagObserver) = 8UL
 
     override fun write(value: FlagObserver, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * Opaque handle returned from add_handler. Cancellation is idempotent
+ */
+public interface HandlerHandleInterface {
+    
+    fun `cancel`()
+    
+    fun `id`(): kotlin.ULong
+    
+    fun `isCancelled`(): kotlin.Boolean
+    
+    companion object
+}
+
+/**
+ * Opaque handle returned from add_handler. Cancellation is idempotent
+ */
+open class HandlerHandle: Disposable, AutoCloseable, HandlerHandleInterface
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_coproduct_ffi_uniffi_fn_free_handlerhandle(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle(handle, status)
+        }
+    }
+
+    override fun `cancel`()
+        = 
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_cancel(
+        it,
+        _status)
+}
+    }
+    
+    
+
+    override fun `id`(): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_id(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `isCancelled`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_is_cancelled(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+
+    
+
+
+    
+    
+    /**
+     * @suppress
+     */
+    companion object
+    
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeHandlerHandle: FfiConverter<HandlerHandle, Long> {
+    override fun lower(value: HandlerHandle): Long {
+        return value.uniffiCloneHandle()
+    }
+
+    override fun lift(value: Long): HandlerHandle {
+        return HandlerHandle(UniffiWithHandle, value)
+    }
+
+    override fun read(buf: ByteBuffer): HandlerHandle {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: HandlerHandle) = 8UL
+
+    override fun write(value: HandlerHandle, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * Opaque handle returned from add_evaluation_hook. Cancellation is idempotent
+ */
+public interface HookHandleInterface {
+    
+    fun `cancel`()
+    
+    fun `id`(): kotlin.ULong
+    
+    fun `isCancelled`(): kotlin.Boolean
+    
+    companion object
+}
+
+/**
+ * Opaque handle returned from add_evaluation_hook. Cancellation is idempotent
+ */
+open class HookHandle: Disposable, AutoCloseable, HookHandleInterface
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_coproduct_ffi_uniffi_fn_free_hookhandle(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_clone_hookhandle(handle, status)
+        }
+    }
+
+    override fun `cancel`()
+        = 
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_cancel(
+        it,
+        _status)
+}
+    }
+    
+    
+
+    override fun `id`(): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_id(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `isCancelled`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_hookhandle_is_cancelled(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    
+
+    
+
+
+    
+    
+    /**
+     * @suppress
+     */
+    companion object
+    
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeHookHandle: FfiConverter<HookHandle, Long> {
+    override fun lower(value: HookHandle): Long {
+        return value.uniffiCloneHandle()
+    }
+
+    override fun lift(value: Long): HookHandle {
+        return HookHandle(UniffiWithHandle, value)
+    }
+
+    override fun read(buf: ByteBuffer): HookHandle {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: HookHandle) = 8UL
+
+    override fun write(value: HookHandle, buf: ByteBuffer) {
         buf.putLong(lower(value))
     }
 }
@@ -2877,7 +5207,356 @@ public object FfiConverterTypeHostTransport: FfiConverter<HostTransport, Long> {
 //
 
 
+/**
+ * Host-supplied lifecycle handler. Fired asynchronously when the registered
+ * event occurs so the host can run async work such as cache invalidation
+ */
+public interface LifecycleHandler {
+    
+    suspend fun `onEvent`(`event`: LifecycleEvent)
+    
+    companion object
+}
+
+/**
+ * Host-supplied lifecycle handler. Fired asynchronously when the registered
+ * event occurs so the host can run async work such as cache invalidation
+ */
+open class LifecycleHandlerImpl: Disposable, AutoCloseable, LifecycleHandler
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_coproduct_ffi_uniffi_fn_free_lifecyclehandler(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(handle, status)
+        }
+    }
+
+    
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `onEvent`(`event`: LifecycleEvent) {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_lifecyclehandler_on_event(
+                uniffiHandle,
+                FfiConverterTypeLifecycleEvent.lower(`event`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        UniffiNullRustCallStatusErrorHandler,
+    )
+    }
+
+    
+
+    
+
+
+    
+    
+    /**
+     * @suppress
+     */
+    companion object
+    
+}
+
+
+
+// Put the implementation in an object so we don't pollute the top-level namespace
+internal object uniffiCallbackInterfaceLifecycleHandler {
+    internal object `onEvent`: UniffiCallbackInterfaceLifecycleHandlerMethod0 {
+        override fun callback(`uniffiHandle`: Long,`event`: RustBuffer.ByValue,`uniffiFutureCallback`: UniffiForeignFutureCompleteVoid,`uniffiCallbackData`: Long,`uniffiOutDroppedCallback`: UniffiForeignFutureDroppedCallbackStruct,) {
+            val uniffiObj = FfiConverterTypeLifecycleHandler.handleMap.get(uniffiHandle)
+            val makeCall = suspend { ->
+                uniffiObj.`onEvent`(
+                    FfiConverterTypeLifecycleEvent.lift(`event`),
+                )
+            }
+            val uniffiHandleSuccess = { _: Unit ->
+                val uniffiResult = UniffiForeignFutureResultVoid.UniffiByValue(
+                    UniffiRustCallStatus.ByValue()
+                )
+                uniffiResult.write()
+                uniffiFutureCallback.callback(uniffiCallbackData, uniffiResult)
+            }
+            val uniffiHandleError = { callStatus: UniffiRustCallStatus.ByValue ->
+                uniffiFutureCallback.callback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultVoid.UniffiByValue(
+                        callStatus,
+                    ),
+                )
+            }
+            uniffiTraitInterfaceCallAsync(
+                makeCall,
+                uniffiHandleSuccess,
+                uniffiHandleError,
+                uniffiOutDroppedCallback
+            )
+        }
+    }
+
+    internal object uniffiFree: UniffiCallbackInterfaceFree {
+        override fun callback(handle: Long) {
+            FfiConverterTypeLifecycleHandler.handleMap.remove(handle)
+        }
+    }
+
+    internal object uniffiClone: UniffiCallbackInterfaceClone {
+        override fun callback(handle: Long): Long {
+            return FfiConverterTypeLifecycleHandler.handleMap.clone(handle)
+        }
+    }
+
+    internal var vtable = UniffiVTableCallbackInterfaceLifecycleHandler.UniffiByValue(
+        uniffiFree,
+        uniffiClone,
+        `onEvent`,
+    )
+
+    // Registers the foreign callback with the Rust side.
+    // This method is generated for each callback interface.
+    internal fun register(lib: UniffiLib) {
+        lib.uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_lifecyclehandler(vtable)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeLifecycleHandler: FfiConverter<LifecycleHandler, Long> {
+    internal val handleMap = UniffiHandleMap<LifecycleHandler>()
+
+    override fun lower(value: LifecycleHandler): Long {
+        if (value is LifecycleHandlerImpl) {
+             // Rust-implemented object.  Clone the handle and return it
+            return value.uniffiCloneHandle()
+         } else {
+            // Kotlin object, generate a new vtable handle and return that.
+            return handleMap.insert(value)
+         }
+    }
+
+    override fun lift(value: Long): LifecycleHandler {
+        if ((value and 1.toLong()) == 0.toLong()) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LifecycleHandlerImpl(UniffiWithHandle, value)
+        } else {
+            // Kotlin-generated handle, get the object from the handle map
+            return handleMap.remove(value)
+        }
+    }
+
+    override fun read(buf: ByteBuffer): LifecycleHandler {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: LifecycleHandler) = 8UL
+
+    override fun write(value: LifecycleHandler, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
 public interface SubscriptionInterface {
+    
+    fun `cancel`()
+    
+    fun `id`(): kotlin.ULong
+    
+    fun `isCancelled`(): kotlin.Boolean
+    
+    fun `keys`(): List<kotlin.String>
     
     companion object
 }
@@ -2978,6 +5657,57 @@ open class Subscription: Disposable, AutoCloseable, SubscriptionInterface
         }
     }
 
+    override fun `cancel`()
+        = 
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(
+        it,
+        _status)
+}
+    }
+    
+    
+
+    override fun `id`(): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `isCancelled`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
+    override fun `keys`(): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(
+        it,
+        _status)
+}
+    }
+    )
+    }
+    
+
     
 
     
@@ -3013,6 +5743,542 @@ public object FfiConverterTypeSubscription: FfiConverter<Subscription, Long> {
 
     override fun write(value: Subscription, buf: ByteBuffer) {
         buf.putLong(lower(value))
+    }
+}
+
+
+
+/**
+ * Flat read-only view of the held snapshot crossing the binding boundary.
+ * Mirrors the core projection so the host can render configuration facts
+ * without depending on core types directly
+ */
+data class CoproductSnapshot (
+    var `version`: kotlin.ULong
+    , 
+    var `flagCount`: kotlin.UInt
+    , 
+    var `environment`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCoproductSnapshot: FfiConverterRustBuffer<CoproductSnapshot> {
+    override fun read(buf: ByteBuffer): CoproductSnapshot {
+        return CoproductSnapshot(
+            FfiConverterULong.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: CoproductSnapshot) = (
+            FfiConverterULong.allocationSize(value.`version`) +
+            FfiConverterUInt.allocationSize(value.`flagCount`) +
+            FfiConverterString.allocationSize(value.`environment`)
+    )
+
+    override fun write(value: CoproductSnapshot, buf: ByteBuffer) {
+            FfiConverterULong.write(value.`version`, buf)
+            FfiConverterUInt.write(value.`flagCount`, buf)
+            FfiConverterString.write(value.`environment`, buf)
+    }
+}
+
+
+
+/**
+ * One flag evaluation rendered as an analytics record. The evaluation time is
+ * serialized as an RFC 3339 timestamp string because the binding layer has no
+ * native date type
+ */
+data class EvaluationEvent (
+    var `flagKey`: kotlin.String
+    , 
+    var `flagType`: FlagType
+    , 
+    var `value`: FlagValue
+    , 
+    var `defaultValue`: FlagValue
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: EvaluationReason
+    , 
+    var `ruleId`: kotlin.String?
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `evaluatedAt`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeEvaluationEvent: FfiConverterRustBuffer<EvaluationEvent> {
+    override fun read(buf: ByteBuffer): EvaluationEvent {
+        return EvaluationEvent(
+            FfiConverterString.read(buf),
+            FfiConverterTypeFlagType.read(buf),
+            FfiConverterTypeFlagValue.read(buf),
+            FfiConverterTypeFlagValue.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterTypeEvaluationReason.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: EvaluationEvent) = (
+            FfiConverterString.allocationSize(value.`flagKey`) +
+            FfiConverterTypeFlagType.allocationSize(value.`flagType`) +
+            FfiConverterTypeFlagValue.allocationSize(value.`value`) +
+            FfiConverterTypeFlagValue.allocationSize(value.`defaultValue`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterTypeEvaluationReason.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`ruleId`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterString.allocationSize(value.`evaluatedAt`)
+    )
+
+    override fun write(value: EvaluationEvent, buf: ByteBuffer) {
+            FfiConverterString.write(value.`flagKey`, buf)
+            FfiConverterTypeFlagType.write(value.`flagType`, buf)
+            FfiConverterTypeFlagValue.write(value.`value`, buf)
+            FfiConverterTypeFlagValue.write(value.`defaultValue`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterTypeEvaluationReason.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`ruleId`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterString.write(value.`evaluatedAt`, buf)
+    }
+}
+
+
+
+/**
+ * Flat config the Swift wrapper assembles from CoproductConfig. Only the
+ * scalar and option fields that cross the FFI boundary live here. The host
+ * trait objects (transport, secure store, listener) are passed separately
+ */
+data class FfiConfig (
+    var `pollIntervalSecs`: kotlin.ULong
+    , 
+    var `startupTimeoutSecs`: kotlin.ULong
+    , 
+    var `anonymousId`: kotlin.String?
+    , 
+    var `endpoint`: kotlin.String?
+    , 
+    var `pollOnForeground`: kotlin.Boolean
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiConfig: FfiConverterRustBuffer<FfiConfig> {
+    override fun read(buf: ByteBuffer): FfiConfig {
+        return FfiConfig(
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FfiConfig) = (
+            FfiConverterULong.allocationSize(value.`pollIntervalSecs`) +
+            FfiConverterULong.allocationSize(value.`startupTimeoutSecs`) +
+            FfiConverterOptionalString.allocationSize(value.`anonymousId`) +
+            FfiConverterOptionalString.allocationSize(value.`endpoint`) +
+            FfiConverterBoolean.allocationSize(value.`pollOnForeground`)
+    )
+
+    override fun write(value: FfiConfig, buf: ByteBuffer) {
+            FfiConverterULong.write(value.`pollIntervalSecs`, buf)
+            FfiConverterULong.write(value.`startupTimeoutSecs`, buf)
+            FfiConverterOptionalString.write(value.`anonymousId`, buf)
+            FfiConverterOptionalString.write(value.`endpoint`, buf)
+            FfiConverterBoolean.write(value.`pollOnForeground`, buf)
+    }
+}
+
+
+
+/**
+ * FFI mirror of the core details payload. UniFFI cannot express generics, so
+ * there is one record per value type. `reason` and `error_code` are the wire
+ * strings. The JSON record ships its value as a JSON-encoded string because
+ * UniFFI has no native JSON type
+ */
+data class FlagEvaluationDetailsBool (
+    var `value`: kotlin.Boolean
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsBool: FfiConverterRustBuffer<FlagEvaluationDetailsBool> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsBool {
+        return FlagEvaluationDetailsBool(
+            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsBool) = (
+            FfiConverterBoolean.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsBool, buf: ByteBuffer) {
+            FfiConverterBoolean.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
+data class FlagEvaluationDetailsInt (
+    var `value`: kotlin.Long
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsInt: FfiConverterRustBuffer<FlagEvaluationDetailsInt> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsInt {
+        return FlagEvaluationDetailsInt(
+            FfiConverterLong.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsInt) = (
+            FfiConverterLong.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsInt, buf: ByteBuffer) {
+            FfiConverterLong.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
+data class FlagEvaluationDetailsJson (
+    var `valueJson`: kotlin.String
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsJson: FfiConverterRustBuffer<FlagEvaluationDetailsJson> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsJson {
+        return FlagEvaluationDetailsJson(
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsJson) = (
+            FfiConverterString.allocationSize(value.`valueJson`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsJson, buf: ByteBuffer) {
+            FfiConverterString.write(value.`valueJson`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
+data class FlagEvaluationDetailsNumber (
+    var `value`: kotlin.Double
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsNumber: FfiConverterRustBuffer<FlagEvaluationDetailsNumber> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsNumber {
+        return FlagEvaluationDetailsNumber(
+            FfiConverterDouble.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsNumber) = (
+            FfiConverterDouble.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsNumber, buf: ByteBuffer) {
+            FfiConverterDouble.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
+data class FlagEvaluationDetailsString (
+    var `value`: kotlin.String
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsString: FfiConverterRustBuffer<FlagEvaluationDetailsString> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsString {
+        return FlagEvaluationDetailsString(
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsString) = (
+            FfiConverterString.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsString, buf: ByteBuffer) {
+            FfiConverterString.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
+/**
+ * Snapshot of one getter evaluation handed to every hook stage
+ */
+data class HookContext (
+    var `flagKey`: kotlin.String
+    , 
+    var `flagType`: FlagType
+    , 
+    var `defaultValue`: FlagValue
+    , 
+    var `value`: FlagValue?
+    , 
+    var `errorCode`: kotlin.String?
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeHookContext: FfiConverterRustBuffer<HookContext> {
+    override fun read(buf: ByteBuffer): HookContext {
+        return HookContext(
+            FfiConverterString.read(buf),
+            FfiConverterTypeFlagType.read(buf),
+            FfiConverterTypeFlagValue.read(buf),
+            FfiConverterOptionalTypeFlagValue.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: HookContext) = (
+            FfiConverterString.allocationSize(value.`flagKey`) +
+            FfiConverterTypeFlagType.allocationSize(value.`flagType`) +
+            FfiConverterTypeFlagValue.allocationSize(value.`defaultValue`) +
+            FfiConverterOptionalTypeFlagValue.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`)
+    )
+
+    override fun write(value: HookContext, buf: ByteBuffer) {
+            FfiConverterString.write(value.`flagKey`, buf)
+            FfiConverterTypeFlagType.write(value.`flagType`, buf)
+            FfiConverterTypeFlagValue.write(value.`defaultValue`, buf)
+            FfiConverterOptionalTypeFlagValue.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
     }
 }
 
@@ -3147,6 +6413,617 @@ public object FfiConverterTypeHttpResponse: FfiConverterRustBuffer<HttpResponse>
 
 
 
+/**
+ * FFI wrapper for the typed-sum attribute value. UniFFI cannot represent the
+ * recursive Array and Object variants, so the wire surface flattens to the four
+ * primitive shapes and rejects the recursive shapes at the boundary
+ */
+sealed class AttributeValueFfi {
+    
+    data class Bool(
+        val `value`: kotlin.Boolean) : AttributeValueFfi()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class String(
+        val `value`: kotlin.String) : AttributeValueFfi()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Number(
+        val `value`: kotlin.Double) : AttributeValueFfi()
+        
+    {
+        
+
+        companion object
+    }
+    
+    object Null : AttributeValueFfi()
+    
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeAttributeValueFfi : FfiConverterRustBuffer<AttributeValueFfi>{
+    override fun read(buf: ByteBuffer): AttributeValueFfi {
+        return when(buf.getInt()) {
+            1 -> AttributeValueFfi.Bool(
+                FfiConverterBoolean.read(buf),
+                )
+            2 -> AttributeValueFfi.String(
+                FfiConverterString.read(buf),
+                )
+            3 -> AttributeValueFfi.Number(
+                FfiConverterDouble.read(buf),
+                )
+            4 -> AttributeValueFfi.Null
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: AttributeValueFfi) = when(value) {
+        is AttributeValueFfi.Bool -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterBoolean.allocationSize(value.`value`)
+            )
+        }
+        is AttributeValueFfi.String -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is AttributeValueFfi.Number -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterDouble.allocationSize(value.`value`)
+            )
+        }
+        is AttributeValueFfi.Null -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: AttributeValueFfi, buf: ByteBuffer) {
+        when(value) {
+            is AttributeValueFfi.Bool -> {
+                buf.putInt(1)
+                FfiConverterBoolean.write(value.`value`, buf)
+                Unit
+            }
+            is AttributeValueFfi.String -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is AttributeValueFfi.Number -> {
+                buf.putInt(3)
+                FfiConverterDouble.write(value.`value`, buf)
+                Unit
+            }
+            is AttributeValueFfi.Null -> {
+                buf.putInt(4)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+/**
+ * Context attribute value crossing the binding boundary. The core attribute
+ * type is not exported directly so the boundary keeps a stable local shape
+ */
+sealed class ContextValue {
+    
+    data class String(
+        val `value`: kotlin.String) : ContextValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Number(
+        val `value`: kotlin.Double) : ContextValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Bool(
+        val `value`: kotlin.Boolean) : ContextValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class StringList(
+        val `values`: List<kotlin.String>) : ContextValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    object Null : ContextValue()
+    
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue>{
+    override fun read(buf: ByteBuffer): ContextValue {
+        return when(buf.getInt()) {
+            1 -> ContextValue.String(
+                FfiConverterString.read(buf),
+                )
+            2 -> ContextValue.Number(
+                FfiConverterDouble.read(buf),
+                )
+            3 -> ContextValue.Bool(
+                FfiConverterBoolean.read(buf),
+                )
+            4 -> ContextValue.StringList(
+                FfiConverterSequenceString.read(buf),
+                )
+            5 -> ContextValue.Null
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: ContextValue) = when(value) {
+        is ContextValue.String -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is ContextValue.Number -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterDouble.allocationSize(value.`value`)
+            )
+        }
+        is ContextValue.Bool -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterBoolean.allocationSize(value.`value`)
+            )
+        }
+        is ContextValue.StringList -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterSequenceString.allocationSize(value.`values`)
+            )
+        }
+        is ContextValue.Null -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: ContextValue, buf: ByteBuffer) {
+        when(value) {
+            is ContextValue.String -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is ContextValue.Number -> {
+                buf.putInt(2)
+                FfiConverterDouble.write(value.`value`, buf)
+                Unit
+            }
+            is ContextValue.Bool -> {
+                buf.putInt(3)
+                FfiConverterBoolean.write(value.`value`, buf)
+                Unit
+            }
+            is ContextValue.StringList -> {
+                buf.putInt(4)
+                FfiConverterSequenceString.write(value.`values`, buf)
+                Unit
+            }
+            is ContextValue.Null -> {
+                buf.putInt(5)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+/**
+ * Why an evaluation resolved the way it did, mirrored onto the event surface
+ */
+
+enum class EvaluationReason {
+    
+    TARGETING_MATCH,
+    FALLTHROUGH,
+    OFF,
+    PREREQUISITE_FAILED,
+    ERROR;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeEvaluationReason: FfiConverterRustBuffer<EvaluationReason> {
+    override fun read(buf: ByteBuffer) = try {
+        EvaluationReason.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: EvaluationReason) = 4UL
+
+    override fun write(value: EvaluationReason, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * The four stages of a single typed-getter evaluation
+ */
+
+enum class EvaluationStage {
+    
+    BEFORE,
+    AFTER,
+    ERROR,
+    FINALLY;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeEvaluationStage: FfiConverterRustBuffer<EvaluationStage> {
+    override fun read(buf: ByteBuffer) = try {
+        EvaluationStage.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: EvaluationStage) = 4UL
+
+    override fun write(value: EvaluationStage, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+
+sealed class FfiIdentityException: kotlin.Exception() {
+    
+    class InvalidTargetingKey(
+        ) : FfiIdentityException() {
+        override val message
+            get() = ""
+    }
+    
+
+    
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<FfiIdentityException> {
+        override fun lift(error_buf: RustBuffer.ByValue): FfiIdentityException = FfiConverterTypeFfiIdentityError.lift(error_buf)
+    }
+
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFfiIdentityError : FfiConverterRustBuffer<FfiIdentityException> {
+    override fun read(buf: ByteBuffer): FfiIdentityException {
+        
+
+        return when(buf.getInt()) {
+            1 -> FfiIdentityException.InvalidTargetingKey()
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: FfiIdentityException): ULong {
+        return when(value) {
+            is FfiIdentityException.InvalidTargetingKey -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: FfiIdentityException, buf: ByteBuffer) {
+        when(value) {
+            is FfiIdentityException.InvalidTargetingKey -> {
+                buf.putInt(1)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
+
+
+
+/**
+ * The requested-getter type that triggered an evaluation
+ */
+
+enum class FlagType {
+    
+    BOOL,
+    STRING,
+    INT,
+    NUMBER,
+    JSON;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagType: FfiConverterRustBuffer<FlagType> {
+    override fun read(buf: ByteBuffer) = try {
+        FlagType.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: FlagType) = 4UL
+
+    override fun write(value: FlagType, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+/**
+ * Typed flag value crossing the observer, hook, and event callback boundaries.
+ * Mirrors the core typed-value shape so the host receives Bool, String, Int,
+ * Number, or JSON without runtime casting. The JSON variant ships its value as a
+ * JSON-encoded string because the binding layer has no native JSON type
+ */
+sealed class FlagValue {
+    
+    data class Bool(
+        val `value`: kotlin.Boolean) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class String(
+        val `value`: kotlin.String) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Int(
+        val `value`: kotlin.Long) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Number(
+        val `value`: kotlin.Double) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class Json(
+        val `value`: kotlin.String) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagValue : FfiConverterRustBuffer<FlagValue>{
+    override fun read(buf: ByteBuffer): FlagValue {
+        return when(buf.getInt()) {
+            1 -> FlagValue.Bool(
+                FfiConverterBoolean.read(buf),
+                )
+            2 -> FlagValue.String(
+                FfiConverterString.read(buf),
+                )
+            3 -> FlagValue.Int(
+                FfiConverterLong.read(buf),
+                )
+            4 -> FlagValue.Number(
+                FfiConverterDouble.read(buf),
+                )
+            5 -> FlagValue.Json(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: FlagValue) = when(value) {
+        is FlagValue.Bool -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterBoolean.allocationSize(value.`value`)
+            )
+        }
+        is FlagValue.String -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+        is FlagValue.Int -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterLong.allocationSize(value.`value`)
+            )
+        }
+        is FlagValue.Number -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterDouble.allocationSize(value.`value`)
+            )
+        }
+        is FlagValue.Json -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`value`)
+            )
+        }
+    }
+
+    override fun write(value: FlagValue, buf: ByteBuffer) {
+        when(value) {
+            is FlagValue.Bool -> {
+                buf.putInt(1)
+                FfiConverterBoolean.write(value.`value`, buf)
+                Unit
+            }
+            is FlagValue.String -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is FlagValue.Int -> {
+                buf.putInt(3)
+                FfiConverterLong.write(value.`value`, buf)
+                Unit
+            }
+            is FlagValue.Number -> {
+                buf.putInt(4)
+                FfiConverterDouble.write(value.`value`, buf)
+                Unit
+            }
+            is FlagValue.Json -> {
+                buf.putInt(5)
+                FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
 
 enum class HttpMethod {
     
@@ -3185,28 +7062,46 @@ public object FfiConverterTypeHttpMethod: FfiConverterRustBuffer<HttpMethod> {
 
 sealed class InitException: kotlin.Exception() {
     
-    class Transport(
+    class InvalidKeyType(
         
-        val v1: kotlin.String
+        val `prefix`: kotlin.String
         ) : InitException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = "prefix=${ `prefix` }"
     }
     
-    class SecureStore(
+    class MalformedSdkKey(
         
-        val v1: kotlin.String
+        val `reason`: kotlin.String
         ) : InitException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = "reason=${ `reason` }"
     }
     
-    class Cache(
-        
-        val v1: kotlin.String
+    class MissingSdkKey(
         ) : InitException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = ""
+    }
+    
+    class InvalidConfig(
+        
+        val `field`: kotlin.String, 
+        
+        val `reason`: kotlin.String
+        ) : InitException() {
+        override val message
+            get() = "field=${ `field` }, reason=${ `reason` }"
+    }
+    
+    class UnsupportedSchemaVersion(
+        
+        val `actual`: kotlin.UInt, 
+        
+        val `supported`: kotlin.UInt
+        ) : InitException() {
+        override val message
+            get() = "actual=${ `actual` }, supported=${ `supported` }"
     }
     
 
@@ -3228,14 +7123,20 @@ public object FfiConverterTypeInitError : FfiConverterRustBuffer<InitException> 
         
 
         return when(buf.getInt()) {
-            1 -> InitException.Transport(
+            1 -> InitException.InvalidKeyType(
                 FfiConverterString.read(buf),
                 )
-            2 -> InitException.SecureStore(
+            2 -> InitException.MalformedSdkKey(
                 FfiConverterString.read(buf),
                 )
-            3 -> InitException.Cache(
+            3 -> InitException.MissingSdkKey()
+            4 -> InitException.InvalidConfig(
                 FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            5 -> InitException.UnsupportedSchemaVersion(
+                FfiConverterUInt.read(buf),
+                FfiConverterUInt.read(buf),
                 )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
@@ -3243,45 +7144,111 @@ public object FfiConverterTypeInitError : FfiConverterRustBuffer<InitException> 
 
     override fun allocationSize(value: InitException): ULong {
         return when(value) {
-            is InitException.Transport -> (
+            is InitException.InvalidKeyType -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
+                + FfiConverterString.allocationSize(value.`prefix`)
             )
-            is InitException.SecureStore -> (
+            is InitException.MalformedSdkKey -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
+                + FfiConverterString.allocationSize(value.`reason`)
             )
-            is InitException.Cache -> (
+            is InitException.MissingSdkKey -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
+            )
+            is InitException.InvalidConfig -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`field`)
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+            is InitException.UnsupportedSchemaVersion -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterUInt.allocationSize(value.`actual`)
+                + FfiConverterUInt.allocationSize(value.`supported`)
             )
         }
     }
 
     override fun write(value: InitException, buf: ByteBuffer) {
         when(value) {
-            is InitException.Transport -> {
+            is InitException.InvalidKeyType -> {
                 buf.putInt(1)
-                FfiConverterString.write(value.v1, buf)
+                FfiConverterString.write(value.`prefix`, buf)
                 Unit
             }
-            is InitException.SecureStore -> {
+            is InitException.MalformedSdkKey -> {
                 buf.putInt(2)
-                FfiConverterString.write(value.v1, buf)
+                FfiConverterString.write(value.`reason`, buf)
                 Unit
             }
-            is InitException.Cache -> {
+            is InitException.MissingSdkKey -> {
                 buf.putInt(3)
-                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is InitException.InvalidConfig -> {
+                buf.putInt(4)
+                FfiConverterString.write(value.`field`, buf)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+            is InitException.UnsupportedSchemaVersion -> {
+                buf.putInt(5)
+                FfiConverterUInt.write(value.`actual`, buf)
+                FfiConverterUInt.write(value.`supported`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
     }
 
 }
+
+
+
+/**
+ * Lifecycle event crossing the binding boundary. Mirrors the core provider
+ * event vocabulary so the host can react to readiness, configuration, and
+ * context transitions without depending on core types directly
+ */
+
+enum class LifecycleEvent {
+    
+    READY,
+    CONFIGURATION_CHANGED,
+    CONTEXT_CHANGED,
+    RECONCILING,
+    RETRYING,
+    STALE,
+    FATAL;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeLifecycleEvent: FfiConverterRustBuffer<LifecycleEvent> {
+    override fun read(buf: ByteBuffer) = try {
+        LifecycleEvent.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: LifecycleEvent) = 4UL
+
+    override fun write(value: LifecycleEvent, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
 
 
 
@@ -3347,24 +7314,222 @@ public object FfiConverterTypeObserverError : FfiConverterRustBuffer<ObserverExc
 
 
 
+/**
+ * Outcome of a single poll tick crossing the binding boundary. Mirrors the core
+ * poll result so the host scheduler can react to back-off and dedup signals
+ */
+sealed class PollOutcome {
+    
+    object Updated : PollOutcome()
+    
+    
+    object NotModified : PollOutcome()
+    
+    
+    object Fatal : PollOutcome()
+    
+    
+    object Retrying : PollOutcome()
+    
+    
+    data class RateLimited(
+        val `retryAfterSecs`: kotlin.ULong) : PollOutcome()
+        
+    {
+        
+
+        companion object
+    }
+    
+    object Stale : PollOutcome()
+    
+    
+    object DedupedSkipped : PollOutcome()
+    
+    
+
+    
+
+    
+    
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePollOutcome : FfiConverterRustBuffer<PollOutcome>{
+    override fun read(buf: ByteBuffer): PollOutcome {
+        return when(buf.getInt()) {
+            1 -> PollOutcome.Updated
+            2 -> PollOutcome.NotModified
+            3 -> PollOutcome.Fatal
+            4 -> PollOutcome.Retrying
+            5 -> PollOutcome.RateLimited(
+                FfiConverterULong.read(buf),
+                )
+            6 -> PollOutcome.Stale
+            7 -> PollOutcome.DedupedSkipped
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: PollOutcome) = when(value) {
+        is PollOutcome.Updated -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is PollOutcome.NotModified -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is PollOutcome.Fatal -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is PollOutcome.Retrying -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is PollOutcome.RateLimited -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterULong.allocationSize(value.`retryAfterSecs`)
+            )
+        }
+        is PollOutcome.Stale -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is PollOutcome.DedupedSkipped -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: PollOutcome, buf: ByteBuffer) {
+        when(value) {
+            is PollOutcome.Updated -> {
+                buf.putInt(1)
+                Unit
+            }
+            is PollOutcome.NotModified -> {
+                buf.putInt(2)
+                Unit
+            }
+            is PollOutcome.Fatal -> {
+                buf.putInt(3)
+                Unit
+            }
+            is PollOutcome.Retrying -> {
+                buf.putInt(4)
+                Unit
+            }
+            is PollOutcome.RateLimited -> {
+                buf.putInt(5)
+                FfiConverterULong.write(value.`retryAfterSecs`, buf)
+                Unit
+            }
+            is PollOutcome.Stale -> {
+                buf.putInt(6)
+                Unit
+            }
+            is PollOutcome.DedupedSkipped -> {
+                buf.putInt(7)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+/**
+ * Provider lifecycle state crossing the binding boundary. Mirrors the core
+ * state machine so the host can render readiness without depending on core
+ * types directly
+ */
+
+enum class ProviderState {
+    
+    NOT_READY,
+    READY,
+    RECONCILING,
+    RETRYING,
+    STALE,
+    FATAL;
+
+    
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeProviderState: FfiConverterRustBuffer<ProviderState> {
+    override fun read(buf: ByteBuffer) = try {
+        ProviderState.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: ProviderState) = 4UL
+
+    override fun write(value: ProviderState, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
 
 
 sealed class SecureStoreException: kotlin.Exception() {
     
     class Unavailable(
-        
-        val v1: kotlin.String
         ) : SecureStoreException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = ""
     }
     
-    class Other(
-        
-        val v1: kotlin.String
+    class Corrupted(
         ) : SecureStoreException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = ""
+    }
+    
+    class WriteFailed(
+        ) : SecureStoreException() {
+        override val message
+            get() = ""
+    }
+    
+    class ReadFailed(
+        ) : SecureStoreException() {
+        override val message
+            get() = ""
     }
     
 
@@ -3386,12 +7551,10 @@ public object FfiConverterTypeSecureStoreError : FfiConverterRustBuffer<SecureSt
         
 
         return when(buf.getInt()) {
-            1 -> SecureStoreException.Unavailable(
-                FfiConverterString.read(buf),
-                )
-            2 -> SecureStoreException.Other(
-                FfiConverterString.read(buf),
-                )
+            1 -> SecureStoreException.Unavailable()
+            2 -> SecureStoreException.Corrupted()
+            3 -> SecureStoreException.WriteFailed()
+            4 -> SecureStoreException.ReadFailed()
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
         }
     }
@@ -3401,12 +7564,18 @@ public object FfiConverterTypeSecureStoreError : FfiConverterRustBuffer<SecureSt
             is SecureStoreException.Unavailable -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
             )
-            is SecureStoreException.Other -> (
+            is SecureStoreException.Corrupted -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
+            )
+            is SecureStoreException.WriteFailed -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is SecureStoreException.ReadFailed -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
             )
         }
     }
@@ -3415,12 +7584,18 @@ public object FfiConverterTypeSecureStoreError : FfiConverterRustBuffer<SecureSt
         when(value) {
             is SecureStoreException.Unavailable -> {
                 buf.putInt(1)
-                FfiConverterString.write(value.v1, buf)
                 Unit
             }
-            is SecureStoreException.Other -> {
+            is SecureStoreException.Corrupted -> {
                 buf.putInt(2)
-                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is SecureStoreException.WriteFailed -> {
+                buf.putInt(3)
+                Unit
+            }
+            is SecureStoreException.ReadFailed -> {
+                buf.putInt(4)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -3434,15 +7609,33 @@ public object FfiConverterTypeSecureStoreError : FfiConverterRustBuffer<SecureSt
 
 sealed class TransportException: kotlin.Exception() {
     
-    class Network(
-        
-        val v1: kotlin.String
+    class Timeout(
         ) : TransportException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = ""
     }
     
-    class Timeout(
+    class NetworkUnreachable(
+        ) : TransportException() {
+        override val message
+            get() = ""
+    }
+    
+    class Unauthorized(
+        ) : TransportException() {
+        override val message
+            get() = ""
+    }
+    
+    class ServerException(
+        
+        val `status`: kotlin.UShort
+        ) : TransportException() {
+        override val message
+            get() = "status=${ `status` }"
+    }
+    
+    class MalformedResponse(
         ) : TransportException() {
         override val message
             get() = ""
@@ -3450,10 +7643,10 @@ sealed class TransportException: kotlin.Exception() {
     
     class Other(
         
-        val v1: kotlin.String
+        val `reason`: kotlin.String
         ) : TransportException() {
         override val message
-            get() = "v1=${ v1 }"
+            get() = "reason=${ `reason` }"
     }
     
 
@@ -3475,11 +7668,14 @@ public object FfiConverterTypeTransportError : FfiConverterRustBuffer<TransportE
         
 
         return when(buf.getInt()) {
-            1 -> TransportException.Network(
-                FfiConverterString.read(buf),
+            1 -> TransportException.Timeout()
+            2 -> TransportException.NetworkUnreachable()
+            3 -> TransportException.Unauthorized()
+            4 -> TransportException.ServerException(
+                FfiConverterUShort.read(buf),
                 )
-            2 -> TransportException.Timeout()
-            3 -> TransportException.Other(
+            5 -> TransportException.MalformedResponse()
+            6 -> TransportException.Other(
                 FfiConverterString.read(buf),
                 )
             else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
@@ -3488,37 +7684,61 @@ public object FfiConverterTypeTransportError : FfiConverterRustBuffer<TransportE
 
     override fun allocationSize(value: TransportException): ULong {
         return when(value) {
-            is TransportException.Network -> (
+            is TransportException.Timeout -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
             )
-            is TransportException.Timeout -> (
+            is TransportException.NetworkUnreachable -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is TransportException.Unauthorized -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is TransportException.ServerException -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterUShort.allocationSize(value.`status`)
+            )
+            is TransportException.MalformedResponse -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
             )
             is TransportException.Other -> (
                 // Add the size for the Int that specifies the variant plus the size needed for all fields
                 4UL
-                + FfiConverterString.allocationSize(value.v1)
+                + FfiConverterString.allocationSize(value.`reason`)
             )
         }
     }
 
     override fun write(value: TransportException, buf: ByteBuffer) {
         when(value) {
-            is TransportException.Network -> {
+            is TransportException.Timeout -> {
                 buf.putInt(1)
-                FfiConverterString.write(value.v1, buf)
                 Unit
             }
-            is TransportException.Timeout -> {
+            is TransportException.NetworkUnreachable -> {
                 buf.putInt(2)
                 Unit
             }
-            is TransportException.Other -> {
+            is TransportException.Unauthorized -> {
                 buf.putInt(3)
-                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is TransportException.ServerException -> {
+                buf.putInt(4)
+                FfiConverterUShort.write(value.`status`, buf)
+                Unit
+            }
+            is TransportException.MalformedResponse -> {
+                buf.putInt(5)
+                Unit
+            }
+            is TransportException.Other -> {
+                buf.putInt(6)
+                FfiConverterString.write(value.`reason`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -3596,6 +7816,98 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeAttributeValueFfi: FfiConverterRustBuffer<AttributeValueFfi?> {
+    override fun read(buf: ByteBuffer): AttributeValueFfi? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeAttributeValueFfi.read(buf)
+    }
+
+    override fun allocationSize(value: AttributeValueFfi?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeAttributeValueFfi.allocationSize(value)
+        }
+    }
+
+    override fun write(value: AttributeValueFfi?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeAttributeValueFfi.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeFlagValue: FfiConverterRustBuffer<FlagValue?> {
+    override fun read(buf: ByteBuffer): FlagValue? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeFlagValue.read(buf)
+    }
+
+    override fun allocationSize(value: FlagValue?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeFlagValue.allocationSize(value)
+        }
+    }
+
+    override fun write(value: FlagValue?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeFlagValue.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.String>> {
+    override fun read(buf: ByteBuffer): List<kotlin.String> {
+        val len = buf.getInt()
+        return List<kotlin.String>(len) {
+            FfiConverterString.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.String>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterString.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer<List<HttpHeader>> {
     override fun read(buf: ByteBuffer): List<HttpHeader> {
         val len = buf.getInt()
@@ -3621,13 +7933,95 @@ public object FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer<List<Ht
 
 
 
+/**
+ * @suppress
+ */
+public object FfiConverterMapStringTypeContextValue: FfiConverterRustBuffer<Map<kotlin.String, ContextValue>> {
+    override fun read(buf: ByteBuffer): Map<kotlin.String, ContextValue> {
+        val len = buf.getInt()
+        return buildMap<kotlin.String, ContextValue>(len) {
+            repeat(len) {
+                val k = FfiConverterString.read(buf)
+                val v = FfiConverterTypeContextValue.read(buf)
+                this[k] = v
+            }
+        }
+    }
+
+    override fun allocationSize(value: Map<kotlin.String, ContextValue>): ULong {
+        val spaceForMapSize = 4UL
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterTypeContextValue.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<kotlin.String, ContextValue>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterTypeContextValue.write(v, buf)
+        }
+    }
+}
 
 
 
- fun `computeBucket`(`ruleId`: kotlin.String, `targetingKey`: kotlin.String, `suffix`: kotlin.String): kotlin.UInt {
+
+/**
+ * @suppress
+ */
+public object FfiConverterMapStringTypeFlagValue: FfiConverterRustBuffer<Map<kotlin.String, FlagValue>> {
+    override fun read(buf: ByteBuffer): Map<kotlin.String, FlagValue> {
+        val len = buf.getInt()
+        return buildMap<kotlin.String, FlagValue>(len) {
+            repeat(len) {
+                val k = FfiConverterString.read(buf)
+                val v = FfiConverterTypeFlagValue.read(buf)
+                this[k] = v
+            }
+        }
+    }
+
+    override fun allocationSize(value: Map<kotlin.String, FlagValue>): ULong {
+        val spaceForMapSize = 4UL
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterTypeFlagValue.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<kotlin.String, FlagValue>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterTypeFlagValue.write(v, buf)
+        }
+    }
+}
+
+
+
+
+
+
+
+
+        /**
+         * Internal conformance accessor exposing the canonical bucketing primitive to
+         * the cross-evaluator conformance harness. Not part of the public SDK surface
+         */ fun `bucketForVectors`(`ruleId`: kotlin.String, `targetingKey`: kotlin.String, `suffix`: kotlin.String): kotlin.UInt {
             return FfiConverterUInt.lift(
     uniffiRustCall() { _status ->
-    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_func_compute_bucket(
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(
     
         FfiConverterString.lower(`ruleId`),FfiConverterString.lower(`targetingKey`),FfiConverterString.lower(`suffix`),_status)
 }
@@ -3637,9 +8031,9 @@ public object FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer<List<Ht
 
     @Throws(InitException::class)
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-     suspend fun `initialize`(`sdkKey`: kotlin.String, `cacheDir`: kotlin.String, `transport`: HostTransport, `secureStore`: HostSecureStore) : CoproductClient {
+     suspend fun `initialize`(`sdkKey`: kotlin.String, `userAgent`: kotlin.String, `cacheDir`: kotlin.String, `config`: FfiConfig, `transport`: HostTransport, `secureStore`: HostSecureStore) : CoproductClient {
         return uniffiRustCallAsync(
-        UniffiLib.uniffi_coproduct_ffi_uniffi_fn_func_initialize(FfiConverterString.lower(`sdkKey`),FfiConverterString.lower(`cacheDir`),FfiConverterTypeHostTransport.lower(`transport`),FfiConverterTypeHostSecureStore.lower(`secureStore`),),
+        UniffiLib.uniffi_coproduct_ffi_uniffi_fn_func_initialize(FfiConverterString.lower(`sdkKey`),FfiConverterString.lower(`userAgent`),FfiConverterString.lower(`cacheDir`),FfiConverterTypeFfiConfig.lower(`config`),FfiConverterTypeHostTransport.lower(`transport`),FfiConverterTypeHostSecureStore.lower(`secureStore`),),
         { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_u64(future, callback, continuation) },
         { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_u64(future, continuation) },
         { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_u64(future) },

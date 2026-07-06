@@ -18,7 +18,7 @@ pub use flag::{Flag, FlagType, Prerequisite};
 pub use outcome::ConditionOutcome;
 pub use rule::{Condition, Operator, Rollout, TargetingRule, WeightedVariation};
 pub use segment::{
-    EnvironmentMetadata, IndexedSnapshot, SdkContext, Segment, SegmentRule, Snapshot,
+    EnvironmentMetadata, IndexedSnapshot, SdkContext, Segment, SegmentRule, Snapshot, SnapshotView,
 };
 pub use variation::{Variation, VariationValue};
 

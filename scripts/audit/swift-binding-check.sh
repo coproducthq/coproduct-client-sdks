@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$ROOT"
 
-GEN_DIR="sdks/ios/Sources/Coproduct/Generated"
+GEN_DIR="sdks/ios/Sources/CoproductFFI"
 SMOKE_DIR="sdks/ios/Tests/BindingSmoke"
 SWIFT_FILE="$GEN_DIR/coproduct_ffi_uniffi.swift"
 MODULE_MAP="$GEN_DIR/coproduct_ffi_uniffiFFI.modulemap"

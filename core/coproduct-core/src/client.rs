@@ -23,6 +23,7 @@ use crate::observer::{FlagValue, ObserverRegistry, Subscription, TypedFlagObserv
 use crate::pipeline::{EvaluationReason, RequestedType, evaluate};
 use crate::polling::{PollContext, SnapshotSwapHook, poll_now};
 use crate::secure_store::{SecureStore, SecureStoreError};
+pub use crate::snapshot::SnapshotView;
 use crate::snapshot::{IndexedSnapshot, Snapshot, VariationValue};
 use crate::state::{ProviderState, ProviderStateCell};
 use crate::transport::Transport;
@@ -82,7 +83,6 @@ fn is_crockford_lower(c: char) -> bool {
 pub struct CoproductClient {
     observers: Arc<ObserverRegistry>,
     events: Arc<EventRegistry>,
-    loaded_from_cache: bool,
     snapshot: Arc<Mutex<Option<Arc<IndexedSnapshot>>>>,
     hooks: Arc<HookRegistry>,
     /// Single host-registered sink for per-evaluation analytics events
@@ -104,8 +104,10 @@ pub struct CoproductClient {
     consecutive_failures: Arc<Mutex<u32>>,
     retry_budget: u32,
     /// Latched once `shutdown` runs so getters and the host poll loop can
-    /// observe the terminal state. Repeated `shutdown` calls are no-ops
-    shutdown: AtomicBool,
+    /// observe the terminal state. Repeated `shutdown` calls are no-ops. Shared
+    /// into `PollContext` so an in-flight poll can re-check it after the network
+    /// returns and refuse to write a torn-down client's snapshot to disk
+    shutdown: Arc<AtomicBool>,
 }
 
 impl std::fmt::Debug for CoproductClient {
@@ -113,7 +115,6 @@ impl std::fmt::Debug for CoproductClient {
         // The SDK key is a secret and is deliberately omitted
         f.debug_struct("CoproductClient")
             .field("state", &self.state.get())
-            .field("loaded_from_cache", &self.loaded_from_cache)
             .field("endpoint", &self.endpoint)
             .finish_non_exhaustive()
     }
@@ -125,10 +126,11 @@ impl CoproductClient {
     /// platform identifier (`coproduct-ios`, `coproduct-android`, and so on) and
     /// the wrapper version live in the binding layer, not the core.
     ///
-    /// The first poll is awaited inline. The core does not enforce
-    /// `startup_timeout`: each HTTP call is bounded by the platform transport's
-    /// own per-request timeout, and the host wrapper races `initialize` against
-    /// its platform-native sleep to honor the startup deadline
+    /// No network poll is awaited. `initialize` resolves once the client is
+    /// constructed from cache, so launch is never blocked by a slow or
+    /// unreachable network. The host drives the first poll immediately after
+    /// initialize and bounds how long it waits for readiness with its own
+    /// `startup_timeout`, which the core validates but does not otherwise use
     pub async fn initialize(
         sdk_key: String,
         user_agent: String,
@@ -196,8 +198,8 @@ impl CoproductClient {
         // transient I/O failures at initialize fold into no-prior-snapshot, the
         // provider starts NotReady, and the first poll fills the slot. The error
         // is logged so a real disk-permission issue stays visible without
-        // failing customer init
-        let cached_bytes = match crate::cache::read_snapshot(&cache_dir) {
+        // failing init
+        let cached_bytes = match crate::cache::read_snapshot(&cache_dir, &sdk_key) {
             Ok(opt) => opt,
             Err(error) => {
                 tracing::warn!(%error, "snapshot cache read failed, proceeding as cache miss");
@@ -250,36 +252,15 @@ impl CoproductClient {
         let failures = Arc::new(Mutex::new(0));
         let retry_budget = 5;
 
-        // PollContext carries Arc clones of the client-owned cells, so the first
-        // poll's 200 handler updates the snapshot and sdkContext slots the
-        // returned client observes through the same Arcs. The first poll runs
-        // before `Arc<CoproductClient>` exists, so no swap hook is installed yet
-        let poll_ctx = PollContext {
-            sdk_key: sdk_key.clone(),
-            endpoint: endpoint.clone(),
-            user_agent: user_agent.clone(),
-            cache_dir: cache_dir.clone(),
-            transport: transport.clone(),
-            state: state.clone(),
-            in_flight: in_flight.clone(),
-            snapshot: snapshot_cell.clone(),
-            sdk_context: sdk_context_cell.clone(),
-            consecutive_failures: failures.clone(),
-            retry_budget,
-            on_snapshot_swapped: None,
-        };
-
-        // Drive the first poll inline. The await is bounded by the platform
-        // transport's per-request timeout rather than a Rust-side wall-clock
-        // timer, keeping the core free of any runtime-specific timer dependency
-        let _ = poll_now(poll_ctx).await;
-
-        let loaded_from_cache = initial_snapshot.is_some();
-
+        // Return the client without a first network poll. The host drives all
+        // polling, including the first poll which it triggers immediately after
+        // initialize, so a slow or unreachable network cannot block launch. The
+        // provider starts Ready when a cached snapshot pre-warmed the slot and
+        // NotReady otherwise, and reads serve the cache or developer defaults
+        // until the first successful poll lands and transitions the state
         Ok(Arc::new(CoproductClient {
             observers: ObserverRegistry::new(),
             events: EventRegistry::new(),
-            loaded_from_cache,
             snapshot: snapshot_cell,
             hooks: HookRegistry::new(),
             evaluation_events: EvaluationEventDispatcher::new(),
@@ -295,13 +276,29 @@ impl CoproductClient {
             in_flight,
             consecutive_failures: failures,
             retry_budget,
-            shutdown: AtomicBool::new(false),
+            shutdown: Arc::new(AtomicBool::new(false)),
         }))
     }
 
     /// Current provider lifecycle state
     pub fn state(&self) -> ProviderState {
         self.state.get()
+    }
+
+    /// Flat read-only view of the held snapshot for host wrappers. Returns a
+    /// zero/empty view when no snapshot is loaded so the host can render a
+    /// not-ready state without a separate optionality check. This is a pure sync
+    /// read that takes and releases the snapshot lock without crossing an await
+    pub fn snapshot_view(&self) -> SnapshotView {
+        let snap = self.snapshot.lock().clone();
+        match snap {
+            Some(snap) => SnapshotView {
+                version: snap.version,
+                flag_count: snap.flags.len() as u32,
+                environment: snap.environment.slug.clone(),
+            },
+            None => SnapshotView::default(),
+        }
     }
 
     /// Host-driven poll trigger. The platform loop calls this on its timer and
@@ -323,6 +320,7 @@ impl CoproductClient {
             sdk_context: self.sdk_context.clone(),
             consecutive_failures: self.consecutive_failures.clone(),
             retry_budget: self.retry_budget,
+            shutdown: self.shutdown.clone(),
             on_snapshot_swapped: Some(self.clone() as Arc<dyn SnapshotSwapHook + Send + Sync>),
         };
         // The free poll path mutates provider state through the shared cell, so a
@@ -336,10 +334,6 @@ impl CoproductClient {
             self.events.fire(event).await;
         }
         outcome
-    }
-
-    pub fn was_loaded_from_cache(&self) -> bool {
-        self.loaded_from_cache
     }
 
     pub fn observe_key(
@@ -362,6 +356,29 @@ impl CoproductClient {
             return Arc::new(Subscription::cancelled_stub(keys));
         }
         self.observers.register(keys, observer)
+    }
+
+    /// Evaluate the current value of each key against the loaded snapshot and
+    /// context, the same way the typed getters and the observer fanout do (all
+    /// three go through `context_with_sdk_layer`). Hosts use this to seed a
+    /// multi-key observation so it is populated at subscription rather than only
+    /// after a key next changes. Keys with no flag in the snapshot are omitted,
+    /// with no snapshot the result is empty, and once shut down it is empty
+    pub fn current_flag_values(&self, keys: Vec<String>) -> HashMap<String, FlagValue> {
+        if self.is_shutdown() {
+            return HashMap::new();
+        }
+        let Some(snapshot) = self.current_snapshot() else {
+            return HashMap::new();
+        };
+        let ctx = self.build_evaluation_context();
+        let mut values = HashMap::with_capacity(keys.len());
+        for key in keys {
+            if let Some(value) = crate::eval::evaluate_for_observer(snapshot.as_ref(), &key, &ctx) {
+                values.insert(key, value);
+            }
+        }
+        values
     }
 
     #[doc(hidden)]
@@ -451,7 +468,7 @@ impl CoproductClient {
                 && let Ok(bytes) =
                     serde_json::to_vec(&serde_json::json!({ "snapshot": snap.to_wire() }))
             {
-                let _ = crate::cache::write_snapshot(&self.cache_dir, &bytes);
+                let _ = crate::cache::write_snapshot(&self.cache_dir, &self.sdk_key, &bytes);
             }
         }
         // Drain registries so dropped subscription, handler, and hook handles no
@@ -471,16 +488,6 @@ impl CoproductClient {
     pub fn is_shutdown_for_test(&self) -> bool {
         self.is_shutdown()
     }
-
-    pub async fn simulate_change(&self, key: String, new_value: bool) {
-        // Snapshot the matching observers under the lock, then await each
-        // outside it so no lock is held across the callback boundary
-        let observers = self.observers.observers_for(&key);
-
-        for observer in observers {
-            observer.on_change(&key, &FlagValue::Bool(new_value)).await;
-        }
-    }
 }
 
 impl CoproductClient {
@@ -491,7 +498,6 @@ impl CoproductClient {
         Arc::new(CoproductClient {
             observers: ObserverRegistry::new(),
             events: EventRegistry::new(),
-            loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(None)),
             hooks: HookRegistry::new(),
             evaluation_events: EvaluationEventDispatcher::new(),
@@ -507,7 +513,7 @@ impl CoproductClient {
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
             retry_budget: 5,
-            shutdown: AtomicBool::new(false),
+            shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -522,7 +528,7 @@ impl CoproductClient {
         }
         // The identifier is deliberately not persisted: the stored anonymous-id
         // slot is reserved for the auto-anonymous identity and persists across
-        // cold starts, so writing a user-supplied id there would surface it as a
+        // cold starts, so writing a caller-supplied id there would surface it as a
         // prior anonymous id on the next start. Identified state is rebuilt by
         // the application calling identify again after a restart
         //
@@ -530,14 +536,14 @@ impl CoproductClient {
         // diff observed-flag values across the swap. Drop the guard before any
         // await so the identity lock is never held across the callback boundary.
         // A rejected mutation returns before any lifecycle event fires
-        let prev_context = self.identity.lock().context().clone();
+        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         {
             let mut guard = self.identity.lock();
             guard.identify(user_id, attributes, link_anonymous)?;
         }
         self.events.fire(LifecycleEvent::Reconciling).await;
         let snap = self.snapshot.lock().clone();
-        let next_context = self.identity.lock().context().clone();
+        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         if let Some(snap) = snap {
             crate::fanout::fire_changed_for_context_swap(
                 &self.observers,
@@ -555,7 +561,7 @@ impl CoproductClient {
         if self.is_shutdown() {
             return;
         }
-        let prev_context = self.identity.lock().context().clone();
+        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         let anonymous_id = {
             let mut guard = self.identity.lock();
             guard.sign_out();
@@ -563,7 +569,7 @@ impl CoproductClient {
         };
         self.events.fire(LifecycleEvent::Reconciling).await;
         let snap = self.snapshot.lock().clone();
-        let next_context = self.identity.lock().context().clone();
+        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         if let Some(snap) = snap {
             crate::fanout::fire_changed_for_context_swap(
                 &self.observers,
@@ -591,14 +597,14 @@ impl CoproductClient {
         // The targeting key here is caller-supplied and must not be written to
         // the anonymous-id slot. A rejected mutation returns before any lifecycle
         // event fires
-        let prev_context = self.identity.lock().context().clone();
+        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         {
             let mut guard = self.identity.lock();
             guard.set_context(targeting_key, attributes)?;
         }
         self.events.fire(LifecycleEvent::Reconciling).await;
         let snap = self.snapshot.lock().clone();
-        let next_context = self.identity.lock().context().clone();
+        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         if let Some(snap) = snap {
             crate::fanout::fire_changed_for_context_swap(
                 &self.observers,
@@ -616,11 +622,11 @@ impl CoproductClient {
         if self.is_shutdown() {
             return;
         }
-        let prev_context = self.identity.lock().context().clone();
+        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         self.identity.lock().update_attributes(attributes);
         self.events.fire(LifecycleEvent::Reconciling).await;
         let snap = self.snapshot.lock().clone();
-        let next_context = self.identity.lock().context().clone();
+        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         if let Some(snap) = snap {
             crate::fanout::fire_changed_for_context_swap(
                 &self.observers,
@@ -637,11 +643,11 @@ impl CoproductClient {
         if self.is_shutdown() {
             return;
         }
-        let prev_context = self.identity.lock().context().clone();
+        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         self.identity.lock().remove_attributes(names);
         self.events.fire(LifecycleEvent::Reconciling).await;
         let snap = self.snapshot.lock().clone();
-        let next_context = self.identity.lock().context().clone();
+        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         if let Some(snap) = snap {
             crate::fanout::fire_changed_for_context_swap(
                 &self.observers,
@@ -675,7 +681,7 @@ impl CoproductClient {
 }
 
 /// Internal pipeline output carrying the pipeline's `EvaluationReason`. Used for
-/// white-box pipeline testing. The customer-facing typed-detail surface is
+/// white-box pipeline testing. The host-facing typed-detail surface is
 /// `details::FlagEvaluationDetails<T>`, returned by the `*_details` getters
 #[derive(Debug, Clone)]
 pub struct EvaluationOutcome<T> {
@@ -694,7 +700,6 @@ impl CoproductClient {
         Arc::new(CoproductClient {
             observers: ObserverRegistry::new(),
             events: EventRegistry::new(),
-            loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(Some(Arc::new(snapshot)))),
             hooks: HookRegistry::new(),
             evaluation_events: EvaluationEventDispatcher::new(),
@@ -710,7 +715,7 @@ impl CoproductClient {
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
             retry_budget: 5,
-            shutdown: AtomicBool::new(false),
+            shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -816,7 +821,6 @@ impl CoproductClient {
         Arc::new(Self {
             observers: ObserverRegistry::new(),
             events: EventRegistry::new(),
-            loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(Some(Arc::new(indexed)))),
             hooks: HookRegistry::new(),
             evaluation_events: EvaluationEventDispatcher::new(),
@@ -832,7 +836,7 @@ impl CoproductClient {
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
             retry_budget: 5,
-            shutdown: AtomicBool::new(false),
+            shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -842,7 +846,6 @@ impl CoproductClient {
         Arc::new(Self {
             observers: ObserverRegistry::new(),
             events: EventRegistry::new(),
-            loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(None)),
             hooks: HookRegistry::new(),
             evaluation_events: EvaluationEventDispatcher::new(),
@@ -858,7 +861,7 @@ impl CoproductClient {
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
             retry_budget: 5,
-            shutdown: AtomicBool::new(false),
+            shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -866,13 +869,26 @@ impl CoproductClient {
         self.snapshot.lock().clone()
     }
 
+    /// Merge the server-derived SDK context layer onto a base evaluation context.
+    /// The typed getters and the observer fanout both go through this so an
+    /// observed value always matches what a getter returns for the same key: the
+    /// SDK context carries edge attributes (country, timezone, and so on) that a
+    /// flag's targeting can reference, and leaving it out of the fanout would make
+    /// a delivered value disagree with `get_bool` for such a flag
+    fn context_with_sdk_layer(&self, mut base: EvaluationContext) -> EvaluationContext {
+        base.replace_sdk_context(self.sdk_context.lock().clone());
+        base
+    }
+
     /// Evaluation context for the current identity with the server-derived SDK
-    /// context layer merged in. The typed getters call this so the merge has a
-    /// single seam
+    /// context layer merged in
     pub(crate) fn build_evaluation_context(&self) -> EvaluationContext {
-        let mut ctx = self.identity.lock().context().clone();
-        ctx.replace_sdk_context(self.sdk_context.lock().clone());
-        ctx
+        self.context_with_sdk_layer(self.identity.lock().context().clone())
+    }
+
+    #[doc(hidden)]
+    pub fn set_sdk_context_for_test(&self, sdk_context: HashMap<String, AttributeValue>) {
+        *self.sdk_context.lock() = sdk_context;
     }
 
     /// Build a resolved-evaluation event and hand it to the dispatcher. The
@@ -1374,7 +1390,7 @@ impl SnapshotSwapHook for CoproductClient {
     async fn on_swap(&self, prev: Option<&Arc<IndexedSnapshot>>, next: &Arc<IndexedSnapshot>) {
         // Clone the context out before awaiting so the identity lock is not held
         // across the observer callbacks
-        let context = self.identity.lock().context().clone();
+        let context = self.context_with_sdk_layer(self.identity.lock().context().clone());
         crate::fanout::fire_changed_for_swap(
             &self.observers,
             prev.map(|s| s.as_ref()),
@@ -1420,7 +1436,6 @@ impl CoproductClient {
         Arc::new(Self {
             observers: ObserverRegistry::new(),
             events: EventRegistry::new(),
-            loaded_from_cache: false,
             snapshot: Arc::new(Mutex::new(Some(Arc::new(snapshot)))),
             hooks: HookRegistry::new(),
             evaluation_events: EvaluationEventDispatcher::new(),
@@ -1436,7 +1451,7 @@ impl CoproductClient {
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
             retry_budget: 5,
-            shutdown: AtomicBool::new(false),
+            shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
 

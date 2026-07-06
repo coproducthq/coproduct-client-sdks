@@ -2,7 +2,6 @@ package app.coproduct.consumer.android
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import app.coproduct.Coproduct
 import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -36,11 +35,11 @@ class BucketingVectorsTest {
     }
 
     @Test
-    fun computeBucketMatchesGoldenVectors() {
+    fun bucketForVectorsMatchesGoldenVectors() {
         val vectors = loadVectors()
         assertEquals("expected 4 vectors in fixture", 4, vectors.size)
         vectors.forEachIndexed { i, v ->
-            val actual = Coproduct.computeBucket(v.ruleId, v.targetingKey, v.suffix)
+            val actual = uniffi.coproduct_ffi_uniffi.bucketForVectors(v.ruleId, v.targetingKey, v.suffix)
             assertEquals(
                 "vector[$i] ruleId=${v.ruleId} targetingKey=${v.targetingKey} suffix=${v.suffix}",
                 v.expectedBucket,

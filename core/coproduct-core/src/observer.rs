@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use serde_json::Value as JsonValue;
 
 /// Typed flag value crossing the observer callback boundary. The wrapper
-/// preserves the originating typed-getter shape so customers receive Bool,
+/// preserves the originating typed-getter shape so callers receive Bool,
 /// String, Int, Number, or JSON without runtime casting
 #[derive(Debug, Clone, PartialEq)]
 pub enum FlagValue {
@@ -17,7 +17,7 @@ pub enum FlagValue {
     Json(JsonValue),
 }
 
-/// Customer-facing observer. The core fans out changes to every registered
+/// Host-facing observer. The core fans out changes to every registered
 /// observer for the keys it subscribed to
 #[async_trait::async_trait]
 pub trait TypedFlagObserver: Send + Sync + std::fmt::Debug {

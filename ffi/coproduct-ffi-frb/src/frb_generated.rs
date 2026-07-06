@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -319705962;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -885634815;
 
 // Section: executor
 
@@ -47,14 +47,14 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__compute_bucket_impl(
+fn wire__crate__api__bucket_for_vectors_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "compute_bucket",
+            debug_name: "bucket_for_vectors",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -73,7 +73,7 @@ fn wire__crate__api__compute_bucket_impl(
             let api_suffix = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
-                let output_ok = Result::<_, ()>::Ok(crate::api::compute_bucket(
+                let output_ok = Result::<_, ()>::Ok(crate::api::bucket_for_vectors(
                     api_rule_id,
                     api_targeting_key,
                     api_suffix,
@@ -557,68 +557,6 @@ fn wire__crate__api__sign_out_impl(
         },
     )
 }
-fn wire__crate__api__simulate_change_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulate_change",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_client = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
-            >>::sse_decode(&mut deserializer);
-            let api_key = <String>::sse_decode(&mut deserializer);
-            let api_new_value = <bool>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, ()>(
-                    (move || async move {
-                        let mut api_client_guard = None;
-                        let decode_indices_ =
-                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
-                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                    &api_client,
-                                    0,
-                                    false,
-                                )],
-                            );
-                        for i in decode_indices_ {
-                            match i {
-                                0 => {
-                                    api_client_guard =
-                                        Some(api_client.lockable_decode_async_ref().await)
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-                        let api_client_guard = api_client_guard.unwrap();
-                        let output_ok = Result::<_, ()>::Ok({
-                            crate::api::simulate_change(&*api_client_guard, api_key, api_new_value)
-                                .await;
-                        })?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__update_attributes_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -679,55 +617,6 @@ fn wire__crate__api__update_attributes_impl(
                     .await,
                 )
             }
-        },
-    )
-}
-fn wire__crate__api__was_loaded_from_cache_impl(
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "was_loaded_from_cache",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_client = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            transform_result_sse::<_, ()>((move || {
-                let mut api_client_guard = None;
-                let decode_indices_ =
-                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                            &api_client,
-                            0,
-                            false,
-                        ),
-                    ]);
-                for i in decode_indices_ {
-                    match i {
-                        0 => api_client_guard = Some(api_client.lockable_decode_sync_ref()),
-                        _ => unreachable!(),
-                    }
-                }
-                let api_client_guard = api_client_guard.unwrap();
-                let output_ok =
-                    Result::<_, ()>::Ok(crate::api::was_loaded_from_cache(&*api_client_guard))?;
-                Ok(output_ok)
-            })())
         },
     )
 }
@@ -1258,8 +1147,7 @@ fn pde_ffi_dispatcher_primary_impl(
         7 => wire__crate__api__remove_attributes_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__set_context_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__simulate_change_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1272,9 +1160,8 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__compute_bucket_impl(ptr, rust_vec_len, data_len),
+        1 => wire__crate__api__bucket_for_vectors_impl(ptr, rust_vec_len, data_len),
         2 => wire__crate__api__get_bool_impl(ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__was_loaded_from_cache_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

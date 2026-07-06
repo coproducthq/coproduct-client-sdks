@@ -17,7 +17,7 @@ fn unauthorized_is_distinct_from_server_error() {
 #[test]
 fn other_carries_host_supplied_message() {
     let err = TransportError::Other {
-        message: "TLS handshake aborted".into(),
+        reason: "TLS handshake aborted".into(),
     };
     let rendered = format!("{err}");
     assert!(rendered.contains("TLS handshake aborted"));

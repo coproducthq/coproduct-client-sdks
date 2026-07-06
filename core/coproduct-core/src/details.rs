@@ -14,7 +14,7 @@ pub struct FlagEvaluationDetails<T> {
     pub flag_key: String,
 }
 
-/// OpenFeature reason vocabulary for the customer-facing surface
+/// OpenFeature reason vocabulary for the host-facing surface
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reason {
     Static,

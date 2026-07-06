@@ -61,6 +61,7 @@ fn ctx_with(
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: Arc::new(Mutex::new(0)),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     }
 }
@@ -71,7 +72,7 @@ fn orphan_etag_without_held_snapshot_omits_if_none_match_and_rehydrates() {
     let cache_dir = dir.path().to_string_lossy().into_owned();
     // An ETag lingers on disk but no snapshot is held, modeling a failed or
     // schema-rejected hydrate that left the ETag file behind
-    cache::write_etag(&cache_dir, "\"orphan\"").unwrap();
+    cache::write_etag(&cache_dir, "cpk_mob_test", "\"orphan\"").unwrap();
 
     let transport = Arc::new(RecordingOk200 {
         captured: Mutex::new(Vec::new()),
@@ -102,7 +103,7 @@ fn orphan_etag_without_held_snapshot_omits_if_none_match_and_rehydrates() {
 fn orphan_304_without_held_snapshot_does_not_claim_ready() {
     let dir = TempDir::new().unwrap();
     let cache_dir = dir.path().to_string_lossy().into_owned();
-    cache::write_etag(&cache_dir, "\"orphan\"").unwrap();
+    cache::write_etag(&cache_dir, "cpk_mob_test", "\"orphan\"").unwrap();
 
     let ctx = ctx_with(
         Arc::new(Always304),

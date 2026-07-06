@@ -119,8 +119,8 @@ pub enum TransportError {
     #[error("malformed response body")]
     MalformedResponse,
 
-    #[error("transport error: {message}")]
-    Other { message: String },
+    #[error("transport error: {reason}")]
+    Other { reason: String },
 }
 
 /// Secure-store failure modes. Per spec, secure-store failures are

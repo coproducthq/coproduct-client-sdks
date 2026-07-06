@@ -46,8 +46,9 @@ fn poll_401_transitions_to_fatal_drops_snapshot_and_clears_disk_cache() {
     // Seed the persisted snapshot and ETag so we can verify they get
     // cleared. Without this seeding the test would pass vacuously: a
     // never-written file is "absent" with or without the clear call
-    coproduct_core::cache::write_snapshot(&cache_dir, b"prior-snapshot-bytes").unwrap();
-    coproduct_core::cache::write_etag(&cache_dir, "\"prior-etag\"").unwrap();
+    coproduct_core::cache::write_snapshot(&cache_dir, "cpk_mob_revoked", b"prior-snapshot-bytes")
+        .unwrap();
+    coproduct_core::cache::write_etag(&cache_dir, "cpk_mob_revoked", "\"prior-etag\"").unwrap();
 
     let ctx = PollContext {
         sdk_key: "cpk_mob_revoked".to_string(),
@@ -61,6 +62,7 @@ fn poll_401_transitions_to_fatal_drops_snapshot_and_clears_disk_cache() {
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: Arc::new(Mutex::new(0)),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
 
@@ -75,13 +77,13 @@ fn poll_401_transitions_to_fatal_drops_snapshot_and_clears_disk_cache() {
     // Persisted snapshot and ETag must both be cleared. Otherwise the
     // next cold start would re-serve the revoked snapshot from disk
     assert!(
-        coproduct_core::cache::read_snapshot(&cache_dir)
+        coproduct_core::cache::read_snapshot(&cache_dir, "cpk_mob_revoked")
             .unwrap()
             .is_none(),
         "persisted snapshot must be cleared on 401",
     );
     assert!(
-        coproduct_core::cache::read_etag(&cache_dir)
+        coproduct_core::cache::read_etag(&cache_dir, "cpk_mob_revoked")
             .unwrap()
             .is_none(),
         "persisted ETag must be cleared on 401",

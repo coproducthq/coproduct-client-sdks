@@ -4,12 +4,13 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
+import uniffi.coproduct_ffi_uniffi.FfiConfig
 import uniffi.coproduct_ffi_uniffi.FlagObserver
+import uniffi.coproduct_ffi_uniffi.FlagValue
 import uniffi.coproduct_ffi_uniffi.HostSecureStore
 import uniffi.coproduct_ffi_uniffi.HostTransport
 import uniffi.coproduct_ffi_uniffi.HttpResponse
 import uniffi.coproduct_ffi_uniffi.Subscription
-import uniffi.coproduct_ffi_uniffi.computeBucket as ffiComputeBucket
 import uniffi.coproduct_ffi_uniffi.initialize
 
 // Validation transport used by the current convenience initializer. The public
@@ -68,6 +69,9 @@ object MockSecureStore {
 }
 
 object Coproduct {
+    // User agent identifying this platform wrapper to the Coproduct backend
+    private const val USER_AGENT = "coproduct-android/0.0.1-dev"
+
     // Future public initializer shape once host Transport / SecureStore
     // interfaces are exposed by the Android wrapper.
     //
@@ -82,17 +86,19 @@ object Coproduct {
         val cacheDir = context.cacheDir.absolutePath
         val nativeClient = initialize(
             sdkKey = sdkKey,
+            userAgent = USER_AGENT,
             cacheDir = cacheDir,
+            config = FfiConfig(
+                pollIntervalSecs = 60u,
+                startupTimeoutSecs = 3u,
+                anonymousId = null,
+                endpoint = null,
+                pollOnForeground = true,
+            ),
             transport = AndroidHostTransport,
             secureStore = AndroidHostSecureStore,
         )
         return CoproductClient(nativeClient)
-    }
-
-    // Temporary vector-test hook. Customer-facing bucket access, if added,
-    // belongs on flag evaluation details.
-    fun computeBucket(ruleId: String, targetingKey: String, suffix: String): UInt {
-        return ffiComputeBucket(ruleId, targetingKey, suffix)
     }
 }
 
@@ -111,24 +117,14 @@ class CoproductClient internal constructor(
         handler: (Boolean) -> Unit,
     ): Cancellable {
         val observer = object : FlagObserver {
-            override suspend fun onChangeBool(value: Boolean) {
+            override suspend fun onChange(key: String, value: FlagValue) {
+                val boolValue = (value as? FlagValue.Bool)?.value ?: return
                 withContext(Dispatchers.Main.immediate) {
-                    handler(value)
+                    handler(boolValue)
                 }
             }
         }
-        return Cancellable(inner.observe(key, observer))
-    }
-
-    // Temporary cache-status probe used by validation apps.
-    fun wasLoadedFromCache(): Boolean {
-        return inner.wasLoadedFromCache()
-    }
-
-    // Temporary validation hook used until polling-driven snapshot updates are
-    // available.
-    suspend fun simulateChange(key: String, newValue: Boolean) {
-        inner.simulateChange(key, newValue)
+        return Cancellable(inner.observeKey(key, observer))
     }
 }
 

@@ -3,13 +3,13 @@ use tracing::field::{Field, Visit};
 use tracing::{Event, Subscriber};
 use tracing_subscriber::layer::{Context, Layer};
 
-/// User-supplied logger. Each SDK instance holds its own. Multiple instances
+/// Caller-supplied logger. Each SDK instance holds its own. Multiple instances
 /// in the same process route to different loggers
 pub trait Logger: Send + Sync {
     fn log(&self, level: &str, message: &str);
 }
 
-/// No-op logger used when the customer does not supply one
+/// No-op logger used when the host does not supply one
 #[derive(Debug, Default)]
 pub struct NoopLogger;
 

@@ -2,6 +2,7 @@ uniffi::setup_scaffolding!();
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
 use coproduct_core::context::{
@@ -82,8 +83,8 @@ pub enum TransportError {
     ServerError { status: u16 },
     #[error("malformed response body")]
     MalformedResponse,
-    #[error("transport error: {message}")]
-    Other { message: String },
+    #[error("transport error: {reason}")]
+    Other { reason: String },
 }
 
 impl From<coproduct_core::error::TransportError> for TransportError {
@@ -95,7 +96,7 @@ impl From<coproduct_core::error::TransportError> for TransportError {
             C::Unauthorized => Self::Unauthorized,
             C::ServerError { status } => Self::ServerError { status },
             C::MalformedResponse => Self::MalformedResponse,
-            C::Other { message } => Self::Other { message },
+            C::Other { reason } => Self::Other { reason },
         }
     }
 }
@@ -133,7 +134,7 @@ pub enum ObserverError {
 impl From<uniffi::UnexpectedUniFFICallbackError> for TransportError {
     fn from(error: uniffi::UnexpectedUniFFICallbackError) -> Self {
         Self::Other {
-            message: format!("{error:?}"),
+            reason: format!("{error:?}"),
         }
     }
 }
@@ -324,21 +325,56 @@ impl Subscription {
     }
 }
 
+/// Flat config the Swift wrapper assembles from CoproductConfig. Only the
+/// scalar and option fields that cross the FFI boundary live here. The host
+/// trait objects (transport, secure store, listener) are passed separately
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct FfiConfig {
+    pub poll_interval_secs: u64,
+    pub startup_timeout_secs: u64,
+    pub anonymous_id: Option<String>,
+    pub endpoint: Option<String>,
+    pub poll_on_foreground: bool,
+}
+
+// Construct the client. This does not poll the network: it returns once the
+// client is built from cache, so the provider starts Ready from a cached
+// snapshot or NotReady otherwise, and reads evaluate against cache or defaults.
+// Driving polling, including the first poll, is the host wrapper's job. A
+// wrapper that wants fresh values at launch must call poll_now after this
+// returns and bound any readiness wait with its own startup timeout.
+//
+// This is a plain comment, not a doc comment: UniFFI folds docstrings into the
+// API checksum, so a /// here would change the checksum and force a coordinated
+// regeneration of every platform's committed bindings. The developer-facing
+// contract lives in AGENTS.md and the core initialize doc instead.
 #[uniffi::export]
 pub async fn initialize(
     sdk_key: String,
+    user_agent: String,
     cache_dir: String,
+    config: FfiConfig,
     transport: Arc<dyn HostTransport>,
     secure_store: Arc<dyn HostSecureStore>,
 ) -> Result<Arc<CoproductClient>, InitError> {
     let transport = Arc::new(TransportAdapter { host: transport });
     let secure_store = Arc::new(SecureStoreAdapter { host: secure_store });
-    // The user agent and config are defaulted at this layer pending the full
-    // host-config surface
+    // The host trait fields stay None here because transport and secure store
+    // cross the boundary as the adapter Arcs below, not through the config record
+    let core_config = coproduct_core::config::CoproductConfig {
+        poll_interval: Some(Duration::from_secs(config.poll_interval_secs)),
+        startup_timeout: Some(Duration::from_secs(config.startup_timeout_secs)),
+        anonymous_id: config.anonymous_id,
+        endpoint: config.endpoint,
+        poll_on_foreground: Some(config.poll_on_foreground),
+        ..Default::default()
+    };
+    // The wrapper supplies the user agent so each platform identifies itself as
+    // `coproduct-<platform>/<version>` on every snapshot fetch
     let inner = CoreCoproductClient::initialize(
         sdk_key,
-        "coproduct-uniffi".to_string(),
-        coproduct_core::config::CoproductConfig::default(),
+        user_agent,
+        core_config,
         cache_dir,
         transport,
         secure_store,
@@ -488,7 +524,7 @@ impl CoproductClient {
 
     /// Returns the JSON flag value as a JSON-encoded string. The platform
     /// wrappers decode it into the native type. `default_value_json` is the
-    /// customer's JSON-encoded default, where `"null"` is a valid fallback
+    /// caller's JSON-encoded default, where `"null"` is a valid fallback
     pub fn get_json(&self, key: String, default_value_json: String) -> String {
         let default = serde_json::from_str(&default_value_json).unwrap_or(serde_json::Value::Null);
         self.inner.get_json(key, default).to_string()
@@ -543,12 +579,14 @@ impl CoproductClient {
         Arc::new(Subscription { inner })
     }
 
-    pub fn was_loaded_from_cache(&self) -> bool {
-        self.inner.was_loaded_from_cache()
-    }
-
-    pub async fn simulate_change(&self, key: String, new_value: bool) {
-        self.inner.simulate_change(key, new_value).await;
+    /// Current value of each key, for seeding a multi-key observation so it is
+    /// populated at subscription. Keys absent from the snapshot are omitted
+    pub fn current_flag_values(&self, keys: Vec<String>) -> HashMap<String, FlagValue> {
+        self.inner
+            .current_flag_values(keys)
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect()
     }
 
     pub async fn shutdown(&self) {
@@ -614,6 +652,26 @@ impl CoproductClient {
     }
 }
 
+/// Flat read-only view of the held snapshot crossing the binding boundary.
+/// Mirrors the core projection so the host can render configuration facts
+/// without depending on core types directly
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct CoproductSnapshot {
+    pub version: u64,
+    pub flag_count: u32,
+    pub environment: String,
+}
+
+impl From<coproduct_core::client::SnapshotView> for CoproductSnapshot {
+    fn from(view: coproduct_core::client::SnapshotView) -> Self {
+        CoproductSnapshot {
+            version: view.version,
+            flag_count: view.flag_count,
+            environment: view.environment,
+        }
+    }
+}
+
 /// Provider-state accessor and single-shot poll entry point. The host scheduler
 /// drives cadence and reads `state` to render readiness
 #[uniffi::export]
@@ -624,6 +682,10 @@ impl CoproductClient {
 
     pub async fn poll_now(&self) -> PollOutcome {
         self.inner.poll_now().await.into()
+    }
+
+    pub fn snapshot_view(&self) -> CoproductSnapshot {
+        CoproductSnapshot::from(self.inner.snapshot_view())
     }
 }
 
@@ -885,8 +947,10 @@ impl CoproductClient {
     }
 }
 
+/// Internal conformance accessor exposing the canonical bucketing primitive to
+/// the cross-evaluator conformance harness. Not part of the public SDK surface
 #[uniffi::export]
-pub fn compute_bucket(rule_id: String, targeting_key: String, suffix: String) -> u32 {
+pub fn bucket_for_vectors(rule_id: String, targeting_key: String, suffix: String) -> u32 {
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
 }
 
@@ -1039,7 +1103,7 @@ fn to_core_transport_error(error: TransportError) -> core_transport::TransportEr
             core_transport::TransportError::ServerError { status }
         }
         TransportError::MalformedResponse => core_transport::TransportError::MalformedResponse,
-        TransportError::Other { message } => core_transport::TransportError::Other { message },
+        TransportError::Other { reason } => core_transport::TransportError::Other { reason },
     }
 }
 

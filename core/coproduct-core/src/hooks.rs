@@ -85,7 +85,7 @@ impl HookContext {
     }
 }
 
-/// Customer-facing evaluation hook. Fired synchronously around each typed-getter
+/// Host-facing evaluation hook. Fired synchronously around each typed-getter
 /// call so a hook observes a single bracketed evaluation. The callback is sync
 /// because the getters are sync: an async hook fired from a sync path could not
 /// be awaited and would be dropped without running

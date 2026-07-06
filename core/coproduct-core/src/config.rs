@@ -16,7 +16,7 @@ pub struct CoproductConfig {
     pub secure_store: Option<Arc<dyn std::any::Any + Send + Sync>>,
     pub endpoint: Option<String>,
     pub poll_on_foreground: Option<bool>,
-    /// Optional user-supplied callback that observes every flag evaluation
+    /// Optional caller-supplied callback that observes every flag evaluation
     pub evaluation_listener: Option<Arc<dyn std::any::Any + Send + Sync>>,
     /// Per-request timeout. `None` delegates to the platform transport's own default
     pub request_timeout: Option<Duration>,

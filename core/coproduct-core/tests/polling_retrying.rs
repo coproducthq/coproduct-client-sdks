@@ -41,7 +41,7 @@ struct DeadTransport;
 impl Transport for DeadTransport {
     async fn request(&self, _req: HttpRequest) -> Result<HttpResponse, TransportError> {
         Err(TransportError::Other {
-            message: "dns failure".to_string(),
+            reason: "dns failure".to_string(),
         })
     }
 }
@@ -67,6 +67,7 @@ fn fresh_ctx(
         sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
         consecutive_failures: failures.clone(),
         retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
     };
     (ctx, st, failures)

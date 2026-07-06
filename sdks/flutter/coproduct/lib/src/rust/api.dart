@@ -10,7 +10,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `to_core_header`, `to_core_response`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ObserverAdapter`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `on_change_bool`, `read`, `request`, `write`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `on_change`, `read`, `request`, `write`
 
 Future<CoproductClientHandle> initialize({
   required String sdkKey,
@@ -36,9 +36,6 @@ bool getBool({
   defaultValue: defaultValue,
 );
 
-bool wasLoadedFromCache({required CoproductClientHandle client}) =>
-    RustLib.instance.api.crateApiWasLoadedFromCache(client: client);
-
 Future<SubscriptionHandle> observe({
   required CoproductClientHandle client,
   required String key,
@@ -47,16 +44,6 @@ Future<SubscriptionHandle> observe({
   client: client,
   key: key,
   onChange: onChange,
-);
-
-Future<void> simulateChange({
-  required CoproductClientHandle client,
-  required String key,
-  required bool newValue,
-}) => RustLib.instance.api.crateApiSimulateChange(
-  client: client,
-  key: key,
-  newValue: newValue,
 );
 
 Future<void> identify({
@@ -101,11 +88,11 @@ Future<void> removeAttributes({
 Future<String?> previousAnonymousId({required CoproductClientHandle handle}) =>
     RustLib.instance.api.crateApiPreviousAnonymousId(handle: handle);
 
-int computeBucket({
+int bucketForVectors({
   required String ruleId,
   required String targetingKey,
   required String suffix,
-}) => RustLib.instance.api.crateApiComputeBucket(
+}) => RustLib.instance.api.crateApiBucketForVectors(
   ruleId: ruleId,
   targetingKey: targetingKey,
   suffix: suffix,

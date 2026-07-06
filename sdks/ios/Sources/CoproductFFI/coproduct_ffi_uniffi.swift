@@ -594,6 +594,12 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func addHandler(event: LifecycleEvent, handler: LifecycleHandler)  -> HandlerHandle
     
+    /**
+     * Current value of each key, for seeding a multi-key observation so it is
+     * populated at subscription. Keys absent from the snapshot are omitted
+     */
+    func currentFlagValues(keys: [String])  -> [String: FlagValue]
+    
     func getBool(key: String, defaultValue: Bool)  -> Bool
     
     func getBoolDetails(key: String, defaultValue: Bool)  -> FlagEvaluationDetailsBool
@@ -605,7 +611,7 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     /**
      * Returns the JSON flag value as a JSON-encoded string. The platform
      * wrappers decode it into the native type. `default_value_json` is the
-     * customer's JSON-encoded default, where `"null"` is a valid fallback
+     * caller's JSON-encoded default, where `"null"` is a valid fallback
      */
     func getJson(key: String, defaultValueJson: String)  -> String
     
@@ -639,13 +645,11 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func signOut() async 
     
-    func simulateChange(key: String, newValue: Bool) async 
+    func snapshotView()  -> CoproductSnapshot
     
     func state()  -> ProviderState
     
     func updateAttributes(attributes: [String: ContextValue]) async 
-    
-    func wasLoadedFromCache()  -> Bool
     
 }
 open class CoproductClient: CoproductClientProtocol, @unchecked Sendable {
@@ -720,6 +724,19 @@ open func addHandler(event: LifecycleEvent, handler: LifecycleHandler) -> Handle
 })
 }
     
+    /**
+     * Current value of each key, for seeding a multi-key observation so it is
+     * populated at subscription. Keys absent from the snapshot are omitted
+     */
+open func currentFlagValues(keys: [String]) -> [String: FlagValue]  {
+    return try!  FfiConverterDictionaryStringTypeFlagValue.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(keys),$0
+    )
+})
+}
+    
 open func getBool(key: String, defaultValue: Bool) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(
@@ -763,7 +780,7 @@ open func getIntDetails(key: String, defaultValue: Int64) -> FlagEvaluationDetai
     /**
      * Returns the JSON flag value as a JSON-encoded string. The platform
      * wrappers decode it into the native type. `default_value_json` is the
-     * customer's JSON-encoded default, where `"null"` is a valid fallback
+     * caller's JSON-encoded default, where `"null"` is a valid fallback
      */
 open func getJson(key: String, defaultValueJson: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -967,22 +984,12 @@ open func signOut()async   {
         )
 }
     
-open func simulateChange(key: String, newValue: Bool)async   {
-    return
-        try!  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_simulate_change(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(key),FfiConverterBool.lower(newValue)
-                )
-            },
-            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
-            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
-            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
-            liftFunc: { $0 },
-            errorHandler: nil
-            
-        )
+open func snapshotView() -> CoproductSnapshot  {
+    return try!  FfiConverterTypeCoproductSnapshot_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_snapshot_view(
+            self.uniffiCloneHandle(),$0
+    )
+})
 }
     
 open func state() -> ProviderState  {
@@ -1009,14 +1016,6 @@ open func updateAttributes(attributes: [String: ContextValue])async   {
             errorHandler: nil
             
         )
-}
-    
-open func wasLoadedFromCache() -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_was_loaded_from_cache(
-            self.uniffiCloneHandle(),$0
-    )
-})
 }
     
 
@@ -3006,6 +3005,69 @@ public func FfiConverterTypeSubscription_lower(_ value: Subscription) -> UInt64 
 
 
 /**
+ * Flat read-only view of the held snapshot crossing the binding boundary.
+ * Mirrors the core projection so the host can render configuration facts
+ * without depending on core types directly
+ */
+public struct CoproductSnapshot: Equatable, Hashable {
+    public var version: UInt64
+    public var flagCount: UInt32
+    public var environment: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(version: UInt64, flagCount: UInt32, environment: String) {
+        self.version = version
+        self.flagCount = flagCount
+        self.environment = environment
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CoproductSnapshot: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoproductSnapshot: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoproductSnapshot {
+        return
+            try CoproductSnapshot(
+                version: FfiConverterUInt64.read(from: &buf), 
+                flagCount: FfiConverterUInt32.read(from: &buf), 
+                environment: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CoproductSnapshot, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.version, into: &buf)
+        FfiConverterUInt32.write(value.flagCount, into: &buf)
+        FfiConverterString.write(value.environment, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoproductSnapshot_lift(_ buf: RustBuffer) throws -> CoproductSnapshot {
+    return try FfiConverterTypeCoproductSnapshot.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoproductSnapshot_lower(_ value: CoproductSnapshot) -> RustBuffer {
+    return FfiConverterTypeCoproductSnapshot.lower(value)
+}
+
+
+/**
  * One flag evaluation rendered as an analytics record. The evaluation time is
  * serialized as an RFC 3339 timestamp string because the binding layer has no
  * native date type
@@ -3089,6 +3151,77 @@ public func FfiConverterTypeEvaluationEvent_lift(_ buf: RustBuffer) throws -> Ev
 #endif
 public func FfiConverterTypeEvaluationEvent_lower(_ value: EvaluationEvent) -> RustBuffer {
     return FfiConverterTypeEvaluationEvent.lower(value)
+}
+
+
+/**
+ * Flat config the Swift wrapper assembles from CoproductConfig. Only the
+ * scalar and option fields that cross the FFI boundary live here. The host
+ * trait objects (transport, secure store, listener) are passed separately
+ */
+public struct FfiConfig: Equatable, Hashable {
+    public var pollIntervalSecs: UInt64
+    public var startupTimeoutSecs: UInt64
+    public var anonymousId: String?
+    public var endpoint: String?
+    public var pollOnForeground: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(pollIntervalSecs: UInt64, startupTimeoutSecs: UInt64, anonymousId: String?, endpoint: String?, pollOnForeground: Bool) {
+        self.pollIntervalSecs = pollIntervalSecs
+        self.startupTimeoutSecs = startupTimeoutSecs
+        self.anonymousId = anonymousId
+        self.endpoint = endpoint
+        self.pollOnForeground = pollOnForeground
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FfiConfig: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFfiConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FfiConfig {
+        return
+            try FfiConfig(
+                pollIntervalSecs: FfiConverterUInt64.read(from: &buf), 
+                startupTimeoutSecs: FfiConverterUInt64.read(from: &buf), 
+                anonymousId: FfiConverterOptionString.read(from: &buf), 
+                endpoint: FfiConverterOptionString.read(from: &buf), 
+                pollOnForeground: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FfiConfig, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.pollIntervalSecs, into: &buf)
+        FfiConverterUInt64.write(value.startupTimeoutSecs, into: &buf)
+        FfiConverterOptionString.write(value.anonymousId, into: &buf)
+        FfiConverterOptionString.write(value.endpoint, into: &buf)
+        FfiConverterBool.write(value.pollOnForeground, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiConfig_lift(_ buf: RustBuffer) throws -> FfiConfig {
+    return try FfiConverterTypeFfiConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFfiConfig_lower(_ value: FfiConfig) -> RustBuffer {
+    return FfiConverterTypeFfiConfig.lower(value)
 }
 
 
@@ -5004,7 +5137,7 @@ public enum TransportError: Swift.Error, Equatable, Hashable, Foundation.Localiz
     case ServerError(status: UInt16
     )
     case MalformedResponse
-    case Other(message: String
+    case Other(reason: String
     )
 
     
@@ -5043,7 +5176,7 @@ public struct FfiConverterTypeTransportError: FfiConverterRustBuffer {
             )
         case 5: return .MalformedResponse
         case 6: return .Other(
-            message: try FfiConverterString.read(from: &buf)
+            reason: try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -5078,9 +5211,9 @@ public struct FfiConverterTypeTransportError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(5))
         
         
-        case let .Other(message):
+        case let .Other(reason):
             writeInt(&buf, Int32(6))
-            FfiConverterString.write(message, into: &buf)
+            FfiConverterString.write(reason, into: &buf)
             
         }
     }
@@ -5272,6 +5405,32 @@ fileprivate struct FfiConverterDictionaryStringTypeContextValue: FfiConverterRus
         return dict
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringTypeFlagValue: FfiConverterRustBuffer {
+    public static func write(_ value: [String: FlagValue], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterTypeFlagValue.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: FlagValue] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: FlagValue]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeFlagValue.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -5410,20 +5569,24 @@ private func uniffiForeignFutureDroppedCallback(handle: UInt64) {
 public func uniffiForeignFutureHandleCountCoproductFfiUniffi() -> Int {
     UNIFFI_FOREIGN_FUTURE_HANDLE_MAP.count
 }
-public func computeBucket(ruleId: String, targetingKey: String, suffix: String) -> UInt32  {
+/**
+ * Internal conformance accessor exposing the canonical bucketing primitive to
+ * the cross-evaluator conformance harness. Not part of the public SDK surface
+ */
+public func bucketForVectors(ruleId: String, targetingKey: String, suffix: String) -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_func_compute_bucket(
+    uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(
         FfiConverterString.lower(ruleId),
         FfiConverterString.lower(targetingKey),
         FfiConverterString.lower(suffix),$0
     )
 })
 }
-public func initialize(sdkKey: String, cacheDir: String, transport: HostTransport, secureStore: HostSecureStore)async throws  -> CoproductClient  {
+public func initialize(sdkKey: String, userAgent: String, cacheDir: String, config: FfiConfig, transport: HostTransport, secureStore: HostSecureStore)async throws  -> CoproductClient  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_coproduct_ffi_uniffi_fn_func_initialize(FfiConverterString.lower(sdkKey),FfiConverterString.lower(cacheDir),FfiConverterTypeHostTransport_lower(transport),FfiConverterTypeHostSecureStore_lower(secureStore)
+                uniffi_coproduct_ffi_uniffi_fn_func_initialize(FfiConverterString.lower(sdkKey),FfiConverterString.lower(userAgent),FfiConverterString.lower(cacheDir),FfiConverterTypeFfiConfig_lower(config),FfiConverterTypeHostTransport_lower(transport),FfiConverterTypeHostSecureStore_lower(secureStore)
                 )
             },
             pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_u64,
@@ -5449,16 +5612,19 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_func_compute_bucket() != 57946) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors() != 46291) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 49737) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook() != 40101) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler() != 19994) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values() != 36853) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431) {
@@ -5473,7 +5639,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int_details() != 45983) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json() != 14619) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json() != 47890) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details() != 57801) {
@@ -5521,16 +5687,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out() != 19109) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_simulate_change() != 45381) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_snapshot_view() != 3540) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state() != 23491) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes() != 28839) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_was_loaded_from_cache() != 61481) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute() != 55087) {

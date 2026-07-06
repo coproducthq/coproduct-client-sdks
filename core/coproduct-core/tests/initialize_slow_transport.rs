@@ -39,7 +39,7 @@ impl SecureStore for InMemorySecureStore {
 }
 
 #[test]
-fn transport_timeout_resolves_initialize_promptly() {
+fn initialize_resolves_promptly_without_polling() {
     let dir = TempDir::new().unwrap();
     let config = CoproductConfig::default();
 
@@ -52,17 +52,22 @@ fn transport_timeout_resolves_initialize_promptly() {
         Arc::new(TimeoutTransport),
         Arc::new(InMemorySecureStore::default()),
     ))
-    .expect("initialize must resolve when the transport surfaces a Timeout");
+    .expect("initialize resolves without touching the network");
     let elapsed = started.elapsed();
 
     assert!(
         elapsed < Duration::from_secs(1),
-        "initialize must not block when the first poll's Transport returns Timeout, got {:?}",
+        "initialize must not block on the network, got {:?}",
         elapsed
     );
-    assert_eq!(client.state(), ProviderState::Retrying);
+    // No poll ran during initialize, so with no cache the provider starts NotReady
+    assert_eq!(client.state(), ProviderState::NotReady);
 
-    // Evaluations return developer defaults when the snapshot never arrived
+    // Evaluations return developer defaults when no snapshot has arrived
     assert!(client.get_bool("any-flag".to_string(), true));
     assert!(!client.get_bool("any-flag".to_string(), false));
+
+    // A host-driven poll against the timeout transport advances to Retrying
+    let _ = futures::executor::block_on(client.poll_now());
+    assert_eq!(client.state(), ProviderState::Retrying);
 }

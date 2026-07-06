@@ -1,17 +1,24 @@
 use std::fs;
 use std::path::PathBuf;
 
-use coproduct_core::cache::write_snapshot;
+use coproduct_core::cache::{key_scope, write_snapshot};
 use tempfile::TempDir;
 
+// The cache is scoped per sdk key, so the on-disk paths carry the key scope
+const KEY: &str = "cpk_mob_test";
+
 fn final_path(cache_dir: &str) -> PathBuf {
-    [cache_dir, "coproduct", "snapshot.json"].iter().collect()
+    PathBuf::from(cache_dir)
+        .join("coproduct")
+        .join(key_scope(KEY))
+        .join("snapshot.json")
 }
 
 fn temp_path(cache_dir: &str) -> PathBuf {
-    [cache_dir, "coproduct", "snapshot.json.tmp"]
-        .iter()
-        .collect()
+    PathBuf::from(cache_dir)
+        .join("coproduct")
+        .join(key_scope(KEY))
+        .join("snapshot.json.tmp")
 }
 
 #[test]
@@ -20,7 +27,7 @@ fn write_snapshot_uses_tmp_plus_rename() {
     let cache_dir = dir.path().to_str().unwrap().to_string();
     let bytes = b"{\"schemaVersion\":1,\"hello\":\"world\"}";
 
-    write_snapshot(&cache_dir, bytes).unwrap();
+    write_snapshot(&cache_dir, KEY, bytes).unwrap();
 
     // After write_snapshot returns, the temp file should NOT exist
     // and the final snapshot.json should contain our bytes.
@@ -45,7 +52,7 @@ fn stale_tmp_file_does_not_corrupt_live_snapshot() {
     let replacement = b"{\"schemaVersion\":1,\"replacement\":true}";
 
     // First write succeeds, original snapshot now on disk.
-    write_snapshot(&cache_dir, original).unwrap();
+    write_snapshot(&cache_dir, KEY, original).unwrap();
 
     // Simulate a crashed previous write: drop a partial tmp file directly.
     // The live snapshot.json must be unchanged.
@@ -59,7 +66,7 @@ fn stale_tmp_file_does_not_corrupt_live_snapshot() {
 
     // Now do a real write_snapshot. It overwrites the original cleanly
     // and the stale tmp file is gone (the rename consumed our planted tmp).
-    write_snapshot(&cache_dir, replacement).unwrap();
+    write_snapshot(&cache_dir, KEY, replacement).unwrap();
     let after_write = fs::read(final_path(&cache_dir)).unwrap();
     assert_eq!(
         after_write.as_slice(),

@@ -24,10 +24,9 @@ flutter run -d <udid>
 
 ## Verifying green
 
-The demo screen prints five status lines. All must be true:
+The demo screen prints four status lines. All must be in the expected state:
 
 - SDK ready: yes
 - Host callbacks: yes
-- Loaded from cache: no (first run) / yes (subsequent runs)
 - getBool: false
-- Observer fired: yes
+- Observer registered: yes

@@ -2,10 +2,11 @@ import RNFS from 'react-native-fs';
 
 import installer from './NativeCoproduct';
 import {
-  computeBucket,
+  FlagValue,
   default as generatedCoproduct,
   initialize as nativeInitialize,
   type CoproductClientLike,
+  type FfiConfig,
   type FlagObserver,
   type HostSecureStore,
   type HostTransport,
@@ -31,9 +32,6 @@ if (!coproductGlobal.__coproductRustInitialized) {
   coproductGlobal.__coproductRustInitialized = true;
 }
 
-// Temporary vector-test hook. Customer-facing bucket access, if added, belongs
-// on flag evaluation details.
-export { computeBucket };
 export type { FlagObserver, HostSecureStore, HostTransport };
 
 export async function uniffiInitAsync(): Promise<void> {
@@ -144,33 +142,37 @@ export class CoproductClient {
     onChange: (value: boolean) => void | Promise<void>
   ): Cancellable {
     const observer: FlagObserver = {
-      async onChangeBool(value: boolean): Promise<void> {
-        await onChange(value);
+      async onChange(_changedKey: string, value: FlagValue): Promise<void> {
+        if (!FlagValue.Bool.instanceOf(value)) {
+          return;
+        }
+        await onChange(value.inner.value);
       },
     };
 
-    const subscription = this.nativeClient.observe(key, observer);
+    const subscription = this.nativeClient.observeKey(key, observer);
     return new ObserverSubscription(
       subscription as NativeSubscription,
       observer
     );
-  }
-
-  // Temporary cache-status probe used by validation apps.
-  wasLoadedFromCache(): boolean {
-    return this.nativeClient.wasLoadedFromCache();
-  }
-
-  // Temporary validation hook used until polling-driven snapshot updates are
-  // available.
-  async simulateChange(key: string, newValue: boolean): Promise<void> {
-    await this.nativeClient.simulateChange(key, newValue);
   }
 }
 
 export type CoproductInitializeOptions = {
   transport?: HostTransport;
   secureStore?: HostSecureStore;
+};
+
+// User agent identifying this platform wrapper to the Coproduct backend
+const USER_AGENT = 'coproduct-rn/0.0.1-dev';
+
+// Default config mirroring coproduct_core::config::CoproductConfig::default
+const DEFAULT_CONFIG: FfiConfig = {
+  pollIntervalSecs: 60n,
+  startupTimeoutSecs: 3n,
+  anonymousId: undefined,
+  endpoint: undefined,
+  pollOnForeground: true,
 };
 
 export class Coproduct {
@@ -185,7 +187,9 @@ export class Coproduct {
     const secureStore = options.secureStore ?? mockSecureStore;
     const nativeClient = await nativeInitialize(
       sdkKey,
+      USER_AGENT,
       cacheDir,
+      DEFAULT_CONFIG,
       transport,
       secureStore
     );
