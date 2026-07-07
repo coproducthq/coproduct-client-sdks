@@ -31,10 +31,9 @@ pub struct EvaluationEvent {
     pub default_value: FlagValue,
     pub variant: Option<String>,
     pub reason: EvaluationReason,
-    /// Identifier of the targeting rule that matched, when one did. The
-    /// evaluation pipeline does not currently surface the matched rule id to its
-    /// outcome, so this stays `None` until that plumbing exists. Typed as a
-    /// string to match the pipeline's rule identifier shape
+    /// Identifier of the targeting rule that matched, when one did. The pipeline
+    /// outcome does not carry the matched rule id, so this stays `None` unless that
+    /// plumbing is added. Typed as a string to match the rule identifier shape
     pub rule_id: Option<String>,
     pub error_code: Option<EvaluationErrorCode>,
     pub evaluated_at: OffsetDateTime,

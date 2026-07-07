@@ -1,7 +1,8 @@
 uniffi::setup_scaffolding!();
 
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
@@ -361,13 +362,14 @@ pub async fn initialize(
     let secure_store = Arc::new(SecureStoreAdapter { host: secure_store });
     // The host trait fields stay None here because transport and secure store
     // cross the boundary as the adapter Arcs below, not through the config record
+    // `poll_on_foreground` stays on FfiConfig for the host timer, which reads its
+    // own copy. It is deliberately not relayed into the core config: the core does
+    // not drive foreground refresh
     let core_config = coproduct_core::config::CoproductConfig {
         poll_interval: Some(Duration::from_secs(config.poll_interval_secs)),
         startup_timeout: Some(Duration::from_secs(config.startup_timeout_secs)),
         anonymous_id: config.anonymous_id,
         endpoint: config.endpoint,
-        poll_on_foreground: Some(config.poll_on_foreground),
-        ..Default::default()
     };
     // The wrapper supplies the user agent so each platform identifies itself as
     // `coproduct-<platform>/<version>` on every snapshot fetch
@@ -1229,20 +1231,16 @@ impl EvaluationContextHandle {
     }
 
     pub fn targeting_key(&self) -> String {
-        self.inner
-            .lock()
-            .expect("context lock poisoned")
-            .targeting_key()
-            .to_string()
+        self.inner.lock().targeting_key().to_string()
     }
 
     pub fn get_attribute(&self, name: String) -> Option<AttributeValueFfi> {
-        let guard = self.inner.lock().expect("context lock poisoned");
+        let guard = self.inner.lock();
         guard.get_attribute(&name).and_then(core_attribute_to_ffi)
     }
 
     pub fn set_attribute(&self, name: String, value: AttributeValueFfi) {
-        let mut guard = self.inner.lock().expect("context lock poisoned");
+        let mut guard = self.inner.lock();
         guard.set_attribute(name, value.into());
     }
 }

@@ -249,7 +249,12 @@ public enum Coproduct {
     /// Register a lifecycle handler. Retain the returned AnyCancellable for as
     /// long as the handler should stay active. Releasing it, or calling cancel,
     /// removes the handler. The result is not discardable because dropping it
-    /// cancels the registration immediately, so the handler would never fire
+    /// cancels the registration immediately, so the handler would never fire.
+    ///
+    /// Keep the handler fast. Handlers for an event fire serially, and identity
+    /// mutations await their lifecycle events inline on the identity queue, so a
+    /// slow handler delays every later identify, setContext, or signOut. Hop a
+    /// queue for anything heavy rather than blocking in the handler
     public static func addHandler(
         event: LifecycleEvent,
         handler: @escaping @Sendable (LifecycleEvent) -> Void
@@ -519,8 +524,10 @@ final class Instances: @unchecked Sendable {
             interval: config.pollInterval,
             pollOnForeground: config.pollOnForeground
         ) { [weak inner] in
-            guard let inner else { return }
-            Task { _ = await inner.pollNow() }
+            // The poll outcome drives the timer's next fire, so a 429 retry-after
+            // and a stale back-off are honored. A deallocated client polls nothing
+            guard let inner else { return .dedupedSkipped }
+            return await inner.pollNow()
         }
 
         guard storeIfCurrent(Stored(client: inner, sdkKey: sdkKey, timer: timer), generation: claimedGeneration) else {

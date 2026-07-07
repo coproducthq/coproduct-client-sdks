@@ -1,33 +1,5 @@
 use coproduct_core::context::AttributeValue;
-use coproduct_core::context_normalize::{RECOGNIZED_ATTRIBUTES, normalize_attribute};
-
-#[test]
-fn recognized_list_holds_every_standard_attribute() {
-    assert_eq!(RECOGNIZED_ATTRIBUTES.len(), 16);
-    for name in [
-        "user_id",
-        "email",
-        "country",
-        "continent",
-        "region_code",
-        "city",
-        "timezone",
-        "platform",
-        "os_version",
-        "app_version",
-        "app_build",
-        "locale",
-        "device_type",
-        "network_type",
-        "first_seen_at",
-        "session_count",
-    ] {
-        assert!(
-            RECOGNIZED_ATTRIBUTES.contains(&name),
-            "missing recognized attribute {name}"
-        );
-    }
-}
+use coproduct_core::context_normalize::normalize_attribute;
 
 #[test]
 fn locale_underscore_becomes_hyphen() {

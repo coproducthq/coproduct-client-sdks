@@ -87,10 +87,13 @@ impl IdentityWriter {
             };
             match next {
                 Some(v) => {
-                    let _ = self
+                    if let Err(error) = self
                         .store
                         .write(ANONYMOUS_ID_STORAGE_KEY.to_string(), v)
-                        .await;
+                        .await
+                    {
+                        tracing::warn!(%error, "failed to persist an anonymous id update");
+                    }
                 }
                 None => return,
             }

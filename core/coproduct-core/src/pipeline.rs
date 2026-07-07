@@ -3,23 +3,22 @@ use std::collections::HashMap;
 use crate::error::EvaluationErrorCode;
 
 /// Result of a single flag evaluation. Carried through the pipeline and returned
-/// to the typed getters. `value_label` is a stable string form of the value used
-/// for memoization equality across recursive prerequisite descents. The typed
-/// value travels separately on the public surface
+/// to the typed getters. The typed value is not carried here: the getter
+/// re-resolves it from `variation_key` against the held snapshot, and prerequisite
+/// memoization keys on the flag key, so the outcome only needs the served
+/// variation key, the reason, and any error
 #[derive(Debug, Clone)]
 pub struct EvaluationOutcome {
     pub variation_key: Option<String>,
-    pub value_label: String,
     pub reason: EvaluationReason,
     pub error_code: Option<EvaluationErrorCode>,
     pub error_message: Option<String>,
 }
 
 impl EvaluationOutcome {
-    pub fn resolved(variation_key: &str, value_label: &str) -> Self {
+    pub fn resolved(variation_key: &str) -> Self {
         Self {
             variation_key: Some(variation_key.to_string()),
-            value_label: value_label.to_string(),
             reason: EvaluationReason::TargetingMatch,
             error_code: None,
             error_message: None,
@@ -29,7 +28,6 @@ impl EvaluationOutcome {
     pub fn default_with_error(code: EvaluationErrorCode, message: &str) -> Self {
         Self {
             variation_key: None,
-            value_label: String::new(),
             reason: EvaluationReason::Error,
             error_code: Some(code),
             error_message: Some(message.to_string()),
@@ -105,9 +103,9 @@ use crate::snapshot::{Flag, IndexedSnapshot};
 /// sixth descent trips RULE_CIRCUIT_BREAK and serves the off variation
 pub const MAX_PREREQ_DEPTH: u32 = 5;
 
-/// Recursively evaluate a flag through the full pipeline. This shell wires the
-/// depth guard and the memoization read. The numbered steps are filled into
-/// `run_pipeline_body`
+/// Recursively evaluate a flag through the full pipeline. Applies the depth guard
+/// and the memoization read, then delegates the off-gate, prerequisites, and rule
+/// walk to `run_pipeline_body`
 pub fn evaluate_recursive(
     snapshot: &IndexedSnapshot,
     flag_key: &str,
@@ -140,16 +138,9 @@ fn circuit_break_off(
         .get(flag_key)
         .and_then(|f| f.off_variation.clone())
         .unwrap_or_else(|| "off".to_string());
-    let value_label = snapshot
-        .flags
-        .get(flag_key)
-        .and_then(|f| f.variations.iter().find(|v| v.key == off_variation_key))
-        .map(|v| v.value.label())
-        .unwrap_or_else(|| "false".to_string());
 
     EvaluationOutcome {
         variation_key: Some(off_variation_key),
-        value_label,
         reason: EvaluationReason::Off,
         error_code: Some(EvaluationErrorCode::RuleCircuitBreak),
         error_message: Some(message.to_string()),
@@ -178,7 +169,6 @@ fn run_pipeline_body(
         // body exit. This lets a paused or disabled flag reached twice through a
         // diamond prerequisite reuse the result instead of re-running
         let outcome = serve_variation(
-            flag,
             flag.off_variation.as_deref().unwrap_or("off"),
             EvaluationReason::Off,
             None,
@@ -196,7 +186,6 @@ fn run_pipeline_body(
             PrereqOutcome::Satisfied => continue,
             PrereqOutcome::Failed => {
                 let outcome = serve_variation(
-                    flag,
                     flag.off_variation.as_deref().unwrap_or("off"),
                     EvaluationReason::PrerequisiteFailed,
                     None,
@@ -294,17 +283,31 @@ fn check_prerequisite(
         );
     }
 
+    // A prerequisite gates its dependents, so it is satisfied only when the
+    // prereq flag actively resolves to the required variation. A paused, disabled,
+    // off, errored, or itself-prerequisite-failed prereq resolves with reason
+    // `Off` / `PrerequisiteFailed` / `Error` and fails here even if the value it
+    // served happens to equal the required variation. This means disabling or
+    // pausing a prerequisite reliably turns off everything downstream, rather than
+    // leaving dependents running on the prereq's off value
     match resolved.variation_key {
-        Some(v) if v == prereq.variation => PrereqOutcome::Satisfied,
+        Some(v)
+            if v == prereq.variation
+                && matches!(
+                    resolved.reason,
+                    EvaluationReason::TargetingMatch | EvaluationReason::Fallthrough
+                ) =>
+        {
+            PrereqOutcome::Satisfied
+        }
         _ => PrereqOutcome::Failed,
     }
 }
 
 pub(crate) fn serve_fallthrough_or_circuit_break(flag: &Flag) -> EvaluationOutcome {
     match &flag.fallthrough_variation {
-        Some(key) => serve_variation(flag, key, EvaluationReason::Fallthrough, None, None),
+        Some(key) => serve_variation(key, EvaluationReason::Fallthrough, None, None),
         None => serve_variation(
-            flag,
             flag.off_variation.as_deref().unwrap_or("off"),
             EvaluationReason::Off,
             Some(EvaluationErrorCode::RuleCircuitBreak),
@@ -314,21 +317,13 @@ pub(crate) fn serve_fallthrough_or_circuit_break(flag: &Flag) -> EvaluationOutco
 }
 
 pub(crate) fn serve_variation(
-    flag: &Flag,
     variation_key: &str,
     reason: EvaluationReason,
     error_code: Option<EvaluationErrorCode>,
     error_message: Option<&str>,
 ) -> EvaluationOutcome {
-    let value_label = flag
-        .variations
-        .iter()
-        .find(|v| v.key == variation_key)
-        .map(|v| v.value.label())
-        .unwrap_or_default();
     EvaluationOutcome {
         variation_key: Some(variation_key.to_string()),
-        value_label,
         reason,
         error_code,
         error_message: error_message.map(str::to_string),
@@ -338,21 +333,15 @@ pub(crate) fn serve_variation(
 /// Serve a matched rule's selected variation, or absorb a dangling reference
 /// into the off variation.
 ///
-/// A targeting rule whose rollout names a variation that no longer exists
-/// resolves to the off variation rather than an error. This is distinct from
+/// A targeting rule whose rollout names a variation absent from the flag's
+/// variations resolves to the off variation rather than an error. This is distinct from
 /// `RuleWalkResult::CircuitBreak`, which fires for an unknown operator or a
 /// malformed node, not for a dangling variation reference. The absorber covers
 /// matched rule rollouts only. A null or dangling fallthrough stays on the
 /// RULE_CIRCUIT_BREAK path in `serve_fallthrough_or_circuit_break`
 pub(crate) fn serve_matched_rule_or_absorb(flag: &Flag, variation_key: &str) -> EvaluationOutcome {
     if flag.variations.iter().any(|v| v.key == variation_key) {
-        return serve_variation(
-            flag,
-            variation_key,
-            EvaluationReason::TargetingMatch,
-            None,
-            None,
-        );
+        return serve_variation(variation_key, EvaluationReason::TargetingMatch, None, None);
     }
     tracing::warn!(
         flag_key = %flag.key,
@@ -360,7 +349,7 @@ pub(crate) fn serve_matched_rule_or_absorb(flag: &Flag, variation_key: &str) -> 
         "matched rule references a missing variation, resolving to the off variation",
     );
     let off_key = flag.off_variation.as_deref().unwrap_or("off");
-    serve_variation(flag, off_key, EvaluationReason::Off, None, None)
+    serve_variation(off_key, EvaluationReason::Off, None, None)
 }
 
 use crate::snapshot::FlagType;
@@ -389,9 +378,9 @@ impl RequestedType {
     }
 }
 
-/// Top-level pipeline entry point. `snapshot = None` means no snapshot has
-/// loaded yet (step 1). Steps 2 and 3 reject a missing flag and a type mismatch
-/// before the recursive body runs
+/// Top-level pipeline entry point. `snapshot = None` means no snapshot has loaded
+/// yet, and a missing flag and a requested-type mismatch are both rejected before
+/// the recursive body runs
 pub fn evaluate(
     snapshot: Option<&IndexedSnapshot>,
     flag_key: &str,

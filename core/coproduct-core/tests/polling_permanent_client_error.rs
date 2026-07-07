@@ -62,6 +62,7 @@ fn fresh_ctx(
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
     (ctx, state, held)
 }
@@ -86,9 +87,9 @@ fn poll_400_transitions_to_fatal_and_preserves_snapshot() {
 #[test]
 fn poll_404_transitions_to_fatal_and_preserves_snapshot() {
     // 404 NOT_FOUND means the SDK is calling the wrong URL,
-    // typically because the customer misconfigured `endpoint`. Retries
+    // typically because the developer misconfigured `endpoint`. Retries
     // cannot recover. State goes Fatal. The held snapshot stays so
-    // customers keep evaluating against the last good values while
+    // the app keeps evaluating against the last good values while
     // operators correct the configuration
     let (ctx, state, held) = fresh_ctx(Arc::new(StatusOnlyTransport(404)), ProviderState::Ready);
     let outcome = futures::executor::block_on(poll_now(ctx));
@@ -134,6 +135,7 @@ fn permanent_client_error_does_not_bump_consecutive_failures() {
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
     let _ = futures::executor::block_on(poll_now(ctx));
     assert_eq!(*failures.lock(), 0);

@@ -57,6 +57,7 @@ fn five_consecutive_failures_transition_retrying_to_stale() {
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
 
     let mut outcomes = Vec::new();

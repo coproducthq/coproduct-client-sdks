@@ -72,6 +72,7 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
   - async observer callbacks
 - Snapshot cache must not cross the FFI boundary. Rust reads and writes `{cache_dir}/coproduct/snapshot.json` directly.
 - FFI crates should expose local wrapper and adapter types, not raw `coproduct-core` types.
+- Config is split by consumer. `coproduct_core::CoproductConfig` holds only values the core reads, validates, or persists. Host-behavior settings such as foreground refresh (`poll_on_foreground`) live on the host-facing configs (the platform SDK config and `FfiConfig`) and are consumed by the host timer, which reads its own copy; they are deliberately not relayed into the core config. `FfiConfig` intentionally carries host-behavior fields the core config does not, so a field that crosses the FFI without a core-side counterpart is by design, not an oversight. If the core ever owns a polling loop, such a field is re-added together with the code that reads it and its tests, never as a speculative field beforehand.
 - `initialize` does not perform a network poll. The contract is: the client is constructed, the cache is loaded if present (so the provider starts `Ready` from cache, otherwise `NotReady`), and reads can immediately evaluate against cache or developer defaults. Driving polling is the host wrapper's responsibility, including the first poll. Do not assume `initialize` has fetched a fresh snapshot. A production wrapper that wants fresh values at launch must start polling right after `initialize` (call `poll_now()` / `pollNow()` or start a host timer whose first tick fires immediately) and, if it wants to wait for readiness, bound that wait with its own `startup_timeout` rather than expecting `initialize` to block. The iOS wrapper already does this (immediate first tick plus a bounded wait for readiness); Android, React Native, and Flutter are scaffold-level and must adopt the same pattern when they grow real polling.
 
 ## Identifier unification principle
@@ -92,6 +93,53 @@ Documented per-platform deviations:
 - Dart's `Coproduct.observe(...)` returns `ValueListenable<T>` because Dart's idiomatic primitive differs. The identifier `observe` is identical across all four platforms. The return type adapts per platform.
 - The OpenFeature `errorCode` enum (`FLAG_NOT_FOUND`, `TYPE_MISMATCH`, etc.) is a separate concept from thrown error names. The codes are data on `FlagEvaluationDetails.errorCode`, not catchable exception types.
 
+## Evaluation semantics (cross-platform)
+
+These are evaluation rules every platform SDK must match, not just the reference
+core. They are documented here because a divergent re-implementation is a silent
+parity bug. The authoritative implementation is `coproduct-core`.
+
+- **Prerequisites are gates, not value comparisons.** A prerequisite is satisfied
+  only when the prerequisite flag *actively* resolves to the required variation,
+  meaning it is enabled, not paused, and resolves through a targeting match or
+  fallthrough. A paused, disabled, off, errored, missing, or itself-prerequisite-
+  failed prerequisite fails its dependents even if the off value it serves happens
+  to equal the required variation. Turning a prerequisite off reliably turns off
+  everything downstream. (The reference core keys this off the resolution reason
+  being `TargetingMatch` or `Fallthrough`.)
+- **A prerequisite match is on the variation key, not the value type.** An unknown-
+  value-type flag still resolves to a well-defined variation key, so it can satisfy
+  a prerequisite through the rule above even though its typed getters fail closed.
+- **An unknown flag type fails closed for getters.** A flag whose `type` the SDK
+  build does not understand is retained but returns the caller default from every
+  typed getter and is omitted from observation.
+- **`user_id` is identity, resolved from the targeting key.** A read of the
+  `user_id` attribute always returns the targeting key, ahead of every layer, so a
+  targeting rule on `user_id` matches the same identity that bucketing uses and a
+  developer attribute cannot shadow it. `user_id` and `targetingKey` are reserved
+  attribute names: the identity mutators (`identify` / `set_context` /
+  `update_attributes`) drop them with a warning. Set identity through `identify` or
+  `set_context`, never as an attribute.
+- **Ingestion is per-flag tolerant.** One unparseable flag or segment is dropped
+  (fail closed) while the rest of the snapshot applies. The top-level envelope
+  stays strict. A malformed weight coalesces the way coverage does.
+- **An empty `And` condition is vacuously true** and matches every context.
+- **An unknown condition node fails closed when reached.** A condition type this
+  SDK build does not understand trips `RULE_CIRCUIT_BREAK`. Because `And` / `Or`
+  short-circuit, an unknown child is only reached for contexts not short-circuited
+  first, so the fail-closed is per-context and child-order-dependent. Strict
+  fail-closed (an unknown node anywhere in a matched rule fails the flag for
+  everyone) is a separate, planned change.
+- **A circuit break serves the off variation, not the caller default.** When a
+  rule error trips `RULE_CIRCUIT_BREAK`, the flag resolves to its off variation.
+  Every read surface serves that off value: the plain getters, the observers, and
+  the detail getters' `value`. The detail getters still report `reason = ERROR`
+  and `errorCode = RULE_CIRCUIT_BREAK` alongside the served off value. The caller
+  default is served only when no variation resolves (not-ready, not-found, or a
+  stored value whose type does not match the getter). This deliberately diverges
+  from OpenFeature's error-serves-default rule, so an OpenFeature provider layered
+  on this SDK maps a served-with-error result back to the default itself.
+
 ## Rust Practices
 
 - Keep Rust code readable and explicit. Prefer simple structs and conversion helpers over clever abstractions.
@@ -100,6 +148,7 @@ Documented per-platform deviations:
 - Never name an error-enum variant field `message`. UniFFI maps each error variant to a Kotlin class that extends `Throwable`, which already defines `message`, so a field named `message` produces a conflicting declaration and the generated Kotlin will not compile. Swift is unaffected, so the breakage is silent until a Kotlin build. Use `reason` or another name.
 - Run `cargo fmt --all` before claiming Rust work is complete.
 - Run `cargo build --workspace` and `cargo test --workspace` for Rust changes. Use the whole workspace, not `cargo test -p coproduct-core`: the FFI crates carry their own tests (for example the `ffi/coproduct-ffi-uniffi` binding-generation tests that read committed paths), so a single-package run passes while the workspace is red.
+- Name Rust test files after stable SDK behavior, not the implementation plan, checkpoint, task, or historical reason the test was introduced. Use lowercase `snake_case` domain names such as `pipeline_prerequisites.rs`, `snapshot_ingestion_tolerance.rs`, `observer_fanout_delivery_order.rs`, and `config_validation.rs`. Avoid names like `pipeline_step_6_prerequisites.rs`, `task_4_12_smoke.rs`, `checkpoint_2_snapshot.rs`, or `context_placeholder.rs`. When renaming tests, preserve behavior and keep the filename aligned with what the tests actually assert.
 - When you move or rename a path that is referenced by convention (the generated bindings directory, a fixture, a cache location), grep the whole repo for the old path before claiming done. The iOS generated bindings path alone is referenced by `scripts/audit/swift-binding-check.sh`, `scripts/package/ios-build-xcframework.sh`, `scripts/package/ios-spm-fixture.sh`, `sdks/ios/BUILDING.md`, the `ffi/coproduct-ffi-uniffi` binding-generation test, and `.gitattributes`.
 
 ## Public Source Hygiene

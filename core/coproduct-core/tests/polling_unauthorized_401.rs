@@ -64,6 +64,7 @@ fn poll_401_transitions_to_fatal_drops_snapshot_and_clears_disk_cache() {
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
 
     let outcome = futures::executor::block_on(poll_now(ctx.clone()));

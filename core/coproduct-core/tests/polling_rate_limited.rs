@@ -69,6 +69,7 @@ fn fresh_ctx(
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
     (ctx, state, failures)
 }
@@ -132,6 +133,27 @@ fn poll_429_with_malformed_retry_after_uses_default() {
         outcome,
         PollOutcome::RateLimited {
             retry_after_secs: 60
+        }
+    );
+}
+
+#[test]
+fn poll_429_clamps_a_huge_retry_after_to_the_ceiling() {
+    // A malformed or hostile Retry-After (here milliseconds mistaken for seconds,
+    // roughly 1000 days) is clamped to the one-hour ceiling. Without the clamp the
+    // host would schedule the next poll effectively past forever and freeze flags
+    // until the app relaunched
+    let (ctx, _state, _failures) = fresh_ctx(
+        Arc::new(RateLimited429 {
+            retry_after: Some("86400000"),
+        }),
+        ProviderState::Ready,
+    );
+    let outcome = futures::executor::block_on(poll_now(ctx));
+    assert_eq!(
+        outcome,
+        PollOutcome::RateLimited {
+            retry_after_secs: 3600
         }
     );
 }

@@ -80,6 +80,25 @@ async fn newer_snapshot_fires_configuration_changed() {
 }
 
 #[tokio::test]
+async fn rolled_back_snapshot_also_fires_configuration_changed() {
+    // A server-side rollback to a lower version still changes the served flag
+    // values, so lifecycle listeners must hear ConfigurationChanged just as the
+    // observer fanout fires. The signal keys on a version change, not an increase
+    let client = CoproductClient::test_instance_with_snapshot(snapshot_with_version(5)).await;
+    let sink: Arc<Sink> = Arc::new(Sink::default());
+    let _h = client.add_handler(LifecycleEvent::ConfigurationChanged, sink.clone());
+
+    client
+        .swap_snapshot_for_test(Arc::new(snapshot_with_version(3)))
+        .await;
+
+    assert_eq!(
+        sink.fired.lock().unwrap().as_slice(),
+        &[LifecycleEvent::ConfigurationChanged]
+    );
+}
+
+#[tokio::test]
 async fn identify_fires_context_changed() {
     let client = CoproductClient::test_instance().await;
     let sink: Arc<Sink> = Arc::new(Sink::default());

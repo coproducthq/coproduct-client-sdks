@@ -1,26 +1,7 @@
 use crate::context::AttributeValue;
 
-/// The standard attributes the targeting engine recognizes for normalization
-pub const RECOGNIZED_ATTRIBUTES: &[&str] = &[
-    "user_id",
-    "email",
-    "country",
-    "continent",
-    "region_code",
-    "city",
-    "timezone",
-    "platform",
-    "os_version",
-    "app_version",
-    "app_build",
-    "locale",
-    "device_type",
-    "network_type",
-    "first_seen_at",
-    "session_count",
-];
-
-/// Apply the normalization contract for one attribute. Non-recognized names pass
+/// Apply the normalization contract for one attribute. Only `locale`, `country`,
+/// `continent`, and `region_code` are transformed; every other name passes
 /// through unchanged. This enforces uniform string shape so every binding buckets
 /// on identical inputs
 pub fn normalize_attribute(name: &str, value: AttributeValue) -> AttributeValue {

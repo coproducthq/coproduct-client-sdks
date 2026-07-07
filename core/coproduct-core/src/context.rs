@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Typed sum for context attribute values.
+/// Typed sum for context attribute values
 ///
-/// The variant order is load-bearing under `#[serde(untagged)]`: Serde tries
-/// variants top to bottom and the first that deserializes wins. `Null` precedes
-/// `Bool` so JSON `null` is not coerced, `Bool` precedes `Number` so `true` is
-/// not parsed as a number, and `String` follows `Number` so a numeric-shaped
-/// string stays a string. `Array` and `Object` represent list-valued and
-/// object-valued context attributes a developer can supply. Operators reject the
-/// variants they do not understand conservatively
+/// Under `#[serde(untagged)]` serde tries variants top to bottom and the first
+/// that deserializes wins, but each JSON kind here matches only its own variant
+/// (there is no catch-all like a raw `Value`) and serde does not coerce across
+/// scalar types, so the variant order does not change what a given JSON value
+/// parses to. `Array` and `Object` represent list-valued and object-valued context
+/// attributes a developer can supply. Operators reject the variants they do not
+/// understand conservatively
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
@@ -21,7 +21,7 @@ pub enum AttributeValue {
     Object(HashMap<String, AttributeValue>),
 }
 
-/// Held evaluation context with layered merge precedence.
+/// Held evaluation context with layered merge precedence
 ///
 /// Attributes live in three named layers that resolve in a fixed precedence:
 /// developer-supplied values win over auto-populated device values, which win
@@ -86,12 +86,16 @@ impl EvaluationContext {
     }
 
     /// Resolve an attribute through the layered precedence developer over
-    /// auto-populated over SDK context. When no layer holds the name, the
-    /// targeting key is surfaced under `user_id` so targeting can match identity.
-    /// Returns `None` for never-set attributes and `Some(Null)` for
-    /// explicitly-null attributes, preserving the distinction condition-level
-    /// `is_set` / `is_not_set` checks rely on
+    /// auto-populated over SDK context. `user_id` is identity: it always resolves
+    /// to the targeting key, ahead of every layer, so a developer attribute cannot
+    /// shadow it and a targeting rule on `user_id` can never diverge from the
+    /// bucketing key. For every other name, returns `None` for never-set
+    /// attributes and `Some(Null)` for explicitly-null attributes, preserving the
+    /// distinction condition-level `is_set` / `is_not_set` checks rely on
     pub fn get_attribute(&self, name: &str) -> Option<AttributeValue> {
+        if name == "user_id" {
+            return Some(AttributeValue::String(self.targeting_key.clone()));
+        }
         if let Some(value) = self.developer.get(name) {
             return Some(value.clone());
         }
@@ -100,9 +104,6 @@ impl EvaluationContext {
         }
         if let Some(value) = self.sdk_context.get(name) {
             return Some(value.clone());
-        }
-        if name == "user_id" {
-            return Some(AttributeValue::String(self.targeting_key.clone()));
         }
         None
     }
@@ -148,20 +149,33 @@ impl EvaluationContext {
 }
 
 /// Project server-derived SDK context into the attribute map shape the SDK
-/// context layer stores. Absent optional geo fields are omitted so they do not
-/// shadow higher-precedence layers, while the always-present timezone is emitted
+/// context layer stores. An absent optional field is omitted rather than stored
+/// as null so a condition-level `is_set` / `is_not_set` check sees it as never-set
+/// (`None`) rather than an explicit `Some(Null)`. Geo values are normalized the
+/// same way developer-supplied values are (for example `country` upper-cased), so
+/// a targeting rule matches identically whichever layer supplied the value
 pub fn sdk_context_to_attribute_map(
     sdk_context: crate::snapshot::SdkContext,
 ) -> HashMap<String, AttributeValue> {
+    use crate::context_normalize::normalize_attribute;
     let mut map = HashMap::new();
     if let Some(v) = sdk_context.country {
-        map.insert("country".to_string(), AttributeValue::String(v));
+        map.insert(
+            "country".to_string(),
+            normalize_attribute("country", AttributeValue::String(v)),
+        );
     }
     if let Some(v) = sdk_context.continent {
-        map.insert("continent".to_string(), AttributeValue::String(v));
+        map.insert(
+            "continent".to_string(),
+            normalize_attribute("continent", AttributeValue::String(v)),
+        );
     }
     if let Some(v) = sdk_context.region_code {
-        map.insert("region_code".to_string(), AttributeValue::String(v));
+        map.insert(
+            "region_code".to_string(),
+            normalize_attribute("region_code", AttributeValue::String(v)),
+        );
     }
     if let Some(v) = sdk_context.city {
         map.insert("city".to_string(), AttributeValue::String(v));

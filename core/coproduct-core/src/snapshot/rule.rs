@@ -228,7 +228,26 @@ pub enum Rollout {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WeightedVariation {
     pub variation_key: String,
+    #[serde(default, deserialize_with = "deserialize_percentage")]
     pub percentage: u32,
+}
+
+/// Coalesce a wire `percentage` the way `coverage` coalesces its basis points: a
+/// finite number truncates toward zero and clamps to `0..=100`, and anything
+/// non-finite or non-numeric fails closed to `0`. A malformed weight therefore
+/// sanitizes to a safe value instead of failing the whole snapshot parse
+fn deserialize_percentage<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Value::deserialize(deserializer)?;
+    Ok(match value {
+        Value::Number(n) => match n.as_f64() {
+            Some(f) if f.is_finite() => f.trunc().clamp(0.0, 100.0) as u32,
+            _ => 0,
+        },
+        _ => 0,
+    })
 }
 
 /// The attribute operator set. `is_set` / `is_not_set` are zero-value

@@ -10,6 +10,15 @@ pub enum IdentityKind {
     Identified,
 }
 
+/// Attribute names reserved for the targeting key. `user_id` resolves to the
+/// targeting key on read and `targetingKey` mirrors it, so a developer attribute
+/// using either name would try to shadow identity. Both are dropped on the write
+/// path instead, keeping targeting rules and bucketing on the same key. The
+/// targeting key is set through `identify` / `set_context`, never as an attribute
+fn is_reserved_attribute_name(name: &str) -> bool {
+    matches!(name, "user_id" | "targetingKey")
+}
+
 /// In-memory identity state. Holds the original auto-anonymous id so it can be
 /// restored on sign out and surfaced as the previous anonymous id after an
 /// identify call that links the prior anonymous session
@@ -52,6 +61,20 @@ impl IdentityState {
         &mut self.context
     }
 
+    /// Set one developer attribute, normalizing it, unless the name is reserved
+    /// for the targeting key, in which case it is dropped with a warning
+    fn set_developer_attribute(&mut self, name: String, value: AttributeValue) {
+        if is_reserved_attribute_name(&name) {
+            tracing::warn!(
+                attribute = %name,
+                "ignoring a reserved attribute name; user_id and targetingKey are the targeting key, set via identify or set_context"
+            );
+            return;
+        }
+        let normalized = normalize_attribute(&name, value);
+        self.context.set_developer(&name, normalized);
+    }
+
     /// Anonymous id captured at construction and restored on sign out
     pub fn original_anonymous_id(&self) -> &str {
         &self.anonymous_id
@@ -79,8 +102,7 @@ impl IdentityState {
         self.context.set_targeting_key(user_id);
         self.context.clear_developer();
         for (name, value) in attributes {
-            let normalized = normalize_attribute(&name, value);
-            self.context.set_developer(&name, normalized);
+            self.set_developer_attribute(name, value);
         }
         self.kind = IdentityKind::Identified;
         Ok(())
@@ -110,8 +132,7 @@ impl IdentityState {
         self.context.set_targeting_key(targeting_key);
         self.context.clear_developer();
         for (name, value) in attributes {
-            let normalized = normalize_attribute(&name, value);
-            self.context.set_developer(&name, normalized);
+            self.set_developer_attribute(name, value);
         }
         self.kind = IdentityKind::Identified;
         Ok(())
@@ -121,8 +142,7 @@ impl IdentityState {
     /// preserved and the targeting key is unchanged
     pub fn update_attributes(&mut self, attributes: HashMap<String, AttributeValue>) {
         for (name, value) in attributes {
-            let normalized = normalize_attribute(&name, value);
-            self.context.set_developer(&name, normalized);
+            self.set_developer_attribute(name, value);
         }
     }
 

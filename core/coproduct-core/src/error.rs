@@ -20,6 +20,12 @@ pub enum InitError {
     #[error("invalid config: field `{field}` {reason}")]
     InvalidConfig { field: String, reason: String },
 
+    /// Reserved for an initialize-time schema check. `initialize` does not return
+    /// this: a cached snapshot whose schema version the SDK does not support is
+    /// dropped so the client starts from developer defaults rather than failing
+    /// launch, and a live poll that sees an unsupported version keeps the held
+    /// snapshot. The variant is kept on the public surface so surfacing a schema
+    /// mismatch at launch stays a non-breaking change
     #[error("unsupported schema version: snapshot is {actual}, SDK supports {supported}")]
     UnsupportedSchemaVersion { actual: u32, supported: u32 },
 }

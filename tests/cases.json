@@ -210,6 +210,16 @@
       "kind": "off_gate",
       "input": { "flag": { "enabled": false, "isPaused": false } },
       "expected": { "reason": "disabled" }
+    },
+    {
+      "id": "rw_user_id_reads_targeting_key_not_developer",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1", "user_id": "shadow-value" },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-000000000009", "condition": { "type": "attribute", "attribute": "user_id", "operator": "equals", "values": ["shadow-value"] }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "fallthrough" }
     }
   ],
   "pipeline_cases": [
@@ -235,6 +245,7 @@
     { "name": "typed_get_number_hit", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "multiplier", "type": "NUMBER", "enabled": true, "isPaused": false, "variations": [{ "key": "v", "value": 2.5 }], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "multiplier", "getter": "getNumber", "default": 1.0, "expected_value": 2.5, "expected_error_code": null },
     { "name": "typed_get_json_hit", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "cfg", "type": "JSON", "enabled": true, "isPaused": false, "variations": [ { "key": "v", "value": { "color": "red", "size": 12 } } ], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "cfg", "getter": "getJson", "default": {}, "expected_value": { "color": "red", "size": 12 }, "expected_error_code": null },
     { "name": "typed_get_number_type_mismatch_against_bool_flag", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "b", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [{ "key": "v", "value": false }], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "b", "getter": "getNumber", "default": 9.5, "expected_value": 9.5, "expected_error_code": "TYPE_MISMATCH" },
-    { "name": "typed_get_json_type_mismatch_against_string_flag", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "s", "type": "STRING", "enabled": true, "isPaused": false, "variations": [{ "key": "v", "value": "not-json-payload" }], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "s", "getter": "getJson", "default": { "fallback": true }, "expected_value": { "fallback": true }, "expected_error_code": "TYPE_MISMATCH" }
+    { "name": "typed_get_json_type_mismatch_against_string_flag", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "s", "type": "STRING", "enabled": true, "isPaused": false, "variations": [{ "key": "v", "value": "not-json-payload" }], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "s", "getter": "getJson", "default": { "fallback": true }, "expected_value": { "fallback": true }, "expected_error_code": "TYPE_MISMATCH" },
+    { "name": "typed_get_bool_circuit_break_serves_off_value", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "cb", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": false }, { "key": "off", "value": true } ], "offVariation": "off", "fallthroughVariation": null, "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "cb", "getter": "getBool", "default": false, "expected_value": true, "expected_error_code": "RULE_CIRCUIT_BREAK" }
   ]
 }

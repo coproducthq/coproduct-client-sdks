@@ -1,8 +1,8 @@
 //! Evaluation entry points.
 //!
-//! The eight-step evaluation pipeline lives in `crate::pipeline`, the condition
-//! tree in `crate::condition`, and the rule walker in `crate::rule_walker`. This
-//! module is reserved for higher-level evaluation glue
+//! The evaluation pipeline lives in `crate::pipeline`, the condition tree in
+//! `crate::condition`, and the rule walker in `crate::rule_walker`. This module is
+//! reserved for higher-level evaluation glue
 
 use crate::context::EvaluationContext;
 use crate::observer::FlagValue;
@@ -34,6 +34,9 @@ pub fn evaluate_for_observer(
         FlagType::String => RequestedType::String,
         FlagType::Number => RequestedType::Number,
         FlagType::Json => RequestedType::Json,
+        // An unknown flag type has no usable value, so it is omitted from
+        // observation the same way its getters fail closed to the default
+        FlagType::Unknown => return None,
     };
 
     let outcome = evaluate(Some(snapshot), key, requested_type, context);
@@ -66,6 +69,9 @@ pub fn evaluate_for_observer(
             Some(VariationValue::Json(j)) => j,
             _ => serde_json::Value::Null,
         }),
+        // Unreachable: an unknown type returned above. Kept for exhaustiveness
+        // and to fail closed if that early return is ever removed
+        FlagType::Unknown => return None,
     };
 
     Some(value)

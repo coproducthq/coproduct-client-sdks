@@ -1,5 +1,6 @@
-use coproduct_core::error::InitError;
-use coproduct_core::snapshot::{SUPPORTED_SCHEMA_VERSION, check_envelope_schema_version};
+use coproduct_core::snapshot::{
+    SUPPORTED_SCHEMA_VERSION, SchemaCheckError, check_envelope_schema_version,
+};
 use proptest::prelude::*;
 
 proptest! {
@@ -19,7 +20,7 @@ proptest! {
         );
 
         match check_envelope_schema_version(&raw) {
-            Err(InitError::UnsupportedSchemaVersion { actual, supported }) => {
+            Err(SchemaCheckError::UnsupportedSchemaVersion { actual, supported }) => {
                 prop_assert_eq!(actual, version);
                 prop_assert_eq!(supported, SUPPORTED_SCHEMA_VERSION);
             }

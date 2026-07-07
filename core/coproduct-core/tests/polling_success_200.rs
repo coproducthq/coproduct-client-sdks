@@ -67,6 +67,7 @@ fn poll_200_swaps_snapshot_persists_disk_and_etag() {
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
 
     let outcome = futures::executor::block_on(poll_now(ctx));
@@ -113,4 +114,49 @@ fn poll_200_swaps_snapshot_persists_disk_and_etag() {
     assert_eq!(state.get(), ProviderState::Ready);
     // Consecutive-failure counter reset
     assert_eq!(*failures.lock(), 0);
+}
+
+#[test]
+fn poll_200_observing_shutdown_performs_no_side_effects() {
+    // A poll that observes shutdown must not persist, swap, or advance state, even
+    // though the 200 response parsed cleanly. This is the guard that keeps an
+    // in-flight poll from mutating a torn-down client
+    let dir = TempDir::new().unwrap();
+    let cache_dir = dir.path().to_string_lossy().into_owned();
+
+    let held = Arc::new(Mutex::new(None));
+    let state = Arc::new(ProviderStateCell::new(ProviderState::NotReady));
+
+    let ctx = PollContext {
+        sdk_key: "cpk_mob_test".to_string(),
+        endpoint: "https://sdk.coproduct.app".to_string(),
+        user_agent: "coproduct-ios/test".to_string(),
+        cache_dir: cache_dir.clone(),
+        transport: Arc::new(OkTransport),
+        state: state.clone(),
+        in_flight: Arc::new(Mutex::new(false)),
+        snapshot: held.clone(),
+        sdk_context: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        consecutive_failures: Arc::new(Mutex::new(0)),
+        retry_budget: 5,
+        shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        on_snapshot_swapped: None,
+        events: None,
+    };
+
+    let outcome = futures::executor::block_on(poll_now(ctx));
+
+    assert_eq!(outcome, PollOutcome::DedupedSkipped);
+    assert!(held.lock().is_none(), "the snapshot is not swapped");
+    assert_eq!(
+        state.get(),
+        ProviderState::NotReady,
+        "state is not advanced"
+    );
+    assert!(
+        cache::read_snapshot(&cache_dir, "cpk_mob_test")
+            .unwrap()
+            .is_none(),
+        "nothing is persisted to disk"
+    );
 }

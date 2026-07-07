@@ -82,6 +82,14 @@ actor RecordingTransport: HostTransport {
     func count() -> Int { calls }
     func request(req _: HttpRequest) async throws -> HttpResponse {
         calls += 1
-        return HttpResponse(status: 200, body: Data(), headers: [])
+        // A valid snapshot so the poll succeeds and the provider stays in normal
+        // cadence. A failing poll would open a back-off window that the foreground
+        // fast path deliberately waits out, which is a separate contract
+        let body = """
+        {"snapshot":{"schemaVersion":1,"version":1,"generatedAt":"2026-01-01T00:00:00Z",\
+        "environment":{"slug":"e","projectKey":"p"},"flags":[],"segments":[]},\
+        "sdkContext":{"timezone":"UTC"}}
+        """
+        return HttpResponse(status: 200, body: Data(body.utf8), headers: [HttpHeader(name: "ETag", value: "v1")])
     }
 }

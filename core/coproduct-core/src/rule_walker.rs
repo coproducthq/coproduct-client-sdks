@@ -22,7 +22,14 @@ pub enum RuleWalkResult {
 /// below `coverage` wins. The variant bucket picks among weighted rollouts.
 /// Conditions that evaluate NoMatch or Indeterminate (missing attribute,
 /// conservative negation, missing segment) continue the walk. A condition that
-/// evaluates CircuitBreak fails the whole flag closed
+/// evaluates CircuitBreak fails the whole flag closed (see the note on the
+/// per-context, short-circuit-dependent nature of that fail-closed in
+/// `crate::condition`).
+///
+/// An empty targeting key skips all targeting rules and serves the fallthrough:
+/// there is no identity to bucket, so this is a deliberate "no targeting without
+/// identity" policy. The client rejects an empty key upstream, so this guards a
+/// context built without one
 pub fn walk_rules(
     flag: &Flag,
     ctx: &EvaluationContext,

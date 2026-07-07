@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 
+use crate::events::EventRegistry;
 use crate::state::{ProviderState, ProviderStateCell};
 use crate::transport::{HttpHeader, HttpMethod, HttpRequest, Transport};
 
@@ -42,6 +43,25 @@ pub struct PollContext {
     /// keys whose values changed. Leaving it `None` disables fanout for that
     /// poll context
     pub on_snapshot_swapped: Option<Arc<dyn SnapshotSwapHook + Send + Sync>>,
+    /// Lifecycle-event sink. When present, a provider-state transition performed
+    /// during the poll fires its lifecycle event here, at the transition itself,
+    /// so exactly one event fires per real change no matter how many callers poll
+    /// concurrently. Leaving it `None` applies the state change without firing,
+    /// which is what the polling unit tests want
+    pub events: Option<Arc<EventRegistry>>,
+}
+
+/// Apply a provider-state transition during a poll and fire its lifecycle event
+/// when an event sink is installed. Firing at the transition, keyed on the cell's
+/// own `transition()`, is what makes a single event fire per real change. The
+/// state write still happens when no sink is installed
+async fn transition_state(ctx: &PollContext, next: ProviderState) {
+    match ctx.events.as_ref() {
+        Some(events) => crate::events::transition_and_fire(&ctx.state, events, next).await,
+        None => {
+            ctx.state.transition(next);
+        }
+    }
 }
 
 /// Receiver of snapshot-swap notifications from the polling layer. Kept as a
@@ -54,6 +74,7 @@ pub trait SnapshotSwapHook {
         &self,
         prev: Option<&Arc<crate::snapshot::IndexedSnapshot>>,
         next: &Arc<crate::snapshot::IndexedSnapshot>,
+        prev_sdk_context: std::collections::HashMap<String, crate::context::AttributeValue>,
     );
 }
 
@@ -155,13 +176,24 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
     // shutdown can still be in flight here. A shut-down client must not persist
     // its snapshot or swap provider state. `_release` still resets in_flight.
     // DedupedSkipped is reused because the host treats it as a no-op poll, which
-    // is the right outcome for a shutdown skip as well
+    // is the right outcome for a shutdown skip as well.
+    //
+    // Contract: a poll that observes shutdown at a mutation point does no work.
+    // Every mutating branch below re-checks this latch immediately before it
+    // writes, so no branch mutates state or disk after it has observed shutdown.
+    // This is not full linearization: a shutdown that latches between a branch's
+    // check and its write can still slip through. It keeps the branches symmetric
+    // and closes the window this single post-network check leaves open on its own
     if ctx.shutdown.load(Ordering::Acquire) {
         return PollOutcome::DedupedSkipped;
     }
 
     match response {
         Ok(resp) if resp.status == 304 => {
+            // A shut-down client must not touch the ETag or provider state
+            if ctx.shutdown.load(Ordering::Acquire) {
+                return PollOutcome::DedupedSkipped;
+            }
             if let Some(etag) = extract_etag(&resp.headers) {
                 let _ = crate::cache::write_etag(&ctx.cache_dir, &ctx.sdk_key, &etag);
             }
@@ -179,7 +211,7 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             if ctx.snapshot.lock().is_some() {
                 match ctx.state.get() {
                     ProviderState::Retrying | ProviderState::Stale | ProviderState::NotReady => {
-                        ctx.state.set(ProviderState::Ready);
+                        transition_state(&ctx, ProviderState::Ready).await;
                     }
                     _ => {}
                 }
@@ -201,7 +233,7 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
                     tracing::warn!(
                         "snapshot body is not valid UTF-8, keeping held snapshot and routing through record_failure"
                     );
-                    return record_failure(&ctx);
+                    return record_failure(&ctx).await;
                 }
             };
             // Use the version-fence helper to peek at the
@@ -209,7 +241,10 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             // forcing the v1 deserialize first
             let body_raw_value = match crate::snapshot::check_envelope_schema_version(raw) {
                 Ok(body) => body,
-                Err(crate::error::InitError::UnsupportedSchemaVersion { actual, supported }) => {
+                Err(crate::snapshot::SchemaCheckError::UnsupportedSchemaVersion {
+                    actual,
+                    supported,
+                }) => {
                     tracing::warn!(
                         actual,
                         supported,
@@ -218,17 +253,23 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
                     // A schema mismatch is not a failure: the server
                     // responded correctly with a future-version payload.
                     // The provider state stays unchanged and the snapshot
-                    // stays at its current value
+                    // stays at its current value.
+                    //
+                    // Reusing Retrying means a cache-less client polls at the
+                    // normal cadence indefinitely while every read serves defaults,
+                    // an accepted behavior for the deferred schema-mismatch design.
+                    // Retrying drives host cadence, so a distinct outcome for this
+                    // arm would read more clearly than borrowing Retrying's
                     return PollOutcome::Retrying;
                 }
-                Err(_) => return record_failure(&ctx),
+                Err(_) => return record_failure(&ctx).await,
             };
             // Re-parse the envelope to recover `sdk_context` (the fence
             // helper only returned the snapshot body). Both reads are
             // cheap because `serde_json::RawValue` retains the slice
             let envelope: crate::snapshot::SnapshotEnvelope = match serde_json::from_str(raw) {
                 Ok(env) => env,
-                Err(_) => return record_failure(&ctx),
+                Err(_) => return record_failure(&ctx).await,
             };
             // Deserialize into the wire-format Snapshot. Only runs after
             // the version fence has accepted the schemaVersion
@@ -241,7 +282,7 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
                         %error,
                         "v1 snapshot body parse failed, keeping held snapshot and routing through record_failure"
                     );
-                    return record_failure(&ctx);
+                    return record_failure(&ctx).await;
                 }
             };
             // Convert to the in-memory IndexedSnapshot so downstream
@@ -256,6 +297,14 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
                 .and_then(|raw| serde_json::from_str::<crate::snapshot::SdkContext>(raw.get()).ok())
                 .map(crate::context::sdk_context_to_attribute_map)
                 .unwrap_or_default();
+            // Re-check shutdown right before the first side effect. The parse
+            // above is synchronous, but a concurrent shutdown() can still latch
+            // while it runs, and the earlier check only covered the network await.
+            // A shut-down client must not persist, swap, or fan out. This is the
+            // last point before any observable mutation
+            if ctx.shutdown.load(Ordering::Acquire) {
+                return PollOutcome::DedupedSkipped;
+            }
             // Persist the raw bytes (round-trip wins on cold-start latency
             // versus re-serializing). A persist failure does not undo the
             // in-memory swap. The next successful poll re-persists.
@@ -271,25 +320,43 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             }
             // Snapshot the prior value before swapping so the
             // snapshot-swap hook can diff. Hold each lock only for the
-            // swap, not across any I/O. The `sdk_context` slot is
-            // updated independently; observers only observe flag values
+            // swap, not across any I/O. Capture the prior `sdk_context`
+            // too, so the fanout can diff against the context observers
+            // last saw: a flag whose targeting reads an edge attribute
+            // moves value when the edge geo shifts, even if the flag
+            // definition is unchanged
             let prev = ctx.snapshot.lock().clone();
+            let prev_sdk_context = ctx.sdk_context.lock().clone();
             *ctx.snapshot.lock() = Some(snapshot.clone());
             *ctx.sdk_context.lock() = sdk_context_map;
             *ctx.consecutive_failures.lock() = 0;
-            ctx.state.set(ProviderState::Ready);
+            // Move to Ready before the fanout so observers re-evaluate against a
+            // Ready provider. Hold the resulting transition to fire its lifecycle
+            // event after the fanout, keeping the Ready event ordered after the
+            // observer callbacks and the ConfigurationChanged the swap hook emits
+            let became_ready = ctx.state.transition(ProviderState::Ready).is_some();
 
             // Fire the optional snapshot-swap hook so a registered
             // listener can diff `(prev, next)` and notify only the keys
             // whose values changed. When no hook is installed this poll
             // performs the swap without any fanout
             if let Some(hook) = ctx.on_snapshot_swapped.as_ref() {
-                hook.on_swap(prev.as_ref(), &snapshot).await;
+                hook.on_swap(prev.as_ref(), &snapshot, prev_sdk_context)
+                    .await;
+            }
+
+            if became_ready && let Some(events) = ctx.events.as_ref() {
+                events.fire(crate::events::LifecycleEvent::Ready).await;
             }
 
             PollOutcome::Updated
         }
         Ok(resp) if resp.status == 401 => {
+            // A shut-down client must not clear the cache or move to Fatal. A
+            // revoked key is cleared by the next session's first poll instead
+            if ctx.shutdown.load(Ordering::Acquire) {
+                return PollOutcome::DedupedSkipped;
+            }
             // Drop the held snapshot AND clear the persisted on-disk
             // copy. If we only cleared the in-memory snapshot, the next
             // cold start would re-load the revoked snapshot from disk
@@ -302,16 +369,16 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             *ctx.snapshot.lock() = None;
             let _ = crate::cache::clear_snapshot(&ctx.cache_dir, &ctx.sdk_key);
             let _ = crate::cache::clear_etag(&ctx.cache_dir, &ctx.sdk_key);
-            ctx.state.set(ProviderState::Fatal);
+            transition_state(&ctx, ProviderState::Fatal).await;
             PollOutcome::Fatal
         }
         Ok(resp) if resp.status == 429 => handle_rate_limited(&resp),
         Ok(resp) if (400..500).contains(&resp.status) => {
-            handle_permanent_client_error(&ctx, resp.status)
+            handle_permanent_client_error(&ctx, resp.status).await
         }
         // 5xx server errors and transport errors are transient. They
         // feed the retry budget and move the provider toward Stale
-        Ok(_) | Err(_) => record_failure(&ctx),
+        Ok(_) | Err(_) => record_failure(&ctx).await,
     }
 }
 
@@ -333,19 +400,24 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
 /// valid, and the host keeps evaluating against them while operators
 /// correct the configuration. The Fatal state already stops
 /// background polls, which is the actionable safety property
-fn handle_permanent_client_error(ctx: &PollContext, status: u16) -> PollOutcome {
+async fn handle_permanent_client_error(ctx: &PollContext, status: u16) -> PollOutcome {
+    // A shut-down client must not move to Fatal. The teardown already stops polls
+    if ctx.shutdown.load(Ordering::Acquire) {
+        return PollOutcome::DedupedSkipped;
+    }
     tracing::error!(
         status = status,
         endpoint = %ctx.endpoint,
         "permanent client error from edge worker. Stopping polls. Check endpoint URL and SDK key configuration"
     );
-    ctx.state.set(ProviderState::Fatal);
+    transition_state(ctx, ProviderState::Fatal).await;
     PollOutcome::Fatal
 }
 
 /// 429 is server-instructed back-off. State stays where it was. The
 /// retry-budget counter is NOT bumped. The host scheduler honors
-/// `retry_after_secs` before the next poll.
+/// `retry_after_secs` before the next poll, and the value is clamped to a
+/// one-hour ceiling so a malformed header cannot freeze polling.
 ///
 /// The edge worker emits `Retry-After` as integer seconds per RFC 7231.
 /// The HTTP-date form is allowed by the RFC but the platform does not
@@ -354,20 +426,35 @@ fn handle_permanent_client_error(ctx: &PollContext, status: u16) -> PollOutcome 
 /// would cause an immediate retry and defeat the back-off
 fn handle_rate_limited(resp: &crate::transport::HttpResponse) -> PollOutcome {
     const DEFAULT_RETRY_AFTER_SECS: u64 = 60;
+    // One-hour ceiling so a malformed or hostile Retry-After cannot stall polling
+    // for the process lifetime. A proxy, or a server sending milliseconds instead
+    // of seconds (86400000 is ~1000 days), would otherwise push the host's next
+    // scheduled poll effectively past forever, and the foreground refresh with it.
+    // Clamping core-side means every host inherits the bound
+    const MAX_RETRY_AFTER_SECS: u64 = 3600;
     let retry_after_secs = resp
         .headers
         .iter()
         .find(|h| h.name.eq_ignore_ascii_case("Retry-After"))
         .and_then(|h| h.value.trim().parse::<u64>().ok())
-        .unwrap_or(DEFAULT_RETRY_AFTER_SECS);
+        .unwrap_or(DEFAULT_RETRY_AFTER_SECS)
+        .min(MAX_RETRY_AFTER_SECS);
     PollOutcome::RateLimited { retry_after_secs }
 }
 
-fn record_failure(ctx: &PollContext) -> PollOutcome {
-    let mut failures = ctx.consecutive_failures.lock();
-    *failures = failures.saturating_add(1);
-    let count = *failures;
-    drop(failures);
+async fn record_failure(ctx: &PollContext) -> PollOutcome {
+    // A shut-down client must not bump the retry counter or move provider state.
+    // This also covers the 200-body parse failures that route through here
+    if ctx.shutdown.load(Ordering::Acquire) {
+        return PollOutcome::DedupedSkipped;
+    }
+    // Scope the guard so it is provably released before the transitions await,
+    // which fire lifecycle events. A `MutexGuard` must never cross an await
+    let count = {
+        let mut failures = ctx.consecutive_failures.lock();
+        *failures = failures.saturating_add(1);
+        *failures
+    };
 
     let prior = ctx.state.get();
     if prior == ProviderState::Stale {
@@ -375,11 +462,11 @@ fn record_failure(ctx: &PollContext) -> PollOutcome {
         return PollOutcome::Stale;
     }
     if count >= ctx.retry_budget {
-        ctx.state.set(ProviderState::Stale);
+        transition_state(ctx, ProviderState::Stale).await;
         return PollOutcome::Stale;
     }
     if matches!(prior, ProviderState::Ready | ProviderState::NotReady) {
-        ctx.state.set(ProviderState::Retrying);
+        transition_state(ctx, ProviderState::Retrying).await;
     }
     PollOutcome::Retrying
 }

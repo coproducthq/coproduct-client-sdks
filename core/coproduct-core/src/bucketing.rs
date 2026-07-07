@@ -4,8 +4,8 @@ use sha2::{Digest, Sha256};
 /// bucket in `[0, 10_000)` computed as `u64::from_be_bytes(sha256(seed)[..8]) % 10_000`
 pub fn bucket_for_seed(seed: &str) -> u32 {
     let digest = Sha256::digest(seed.as_bytes());
-    // SAFETY: Sha256::digest returns a GenericArray<u8, U32> by type, so the
-    // first 8 bytes always exist and the `try_into` conversion cannot fail
+    // Sha256::digest returns a GenericArray<u8, U32> by type, so the first 8 bytes
+    // always exist and the `try_into` conversion cannot fail
     let prefix: [u8; 8] = digest[..8]
         .try_into()
         .expect("SHA-256 digest always has at least 8 bytes");

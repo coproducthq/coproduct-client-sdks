@@ -68,7 +68,7 @@ fn cases_json_operator_cases_all_pass() {
                 };
                 // The corpus stores expected as a bool because it is shared with
                 // the iOS, Android, Flutter, and React Native runners that observe
-                // behavior at the customer-facing boundary, where a rule either
+                // behavior at the public-facing boundary, where a rule either
                 // includes the user or does not. Project the tetra-state outcome
                 // to that bool with the same rule the rule walker uses: only Match
                 // counts as included. Indeterminate and CircuitBreak collapse to

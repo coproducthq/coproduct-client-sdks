@@ -1,9 +1,73 @@
 //! Segment + top-level Snapshot envelope
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use super::flag::Flag;
 use super::rule::Operator;
+
+/// Deserialize a snapshot array element-by-element so one unparseable entry is
+/// dropped with a warning instead of failing the whole snapshot. A present-but-
+/// null field is treated as empty, so an explicit `"flags": null` does not reject
+/// the snapshot the way an omitted field would not. A non-null, non-array value
+/// still fails, which keeps the envelope strict while an individual flag or
+/// segment fails closed. A dropped flag is absent, so its getters return the
+/// caller default, and a newer server can ship an additive change to one flag
+/// without freezing updates for the rest
+fn deserialize_tolerant_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: serde::de::DeserializeOwned,
+{
+    // Capture each array element as a raw slice before parsing it. Materializing
+    // the array as `Vec<serde_json::Value>` would descend into every element up
+    // front, so a single entry nested past the deserializer's recursion limit
+    // would fail the whole array and wedge the snapshot. Raw capture records an
+    // element's bytes without descending, so the limit is only reached, and only
+    // isolated, when the offending entry is parsed on its own below. The outer
+    // `Option` maps a present `null` to an empty list rather than a hard error
+    let raw_items = Option::<Vec<Box<serde_json::value::RawValue>>>::deserialize(deserializer)?
+        .unwrap_or_default();
+    let mut items = Vec::with_capacity(raw_items.len());
+    for raw in raw_items {
+        match serde_json::from_str::<T>(raw.get()) {
+            Ok(item) => items.push(item),
+            Err(error) => tracing::warn!(
+                key = entry_key(&raw).as_deref().unwrap_or("<unknown>"),
+                %error,
+                "dropping unparseable snapshot entry"
+            ),
+        }
+    }
+    Ok(items)
+}
+
+// Best-effort read of an entry's `key` for the drop warning. Returns `None` when
+// the entry is too malformed, or too deeply nested, to read the key at all, in
+// which case the warning names the entry as unknown
+fn entry_key(raw: &serde_json::value::RawValue) -> Option<String> {
+    #[derive(Deserialize)]
+    struct KeyOnly {
+        #[serde(default)]
+        key: Option<String>,
+    }
+    serde_json::from_str::<KeyOnly>(raw.get()).ok()?.key
+}
+
+// serde `deserialize_with` cannot infer the element type from a generic path, so
+// each field points at a monomorphic wrapper over the shared tolerant decoder
+fn deserialize_tolerant_flags<'de, D>(deserializer: D) -> Result<Vec<Flag>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_tolerant_vec(deserializer)
+}
+
+fn deserialize_tolerant_segments<'de, D>(deserializer: D) -> Result<Vec<Segment>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_tolerant_vec(deserializer)
+}
 
 /// A reusable group of users targetable by name from any flag's
 /// `Condition::Segment { segment_key }`. `name` is carried in the SDK-facing
@@ -45,9 +109,9 @@ pub struct Snapshot {
     /// Identifies the environment this snapshot was generated for
     #[serde(default)]
     pub environment: EnvironmentMetadata,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_tolerant_flags")]
     pub flags: Vec<Flag>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_tolerant_segments")]
     pub segments: Vec<Segment>,
 }
 
@@ -97,14 +161,28 @@ impl IndexedSnapshot {
     }
 }
 
+/// Re-key a wire vec into a lookup map, warning when two entries share a key. The
+/// wire shape is a list, so a duplicate key is possible; the last entry wins, and
+/// the warning names the collision rather than dropping data silently
+fn index_by_key<T>(
+    items: Vec<T>,
+    key_of: impl Fn(&T) -> String,
+    kind: &str,
+) -> std::collections::HashMap<String, T> {
+    let mut map = std::collections::HashMap::with_capacity(items.len());
+    for item in items {
+        let key = key_of(&item);
+        if map.insert(key.clone(), item).is_some() {
+            tracing::warn!(key = %key, kind, "duplicate snapshot entry key, keeping the last");
+        }
+    }
+    map
+}
+
 impl From<Snapshot> for IndexedSnapshot {
     fn from(wire: Snapshot) -> Self {
-        let flags = wire.flags.into_iter().map(|f| (f.key.clone(), f)).collect();
-        let segments = wire
-            .segments
-            .into_iter()
-            .map(|s| (s.key.clone(), s))
-            .collect();
+        let flags = index_by_key(wire.flags, |f| f.key.clone(), "flag");
+        let segments = index_by_key(wire.segments, |s| s.key.clone(), "segment");
         Self {
             schema_version: wire.schema_version,
             generated_at: wire.generated_at,
@@ -129,7 +207,13 @@ pub struct SdkContext {
     pub region_code: Option<String>,
     #[serde(default)]
     pub city: Option<String>,
-    /// IANA timezone name. Always populated by the server, defaults to
-    /// `"UTC"` when the server returns no timezone
+    /// IANA timezone name. Defaults to `"UTC"` when the server omits it, so a
+    /// missing timezone does not fail the whole `sdkContext` parse and silently
+    /// drop the sibling geo attributes a flag's targeting may reference
+    #[serde(default = "default_timezone")]
     pub timezone: String,
+}
+
+fn default_timezone() -> String {
+    "UTC".to_string()
 }

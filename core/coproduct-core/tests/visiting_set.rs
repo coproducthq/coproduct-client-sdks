@@ -13,13 +13,16 @@ fn mark_visiting_then_resolve_replaces_sentinel() {
     set.mark_visiting("flag-a");
     assert!(matches!(set.get("flag-a"), Some(VisitingState::Visiting)));
 
-    let outcome = EvaluationOutcome::resolved("on", "true");
+    let outcome = EvaluationOutcome::resolved("on");
     set.resolve("flag-a", outcome.clone());
 
     match set.get("flag-a") {
         Some(VisitingState::Resolved(o)) => {
             assert_eq!(o.variation_key.as_deref(), Some("on"));
-            assert_eq!(o.value_label, "true");
+            assert_eq!(
+                o.reason,
+                coproduct_core::pipeline::EvaluationReason::TargetingMatch
+            );
         }
         other => panic!("expected Resolved, got {other:?}"),
     }

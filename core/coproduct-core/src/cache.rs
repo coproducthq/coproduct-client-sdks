@@ -1,4 +1,4 @@
-//! On-disk persistence for the most recent snapshot and its ETag.
+//! On-disk persistence for the most recent snapshot and its ETag
 //!
 //! ## Why this is not an HTTP cache
 //!
@@ -24,10 +24,11 @@
 //!    snapshot is present. The provider transitions to `Ready` so
 //!    evaluations during the network round trip return the cached
 //!    values rather than defaults
-//! 2. Issue the network fetch immediately. A 200 swap-and-persist
-//!    replaces the in-memory snapshot, overwrites the on-disk copy, and
-//!    keeps the provider in `Ready`. A 304 keeps the in-memory
-//!    snapshot (which already came from the on-disk copy)
+//! 2. `initialize` does not itself poll. The host wrapper drives the
+//!    first fetch immediately after `initialize` returns. A 200
+//!    swap-and-persist replaces the in-memory snapshot, overwrites the
+//!    on-disk copy, and keeps the provider in `Ready`. A 304 keeps the
+//!    in-memory snapshot (which already came from the on-disk copy)
 //! 3. If the network fetch fails (`Retrying` / `Stale` / transport
 //!    error), the in-memory snapshot stays. Evaluations continue to
 //!    return cached values, which is the resilience the persistence is
@@ -44,7 +45,24 @@
 
 use sha2::{Digest, Sha256};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Monotonic counter making each staging temp file unique within the process.
+/// Combined with the process id, two writers targeting the same key never share a
+/// temp path, so one writer's `rename` cannot publish another's half-written bytes
+static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+/// Build a unique sibling temp path for an atomic write. The final `rename` is
+/// atomic, but the staging file must be private to this write to preserve that
+fn staging_path(final_path: &Path) -> PathBuf {
+    let seq = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let name = final_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    final_path.with_file_name(format!("{name}.{}.{seq}.tmp", std::process::id()))
+}
 
 /// Directory-safe scope derived from the sdk key. The persisted snapshot and
 /// ETag live under this scope so a different key never hydrates or overwrites
@@ -78,7 +96,7 @@ pub fn write_snapshot(cache_dir: &str, sdk_key: &str, bytes: &[u8]) -> io::Resul
         std::fs::create_dir_all(parent)?;
     }
 
-    let temp = path.with_extension("json.tmp");
+    let temp = staging_path(&path);
     std::fs::write(&temp, bytes)?;
     std::fs::rename(&temp, &path)
 }
@@ -103,7 +121,7 @@ pub fn write_etag(cache_dir: &str, sdk_key: &str, etag: &str) -> io::Result<()> 
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let temp = path.with_extension("etag.tmp");
+    let temp = staging_path(&path);
     std::fs::write(&temp, etag.as_bytes())?;
     std::fs::rename(&temp, &path)
 }

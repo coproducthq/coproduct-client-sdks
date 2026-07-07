@@ -63,6 +63,8 @@ const KEY_PREFIX: &str = "cpk_mob_";
 const KEY_BODY_LEN: usize = 32;
 const KEY_TOTAL_LEN: usize = KEY_PREFIX.len() + KEY_BODY_LEN;
 const DEFAULT_ENDPOINT: &str = "https://sdk.coproduct.app";
+/// Consecutive poll failures before the provider moves from Retrying to Stale
+const RETRY_BUDGET: u32 = 5;
 
 /// Validate one SDK key body character against the platform's Crockford base32
 /// alphabet. The platform's edge worker validates the body against
@@ -250,7 +252,7 @@ impl CoproductClient {
         let state = Arc::new(ProviderStateCell::new(initial_state));
         let in_flight = Arc::new(Mutex::new(false));
         let failures = Arc::new(Mutex::new(0));
-        let retry_budget = 5;
+        let retry_budget = RETRY_BUDGET;
 
         // Return the client without a first network poll. The host drives all
         // polling, including the first poll which it triggers immediately after
@@ -280,7 +282,9 @@ impl CoproductClient {
         }))
     }
 
-    /// Current provider lifecycle state
+    /// Current provider lifecycle state. After `shutdown` this returns the last
+    /// state the cell held rather than a distinct terminal value, so a host
+    /// gating on teardown checks `is_shutdown` rather than this
     pub fn state(&self) -> ProviderState {
         self.state.get()
     }
@@ -307,7 +311,6 @@ impl CoproductClient {
         if self.is_shutdown() {
             return crate::polling::PollOutcome::DedupedSkipped;
         }
-        let before = self.state.get();
         let ctx = PollContext {
             sdk_key: self.sdk_key.clone(),
             endpoint: self.endpoint.clone(),
@@ -322,18 +325,12 @@ impl CoproductClient {
             retry_budget: self.retry_budget,
             shutdown: self.shutdown.clone(),
             on_snapshot_swapped: Some(self.clone() as Arc<dyn SnapshotSwapHook + Send + Sync>),
+            // The polling layer fires lifecycle events at the transition itself,
+            // keyed on the state cell, so exactly one event fires per real change
+            // regardless of how many callers poll concurrently
+            events: Some(self.events.clone()),
         };
-        // The free poll path mutates provider state through the shared cell, so a
-        // before and after comparison is the only seam where a poll-driven
-        // transition can fire its lifecycle event
-        let outcome = poll_now(ctx).await;
-        let after = self.state.get();
-        if before != after
-            && let Some(event) = lifecycle_event_for(after)
-        {
-            self.events.fire(event).await;
-        }
-        outcome
+        poll_now(ctx).await
     }
 
     pub fn observe_key(
@@ -386,6 +383,13 @@ impl CoproductClient {
         self.observers.count_for(key)
     }
 
+    /// Register a lifecycle handler for one event type. The returned handle
+    /// unregisters the handler when cancelled or dropped.
+    ///
+    /// Keep handlers fast. `EventRegistry::fire` awaits handlers serially, and the
+    /// identity mutators await their lifecycle events inline, so a slow handler
+    /// stalls every later identity operation. A handler that needs to do heavy or
+    /// blocking work should hand it off rather than block in `on_event`
     pub fn add_handler(
         self: &Arc<Self>,
         event: LifecycleEvent,
@@ -431,12 +435,7 @@ impl CoproductClient {
     /// only when the state actually changes and a fatal provider never leaves
     /// `Fatal`
     pub(crate) async fn set_state(self: &Arc<Self>, next: ProviderState) {
-        if self.state.transition(next).is_none() {
-            return;
-        }
-        if let Some(event) = lifecycle_event_for(next) {
-            self.events.fire(event).await;
-        }
+        crate::events::transition_and_fire(&self.state, &self.events, next).await;
     }
 
     #[doc(hidden)]
@@ -512,7 +511,7 @@ impl CoproductClient {
             state: Arc::new(ProviderStateCell::new(ProviderState::NotReady)),
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
-            retry_budget: 5,
+            retry_budget: RETRY_BUDGET,
             shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -541,6 +540,11 @@ impl CoproductClient {
             let mut guard = self.identity.lock();
             guard.identify(user_id, attributes, link_anonymous)?;
         }
+        // Reconciling is fired as a lifecycle event only. The provider state cell
+        // is deliberately not moved to Reconciling here or in the other identity
+        // mutators: a return-to-Ready would clobber a Retrying / Stale a concurrent
+        // poll set, so `state()` never surfaces the reconcile window. See the note
+        // on `ProviderState::Reconciling`
         self.events.fire(LifecycleEvent::Reconciling).await;
         let snap = self.snapshot.lock().clone();
         let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
@@ -714,7 +718,7 @@ impl CoproductClient {
             state: Arc::new(ProviderStateCell::new(ProviderState::Ready)),
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
-            retry_budget: 5,
+            retry_budget: RETRY_BUDGET,
             shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -761,8 +765,11 @@ impl CoproductClient {
 }
 
 impl CoproductClient {
-    /// Returns the BOOL flag value, or `default` on any failure path such as
-    /// not-ready, not-found, type-mismatch, or circuit-break
+    /// Returns the BOOL flag value. Falls back to `default` only when no variation
+    /// resolves: not-ready, not-found, or a stored value whose type does not match
+    /// the getter. A circuit break is not one of those paths: it serves the flag's
+    /// off value while the detail getters report reason ERROR and code
+    /// RULE_CIRCUIT_BREAK
     pub fn get_bool(&self, key: String, default: bool) -> bool {
         if self.is_shutdown() {
             return default;
@@ -787,30 +794,49 @@ impl CoproductClient {
         value
     }
 
-    /// Evaluate a BOOL flag and project the served variation to a concrete value,
-    /// falling back to `default` on any failure. Returns the value together with
-    /// the evaluation metadata both the hook bracket and the analytics event use
-    fn resolve_bool(&self, key: &str, default: bool) -> (bool, EvalMeta) {
+    /// Evaluate `key` for the requested type and project the served variation to a
+    /// concrete value. Returns the value with the analytics/hook metadata. Falls
+    /// back to `default` only when no variation projects to the requested type, such
+    /// as a not-ready provider, a missing flag, or a stored value whose type does not
+    /// match the getter. A circuit break instead serves the off variation when it
+    /// projects, so it is not a fall-through-to-default path. Either way the metadata
+    /// mirrors the detail getters, reporting an error rather than a targeting match,
+    /// so the emitted event never claims a match that delivered a default
+    fn resolve_typed<T, F>(
+        &self,
+        key: &str,
+        requested: RequestedType,
+        default: T,
+        project: F,
+    ) -> (T, EvalMeta)
+    where
+        F: FnOnce(&VariationValue) -> Option<T>,
+    {
         let snapshot = self.current_snapshot();
         let ctx = self.build_evaluation_context();
-        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::Bool, &ctx);
-        let value = outcome
-            .variation_key
-            .as_ref()
-            .and_then(|v| {
-                let snap = snapshot.as_ref()?;
-                snap.flags
-                    .get(key)?
-                    .variations
-                    .iter()
-                    .find(|var| &var.key == v)
-                    .and_then(|var| match &var.value {
-                        VariationValue::Bool(b) => Some(*b),
-                        _ => None,
-                    })
-            })
-            .unwrap_or(default);
-        (value, meta_from_outcome(&outcome))
+        let outcome = evaluate(snapshot.as_deref(), key, requested, &ctx);
+        // Project the resolved variation's stored value. `None` means either the
+        // outcome named no variation (an error outcome) or the stored value type
+        // did not match the getter (tolerant ingestion keeps such a flag)
+        let projected = outcome.variation_key.as_ref().and_then(|v| {
+            let snap = snapshot.as_ref()?;
+            let var = snap
+                .flags
+                .get(key)?
+                .variations
+                .iter()
+                .find(|var| &var.key == v)?;
+            project(&var.value)
+        });
+        let meta = meta_for(&outcome, projected.is_some());
+        (projected.unwrap_or(default), meta)
+    }
+
+    fn resolve_bool(&self, key: &str, default: bool) -> (bool, EvalMeta) {
+        self.resolve_typed(key, RequestedType::Bool, default, |value| match value {
+            VariationValue::Bool(b) => Some(*b),
+            _ => None,
+        })
     }
 
     /// Test-only constructor that seeds the client with a wire-format snapshot,
@@ -835,7 +861,7 @@ impl CoproductClient {
             state: Arc::new(ProviderStateCell::new(ProviderState::Ready)),
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
-            retry_budget: 5,
+            retry_budget: RETRY_BUDGET,
             shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -860,7 +886,7 @@ impl CoproductClient {
             state: Arc::new(ProviderStateCell::new(ProviderState::NotReady)),
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
-            retry_budget: 5,
+            retry_budget: RETRY_BUDGET,
             shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -949,26 +975,10 @@ impl CoproductClient {
     }
 
     fn resolve_string(&self, key: &str, default: String) -> (String, EvalMeta) {
-        let snapshot = self.current_snapshot();
-        let ctx = self.build_evaluation_context();
-        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::String, &ctx);
-        let value = outcome
-            .variation_key
-            .as_ref()
-            .and_then(|v| {
-                let snap = snapshot.as_ref()?;
-                snap.flags
-                    .get(key)?
-                    .variations
-                    .iter()
-                    .find(|var| &var.key == v)
-                    .and_then(|var| match &var.value {
-                        VariationValue::String(s) => Some(s.clone()),
-                        _ => None,
-                    })
-            })
-            .unwrap_or(default);
-        (value, meta_from_outcome(&outcome))
+        self.resolve_typed(key, RequestedType::String, default, |value| match value {
+            VariationValue::String(s) => Some(s.clone()),
+            _ => None,
+        })
     }
 
     /// Returns the NUMBER flag value, or `default` on any failure path such as
@@ -998,26 +1008,10 @@ impl CoproductClient {
     }
 
     fn resolve_number(&self, key: &str, default: f64) -> (f64, EvalMeta) {
-        let snapshot = self.current_snapshot();
-        let ctx = self.build_evaluation_context();
-        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::Number, &ctx);
-        let value = outcome
-            .variation_key
-            .as_ref()
-            .and_then(|v| {
-                let snap = snapshot.as_ref()?;
-                snap.flags
-                    .get(key)?
-                    .variations
-                    .iter()
-                    .find(|var| &var.key == v)
-                    .and_then(|var| match &var.value {
-                        VariationValue::Number(n) => Some(*n),
-                        _ => None,
-                    })
-            })
-            .unwrap_or(default);
-        (value, meta_from_outcome(&outcome))
+        self.resolve_typed(key, RequestedType::Number, default, |value| match value {
+            VariationValue::Number(n) => Some(*n),
+            _ => None,
+        })
     }
 
     /// Returns the NUMBER flag value projected to an integer by truncating
@@ -1048,35 +1042,19 @@ impl CoproductClient {
     }
 
     fn resolve_int(&self, key: &str, default: i64) -> (i64, EvalMeta) {
-        let snapshot = self.current_snapshot();
-        let ctx = self.build_evaluation_context();
-        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::Number, &ctx);
-        let value = outcome
-            .variation_key
-            .as_ref()
-            .and_then(|v| {
-                let snap = snapshot.as_ref()?;
-                snap.flags
-                    .get(key)?
-                    .variations
-                    .iter()
-                    .find(|var| &var.key == v)
-                    .and_then(|var| match &var.value {
-                        VariationValue::Number(n) => {
-                            let truncated = n.trunc();
-                            if !truncated.is_finite()
-                                || truncated < i64::MIN as f64
-                                || truncated > i64::MAX as f64
-                            {
-                                return None;
-                            }
-                            Some(truncated as i64)
-                        }
-                        _ => None,
-                    })
-            })
-            .unwrap_or(default);
-        (value, meta_from_outcome(&outcome))
+        self.resolve_typed(key, RequestedType::Number, default, |value| match value {
+            VariationValue::Number(n) => {
+                let truncated = n.trunc();
+                if !truncated.is_finite()
+                    || truncated < i64::MIN as f64
+                    || truncated > i64::MAX as f64
+                {
+                    return None;
+                }
+                Some(truncated as i64)
+            }
+            _ => None,
+        })
     }
 
     /// Returns the JSON flag value, or `default` on any failure path such as
@@ -1110,26 +1088,10 @@ impl CoproductClient {
     }
 
     fn resolve_json(&self, key: &str, default: serde_json::Value) -> (serde_json::Value, EvalMeta) {
-        let snapshot = self.current_snapshot();
-        let ctx = self.build_evaluation_context();
-        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::Json, &ctx);
-        let value = outcome
-            .variation_key
-            .as_ref()
-            .and_then(|v| {
-                let snap = snapshot.as_ref()?;
-                snap.flags
-                    .get(key)?
-                    .variations
-                    .iter()
-                    .find(|var| &var.key == v)
-                    .and_then(|var| match &var.value {
-                        VariationValue::Json(j) => Some(j.clone()),
-                        _ => None,
-                    })
-            })
-            .unwrap_or(default);
-        (value, meta_from_outcome(&outcome))
+        self.resolve_typed(key, RequestedType::Json, default, |value| match value {
+            VariationValue::Json(j) => Some(j.clone()),
+            _ => None,
+        })
     }
 }
 
@@ -1387,21 +1349,37 @@ impl CoproductClient {
 /// context and fans out to observers whose values changed
 #[async_trait::async_trait]
 impl SnapshotSwapHook for CoproductClient {
-    async fn on_swap(&self, prev: Option<&Arc<IndexedSnapshot>>, next: &Arc<IndexedSnapshot>) {
-        // Clone the context out before awaiting so the identity lock is not held
-        // across the observer callbacks
-        let context = self.context_with_sdk_layer(self.identity.lock().context().clone());
+    async fn on_swap(
+        &self,
+        prev: Option<&Arc<IndexedSnapshot>>,
+        next: &Arc<IndexedSnapshot>,
+        prev_sdk_context: HashMap<String, AttributeValue>,
+    ) {
+        // Clone the identity context out before awaiting so the identity lock is
+        // not held across the observer callbacks, then layer the prior and next
+        // SDK context onto copies. Diffing the prior snapshot under the prior SDK
+        // context and the next snapshot under the next context means a value that
+        // moved only because the edge geo changed still notifies observers
+        let identity = self.identity.lock().context().clone();
+        let mut prev_context = identity.clone();
+        prev_context.replace_sdk_context(prev_sdk_context);
+        let next_context = self.context_with_sdk_layer(identity);
         crate::fanout::fire_changed_for_swap(
             &self.observers,
-            prev.map(|s| s.as_ref()),
+            prev.map(|s| (s.as_ref(), &prev_context)),
             next.as_ref(),
-            &context,
+            &next_context,
         )
         .await;
-        // Fire ConfigurationChanged when the swap advanced the snapshot version
-        // so both real polls and the test swap helper signal a new configuration
+        // Fire ConfigurationChanged when the swap moved to a different snapshot
+        // version. Comparing for inequality rather than a strict increase keeps
+        // this consistent with the observer fanout above: a server-side rollback
+        // to a lower version still changes the served flag values, so lifecycle
+        // listeners must hear it too, and nothing here assumes the version only
+        // ever advances. The first load (no prior snapshot) signals Ready, not
+        // ConfigurationChanged, so the `is_some_and` leaves it out
         let prev_version = prev.map(|s| s.version);
-        if prev_version.is_some_and(|v| next.version > v) {
+        if prev_version.is_some_and(|v| next.version != v) {
             self.events.fire(LifecycleEvent::ConfigurationChanged).await;
         }
     }
@@ -1417,7 +1395,29 @@ impl CoproductClient {
         }
         let prev = self.snapshot.lock().clone();
         *self.snapshot.lock() = Some(next.clone());
-        self.on_swap(prev.as_ref(), &next).await;
+        // The test swap does not move the SDK context, so the prior context equals
+        // the current one and the fanout diffs purely on the snapshot change
+        let prev_sdk_context = self.sdk_context.lock().clone();
+        self.on_swap(prev.as_ref(), &next, prev_sdk_context).await;
+    }
+
+    /// Test-only SDK-context swap that mirrors a poll whose snapshot is unchanged
+    /// but whose edge-derived SDK context moved. Fans out through the same
+    /// snapshot-swap seam so observers see the value change the new context drives
+    #[doc(hidden)]
+    pub async fn swap_sdk_context_for_test(
+        self: &Arc<Self>,
+        next_sdk_context: HashMap<String, AttributeValue>,
+    ) {
+        if self.is_shutdown() {
+            return;
+        }
+        let Some(snap) = self.snapshot.lock().clone() else {
+            return;
+        };
+        let prev_sdk_context = self.sdk_context.lock().clone();
+        *self.sdk_context.lock() = next_sdk_context;
+        self.on_swap(Some(&snap), &snap, prev_sdk_context).await;
     }
 
     #[doc(hidden)]
@@ -1450,7 +1450,7 @@ impl CoproductClient {
             state: Arc::new(ProviderStateCell::new(ProviderState::Ready)),
             in_flight: Arc::new(Mutex::new(false)),
             consecutive_failures: Arc::new(Mutex::new(0)),
-            retry_budget: 5,
+            retry_budget: RETRY_BUDGET,
             shutdown: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -1473,41 +1473,62 @@ struct EvalMeta {
     error_code: Option<EvaluationErrorCode>,
 }
 
-/// Pull the variant, mapped reason, and error code off a pipeline outcome. The
-/// matched rule id is not carried on the pipeline outcome, so `rule_id` on the
-/// emitted event stays `None`
-fn meta_from_outcome(outcome: &crate::pipeline::EvaluationOutcome) -> EvalMeta {
+/// Build event metadata for a plain getter from the pipeline outcome and whether
+/// the served variation projected to the getter's type. A pipeline error, or a
+/// resolved variation whose stored value did not match the getter, serves the
+/// caller default, so the event reports the error with no variant rather than a
+/// targeting match that never delivered its variant. This mirrors the detail
+/// getters, so `get_bool` and `get_bool_details` emit the same event for the same
+/// evaluation. The matched rule id is not carried on the outcome, so `rule_id`
+/// stays `None`
+fn meta_for(outcome: &crate::pipeline::EvaluationOutcome, projected: bool) -> EvalMeta {
+    if let Some(code) = outcome.error_code {
+        return EvalMeta {
+            variant: None,
+            reason: EventReason::Error,
+            error_code: Some(code),
+        };
+    }
+    if !projected {
+        return EvalMeta {
+            variant: None,
+            reason: EventReason::Error,
+            error_code: Some(EvaluationErrorCode::TypeMismatch),
+        };
+    }
     EvalMeta {
         variant: outcome.variation_key.clone(),
         reason: map_reason(outcome.reason),
-        error_code: outcome.error_code,
+        error_code: None,
     }
 }
 
 /// Build event metadata for a detail getter. The detail builder can surface a
 /// type-mismatch or not-found error the raw pipeline outcome did not carry, so
 /// the error code is recovered from the built details and the event reason
-/// collapses to `Error` whenever the details did. The variant tracks the details
-/// rather than the raw outcome for the same reason
+/// collapses to `Error` whenever the details did. The analytics event reports no
+/// variant on an error even when the details serve one (the circuit-break-to-off
+/// case), so the event stays consistent with the plain getter, which also reports
+/// no variant on an error
 fn meta_from_details<T>(
     outcome_reason: EvaluationReason,
     details: &FlagEvaluationDetails<T>,
 ) -> EvalMeta {
     let error_code = error_code_from_details(details);
-    let reason = if error_code.is_some() {
-        EventReason::Error
+    let (reason, variant) = if error_code.is_some() {
+        (EventReason::Error, None)
     } else {
-        map_reason(outcome_reason)
+        (map_reason(outcome_reason), details.variant.clone())
     };
     EvalMeta {
-        variant: details.variant.clone(),
+        variant,
         reason,
         error_code,
     }
 }
 
 /// Map the internal pipeline reason onto the analytics event reason. The two
-/// enums carry the same variants today and are kept separate so the public event
+/// enums carry the same variants and are kept separate so the public event
 /// surface stays stable independent of pipeline internals
 fn map_reason(reason: EvaluationReason) -> EventReason {
     match reason {
@@ -1516,19 +1537,6 @@ fn map_reason(reason: EvaluationReason) -> EventReason {
         EvaluationReason::Off => EventReason::Off,
         EvaluationReason::PrerequisiteFailed => EventReason::PrerequisiteFailed,
         EvaluationReason::Error => EventReason::Error,
-    }
-}
-
-/// Map a provider lifecycle state to the lifecycle event a transition into that
-/// state fires. `NotReady` is the cold-start state and has no entry event
-fn lifecycle_event_for(state: ProviderState) -> Option<LifecycleEvent> {
-    match state {
-        ProviderState::NotReady => None,
-        ProviderState::Ready => Some(LifecycleEvent::Ready),
-        ProviderState::Reconciling => Some(LifecycleEvent::Reconciling),
-        ProviderState::Retrying => Some(LifecycleEvent::Retrying),
-        ProviderState::Stale => Some(LifecycleEvent::Stale),
-        ProviderState::Fatal => Some(LifecycleEvent::Fatal),
     }
 }
 

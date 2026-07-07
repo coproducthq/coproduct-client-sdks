@@ -17,7 +17,7 @@ fn rule_always_on() -> TargetingRule {
 }
 
 #[test]
-fn step1_beats_step2() {
+fn no_snapshot_short_circuits_before_flag_lookup() {
     let ctx = EvaluationContext::with_targeting_key("u1");
     let outcome = evaluate(None, "any", RequestedType::Bool, &ctx);
     assert_eq!(
@@ -27,7 +27,7 @@ fn step1_beats_step2() {
 }
 
 #[test]
-fn step2_beats_step3() {
+fn missing_flag_short_circuits_before_type_check() {
     let snapshot = snapshot_with_flags(vec![]);
     let ctx = EvaluationContext::with_targeting_key("u1");
     let outcome = evaluate(Some(&snapshot), "missing", RequestedType::String, &ctx);
@@ -35,7 +35,7 @@ fn step2_beats_step3() {
 }
 
 #[test]
-fn step3_beats_step4() {
+fn type_mismatch_short_circuits_before_off_gate() {
     let mut flag = bool_flag_with_prereqs("paused-bool", &[]);
     flag.is_paused = true;
     let snapshot = snapshot_with_flags(vec![flag]);
@@ -45,7 +45,7 @@ fn step3_beats_step4() {
 }
 
 #[test]
-fn step4_beats_step5() {
+fn paused_gate_short_circuits_before_disabled_gate() {
     let mut flag = bool_flag_with_prereqs("paused-and-disabled", &[]);
     flag.is_paused = true;
     flag.enabled = false;
@@ -62,7 +62,7 @@ fn step4_beats_step5() {
 }
 
 #[test]
-fn step5_beats_step6() {
+fn disabled_gate_short_circuits_before_prerequisites() {
     let mut flag = bool_flag_with_prereqs("disabled-with-ghost-prereq", &[("ghost", "on")]);
     flag.enabled = false;
     let snapshot = snapshot_with_flags(vec![flag]);
@@ -78,7 +78,7 @@ fn step5_beats_step6() {
 }
 
 #[test]
-fn step6_beats_step7() {
+fn prerequisites_short_circuit_before_targeting_rules() {
     let mut flag = bool_flag_with_prereqs("prereq-then-rule", &[("gate", "treatment")]);
     flag.targeting_rules = vec![rule_always_on()];
     let snapshot = snapshot_with_flags(vec![flag, bool_flag_with_prereqs("gate", &[])]);
@@ -93,7 +93,7 @@ fn step6_beats_step7() {
 }
 
 #[test]
-fn step7_beats_step8() {
+fn targeting_rules_short_circuit_before_fallthrough() {
     let mut flag = bool_flag_with_prereqs("rule-wins", &[]);
     flag.targeting_rules = vec![rule_always_on()];
     flag.fallthrough_variation = Some("off".to_string());

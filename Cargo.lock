@@ -404,6 +404,7 @@ version = "0.0.1"
 dependencies = [
  "async-trait",
  "coproduct-core",
+ "parking_lot",
  "serde_json",
  "thiserror",
  "time",

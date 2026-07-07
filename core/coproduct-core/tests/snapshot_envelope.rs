@@ -114,6 +114,39 @@ fn sdk_context_partial_fields_tolerated() {
 }
 
 #[test]
+fn sdk_context_geo_values_are_normalized_like_developer_values() {
+    // The edge may send lowercase geo codes. They are normalized (upper-cased) the
+    // same way a developer-supplied value would be, so a rule matches identically
+    // whichever layer supplied the value
+    let ctx: SdkContext = serde_json::from_str(
+        r#"{ "country": "us", "continent": "na", "regionCode": "us-ca", "timezone": "UTC" }"#,
+    )
+    .unwrap();
+    let map = coproduct_core::context::sdk_context_to_attribute_map(ctx);
+    use coproduct_core::context::AttributeValue;
+    assert_eq!(
+        map.get("country"),
+        Some(&AttributeValue::String("US".to_string()))
+    );
+    assert_eq!(
+        map.get("region_code"),
+        Some(&AttributeValue::String("US-CA".to_string()))
+    );
+}
+
+#[test]
+fn sdk_context_defaults_missing_timezone_to_utc() {
+    // The server may omit timezone. Without a default this fails the whole
+    // sdkContext parse, and the poll and cache-prewarm paths swallow that with
+    // `.ok()` and drop every geo attribute, so a country-targeted flag would
+    // evaluate against no country at all
+    let wire = r#"{ "country": "US" }"#;
+    let ctx: SdkContext = serde_json::from_str(wire).expect("a missing timezone still parses");
+    assert_eq!(ctx.country.as_deref(), Some("US"));
+    assert_eq!(ctx.timezone, "UTC");
+}
+
+#[test]
 fn sdk_context_accepts_camelcase_region_code() {
     let wire = r#"{ "regionCode": "US-CA", "timezone": "UTC" }"#;
     let ctx: SdkContext = serde_json::from_str(wire).unwrap();

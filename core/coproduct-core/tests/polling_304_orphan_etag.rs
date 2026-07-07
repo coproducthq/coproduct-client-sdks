@@ -63,6 +63,7 @@ fn ctx_with(
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     }
 }
 

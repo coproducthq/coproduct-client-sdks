@@ -28,6 +28,9 @@ impl Default for Coverage {
     }
 }
 
+/// A bare `Coverage` coalesces the same way the `deserialize_coverage` field
+/// helper does. Kept because round-trip deserialization of a `Coverage` value not
+/// behind the field `deserialize_with` needs the trait impl
 impl<'de> Deserialize<'de> for Coverage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

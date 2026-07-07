@@ -4,6 +4,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
+use crate::state::{ProviderState, ProviderStateCell};
+
 /// The 7 lifecycle event types. Mirrors OpenFeature's
 /// provider event vocabulary with `retrying` as a native-only refinement
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -118,5 +120,38 @@ impl EventRegistry {
 
     pub fn drain(&self) {
         self.entries.lock().clear();
+    }
+}
+
+/// Map a provider lifecycle state to the lifecycle event a transition into that
+/// state fires. `NotReady` is the cold-start state and has no entry event
+pub(crate) fn lifecycle_event_for(state: ProviderState) -> Option<LifecycleEvent> {
+    match state {
+        ProviderState::NotReady => None,
+        ProviderState::Ready => Some(LifecycleEvent::Ready),
+        ProviderState::Reconciling => Some(LifecycleEvent::Reconciling),
+        ProviderState::Retrying => Some(LifecycleEvent::Retrying),
+        ProviderState::Stale => Some(LifecycleEvent::Stale),
+        ProviderState::Fatal => Some(LifecycleEvent::Fatal),
+    }
+}
+
+/// Apply a provider-state move through the cell and fire the matching lifecycle
+/// event exactly once on a real change. This is the single seam every state-driven
+/// lifecycle event flows through, whether the mover is the polling loop or a
+/// direct client transition, so an event cannot be duplicated by a second caller
+/// sampling the state around the transition. `transition()` returns `None` for an
+/// idempotent move or once the provider is terminally `Fatal`, so no event fires
+/// unless the state actually changed
+pub(crate) async fn transition_and_fire(
+    state: &ProviderStateCell,
+    events: &EventRegistry,
+    next: ProviderState,
+) {
+    if state.transition(next).is_none() {
+        return;
+    }
+    if let Some(event) = lifecycle_event_for(next) {
+        events.fire(event).await;
     }
 }

@@ -82,3 +82,44 @@ async fn fanout_delivers_the_sdk_context_aware_value() {
         "the fanout delivers the SDK-context-aware value, matching get_bool"
     );
 }
+
+// A poll can leave a flag's definition unchanged while the edge-derived SDK
+// context moves (the user's geo shifts). The swap fanout must diff against the
+// context observers last saw, so a value that changes only because the SDK context
+// changed still notifies observers.
+#[tokio::test]
+async fn fanout_notifies_on_an_sdk_context_change_that_moves_the_value() {
+    let client =
+        CoproductClient::test_instance_with_snapshot(snapshot_with_flags(vec![country_us_flag()]))
+            .await;
+    client.set_sdk_context_for_test(HashMap::from([(
+        "country".to_string(),
+        AttributeValue::String("US".to_string()),
+    )]));
+    // Under US the country rule matches and the flag is on
+    assert!(client.get_bool("geo".to_string(), false));
+
+    let recorder: Arc<Recorder> = Arc::new(Recorder::default());
+    let _sub = client.observe_key("geo".to_string(), recorder.clone());
+
+    // Same snapshot, but the edge now places the user in CA. The value drops to
+    // off, and the observer must hear it even though only the SDK context changed
+    client
+        .swap_sdk_context_for_test(HashMap::from([(
+            "country".to_string(),
+            AttributeValue::String("CA".to_string()),
+        )]))
+        .await;
+
+    assert!(
+        !client.get_bool("geo".to_string(), false),
+        "the getter now misses the country rule"
+    );
+    let seen = recorder.seen.lock().unwrap();
+    assert_eq!(
+        seen.len(),
+        1,
+        "the observer fires on the sdk-context-driven change"
+    );
+    assert_eq!(seen[0], FlagValue::Bool(false));
+}

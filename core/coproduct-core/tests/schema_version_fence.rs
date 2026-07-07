@@ -1,5 +1,6 @@
-use coproduct_core::error::InitError;
-use coproduct_core::snapshot::{SUPPORTED_SCHEMA_VERSION, check_envelope_schema_version};
+use coproduct_core::snapshot::{
+    SUPPORTED_SCHEMA_VERSION, SchemaCheckError, check_envelope_schema_version,
+};
 
 #[test]
 fn matching_version_returns_ok_and_raw_body() {
@@ -13,7 +14,7 @@ fn mismatched_version_returns_unsupported() {
     let raw = r#"{"snapshot":{"schemaVersion":2,"version":47}}"#;
     let err = check_envelope_schema_version(raw).expect_err("should reject v2");
     match err {
-        InitError::UnsupportedSchemaVersion { actual, supported } => {
+        SchemaCheckError::UnsupportedSchemaVersion { actual, supported } => {
             assert_eq!(actual, 2);
             assert_eq!(supported, SUPPORTED_SCHEMA_VERSION);
         }

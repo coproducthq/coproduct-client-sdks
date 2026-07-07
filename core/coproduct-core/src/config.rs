@@ -1,42 +1,30 @@
 use crate::error::ConfigError;
-use crate::logger::Logger;
-use std::sync::Arc;
 use std::time::Duration;
 
-/// All v1.0 config fields. Field validation lands with the config validator
+/// Config the core accepts at `initialize`, holding only values the core reads,
+/// validates, or persists. Host capabilities (transport, secure store) cross
+/// through the dedicated `initialize` parameters, and the evaluation listener
+/// through its own setter, so they are not fields here. Host-behavior settings
+/// such as foreground refresh live on the host-facing configs rather than this
+/// one. `poll_interval`, `startup_timeout`, and `endpoint` are checked by
+/// `validate_config`; `anonymous_id` seeds cold-start identity
 #[derive(Clone)]
 pub struct CoproductConfig {
     pub poll_interval: Option<Duration>,
     pub startup_timeout: Option<Duration>,
     pub anonymous_id: Option<String>,
-    pub logger: Option<Arc<dyn Logger>>,
-    /// Platform-provided network transport (URLSession on iOS, OkHttp on Android, etc.)
-    pub transport: Option<Arc<dyn std::any::Any + Send + Sync>>,
-    /// Platform-provided secure storage (Keychain on iOS, EncryptedSharedPreferences on Android)
-    pub secure_store: Option<Arc<dyn std::any::Any + Send + Sync>>,
     pub endpoint: Option<String>,
-    pub poll_on_foreground: Option<bool>,
-    /// Optional caller-supplied callback that observes every flag evaluation
-    pub evaluation_listener: Option<Arc<dyn std::any::Any + Send + Sync>>,
-    /// Per-request timeout. `None` delegates to the platform transport's own default
-    pub request_timeout: Option<Duration>,
 }
 
 // Note: `#[derive(Default)]` is not used because some fields have non-None
-// defaults (poll_interval = 60s, startup_timeout = 3s, poll_on_foreground = true)
+// defaults (poll_interval = 60s, startup_timeout = 3s)
 impl Default for CoproductConfig {
     fn default() -> Self {
         Self {
             poll_interval: Some(Duration::from_secs(60)),
             startup_timeout: Some(Duration::from_secs(3)),
             anonymous_id: None,
-            logger: None,
-            transport: None,
-            secure_store: None,
             endpoint: None,
-            poll_on_foreground: Some(true),
-            evaluation_listener: None,
-            request_timeout: None,
         }
     }
 }

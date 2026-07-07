@@ -64,6 +64,19 @@ impl ColdStartResult {
     }
 }
 
+/// Best-effort persistence of the anonymous id. A write failure is logged but not
+/// propagated: the id is valid for the session, but without a durable write the
+/// next launch reads nothing and generates a fresh id, so an operator seeing
+/// unstable anonymous identity has this log to explain it
+async fn persist_anonymous_id(store: &Arc<dyn SecureStore>, id: &str) {
+    if let Err(error) = store
+        .write(ANONYMOUS_ID_STORAGE_KEY.to_string(), id.to_string())
+        .await
+    {
+        tracing::warn!(%error, "failed to persist the anonymous id, it will regenerate on the next launch");
+    }
+}
+
 /// Cold-start sequence. Resolves before the first synchronous evaluation so the
 /// targeting key is always a valid non-empty identity.
 ///
@@ -76,18 +89,14 @@ pub async fn cold_start_anonymous_id(
     anonymous_id_override: Option<String>,
 ) -> ColdStartResult {
     if let Some(override_id) = anonymous_id_override {
-        let _ = store
-            .write(ANONYMOUS_ID_STORAGE_KEY.to_string(), override_id.clone())
-            .await;
+        persist_anonymous_id(&store, &override_id).await;
         return ColdStartResult::override_(override_id);
     }
     match store.read(ANONYMOUS_ID_STORAGE_KEY.to_string()).await {
         Ok(Some(existing)) if !existing.is_empty() => ColdStartResult::existing(existing),
         Ok(_) => {
             let fresh = generate_anonymous_id();
-            let _ = store
-                .write(ANONYMOUS_ID_STORAGE_KEY.to_string(), fresh.clone())
-                .await;
+            persist_anonymous_id(&store, &fresh).await;
             ColdStartResult::generated(fresh)
         }
         Err(_) => {

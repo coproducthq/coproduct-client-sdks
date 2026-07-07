@@ -291,6 +291,8 @@ await Coproduct.shutdown()
 
 Both `addHandler` and `addEvaluationHook` return an `AnyCancellable`. Calling `cancel()` removes the registration, and dropping the returned reference auto-cancels, so retain it for as long as the registration should stay active. The hook closure receives an `EvaluationHookContext` carrying the flag key, the resolved value (if any), the default, and an error code. It is deliberately narrower than `FlagEvaluationDetails`: use the detail getters when you need the full reason and variant.
 
+Keep lifecycle handlers fast, the same way you keep an observer sink light. Handlers for an event fire serially, and identity mutations (`identify`, `setContext`, `signOut`, `updateAttributes`, `removeAttributes`) await their `.contextChanged`/`.reconciling` events inline on the identity queue, so a slow handler back-pressures every later identity call. Hop a queue for anything heavy rather than blocking in the handler.
+
 ## Reference: states, events, and codes
 
 `state` is a `ProviderState`: `notReady`, `ready`, `reconciling`, `retrying`, `stale`, `fatal`.

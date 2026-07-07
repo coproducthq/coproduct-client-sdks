@@ -68,7 +68,9 @@ final class IdentityTests: XCTestCase {
         XCTAssertEqual(linked, baselineAnon)
 
         Coproduct.signOut()
-        // Sign out reverts to a fresh anonymous identity and drops the linked id
+        // Sign out reverts to the original anonymous identity and drops the linked
+        // id. The original anonymous id is deliberately reused rather than
+        // regenerated, so a returning user's pre-login sessions re-link
         let cleared = await awaitPreviousAnonymousId { $0 == nil }
         XCTAssertNil(cleared)
     }

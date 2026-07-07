@@ -113,7 +113,7 @@ fn initialize_rejects_short_key() {
     // Catches truncation at copy-paste time. The platform expects
     // 40 chars total (8-char prefix plus 32 body chars). A short key
     // would also be rejected at the server with 401, but failing fast
-    // here gives the customer a clearer error and saves a round trip
+    // here gives the developer a clearer error and saves a round trip
     let dir = TempDir::new().unwrap();
     let err = run_initialize("cpk_mob_abc123", &dir).expect_err("short key must fail fast");
     assert!(matches!(err, InitError::MalformedSdkKey { .. }));

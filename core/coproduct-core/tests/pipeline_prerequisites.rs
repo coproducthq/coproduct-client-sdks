@@ -5,7 +5,7 @@ use coproduct_core::snapshot::test_support::{bool_flag_with_prereqs, snapshot_wi
 use coproduct_core::snapshot::{Flag, Prerequisite};
 
 #[test]
-fn satisfied_prereq_proceeds_to_step7() {
+fn satisfied_prereq_proceeds_to_targeting_rules() {
     let snapshot = snapshot_with_flags(vec![
         bool_flag_with_prereqs("dependent", &[("gate", "on")]),
         bool_flag_with_prereqs("gate", &[]),

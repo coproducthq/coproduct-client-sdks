@@ -49,6 +49,7 @@ fn poll_now_issues_get_to_snapshot_endpoint() {
         retry_budget: 5,
         shutdown: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         on_snapshot_swapped: None,
+        events: None,
     };
 
     let outcome = futures::executor::block_on(poll_now(ctx));

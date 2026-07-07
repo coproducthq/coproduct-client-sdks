@@ -27,11 +27,22 @@ pub use variation::{Variation, VariationValue};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
-use crate::error::InitError;
-
 /// The single schemaVersion the SDK supports. Moves only with a coordinated
 /// four-platform release
 pub const SUPPORTED_SCHEMA_VERSION: u32 = 1;
+
+/// Failure from the pre-parse schema fence. A local error type, not an
+/// `InitError`, because a malformed snapshot payload is a wire-data defect from
+/// the server, not an init-time configuration problem. Mapping it onto
+/// `InvalidConfig` would send an operator to debug their own setup for a bad
+/// server payload
+#[derive(Debug)]
+pub enum SchemaCheckError {
+    /// The envelope, or the snapshot body's `schemaVersion` field, is malformed
+    Malformed(String),
+    /// The snapshot's schema version is not the one this SDK build supports
+    UnsupportedSchemaVersion { actual: u32, supported: u32 },
+}
 
 /// Top-level envelope of the GET /v1/snapshot response. The server response
 /// body is exactly `{ snapshot, sdkContext }`. The `schemaVersion` lives inside
@@ -64,24 +75,22 @@ struct SnapshotVersionOnly {
 /// body as a `RawValue` for the caller to deserialize against the wire-format
 /// types.
 ///
-/// Returns `InitError::UnsupportedSchemaVersion` when the version differs.
-/// Returns a generic InitError-mapped parse error when the envelope or the
-/// snapshot's version field is malformed
-pub fn check_envelope_schema_version(raw: &str) -> Result<&RawValue, InitError> {
-    let envelope: SnapshotEnvelope =
-        serde_json::from_str(raw).map_err(|e| InitError::InvalidConfig {
-            field: "snapshotEnvelope".to_string(),
-            reason: format!("envelope parse failed: {e}"),
-        })?;
+/// Returns `SchemaCheckError::UnsupportedSchemaVersion` when the version differs,
+/// or `SchemaCheckError::Malformed` when the envelope or the snapshot's version
+/// field cannot be parsed
+pub fn check_envelope_schema_version(raw: &str) -> Result<&RawValue, SchemaCheckError> {
+    let envelope: SnapshotEnvelope = serde_json::from_str(raw)
+        .map_err(|e| SchemaCheckError::Malformed(format!("envelope parse failed: {e}")))?;
 
     let version: SnapshotVersionOnly =
-        serde_json::from_str(envelope.snapshot.get()).map_err(|e| InitError::InvalidConfig {
-            field: "snapshot.schemaVersion".to_string(),
-            reason: format!("snapshot body missing or malformed schemaVersion: {e}"),
+        serde_json::from_str(envelope.snapshot.get()).map_err(|e| {
+            SchemaCheckError::Malformed(format!(
+                "snapshot body missing or malformed schemaVersion: {e}"
+            ))
         })?;
 
     if version.schema_version != SUPPORTED_SCHEMA_VERSION {
-        return Err(InitError::UnsupportedSchemaVersion {
+        return Err(SchemaCheckError::UnsupportedSchemaVersion {
             actual: version.schema_version,
             supported: SUPPORTED_SCHEMA_VERSION,
         });
@@ -90,6 +99,10 @@ pub fn check_envelope_schema_version(raw: &str) -> Result<&RawValue, InitError> 
     Ok(envelope.snapshot)
 }
 
+/// Intentional test-only surface, compiled into every build so integration tests
+/// in the separate test crate can reach it (a `#[cfg(test)]` gate would not).
+/// `#[doc(hidden)]`, not re-exported through the FFI, and its `panic!` sites only
+/// fire on malformed test input, never on production paths
 #[doc(hidden)]
 pub mod test_support {
     use super::*;
@@ -112,10 +125,6 @@ pub mod test_support {
         }
     }
 
-    /// Bool flag with no rules or prerequisites whose fallthrough deterministically
-    /// resolves to `value` under any context. The `on` variation carries `true`
-    /// and the `off` variation carries `false`, and the fallthrough points at
-    /// whichever variation matches `value`
     /// Build an `IndexedSnapshot` carrying a specific `version` and no flags so
     /// swap-path tests can assert version-driven lifecycle behavior
     pub fn snapshot_with_version(version: u64) -> IndexedSnapshot {
@@ -130,6 +139,10 @@ pub mod test_support {
         .into()
     }
 
+    /// Bool flag with no rules or prerequisites whose fallthrough deterministically
+    /// resolves to `value` under any context. The `on` variation carries `true`
+    /// and the `off` variation carries `false`, and the fallthrough points at
+    /// whichever variation matches `value`
     pub fn bool_flag(key: &str, value: bool) -> Flag {
         let mut flag = bool_flag_with_prereqs(key, &[]);
         flag.fallthrough_variation = Some(if value { "on" } else { "off" }.to_string());

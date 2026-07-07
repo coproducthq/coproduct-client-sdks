@@ -15,7 +15,6 @@ pub mod hooks;
 pub mod identity;
 pub mod identity_state;
 pub mod identity_writer;
-pub mod logger;
 pub mod observer;
 pub mod operators;
 pub mod pipeline;
