@@ -17,6 +17,10 @@
     { "name": "gt/string_lhs/false", "operator": "gt", "lhs": "high", "values": ["50"], "expected": false },
     { "name": "gt/scientific_rhs_rejected", "operator": "gt", "lhs": 1000, "values": ["1e3"], "expected": false },
     { "name": "gt/hex_rhs_rejected", "operator": "gt", "lhs": 100, "values": ["0x10"], "expected": false },
+    { "name": "gt/integer_shaped_string_lhs/yes", "operator": "gt", "lhs": "42", "values": ["40"], "expected": true },
+    { "name": "gt/integer_shaped_string_lhs/no", "operator": "gt", "lhs": "42", "values": ["42"], "expected": false },
+    { "name": "gt/decimal_string_lhs/yes", "operator": "gt", "lhs": "1.5", "values": ["1"], "expected": true },
+    { "name": "gt/scientific_string_lhs_rejected", "operator": "gt", "lhs": "1e3", "values": ["50"], "expected": false },
 
     { "name": "gte/equal", "operator": "gte", "lhs": 50, "values": ["50"], "expected": true },
     { "name": "gte/strict", "operator": "gte", "lhs": 49, "values": ["50"], "expected": false },
@@ -220,6 +224,26 @@
         "segments": {}
       },
       "expected": { "outcome": "fallthrough" }
+    },
+    {
+      "id": "rw_app_build_string_compares_numerically",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1", "app_build": "42" },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-000000000021", "condition": { "type": "attribute", "attribute": "app_build", "operator": "gt", "values": ["40"] }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "match", "rule_id": "00000000-0000-4000-8000-000000000021", "variation": "on" }
+    },
+    {
+      "id": "rw_session_count_number_compares_numerically",
+      "kind": "rule_walker",
+      "input": {
+        "context": { "targetingKey": "user_1", "session_count": 7 },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-000000000022", "condition": { "type": "attribute", "attribute": "session_count", "operator": "gte", "values": ["5"] }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "match", "rule_id": "00000000-0000-4000-8000-000000000022", "variation": "on" }
     },
     {
       "id": "rw_unknown_first_rule_fails_closed",

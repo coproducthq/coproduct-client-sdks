@@ -202,7 +202,8 @@ pub struct SdkContext {
     pub country: Option<String>,
     #[serde(default)]
     pub continent: Option<String>,
-    /// ISO 3166-2 region code (e.g. `"US-CA"`), camelCase on the wire
+    /// First-level region code: the bare ISO 3166-2 subdivision part without a
+    /// country prefix (e.g. `"TX"`), camelCase on the wire
     #[serde(default, rename = "regionCode")]
     pub region_code: Option<String>,
     #[serde(default)]

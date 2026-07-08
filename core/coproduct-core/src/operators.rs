@@ -170,14 +170,25 @@ fn parse_numeric_rhs(s: &str) -> Option<f64> {
 /// any RHS value parses and the comparison agrees, the result is `Match`. If no
 /// value matched but at least one RHS string failed to parse, the result is
 /// `Indeterminate` because the full RHS could not be checked. Only when every
-/// RHS parsed and none matched is the result `NoMatch`
+/// RHS parsed and none matched is the result `NoMatch`.
+///
+/// A string LHS in the same strict numeric form the RHS accepts compares as its
+/// numeric value. A standard attribute like `app_build` is an opaque string at
+/// the context level (iOS `CFBundleVersion`, Android version code as a string),
+/// so numeric operators apply to it when the string parses as a number. Any
+/// other string stays `Indeterminate`
 fn compare_number(
     lhs: &AttributeValue,
     rhs: &[String],
     cmp: impl Fn(f64, f64) -> bool,
 ) -> ConditionOutcome {
-    let AttributeValue::Number(a) = lhs else {
-        return ConditionOutcome::Indeterminate;
+    let a = match lhs {
+        AttributeValue::Number(n) => *n,
+        AttributeValue::String(s) => match parse_numeric_rhs(s) {
+            Some(n) => n,
+            None => return ConditionOutcome::Indeterminate,
+        },
+        _ => return ConditionOutcome::Indeterminate,
     };
     if rhs.is_empty() {
         return ConditionOutcome::Indeterminate;
@@ -185,7 +196,7 @@ fn compare_number(
     let mut any_parse_failure = false;
     for v in rhs {
         match parse_numeric_rhs(v) {
-            Some(n) if cmp(*a, n) => return ConditionOutcome::Match,
+            Some(n) if cmp(a, n) => return ConditionOutcome::Match,
             Some(_) => continue,
             None => any_parse_failure = true,
         }

@@ -46,7 +46,7 @@ const WIRE: &str = r#"{
     "sdkContext": {
         "country": "US",
         "continent": "NA",
-        "regionCode": "US-CA",
+        "regionCode": "CA",
         "city": "San Francisco",
         "timezone": "America/Los_Angeles"
     }
@@ -79,7 +79,7 @@ fn snapshot_envelope_round_trips() {
     let sdk_ctx: SdkContext = serde_json::from_str(sdk_ctx_raw.get()).unwrap();
     assert_eq!(sdk_ctx.country.as_deref(), Some("US"));
     assert_eq!(sdk_ctx.continent.as_deref(), Some("NA"));
-    assert_eq!(sdk_ctx.region_code.as_deref(), Some("US-CA"));
+    assert_eq!(sdk_ctx.region_code.as_deref(), Some("CA"));
     assert_eq!(sdk_ctx.city.as_deref(), Some("San Francisco"));
     assert_eq!(sdk_ctx.timezone, "America/Los_Angeles");
 
@@ -119,7 +119,7 @@ fn sdk_context_geo_values_are_normalized_like_developer_values() {
     // same way a developer-supplied value would be, so a rule matches identically
     // whichever layer supplied the value
     let ctx: SdkContext = serde_json::from_str(
-        r#"{ "country": "us", "continent": "na", "regionCode": "us-ca", "timezone": "UTC" }"#,
+        r#"{ "country": "us", "continent": "na", "regionCode": "ca", "timezone": "UTC" }"#,
     )
     .unwrap();
     let map = coproduct_core::context::sdk_context_to_attribute_map(ctx);
@@ -130,7 +130,7 @@ fn sdk_context_geo_values_are_normalized_like_developer_values() {
     );
     assert_eq!(
         map.get("region_code"),
-        Some(&AttributeValue::String("US-CA".to_string()))
+        Some(&AttributeValue::String("CA".to_string()))
     );
 }
 
@@ -148,9 +148,9 @@ fn sdk_context_defaults_missing_timezone_to_utc() {
 
 #[test]
 fn sdk_context_accepts_camelcase_region_code() {
-    let wire = r#"{ "regionCode": "US-CA", "timezone": "UTC" }"#;
+    let wire = r#"{ "regionCode": "CA", "timezone": "UTC" }"#;
     let ctx: SdkContext = serde_json::from_str(wire).unwrap();
-    assert_eq!(ctx.region_code.as_deref(), Some("US-CA"));
+    assert_eq!(ctx.region_code.as_deref(), Some("CA"));
 }
 
 #[test]
