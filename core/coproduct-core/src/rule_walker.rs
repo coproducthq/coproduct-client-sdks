@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use crate::bucketing::bucket_for_vectors;
 use crate::condition::evaluate_condition;
 use crate::context::EvaluationContext;
-use crate::snapshot::{ConditionOutcome, Flag, Rollout, Segment, TargetingRule};
+use crate::snapshot::{
+    ConditionOutcome, Flag, Rollout, Segment, TargetingRule, condition_contains_unknown,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuleWalkResult {
@@ -12,8 +14,10 @@ pub enum RuleWalkResult {
     /// No rule both matched and included the user via its coverage gate. The
     /// caller serves the fallthrough variation
     Fallthrough,
-    /// An unknown node or malformed subtree tripped RULE_CIRCUIT_BREAK inside a
-    /// condition. The caller serves the off variation
+    /// A rule's condition tree contained an unknown node, or evaluating a
+    /// condition reached a malformed or unsupported path, tripping
+    /// RULE_CIRCUIT_BREAK. The unknown-node case is caught by the up-front scan
+    /// before any condition is evaluated. The caller serves the off variation
     CircuitBreak,
 }
 
@@ -21,10 +25,17 @@ pub enum RuleWalkResult {
 /// first rule whose condition evaluates Match and whose rollout bucket lands
 /// below `coverage` wins. The variant bucket picks among weighted rollouts.
 /// Conditions that evaluate NoMatch or Indeterminate (missing attribute,
-/// conservative negation, missing segment) continue the walk. A condition that
-/// evaluates CircuitBreak fails the whole flag closed (see the note on the
-/// per-context, short-circuit-dependent nature of that fail-closed in
-/// `crate::condition`).
+/// conservative negation, missing segment) continue the walk.
+///
+/// A flag fails closed on a circuit break in two ways. A rule whose condition tree
+/// contains an unknown node anywhere fails the whole flag closed up front, before
+/// any rule is evaluated, so the break holds for every context regardless of rule
+/// order or short-circuit evaluation. This is computed from the flag on each walk,
+/// so it holds no matter how the flag was constructed, not only for flags that
+/// went through snapshot ingestion. Separately, a CircuitBreak that surfaces while
+/// actually evaluating a condition also fails the flag closed. With the up-front
+/// scan in place, that second path now only covers breaks not caused by an unknown
+/// node, such as an unknown operator on an otherwise valid attribute condition
 ///
 /// An empty targeting key skips all targeting rules and serves the fallthrough:
 /// there is no identity to bucket, so this is a deliberate "no targeting without
@@ -35,6 +46,23 @@ pub fn walk_rules(
     ctx: &EvaluationContext,
     segments: &HashMap<String, Segment>,
 ) -> RuleWalkResult {
+    // Strict fail-closed: if any targeting rule's condition tree contains an
+    // unknown node, the whole flag fails closed before we evaluate a single rule.
+    // The scan runs up front, ahead of the walk, so the break holds for every
+    // context, including one that would have matched an earlier valid rule and
+    // one whose evaluation would short-circuit past the unknown child. This is the
+    // whole-flag strict variant of the per-context break that `evaluate_condition`
+    // returns when the walk actually reaches an unknown node. The scan is cheap
+    // next to the condition evaluation and per-rule bucketing that follow, and
+    // computing it here rather than caching it on the rule keeps the guarantee
+    // true for any flag the walker is handed, however it was built
+    if flag
+        .targeting_rules
+        .iter()
+        .any(|rule| condition_contains_unknown(&rule.condition))
+    {
+        return RuleWalkResult::CircuitBreak;
+    }
     let targeting_key = ctx.targeting_key();
     if targeting_key.is_empty() {
         return RuleWalkResult::Fallthrough;

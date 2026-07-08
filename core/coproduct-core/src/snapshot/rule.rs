@@ -22,6 +22,21 @@ pub struct TargetingRule {
     pub description: Option<String>,
 }
 
+/// Whether a condition tree contains any `Unknown` node. The rule walker calls
+/// this up front for each rule so a flag with an unknown node anywhere fails
+/// closed before any rule is evaluated, independent of how the flag was
+/// constructed and of short-circuit order
+pub(crate) fn condition_contains_unknown(condition: &Condition) -> bool {
+    match condition {
+        Condition::Unknown { .. } => true,
+        Condition::And { rules } | Condition::Or { rules } => {
+            rules.iter().any(condition_contains_unknown)
+        }
+        Condition::Not { rule } => condition_contains_unknown(rule),
+        Condition::Attribute { .. } | Condition::Segment { .. } | Condition::Always => false,
+    }
+}
+
 /// Condition tree. Variants match the platform schema's condition tree.
 ///
 /// The `Unknown` arm catches forward-incompatible node types: the evaluator

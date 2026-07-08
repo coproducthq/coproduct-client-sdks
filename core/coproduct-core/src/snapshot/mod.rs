@@ -17,6 +17,8 @@ pub use coverage::{Coverage, coalesce_coverage_value, deserialize_coverage};
 pub use flag::{Flag, FlagType, Prerequisite};
 pub use outcome::ConditionOutcome;
 pub use rule::{Condition, Operator, Rollout, TargetingRule, WeightedVariation};
+// Internal evaluation helper, not part of the public snapshot API
+pub(crate) use rule::condition_contains_unknown;
 pub use segment::{
     EnvironmentMetadata, IndexedSnapshot, SdkContext, Segment, SegmentRule, Snapshot, SnapshotView,
 };

@@ -49,6 +49,9 @@ fn rule_walker_and_off_gate_conformance_cases() {
             "rule_walker" => {
                 let input = &case["input"];
                 let ctx = build_context(&input["context"]);
+                // Deserialize the flag directly and walk it as-is. The walker
+                // enforces strict fail-closed from the flag itself, so the unknown-
+                // node cases must resolve correctly without any ingestion step
                 let flag: Flag = serde_json::from_value(input["flag"].clone())
                     .unwrap_or_else(|e| panic!("case {id}: flag parse: {e}"));
                 let segments: HashMap<String, Segment> =

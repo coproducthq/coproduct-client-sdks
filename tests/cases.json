@@ -220,6 +220,50 @@
         "segments": {}
       },
       "expected": { "outcome": "fallthrough" }
+    },
+    {
+      "id": "rw_unknown_first_rule_fails_closed",
+      "kind": "rule_walker",
+      "comment": "An unknown node in the first rule fails the whole flag closed, even though a later valid rule would match.",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-00000000000a", "condition": { "type": "future_op_v9" }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } }, { "rule_id": "00000000-0000-4000-8000-00000000000b", "condition": { "type": "always" }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "circuit_break" }
+    },
+    {
+      "id": "rw_unknown_last_rule_fails_closed_despite_earlier_match",
+      "kind": "rule_walker",
+      "comment": "Strict fail-closed: an unknown node in the last rule fails the flag closed for everyone, including a context that matches an earlier valid rule. Rule 1 (Always at full coverage) would otherwise match on.",
+      "input": {
+        "context": { "targetingKey": "user_1" },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-00000000000c", "condition": { "type": "always" }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } }, { "rule_id": "00000000-0000-4000-8000-00000000000d", "condition": { "type": "future_op_v9" }, "coverage": 10000, "rollout": { "type": "variation", "variation": "off" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "circuit_break" }
+    },
+    {
+      "id": "rw_unknown_nested_under_or_fails_closed",
+      "kind": "rule_walker",
+      "comment": "An unknown node nested inside an Or fails the flag closed even when the Or's first child matches and would short-circuit past the unknown sibling. The context has plan=premium, so the first Or child matches.",
+      "input": {
+        "context": { "targetingKey": "user_1", "plan": "premium" },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-00000000000e", "condition": { "type": "or", "rules": [ { "type": "attribute", "attribute": "plan", "operator": "equals", "values": ["premium"] }, { "type": "future_op_v9" } ] }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "circuit_break" }
+    },
+    {
+      "id": "rw_unknown_behind_short_circuit_and_fails_closed",
+      "kind": "rule_walker",
+      "comment": "An unknown node behind a short-circuiting And sibling fails the flag closed even for a context whose first And child is false, which would short-circuit the And to NoMatch before reaching the unknown. The context has plan=free, so the plan=enterprise child is false.",
+      "input": {
+        "context": { "targetingKey": "user_1", "plan": "free" },
+        "flag": { "key": "f", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": true }, { "key": "off", "value": false } ], "offVariation": "off", "fallthroughVariation": "off", "targetingRules": [ { "rule_id": "00000000-0000-4000-8000-00000000000f", "condition": { "type": "and", "rules": [ { "type": "attribute", "attribute": "plan", "operator": "equals", "values": ["enterprise"] }, { "type": "future_op_v9" } ] }, "coverage": 10000, "rollout": { "type": "variation", "variation": "on" } } ], "prerequisites": [], "experiment": null },
+        "segments": {}
+      },
+      "expected": { "outcome": "circuit_break" }
     }
   ],
   "pipeline_cases": [

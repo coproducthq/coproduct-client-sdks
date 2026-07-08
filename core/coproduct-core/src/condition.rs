@@ -39,11 +39,13 @@ pub fn evaluate_condition(
         Condition::Or { rules } => evaluate_or(rules, ctx, segments),
         Condition::Not { rule } => negate(evaluate_condition(rule, ctx, segments)),
         Condition::Unknown { tag } => {
-            // An unknown node fails closed when reached. Because `And` / `Or`
-            // short-circuit, an unknown child is only reached for contexts not
-            // short-circuited first, so this fail-closed is per-context. Strict
-            // fail-closed (unknown anywhere in a matched rule fails the whole flag)
-            // lands as a separate change
+            // An unknown node fails closed when reached. In the rule walker this
+            // arm is normally pre-empted: the walker scans each rule for unknown
+            // nodes up front and fails the whole flag closed before evaluating any
+            // rule that carries one, so the fail-closed holds for every context
+            // regardless of short-circuit order. This arm remains the backstop for
+            // any direct evaluation and keeps the outcome total for an unknown node
+            // reached mid-tree
             tracing::error!(node_tag = %tag, "RULE_CIRCUIT_BREAK on unknown condition node");
             ConditionOutcome::CircuitBreak
         }

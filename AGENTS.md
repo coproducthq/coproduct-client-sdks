@@ -124,12 +124,16 @@ parity bug. The authoritative implementation is `coproduct-core`.
   (fail closed) while the rest of the snapshot applies. The top-level envelope
   stays strict. A malformed weight coalesces the way coverage does.
 - **An empty `And` condition is vacuously true** and matches every context.
-- **An unknown condition node fails closed when reached.** A condition type this
-  SDK build does not understand trips `RULE_CIRCUIT_BREAK`. Because `And` / `Or`
-  short-circuit, an unknown child is only reached for contexts not short-circuited
-  first, so the fail-closed is per-context and child-order-dependent. Strict
-  fail-closed (an unknown node anywhere in a matched rule fails the flag for
-  everyone) is a separate, planned change.
+- **An unknown condition node fails the whole flag closed, strictly.** A condition
+  type this SDK build does not understand trips `RULE_CIRCUIT_BREAK`. A rule whose
+  condition tree contains an unknown node anywhere fails the flag closed for every
+  context, before any rule is evaluated, so the break does not depend on rule order
+  or on whether a given context's evaluation would short-circuit past the unknown
+  child. In particular, a flag whose last rule carries an unknown node fails closed
+  even for a context that matches an earlier valid rule. The walker computes this
+  from the flag on each evaluation rather than caching it, so the guarantee holds
+  for any flag the walker is handed, however it was constructed, not only for flags
+  that went through snapshot ingestion.
 - **A circuit break serves the off variation, not the caller default.** When a
   rule error trips `RULE_CIRCUIT_BREAK`, the flag resolves to its off variation.
   Every read surface serves that off value: the plain getters, the observers, and

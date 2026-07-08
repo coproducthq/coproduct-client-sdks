@@ -233,3 +233,50 @@ fn rule_walker_unknown_rollout_falls_through() {
         RuleWalkResult::Fallthrough
     );
 }
+
+// Regression for the construction-path bypass: a flag deserialized straight from
+// the wire, never routed through snapshot ingestion, must still fail closed when
+// a later rule carries an unknown condition node. Rule 1 (always -> on) would
+// otherwise match first, so a walker that keyed off cached ingestion state would
+// return Match here instead of CircuitBreak
+#[test]
+fn rule_walker_fails_closed_on_directly_deserialized_flag_with_unknown_node() {
+    let flag: Flag = serde_json::from_str(
+        r#"{
+            "key": "f",
+            "type": "BOOL",
+            "enabled": true,
+            "isPaused": false,
+            "variations": [
+                { "key": "on", "value": true },
+                { "key": "off", "value": false }
+            ],
+            "offVariation": "off",
+            "fallthroughVariation": "off",
+            "targetingRules": [
+                {
+                    "rule_id": "00000000-0000-4000-8000-0000000000a1",
+                    "condition": { "type": "always" },
+                    "coverage": 10000,
+                    "rollout": { "type": "variation", "variation": "on" }
+                },
+                {
+                    "rule_id": "00000000-0000-4000-8000-0000000000a2",
+                    "condition": { "type": "future_op_v9" },
+                    "coverage": 10000,
+                    "rollout": { "type": "variation", "variation": "off" }
+                }
+            ],
+            "prerequisites": [],
+            "experiment": null
+        }"#,
+    )
+    .expect("flag deserializes");
+    let segments: HashMap<String, Segment> = HashMap::new();
+    let ctx = ctx_with("user_1", None);
+    assert_eq!(
+        walk_rules(&flag, &ctx, &segments),
+        RuleWalkResult::CircuitBreak,
+        "an unknown node in a later rule fails the flag closed even for a directly deserialized flag"
+    );
+}
