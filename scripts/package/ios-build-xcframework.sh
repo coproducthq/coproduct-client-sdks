@@ -4,10 +4,10 @@
 # regenerated bindings and xcframework. The companion ios-spm-binary.sh only
 # archives the framework this script produces.
 #
-# Steps: build the static library for the three iOS triples, regenerate the
-# Swift bindings and the C header, lipo the two simulator slices into a
-# universal library, and assemble the device + simulator xcframework with the
-# fresh header.
+# Steps: build the static library for the three iOS triples, build the host
+# library the binding generator reads, regenerate the Swift bindings and the C
+# header, lipo the two simulator slices into a universal library, and assemble
+# the device + simulator xcframework with the fresh header.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -22,6 +22,9 @@ echo "building the static library for the three iOS triples"
 cargo build -p coproduct-ffi-uniffi --target aarch64-apple-ios
 cargo build -p coproduct-ffi-uniffi --target aarch64-apple-ios-sim
 cargo build -p coproduct-ffi-uniffi --target x86_64-apple-ios
+
+echo "building the host library the binding generator reads"
+cargo build -p coproduct-ffi-uniffi
 
 echo "regenerating swift bindings and the C header"
 rm -rf "$GEN_DIR"

@@ -15,6 +15,14 @@ cargo build -p coproduct-ffi-uniffi --target aarch64-apple-ios-sim
 cargo build -p coproduct-ffi-uniffi --target x86_64-apple-ios
 ```
 
+Build the host library the binding generator reads. Skipping this regenerates
+bindings from a stale host dylib, which surfaces later as a UniFFI checksum
+mismatch at test runtime:
+
+```bash
+cargo build -p coproduct-ffi-uniffi
+```
+
 Generate Swift bindings:
 
 ```bash

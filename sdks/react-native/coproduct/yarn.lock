@@ -7191,13 +7191,13 @@ __metadata:
     react: "npm:19.1.1"
     react-native: "npm:0.82.1"
     react-native-builder-bob: "npm:^0.41.0"
-    react-native-fs: "npm:^2.20.0"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
     uniffi-bindgen-react-native: "npm:0.31.0-3"
   peerDependencies:
     react: "*"
     react-native: "*"
+    react-native-fs: ^2.20.0
   languageName: unknown
   linkType: soft
 

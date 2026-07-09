@@ -229,7 +229,19 @@ path. See `DEVELOPMENT.md` for the release checklist.
     --cpp-dir sdks/react-native/coproduct/cpp/generated \
     target/debug/libcoproduct_ffi_uniffi.dylib
   ```
-  The RN native ABI changes whenever the FFI surface does, so verify with a native build (`scripts/build/source-linked-rn-demo-android.sh`), not just a typecheck.
+  The RN native ABI changes whenever the FFI surface does, so verify with a
+  native build (`scripts/build/source-linked-rn-demo-android.sh`), not just a
+  typecheck. Before that build, refresh the gitignored static libraries the
+  example links against. Stale local copies surface as undefined `uniffi_*`
+  symbols at link time:
+  ```bash
+  cargo ndk -t arm64-v8a -t armeabi-v7a -t x86 -t x86_64 build -p coproduct-ffi-uniffi
+  for pair in aarch64-linux-android:arm64-v8a armv7-linux-androideabi:armeabi-v7a \
+              i686-linux-android:x86 x86_64-linux-android:x86_64; do
+    cp "target/${pair%%:*}/debug/libcoproduct_ffi_uniffi.a" \
+       "sdks/react-native/coproduct/android/src/main/jniLibs/${pair##*:}/"
+  done
+  ```
 
 ## Flutter Rust Bridge Notes
 
