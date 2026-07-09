@@ -261,22 +261,121 @@ fn app_build_non_numeric_string_never_matches_numeric_rules() {
 }
 
 #[test]
-fn version_attributes_require_canonical_semver_values() {
-    // The platform canonicalizes rule values to three components on write. The
-    // context side carries whatever the shim supplies, and the core parses it
-    // strictly, so a canonical "17.4.0" matches while a two-component "17.4"
-    // is indeterminate and falls through
-    let mut ctx = EvaluationContext::with_targeting_key("user-1");
-    ctx.set_developer("os_version", AttributeValue::String("17.4.0".to_string()));
+fn version_attributes_canonicalize_so_authored_rules_match() {
+    // Both sides of a version comparison go through the same cleanup: the
+    // platform canonicalizes rule values to three components on write, and the
+    // context write path canonicalizes version-shaped values the same way. A
+    // device-reported "17.4" therefore matches rules authored against 17.4
+    // through the semver operators and equality alike
+    let mut identity = IdentityState::new_anonymous("anon-1".to_string());
+    identity
+        .identify(
+            "user-42".to_string(),
+            HashMap::from([(
+                "os_version".to_string(),
+                AttributeValue::String("17.4".to_string()),
+            )]),
+            false,
+        )
+        .expect("identify succeeds");
+    let ctx = identity.context();
     assert!(rule_matches(
-        &ctx,
+        ctx,
         attribute_condition("os_version", "sem_ver_gte", &["17.0.0"])
+    ));
+    assert!(rule_matches(
+        ctx,
+        attribute_condition("os_version", "equals", &["17.4.0"])
     ));
 
-    let mut short = EvaluationContext::with_targeting_key("user-2");
-    short.set_developer("os_version", AttributeValue::String("17.4".to_string()));
+    // A value that is not version shaped stays raw: semver rules fall through
+    // conservatively and exact string operators still see the original form
+    let mut raw = IdentityState::new_anonymous("anon-2".to_string());
+    raw.identify(
+        "user-43".to_string(),
+        HashMap::from([(
+            "os_version".to_string(),
+            AttributeValue::String("17.4 beta".to_string()),
+        )]),
+        false,
+    )
+    .expect("identify succeeds");
+    let raw_ctx = raw.context();
     assert!(!rule_matches(
-        &short,
+        raw_ctx,
         attribute_condition("os_version", "sem_ver_gte", &["17.0.0"])
     ));
+    assert!(rule_matches(
+        raw_ctx,
+        attribute_condition("os_version", "equals", &["17.4 beta"])
+    ));
+}
+
+#[test]
+fn real_device_version_shapes_target_correctly_end_to_end() {
+    // The shapes each platform actually reports, walked through the same
+    // normalize-then-evaluate chain the wrappers use. iOS formats os_version
+    // from the version struct so it is always three components, Android
+    // reports a bare major like "14", and an Android versionName commonly
+    // carries a prerelease suffix, which is valid semver that passes through
+    // canonicalization raw and still orders correctly
+    let cases: &[(&str, &str, &str, &[&str], bool)] = &[
+        // iOS struct-formatted os_version is already canonical
+        ("os_version", "17.4.1", "sem_ver_gte", &["17.0.0"], true),
+        // Android Build.VERSION.RELEASE bare major pads to three components
+        ("os_version", "14", "sem_ver_gte", &["14.0.0"], true),
+        ("os_version", "14", "sem_ver_lt", &["15.0.0"], true),
+        // Android preview builds can report a codename, which is not version
+        // shaped: semver rules fall through conservatively
+        ("os_version", "Baklava", "sem_ver_gte", &["14.0.0"], false),
+        // iOS CFBundleShortVersionString two-component convention pads
+        ("app_version", "2.1", "sem_ver_eq", &["2.1.0"], true),
+        // Android versionName with a prerelease suffix passes through raw and
+        // orders below its release per semver precedence
+        (
+            "app_version",
+            "2.1.0-beta.3",
+            "sem_ver_lt",
+            &["2.1.0"],
+            true,
+        ),
+        (
+            "app_version",
+            "2.1.0-beta.3",
+            "sem_ver_gte",
+            &["2.1.0"],
+            false,
+        ),
+        // The raw prerelease form still matches itself exactly
+        (
+            "app_version",
+            "2.1.0-beta.3",
+            "equals",
+            &["2.1.0-beta.3"],
+            true,
+        ),
+        // Build metadata is ignored for semver precedence
+        ("app_version", "2.1.0+42", "sem_ver_eq", &["2.1.0"], true),
+    ];
+    for (attribute, reported, operator, values, expected) in cases {
+        let mut identity = IdentityState::new_anonymous("anon".to_string());
+        identity
+            .identify(
+                "user-1".to_string(),
+                HashMap::from([(
+                    attribute.to_string(),
+                    AttributeValue::String(reported.to_string()),
+                )]),
+                false,
+            )
+            .expect("identify succeeds");
+        let matched = rule_matches(
+            identity.context(),
+            attribute_condition(attribute, operator, values),
+        );
+        assert_eq!(
+            matched, *expected,
+            "{attribute}={reported} {operator} {values:?}"
+        );
+    }
 }

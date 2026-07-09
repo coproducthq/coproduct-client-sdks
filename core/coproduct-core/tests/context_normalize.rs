@@ -71,3 +71,46 @@ fn session_count_number_passes_through_unchanged() {
         AttributeValue::Number(7.0)
     );
 }
+
+#[test]
+fn version_attributes_canonicalize_to_three_components() {
+    for (input, expected) in [
+        ("17.4", "17.4.0"),
+        ("17", "17.0.0"),
+        ("1.2.3", "1.2.3"),
+        ("1.2.3.4", "1.2.3"),
+        ("v1.2", "1.2.0"),
+        ("17.04", "17.4.0"),
+    ] {
+        for name in ["os_version", "app_version"] {
+            assert_eq!(
+                normalize_attribute(name, AttributeValue::String(input.to_string())),
+                AttributeValue::String(expected.to_string()),
+                "{name} {input}"
+            );
+        }
+    }
+}
+
+#[test]
+fn non_version_shaped_values_pass_through_raw() {
+    for input in ["17.4 beta", "banana", "", "1..2", "v", "1.2.3-rc.1"] {
+        assert_eq!(
+            normalize_attribute("os_version", AttributeValue::String(input.to_string())),
+            AttributeValue::String(input.to_string()),
+            "{input}"
+        );
+    }
+}
+
+#[test]
+fn version_canonicalization_applies_only_to_the_version_attributes() {
+    // app_build stays an opaque string and custom attributes keep raw semantics
+    for name in ["app_build", "firmware_version"] {
+        assert_eq!(
+            normalize_attribute(name, AttributeValue::String("17.4".to_string())),
+            AttributeValue::String("17.4".to_string()),
+            "{name}"
+        );
+    }
+}

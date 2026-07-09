@@ -315,5 +315,25 @@
     { "name": "typed_get_number_type_mismatch_against_bool_flag", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "b", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [{ "key": "v", "value": false }], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "b", "getter": "getNumber", "default": 9.5, "expected_value": 9.5, "expected_error_code": "TYPE_MISMATCH" },
     { "name": "typed_get_json_type_mismatch_against_string_flag", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "s", "type": "STRING", "enabled": true, "isPaused": false, "variations": [{ "key": "v", "value": "not-json-payload" }], "offVariation": "v", "fallthroughVariation": "v", "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "s", "getter": "getJson", "default": { "fallback": true }, "expected_value": { "fallback": true }, "expected_error_code": "TYPE_MISMATCH" },
     { "name": "typed_get_bool_circuit_break_serves_off_value", "snapshot": { "schemaVersion": 1, "version": 1, "flags": [ { "key": "cb", "type": "BOOL", "enabled": true, "isPaused": false, "variations": [ { "key": "on", "value": false }, { "key": "off", "value": true } ], "offVariation": "off", "fallthroughVariation": null, "prerequisites": [], "targetingRules": [] } ], "segments": [] }, "flag_key": "cb", "getter": "getBool", "default": false, "expected_value": true, "expected_error_code": "RULE_CIRCUIT_BREAK" }
+  ],
+
+  "version_canonicalization_comment": "Canonicalization vectors for os_version and app_version context values. The SDK core (normalize_attribute) and the platform write path (api-worker canonicalizeVersionValue) must both implement exactly this algorithm: optional leading v, every dot-separated part all digits, pad missing minor and patch with zeros, keep the first three parts, anything else passes through raw. canonical null means the input is not version shaped and stays raw. The api-worker mirrors these vectors in targeting.test.ts; a change here requires the same change there",
+  "version_canonicalization_cases": [
+    { "input": "17.4", "canonical": "17.4.0" },
+    { "input": "17", "canonical": "17.0.0" },
+    { "input": "1.2.3", "canonical": "1.2.3" },
+    { "input": "1.2.3.4", "canonical": "1.2.3" },
+    { "input": "v1.2", "canonical": "1.2.0" },
+    { "input": "v17", "canonical": "17.0.0" },
+    { "input": "17.04", "canonical": "17.4.0" },
+    { "input": "0.0.1", "canonical": "0.0.1" },
+    { "input": "1.2.beta", "canonical": null },
+    { "input": "1.2-beta", "canonical": null },
+    { "input": "1.2.3-rc.1", "canonical": null },
+    { "input": "17.4 beta", "canonical": null },
+    { "input": "banana", "canonical": null },
+    { "input": "", "canonical": null },
+    { "input": "v", "canonical": null },
+    { "input": "1..2", "canonical": null }
   ]
 }
