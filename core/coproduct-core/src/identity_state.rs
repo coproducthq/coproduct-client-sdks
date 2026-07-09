@@ -19,6 +19,26 @@ fn is_reserved_attribute_name(name: &str) -> bool {
     matches!(name, "user_id" | "targetingKey")
 }
 
+/// Attribute names the SDK itself owns and populates from platform facts.
+/// This is the only allowlist on any write path: the auto-populated upsert
+/// accepts exactly these names so a platform wrapper cannot claim identity
+/// names, server-owned geo names, or developer-domain custom names as
+/// SDK-owned context. Evaluation never gates on this list. It must stay a
+/// subset of the platform's recognized standard attributes, and widening it
+/// is a coordinated change with how the platform defines standard attributes
+pub const AUTO_POPULATED_ATTRIBUTE_NAMES: &[&str] = &[
+    "timezone",
+    "platform",
+    "os_version",
+    "app_version",
+    "app_build",
+    "locale",
+    "device_type",
+    "network_type",
+    "first_seen_at",
+    "session_count",
+];
+
 /// In-memory identity state. Holds the original auto-anonymous id so it can be
 /// restored on sign out and surfaced as the previous anonymous id after an
 /// identify call that links the prior anonymous session
@@ -153,5 +173,50 @@ impl IdentityState {
         for name in names {
             self.context.remove_developer(name);
         }
+    }
+
+    /// Upsert SDK-owned attributes into the auto-populated layer. Names outside
+    /// the SDK-owned set are dropped with a warning so this path cannot become a
+    /// backdoor around identify. Null values are dropped too: a stored Null
+    /// would shadow a lower layer's usable value while still reading as not
+    /// set. Accepted values normalize exactly like developer-supplied ones so a
+    /// rule matches identically whichever layer supplied the value.
+    ///
+    /// Returns true only when the upsert changed the layer. Machine-initiated
+    /// updates repeat (path callbacks, re-initialization), so the caller uses
+    /// this to keep a no-op free of lifecycle events and fanout work
+    pub fn set_auto_populated_attributes(
+        &mut self,
+        attributes: HashMap<String, AttributeValue>,
+    ) -> bool {
+        let before = self.context.clone();
+        for (name, value) in attributes {
+            if !AUTO_POPULATED_ATTRIBUTE_NAMES.contains(&name.as_str()) {
+                tracing::warn!(
+                    attribute = %name,
+                    "ignoring an attribute the SDK does not own on the auto-populated path; supply developer attributes through identify, set_context, or update_attributes"
+                );
+                continue;
+            }
+            if matches!(value, AttributeValue::Null) {
+                tracing::warn!(
+                    attribute = %name,
+                    "ignoring a null auto-populated value; omit the key when the platform fact is unknown"
+                );
+                continue;
+            }
+            if let AttributeValue::Number(n) = value {
+                if !n.is_finite() {
+                    tracing::warn!(
+                        attribute = %name,
+                        "ignoring a non-finite auto-populated number; omit the key when the platform fact is unknown"
+                    );
+                    continue;
+                }
+            }
+            let normalized = normalize_attribute(&name, value);
+            self.context.set_auto_populated(&name, normalized);
+        }
+        self.context != before
     }
 }

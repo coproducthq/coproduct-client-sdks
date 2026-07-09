@@ -664,6 +664,48 @@ impl CoproductClient {
         self.events.fire(LifecycleEvent::ContextChanged).await;
     }
 
+    /// Upsert SDK-owned auto-populated attributes. This is the internal surface
+    /// platform wrappers use to publish device and session facts, not a
+    /// developer API. The identity state filters the entries to the SDK-owned
+    /// names and normalizes them, and a change re-evaluates and re-emits through
+    /// the observer fanout so a live fact like network_type corrects observed
+    /// values, not just getter reads.
+    ///
+    /// A no-op upsert (nothing accepted, or every accepted value already held)
+    /// fires no lifecycle events and no fanout. Machine-initiated updates
+    /// repeat, so silence on no-op keeps app lifecycle handlers truthful. The
+    /// developer identity mutators keep their unconditional event contract
+    /// because their calls are explicit
+    pub async fn set_auto_populated_attributes(
+        self: &Arc<Self>,
+        attributes: HashMap<String, AttributeValue>,
+    ) {
+        if self.is_shutdown() {
+            return;
+        }
+        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
+        let changed = self
+            .identity
+            .lock()
+            .set_auto_populated_attributes(attributes);
+        if !changed {
+            return;
+        }
+        self.events.fire(LifecycleEvent::Reconciling).await;
+        let snap = self.snapshot.lock().clone();
+        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
+        if let Some(snap) = snap {
+            crate::fanout::fire_changed_for_context_swap(
+                &self.observers,
+                snap.as_ref(),
+                &prev_context,
+                &next_context,
+            )
+            .await;
+        }
+        self.events.fire(LifecycleEvent::ContextChanged).await;
+    }
+
     pub fn previous_anonymous_id(&self) -> Option<String> {
         self.identity.lock().previous_anonymous_id()
     }

@@ -4607,6 +4607,17 @@ export interface CoproductClientLike {
     names: Array<string>,
     asyncOpts_?: { signal: AbortSignal }
   ): Promise<void>;
+  /**
+   * Internal surface for platform wrappers to publish SDK-owned device and
+   * session attributes into the auto-populated context layer. The core
+   * filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+   * observers on change. Not a developer API: developer attributes go
+   * through identify, setContext, or updateAttributes
+   */
+  setAutoPopulatedAttributes(
+    attributes: Map<string, ContextValue>,
+    asyncOpts_?: { signal: AbortSignal }
+  ): Promise<void>;
   setContext(
     targetingKey: string,
     attributes: Map<string, ContextValue>,
@@ -5120,6 +5131,50 @@ export class CoproductClient
             uniffiTypeCoproductClientObjectFactory.clonePointer(this),
             FfiConverterSequenceString.lower(
               names,
+              nativeModule().rustbuffer_alloc
+            )
+          );
+        },
+        /*pollFunc:*/ nativeModule()
+          .ubrn_ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+        /*cancelFunc:*/ nativeModule()
+          .ubrn_ffi_coproduct_ffi_uniffi_rust_future_cancel_void,
+        /*completeFunc:*/ nativeModule()
+          .ubrn_ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+        /*freeFunc:*/ nativeModule()
+          .ubrn_ffi_coproduct_ffi_uniffi_rust_future_free_void,
+        /*liftFunc:*/ (_v) => {},
+        /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+        /*asyncOpts:*/ asyncOpts_
+      );
+    } catch (__error: any) {
+      if (uniffiIsDebug && __error instanceof Error) {
+        __error.stack = __stack;
+      }
+      throw __error;
+    }
+  }
+
+  /**
+   * Internal surface for platform wrappers to publish SDK-owned device and
+   * session attributes into the auto-populated context layer. The core
+   * filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+   * observers on change. Not a developer API: developer attributes go
+   * through identify, setContext, or updateAttributes
+   */
+  async setAutoPopulatedAttributes(
+    attributes: Map<string, ContextValue>,
+    asyncOpts_?: { signal: AbortSignal }
+  ): Promise<void> {
+    const __stack = uniffiIsDebug ? new Error().stack : undefined;
+    try {
+      return await uniffiRustCallAsync(
+        /*rustCaller:*/ uniffiCaller,
+        /*rustFutureFunc:*/ () => {
+          return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(
+            uniffiTypeCoproductClientObjectFactory.clonePointer(this),
+            FfiConverterMapStringTypeContextValue.lower(
+              attributes,
               nativeModule().rustbuffer_alloc
             )
           );
@@ -6379,6 +6434,14 @@ function uniffiEnsureInitialized() {
   ) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes'
+    );
+  }
+  if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes() !==
+    3097
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes'
     );
   }
   if (

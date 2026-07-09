@@ -43,6 +43,7 @@ class NativeCoproductFfiUniffi : public jsi::HostObject {
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_previous_anonymous_id(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
+    jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_evaluation_listener(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_shutdown(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
@@ -168,6 +169,7 @@ class NativeCoproductFfiUniffi : public jsi::HostObject {
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
+    jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);

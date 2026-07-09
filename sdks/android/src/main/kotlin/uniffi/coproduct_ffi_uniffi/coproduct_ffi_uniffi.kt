@@ -823,6 +823,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(
     ): Short
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(
+    ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context(
     ): Short
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener(
@@ -944,6 +946,8 @@ external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(`ptr
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_previous_anonymous_id(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(`ptr`: Long,`names`: RustBuffer.ByValue,
+): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(`ptr`: Long,`attributes`: RustBuffer.ByValue,
 ): Long
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(`ptr`: Long,`targetingKey`: RustBuffer.ByValue,`attributes`: RustBuffer.ByValue,
 ): Long
@@ -1237,6 +1241,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes() != 44822.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes() != 3097.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089.toShort()) {
@@ -1999,6 +2006,15 @@ public interface CoproductClientInterface {
     
     suspend fun `removeAttributes`(`names`: List<kotlin.String>)
     
+    /**
+     * Internal surface for platform wrappers to publish SDK-owned device and
+     * session attributes into the auto-populated context layer. The core
+     * filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+     * observers on change. Not a developer API: developer attributes go
+     * through identify, setContext, or updateAttributes
+     */
+    suspend fun `setAutoPopulatedAttributes`(`attributes`: Map<kotlin.String, ContextValue>)
+    
     suspend fun `setContext`(`targetingKey`: kotlin.String, `attributes`: Map<kotlin.String, ContextValue>)
     
     fun `setEvaluationListener`(`listener`: EvaluationListener)
@@ -2379,6 +2395,34 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
             UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(
                 uniffiHandle,
                 FfiConverterSequenceString.lower(`names`),
+            )
+        },
+        { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },
+        { future, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_complete_void(future, continuation) },
+        { future -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_free_void(future) },
+        // lift function
+        { Unit },
+        
+        // Error FFI converter
+        UniffiNullRustCallStatusErrorHandler,
+    )
+    }
+
+    
+    /**
+     * Internal surface for platform wrappers to publish SDK-owned device and
+     * session attributes into the auto-populated context layer. The core
+     * filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+     * observers on change. Not a developer API: developer attributes go
+     * through identify, setContext, or updateAttributes
+     */
+    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
+    override suspend fun `setAutoPopulatedAttributes`(`attributes`: Map<kotlin.String, ContextValue>) {
+        return uniffiRustCallAsync(
+        callWithHandle { uniffiHandle ->
+            UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(
+                uniffiHandle,
+                FfiConverterMapStringTypeContextValue.lower(`attributes`),
             )
         },
         { future, callback, continuation -> UniffiLib.ffi_coproduct_ffi_uniffi_rust_future_poll_void(future, callback, continuation) },

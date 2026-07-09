@@ -19,6 +19,34 @@ func clearCoproductSnapshotCache() {
 // network and off the real Keychain without shipping controllable hosts in the
 // SDK source. The default hosts (URLSessionTransport, KeychainSecureStore)
 // remain the only ones the SDK exports
+// Removes the SessionStore keys an end-to-end initialize writes into the real
+// standard defaults, so repeated runs on one simulator do not accumulate
+// session counts or freeze the first-seen time across test runs
+func clearCoproductSessionDefaults() {
+    UserDefaults.standard.removeObject(forKey: SessionStore.firstSeenKey)
+    UserDefaults.standard.removeObject(forKey: SessionStore.sessionCountKey)
+}
+
+// Deterministic path source shared by the monitor unit tests and the
+// end-to-end initialize tests: records lifecycle and lets a test emit
+// connectivity facts on demand
+final class FakePathSource: NetworkPathSource, @unchecked Sendable {
+    private(set) var started = false
+    private(set) var cancelled = false
+    private var onUpdate: ((NetworkPathFacts) -> Void)?
+
+    func start(onUpdate: @escaping (NetworkPathFacts) -> Void) {
+        started = true
+        self.onUpdate = onUpdate
+    }
+
+    func cancel() { cancelled = true }
+
+    func emit(satisfied: Bool, wifi: Bool = false, cellular: Bool = false, ethernet: Bool = false) {
+        onUpdate?(NetworkPathFacts(satisfied: satisfied, wifi: wifi, cellular: cellular, ethernet: ethernet))
+    }
+}
+
 final class TestTransport: HostTransport, @unchecked Sendable {
     func request(req _: HttpRequest) async throws -> HttpResponse {
         HttpResponse(status: 200, body: Data(), headers: [])

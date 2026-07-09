@@ -207,6 +207,43 @@ Attributes are built with the `AttributeValue` enum: `.string`, `.number`, `.boo
 
 These calls are fire-and-forget: they apply in call order but return before the change is committed. A successful apply fires a `.contextChanged` lifecycle event, so `addHandler(event: .contextChanged)` (or observing the affected flags for the expected value) confirms a change took effect. A failure, by contrast, is logged rather than thrown or surfaced through a lifecycle event, so a persistent failure shows up as targeting against the previous identity rather than an error. Called before `initialize`, they log and do nothing.
 
+## Automatic device and session attributes
+
+After `initialize`, the SDK populates these standard targeting attributes on
+its own. You do not set them, and passing them yourself is unnecessary:
+
+| Attribute | Value |
+|---|---|
+| `platform` | `"ios"` |
+| `os_version` | OS version as `major.minor.patch` |
+| `app_version` | `CFBundleShortVersionString` |
+| `app_build` | `CFBundleVersion` |
+| `locale` | BCP-47 form, for example `"en-US"` |
+| `timezone` | IANA identifier, for example `"America/New_York"` |
+| `device_type` | `"phone"` or `"tablet"`, absent on other device idioms |
+| `network_type` | `"wifi"`, `"cellular"`, `"ethernet"`, `"none"`, or `"other"` |
+| `first_seen_at` | time the SDK first initialized on the device, as epoch seconds, for numeric before/after rules |
+| `session_count` | number of app launches, counted once per process start |
+
+Values you pass to `identify`, `setContext`, or `updateAttributes` override
+the automatic ones for targeting, and `removeAttributes` restores the
+automatic value on the next read.
+
+`network_type` becomes available at the first connectivity callback,
+typically milliseconds after `initialize`. A synchronous read in that window
+treats rules on it as not matching, and observers deliver the corrected
+value when it arrives, so use observers for flags gated on connectivity at
+launch. `other` means online over an unclassified interface, so a rule that
+should match every connected device uses `network_type not_equals "none"`
+rather than listing the connected values.
+
+Custom attributes are matched verbatim and case-sensitively against rule
+values. Name them the way the standard attributes are named, lower-case with
+underscores (for example `plan_tier`, `account_id`), and pass exactly the
+name your targeting rules use. Recommended custom attribute names match
+`^[a-z][a-z0-9_]*$`, the same convention the rule-authoring UI enforces at
+entry, so a name that passes there always matches what your app sends.
+
 ## Reactive flags
 
 There are three reactive surfaces, all backed by the same observation. Pick the one that fits your call site.

@@ -322,6 +322,10 @@ extern "C" {
         /*handle*/ uint64_t ptr, 
         RustBuffer names
     );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer attributes
+    );
     /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(
         /*handle*/ uint64_t ptr, 
         RustBuffer targeting_key, 
@@ -792,6 +796,8 @@ extern "C" {
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context(
     );
@@ -5134,6 +5140,14 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context"),
@@ -6134,6 +6148,14 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context"),
@@ -6902,6 +6924,13 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_c
 }
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1])
         );
 
         
@@ -7993,6 +8022,13 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
 }
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(
         );
 
         

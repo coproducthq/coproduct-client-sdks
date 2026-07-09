@@ -649,6 +649,19 @@ impl CoproductClient {
         self.inner.remove_attributes(&names).await;
     }
 
+    /// Internal surface for platform wrappers to publish SDK-owned device and
+    /// session attributes into the auto-populated context layer. The core
+    /// filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+    /// observers on change. Not a developer API: developer attributes go
+    /// through identify, setContext, or updateAttributes
+    pub async fn set_auto_populated_attributes(&self, attributes: HashMap<String, ContextValue>) {
+        let attrs = attributes
+            .into_iter()
+            .map(|(k, v)| (k, v.into_core()))
+            .collect();
+        self.inner.set_auto_populated_attributes(attrs).await;
+    }
+
     pub fn previous_anonymous_id(&self) -> Option<String> {
         self.inner.previous_anonymous_id()
     }

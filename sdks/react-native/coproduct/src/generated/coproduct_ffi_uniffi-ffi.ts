@@ -393,6 +393,10 @@ interface NativeModuleInterface {
     uniffiSelf: bigint,
     names: Uint8Array
   ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(
+    uniffiSelf: bigint,
+    attributes: Uint8Array
+  ): bigint;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_context(
     uniffiSelf: bigint,
     targetingKey: Uint8Array,
@@ -535,6 +539,7 @@ interface NativeModuleInterface {
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown(): number;

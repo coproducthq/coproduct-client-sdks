@@ -30,7 +30,7 @@ pub enum AttributeValue {
 /// field rather than living in a layer, and it is also surfaced through
 /// `get_attribute` under the `user_id` name so targeting rules can match on
 /// identity without a developer having to mirror it into an attribute
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EvaluationContext {
     targeting_key: String,
     sdk_context: HashMap<String, AttributeValue>,

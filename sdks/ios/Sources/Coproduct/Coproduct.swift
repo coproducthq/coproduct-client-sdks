@@ -439,12 +439,13 @@ final class Instances: @unchecked Sendable {
 
     /// A client paired with the sdk key it was initialized with. The key is
     /// kept in Swift only and never crosses FFI again. The host-driven polling
-    /// timer is retained here so it lives exactly as long as the instance and is
-    /// cancelled when the instance shuts down
+    /// timer and the network monitor are retained here so they live exactly as
+    /// long as the instance and are cancelled when the instance shuts down
     private struct Stored {
         let client: CoproductClient
         let sdkKey: String
         let timer: HostTimer?
+        let networkMonitor: NetworkMonitor?
     }
 
     private var _defaultInstance: Stored?
@@ -530,16 +531,32 @@ final class Instances: @unchecked Sendable {
             return await inner.pollNow()
         }
 
-        guard storeIfCurrent(Stored(client: inner, sdkKey: sdkKey, timer: timer), generation: claimedGeneration) else {
+        // Live network classification through the injectable source seam. The
+        // attribute is absent until the first path callback. Each change is
+        // enqueued in identity order. A weak capture keeps the monitor from
+        // retaining a shut-down client
+        let networkMonitor = NetworkMonitor(
+            source: NetworkMonitor.sourceOverrideForTesting ?? NWPathSource(),
+            onChange: { [weak inner] type in
+                inner?.setAutoPopulated(attributes: ["network_type": .string(type)])
+            }
+        )
+
+        guard storeIfCurrent(
+            Stored(client: inner, sdkKey: sdkKey, timer: timer, networkMonitor: networkMonitor),
+            generation: claimedGeneration
+        ) else {
             // A shutdown ran during the brief construct before the instance was
             // stored. Do not resurrect it: tear the orphan down and report the
             // cancellation so the caller never sees initialize succeed against a
             // torn-down SDK
+            networkMonitor.cancel()
             await inner.shutdown()
             throw CoproductError.cancelledByShutdown
         }
 
         timer.start()
+        networkMonitor.start()
         // Signal reactive surfaces that subscribed before a default instance
         // existed (such as @CoproductFlag on a view built before its .task runs)
         // so they can attach now
@@ -600,6 +617,16 @@ final class Instances: @unchecked Sendable {
         if let listener = config.evaluationListener {
             client.setEvaluationListener(listener: listener)
         }
+
+        // Publish the SDK-owned device and session attributes before initialize
+        // resolves, so the first synchronous read evaluates against them. The
+        // live network fact arrives later through NetworkMonitor
+        var autoAttributes = DeviceContext.staticAttributes()
+        for (key, value) in SessionStore().sessionAttributes() {
+            autoAttributes[key] = value
+        }
+        await client.setAutoPopulatedNow(attributes: autoAttributes)
+
         return client
     }
 
@@ -706,6 +733,7 @@ final class Instances: @unchecked Sendable {
         // Cancel the recurring poll before tearing down the client so no fire
         // closure races against the in-flight shutdown
         stored?.timer?.stop()
+        stored?.networkMonitor?.cancel()
         await stored?.client.shutdown()
     }
 }
@@ -851,6 +879,23 @@ extension CoproductClient {
             } catch {
                 NSLog("[Coproduct] setContext failed: \(error)")
             }
+        }
+    }
+
+    // Awaited variant used once during initialize, before the instance is
+    // published, so the first synchronous read already evaluates against the
+    // static device attributes
+    func setAutoPopulatedNow(attributes: [String: AttributeValue]) async {
+        await setAutoPopulatedAttributes(attributes: attributes.contextValues)
+    }
+
+    // Ordered variant for live updates after initialize. Enqueued on the same
+    // serializer as the identity mutators so a network change and an identify
+    // apply in call order
+    func setAutoPopulated(attributes: [String: AttributeValue]) {
+        let context = attributes.contextValues
+        IdentitySerializer.shared.enqueue { [self] in
+            await setAutoPopulatedAttributes(attributes: context)
         }
     }
 }

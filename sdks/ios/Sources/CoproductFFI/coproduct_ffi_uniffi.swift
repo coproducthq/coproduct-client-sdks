@@ -637,6 +637,15 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func removeAttributes(names: [String]) async 
     
+    /**
+     * Internal surface for platform wrappers to publish SDK-owned device and
+     * session attributes into the auto-populated context layer. The core
+     * filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+     * observers on change. Not a developer API: developer attributes go
+     * through identify, setContext, or updateAttributes
+     */
+    func setAutoPopulatedAttributes(attributes: [String: ContextValue]) async 
+    
     func setContext(targetingKey: String, attributes: [String: ContextValue]) async throws 
     
     func setEvaluationListener(listener: EvaluationListener) 
@@ -912,6 +921,31 @@ open func removeAttributes(names: [String])async   {
                 uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_remove_attributes(
                     self.uniffiCloneHandle(),
                     FfiConverterSequenceString.lower(names)
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Internal surface for platform wrappers to publish SDK-owned device and
+     * session attributes into the auto-populated context layer. The core
+     * filters to the SDK-owned names, drops nulls, normalizes, and re-emits
+     * observers on change. Not a developer API: developer attributes go
+     * through identify, setContext, or updateAttributes
+     */
+open func setAutoPopulatedAttributes(attributes: [String: ContextValue])async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_set_auto_populated_attributes(
+                    self.uniffiCloneHandle(),
+                    FfiConverterDictionaryStringTypeContextValue.lower(attributes)
                 )
             },
             pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
@@ -5673,6 +5707,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes() != 44822) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes() != 3097) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089) {

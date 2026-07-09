@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -885634815;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1206350931;
 
 // Section: executor
 
@@ -422,6 +422,73 @@ fn wire__crate__api__remove_attributes_impl(
                         let api_handle_guard = api_handle_guard.unwrap();
                         let output_ok = Result::<_, ()>::Ok({
                             crate::api::remove_attributes(&*api_handle_guard, api_names).await;
+                        })?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__set_auto_populated_attributes_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_auto_populated_attributes",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_attributes =
+                <std::collections::HashMap<String, crate::api::FrbContextValue>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
+                        let output_ok = Result::<_, ()>::Ok({
+                            crate::api::set_auto_populated_attributes(
+                                &*api_handle_guard,
+                                api_attributes,
+                            )
+                            .await;
                         })?;
                         Ok(output_ok)
                     })()
@@ -1145,9 +1212,12 @@ fn pde_ffi_dispatcher_primary_impl(
         5 => wire__crate__api__observe_impl(port, ptr, rust_vec_len, data_len),
         6 => wire__crate__api__previous_anonymous_id_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__remove_attributes_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__set_context_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
+        8 => {
+            wire__crate__api__set_auto_populated_attributes_impl(port, ptr, rust_vec_len, data_len)
+        }
+        9 => wire__crate__api__set_context_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

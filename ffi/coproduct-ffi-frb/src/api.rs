@@ -208,6 +208,21 @@ pub async fn remove_attributes(handle: &CoproductClientHandle, names: Vec<String
     handle.inner.remove_attributes(&names).await;
 }
 
+// Internal surface for the Flutter wrapper to publish SDK-owned device and
+// session attributes into the auto-populated context layer. The core filters
+// to the SDK-owned names, drops nulls, normalizes, and re-emits observers on
+// change. Not a developer API
+pub async fn set_auto_populated_attributes(
+    handle: &CoproductClientHandle,
+    attributes: std::collections::HashMap<String, FrbContextValue>,
+) {
+    let attrs = attributes
+        .into_iter()
+        .map(|(k, v)| (k, v.into_core()))
+        .collect();
+    handle.inner.set_auto_populated_attributes(attrs).await;
+}
+
 pub fn previous_anonymous_id(handle: &CoproductClientHandle) -> Option<String> {
     handle.inner.previous_anonymous_id()
 }

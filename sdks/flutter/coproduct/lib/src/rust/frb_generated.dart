@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -885634815;
+  int get rustContentHash => -1206350931;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -116,6 +116,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiRemoveAttributes({
     required CoproductClientHandle handle,
     required List<String> names,
+  });
+
+  Future<void> crateApiSetAutoPopulatedAttributes({
+    required CoproductClientHandle handle,
+    required Map<String, FrbContextValue> attributes,
   });
 
   Future<void> crateApiSetContext({
@@ -443,6 +448,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiSetAutoPopulatedAttributes({
+    required CoproductClientHandle handle,
+    required Map<String, FrbContextValue> attributes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_Map_String_frb_context_value_None(attributes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSetAutoPopulatedAttributesConstMeta,
+        argValues: [handle, attributes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSetAutoPopulatedAttributesConstMeta =>
+      const TaskConstMeta(
+        debugName: "set_auto_populated_attributes",
+        argNames: ["handle", "attributes"],
+      );
+
+  @override
   Future<void> crateApiSetContext({
     required CoproductClientHandle handle,
     required String targetingKey,
@@ -461,7 +504,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -494,7 +537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -529,7 +572,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },

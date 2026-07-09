@@ -85,6 +85,14 @@ Future<void> removeAttributes({
 }) =>
     RustLib.instance.api.crateApiRemoveAttributes(handle: handle, names: names);
 
+Future<void> setAutoPopulatedAttributes({
+  required CoproductClientHandle handle,
+  required Map<String, FrbContextValue> attributes,
+}) => RustLib.instance.api.crateApiSetAutoPopulatedAttributes(
+  handle: handle,
+  attributes: attributes,
+);
+
 Future<String?> previousAnonymousId({required CoproductClientHandle handle}) =>
     RustLib.instance.api.crateApiPreviousAnonymousId(handle: handle);
 
