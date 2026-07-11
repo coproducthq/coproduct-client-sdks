@@ -242,6 +242,18 @@ path. See `DEVELOPMENT.md` for the release checklist.
        "sdks/react-native/coproduct/android/src/main/jniLibs/${pair##*:}/"
   done
   ```
+  The RN iOS framework is a separate gitignored artifact. `ubrn build` writes it
+  to `build/CoproductFFI.xcframework`, but the podspec vendors and `yarn pack`
+  bundles `ios/CoproductFFI.xcframework`, so the build output must be copied into
+  place. Refresh it after an FFI surface change, from `sdks/react-native/coproduct`:
+  ```bash
+  node_modules/.bin/ubrn build ios --config ubrn.config.yaml --sim-only
+  rm -rf ios/CoproductFFI.xcframework
+  cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework
+  ```
+  The artifact-linked RN consumer-test gates fail fast through
+  `scripts/audit/ffi-symbol-freshness.sh` when these committed libraries are
+  stale relative to the FFI surface, rather than rebuilding them inside the gate.
 
 ## Flutter Rust Bridge Notes
 

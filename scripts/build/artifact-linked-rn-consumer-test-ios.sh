@@ -12,14 +12,22 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Package the SDK as a .tgz that the consumer-test will install.
-cd "$SCAFFOLD_ROOT/sdks/react-native/coproduct"
-yarn pack
+# Freshness precondition: the packed .tgz bundles the committed RN xcframework, so
+# fail fast if that committed binary is stale relative to the FFI surface rather
+# than shipping stale bytes to the test.
+"$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
+    "Rebuild the RN iOS framework (see AGENTS.md): from sdks/react-native/coproduct, node_modules/.bin/ubrn build ios --config ubrn.config.yaml --sim-only, then rm -rf ios/CoproductFFI.xcframework and cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework" \
+    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_uniffi.a"
+
+# Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
+# script passes --filename so the archive lands where package.json references it,
+# unlike a plain yarn pack whose default package.tgz nothing installs.
+cd "$SCAFFOLD_ROOT/consumer-tests/react-native"
+yarn sdk:pack
 
 # Install dependencies, then pods, then build for iOS.
 # Plain yarn install (not --immutable): the .tgz integrity hash changes every
-# yarn pack, so a frozen lockfile would fail on every run by design.
-cd "$SCAFFOLD_ROOT/consumer-tests/react-native"
+# pack, so a frozen lockfile would fail on every run by design.
 yarn install
 
 cd ios

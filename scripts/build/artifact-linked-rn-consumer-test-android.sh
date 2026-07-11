@@ -16,14 +16,25 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Package the SDK as a .tgz that the consumer-test will install.
-cd "$SCAFFOLD_ROOT/sdks/react-native/coproduct"
-yarn pack
+# Freshness precondition: the packed .tgz bundles the committed jniLibs, so fail
+# fast if any committed ABI is stale relative to the FFI surface rather than
+# shipping stale bytes to the test.
+"$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
+    "Rebuild the jniLibs: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86 -t x86_64 build -p coproduct-ffi-uniffi, then copy each triple's libcoproduct_ffi_uniffi.a into sdks/react-native/coproduct/android/src/main/jniLibs/<abi>/ (see AGENTS.md)" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_uniffi.a" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_uniffi.a" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/x86/libcoproduct_ffi_uniffi.a" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/x86_64/libcoproduct_ffi_uniffi.a"
+
+# Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
+# script passes --filename so the archive lands where package.json references it,
+# unlike a plain yarn pack whose default package.tgz nothing installs.
+cd "$SCAFFOLD_ROOT/consumer-tests/react-native"
+yarn sdk:pack
 
 # Install dependencies and build the consumer-test Android side.
 # Plain yarn install (not --immutable): the .tgz integrity hash changes every
-# yarn pack, so a frozen lockfile would fail on every run by design.
-cd "$SCAFFOLD_ROOT/consumer-tests/react-native"
+# pack, so a frozen lockfile would fail on every run by design.
 yarn install
 
 cd android
