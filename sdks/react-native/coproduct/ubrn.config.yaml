@@ -8,8 +8,13 @@ bindings:
 
 ios:
   directory: ios
+  # Both simulator archs so ubrn lipos one universal ios-arm64_x86_64-simulator
+  # slice. A release simulator build resolves ARCHS to arm64 and x86_64, and
+  # CocoaPods only links a slice that carries every requested arch, so an
+  # arm64-only slice fails to link under a plain generic-simulator Release build
   targets:
     - aarch64-apple-ios-sim
+    - x86_64-apple-ios
   frameworkName: build/CoproductFFI
 
 android:

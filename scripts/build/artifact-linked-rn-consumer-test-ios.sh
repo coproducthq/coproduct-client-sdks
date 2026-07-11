@@ -17,7 +17,7 @@ SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # than shipping stale bytes to the test.
 "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
     "Rebuild the RN iOS framework (see AGENTS.md): from sdks/react-native/coproduct, node_modules/.bin/ubrn build ios --config ubrn.config.yaml --sim-only, then rm -rf ios/CoproductFFI.xcframework and cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework" \
-    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_uniffi.a"
+    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_uniffi.a"
 
 # Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
 # script passes --filename so the archive lands where package.json references it,
