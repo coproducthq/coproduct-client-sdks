@@ -9,7 +9,7 @@
     "start": "react-native start",
     "test": "jest",
     "sdk:pack": "cd ../../sdks/react-native/coproduct && yarn pack --filename ../../../consumer-tests/react-native/.sdk-pack.tgz",
-    "setup": "npm run sdk:pack && npm install"
+    "setup": "npm run sdk:pack && rm -rf node_modules && npm install --package-lock=false"
   },
   "dependencies": {
     "@react-native/new-app-screen": "0.82.1",
