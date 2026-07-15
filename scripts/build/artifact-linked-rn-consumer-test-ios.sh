@@ -17,7 +17,7 @@ SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shipping stale bytes to the test. Both slices are checked because rebuilding one
 # and forgetting the other is a plausible stale-artifact failure
 "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
-    "Rebuild the RN iOS framework (see AGENTS.md): from sdks/react-native/coproduct, node_modules/.bin/ubrn build ios --config ubrn.config.yaml, then rm -rf ios/CoproductFFI.xcframework and cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework" \
+    "Rebuild the RN iOS framework: run scripts/package/rn-build-native.sh ios (see AGENTS.md)" \
     "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_uniffi.a" \
     "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_uniffi.a"
 

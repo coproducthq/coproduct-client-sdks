@@ -31,7 +31,7 @@ Every SDK surface has a build script under `scripts/build/`. Use these rather th
 | Flutter (iOS) | `scripts/build/source-linked-flutter-demo-ios.sh` | `scripts/build/artifact-linked-flutter-consumer-test-ios.sh` |
 | Flutter (Android) | `scripts/build/source-linked-flutter-demo-android.sh` | `scripts/build/artifact-linked-flutter-consumer-test-android.sh` |
 
-Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set. iOS-touching scripts require Xcode and CocoaPods on PATH. Supporting packaging scripts live under `scripts/package/` (`ios-build-xcframework.sh` rebuilds `CoproductFFI.xcframework` from Rust source, `ios-spm-binary.sh` archives it, `ios-spm-fixture.sh` packages the consumer-test fixture). When a change alters the UniFFI-exposed surface, rebuild the xcframework (the source-linked iOS build does this automatically) so the iOS bindings link against the live symbols.
+Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set (except `scripts/package/rn-build-native.sh android`, which needs only `ANDROID_NDK_HOME` and `cargo-ndk`). iOS-touching scripts require Xcode and CocoaPods on PATH (except `scripts/package/rn-build-native.sh ios`, which needs only Xcode). Supporting packaging scripts live under `scripts/package/` (`ios-build-xcframework.sh` rebuilds `CoproductFFI.xcframework` from Rust source, `ios-spm-binary.sh` archives it, `ios-spm-fixture.sh` packages the consumer-test fixture). When a change alters the UniFFI-exposed surface, rebuild the xcframework (the source-linked iOS build does this automatically) so the iOS bindings link against the live symbols.
 
 `DEVELOPMENT.md` documents the underlying manual commands for stage-by-stage debugging.
 
@@ -235,22 +235,19 @@ path. See `DEVELOPMENT.md` for the release checklist.
   example links against. Stale local copies surface as undefined `uniffi_*`
   symbols at link time:
   ```bash
-  cargo ndk -t arm64-v8a -t armeabi-v7a -t x86 -t x86_64 build -p coproduct-ffi-uniffi
-  for pair in aarch64-linux-android:arm64-v8a armv7-linux-androideabi:armeabi-v7a \
-              i686-linux-android:x86 x86_64-linux-android:x86_64; do
-    cp "target/${pair%%:*}/debug/libcoproduct_ffi_uniffi.a" \
-       "sdks/react-native/coproduct/android/src/main/jniLibs/${pair##*:}/"
-  done
+  scripts/package/rn-build-native.sh android
   ```
+  This rebuilds the four jniLibs. It needs only `ANDROID_NDK_HOME` and `cargo-ndk`,
+  a deliberately narrower requirement than the Android consumer gate.
   The RN iOS framework is a separate gitignored artifact. `ubrn build` writes it
   to `build/CoproductFFI.xcframework`, but the podspec vendors and `yarn pack`
   bundles `ios/CoproductFFI.xcframework`, so the build output must be copied into
-  place. Refresh it after an FFI surface change, from `sdks/react-native/coproduct`:
+  place. Refresh it after an FFI surface change by running, from the repo root:
   ```bash
-  node_modules/.bin/ubrn build ios --config ubrn.config.yaml
-  rm -rf ios/CoproductFFI.xcframework
-  cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework
+  scripts/package/rn-build-native.sh ios
   ```
+  This runs the ubrn build and copies the result into place, and builds both the
+  device and universal simulator slices.
   The artifact-linked RN consumer-test gates fail fast through
   `scripts/audit/ffi-symbol-freshness.sh` when these committed libraries are
   stale relative to the FFI surface, rather than rebuilding them inside the gate.

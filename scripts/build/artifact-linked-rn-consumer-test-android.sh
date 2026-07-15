@@ -20,7 +20,7 @@ SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # fast if any committed ABI is stale relative to the FFI surface rather than
 # shipping stale bytes to the test.
 "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
-    "Rebuild the jniLibs: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86 -t x86_64 build -p coproduct-ffi-uniffi, then copy each triple's libcoproduct_ffi_uniffi.a into sdks/react-native/coproduct/android/src/main/jniLibs/<abi>/ (see AGENTS.md)" \
+    "Rebuild the jniLibs: run scripts/package/rn-build-native.sh android (see AGENTS.md)" \
     "sdks/react-native/coproduct/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_uniffi.a" \
     "sdks/react-native/coproduct/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_uniffi.a" \
     "sdks/react-native/coproduct/android/src/main/jniLibs/x86/libcoproduct_ffi_uniffi.a" \
