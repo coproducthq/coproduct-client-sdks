@@ -12,11 +12,13 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Freshness precondition: the packed .tgz bundles the committed RN xcframework, so
-# fail fast if that committed binary is stale relative to the FFI surface rather
-# than shipping stale bytes to the test.
+# Freshness precondition: the packed .tgz bundles the vendored RN xcframework, so
+# fail fast if either slice is stale relative to the FFI surface rather than
+# shipping stale bytes to the test. Both slices are checked because rebuilding one
+# and forgetting the other is a plausible stale-artifact failure
 "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
-    "Rebuild the RN iOS framework (see AGENTS.md): from sdks/react-native/coproduct, node_modules/.bin/ubrn build ios --config ubrn.config.yaml --sim-only, then rm -rf ios/CoproductFFI.xcframework and cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework" \
+    "Rebuild the RN iOS framework (see AGENTS.md): from sdks/react-native/coproduct, node_modules/.bin/ubrn build ios --config ubrn.config.yaml, then rm -rf ios/CoproductFFI.xcframework and cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework" \
+    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_uniffi.a" \
     "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_uniffi.a"
 
 # Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
@@ -35,7 +37,10 @@ yarn sdk:pack
 rm -rf node_modules
 npm install --package-lock=false
 
-# Install pods, then build for iOS.
+# Install pods, then build for the simulator and for a device against the same
+# installed consumer. Signing is disabled fully so the unsigned device build
+# reaches the link step rather than stopping at a development-team requirement.
+# Both builds must link the packed SDK for the gate to pass
 cd ios
 pod install
 
@@ -43,6 +48,12 @@ xcodebuild -workspace CpConsumer.xcworkspace \
   -scheme CpConsumer \
   -destination 'generic/platform=iOS Simulator' \
   -configuration Release \
-  build CODE_SIGNING_ALLOWED=NO
+  build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+xcodebuild -workspace CpConsumer.xcworkspace \
+  -scheme CpConsumer \
+  -destination 'generic/platform=iOS' \
+  -configuration Release \
+  build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
 
 echo "COPRODUCT_ARTIFACT_LINKED_RN_CONSUMER_TEST_IOS_BUILD_STATUS pass=true"

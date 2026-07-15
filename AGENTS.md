@@ -247,7 +247,7 @@ path. See `DEVELOPMENT.md` for the release checklist.
   bundles `ios/CoproductFFI.xcframework`, so the build output must be copied into
   place. Refresh it after an FFI surface change, from `sdks/react-native/coproduct`:
   ```bash
-  node_modules/.bin/ubrn build ios --config ubrn.config.yaml --sim-only
+  node_modules/.bin/ubrn build ios --config ubrn.config.yaml
   rm -rf ios/CoproductFFI.xcframework
   cp -R build/CoproductFFI.xcframework ios/CoproductFFI.xcframework
   ```
