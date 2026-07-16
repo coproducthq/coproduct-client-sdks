@@ -4,7 +4,7 @@
 # Source-linked: builds the React Native demo app at sdks/react-native/coproduct/example/
 # for iOS. The example pulls the SDK as workspace code via RN autolinking.
 # Runs on macOS only.
-# Requires Xcode, CocoaPods, plus node and yarn on PATH.
+# Requires Xcode, CocoaPods, the Rust toolchain (rn-build-native.sh runs ubrn build), plus node and yarn on PATH.
 # Emits COPRODUCT_SOURCE_LINKED_RN_DEMO_IOS_BUILD_STATUS pass=true on success.
 
 set -euo pipefail
@@ -15,6 +15,10 @@ cd "$SCAFFOLD_ROOT/sdks/react-native/coproduct"
 # --immutable: the SDK is consumed as workspace code via a stable file: reference,
 # so the lockfile should not need to mutate between runs. CI catches drift this way.
 yarn install --immutable
+
+# Rebuild the RN native framework so this source-linked demo links code matching
+# the current FFI surface, the same reason source-linked-ios-demo.sh rebuilds.
+"$SCAFFOLD_ROOT/scripts/package/rn-build-native.sh" ios
 
 cd example/ios
 pod install
