@@ -16,6 +16,16 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# Freshness precondition: publishToMavenLocal packages the jniLibs into the AAR
+# as-is, so fail fast if any ABI is stale relative to the FFI surface rather than
+# shipping stale bytes to the consumer test.
+"$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
+    "Rebuild the jniLibs: run scripts/package/android-build-jnilibs.sh (see AGENTS.md)" \
+    "sdks/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_uniffi.so" \
+    "sdks/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_uniffi.so" \
+    "sdks/android/src/main/jniLibs/x86/libcoproduct_ffi_uniffi.so" \
+    "sdks/android/src/main/jniLibs/x86_64/libcoproduct_ffi_uniffi.so"
+
 # Publish the SDK to mavenLocal so the consumer-test can resolve it.
 cd "$SCAFFOLD_ROOT/examples/android-demo"
 ./gradlew :coproduct-android:publishToMavenLocal

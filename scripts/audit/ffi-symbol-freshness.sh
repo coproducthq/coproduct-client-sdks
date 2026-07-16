@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Assert that each committed native library exports every uniffi_* symbol the
-# current FFI source defines. Artifact-linked release gates install committed
-# native artifacts as-is for release fidelity, so this fails fast when a committed
+# Assert that each packaged native library exports every uniffi_* symbol the
+# current FFI source defines. Artifact-linked release gates install packaged
+# native artifacts as-is for release fidelity, so this fails fast when a packaged
 # library is stale relative to the FFI surface rather than rebuilding it inside
 # the gate.
 #
 # Usage: ffi-symbol-freshness.sh <remediation-hint> <library>...
 #   <remediation-hint>  printed on failure to tell the developer how to rebuild
-#   <library>...        one or more static libraries to check, relative to the
+#   <library>...        one or more native libraries to check, relative to the
 #                       repo root
 #
 # An added or removed method changes a symbol name and is caught here. A changed
@@ -26,7 +26,7 @@ shift
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-echo "checking committed native libraries export the current ffi surface"
+echo "checking packaged native libraries export the current ffi surface"
 cargo build -p coproduct-ffi-uniffi
 
 # Read external defined symbols only. -g and -U are portable across the BSD nm on
@@ -81,4 +81,4 @@ if [[ "$stale" -ne 0 ]]; then
     echo "$remediation" >&2
     exit 1
 fi
-echo "freshness guard passed: committed native libraries export the current ffi surface"
+echo "freshness guard passed: packaged native libraries export the current ffi surface"
