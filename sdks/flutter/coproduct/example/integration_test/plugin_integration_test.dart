@@ -33,6 +33,54 @@ void main() {
     expect(subscription, isNotNull);
   });
 
+  testWidgets('typed getters cross the ffi and return defaults for missing keys',
+      (WidgetTester tester) async {
+    final client = await Coproduct.initialize(
+        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+
+    // initialize loads any persisted snapshot from the app cache, so a per-run
+    // unique prefix keeps these default-path assertions independent of prior runs
+    final k = 'cp-${DateTime.now().microsecondsSinceEpoch}-';
+
+    expect(client.getString('${k}string', 'fallback'), 'fallback');
+    expect(client.getNumber('${k}number', 3.5), 3.5);
+
+    // Full signed-64-bit precision survives the FFI, including the extremes and a
+    // value above 2^53. Dart permits the positive token 9223372036854775808 only
+    // as the operand of unary minus, so the signed-64-bit minimum is a valid
+    // negative expression, and its native int covers the signed 64-bit range
+    expect(client.getInt('${k}int', 42), 42);
+    expect(client.getInt('${k}int-max', 9223372036854775807), 9223372036854775807);
+    expect(client.getInt('${k}int-min', -9223372036854775808), -9223372036854775808);
+    expect(client.getInt('${k}int-big', 9007199254740993), 9007199254740993);
+
+    // getJson encode/decode round trip on the default path: map, list, nested,
+    // scalar, and null
+    expect(
+        client.getJson('${k}json-map', {
+          'theme': 'system',
+          'nested': {
+            'items': [1, 2, 3]
+          }
+        }),
+        {
+          'theme': 'system',
+          'nested': {
+            'items': [1, 2, 3]
+          }
+        });
+    expect(client.getJson('${k}json-list', [1, 'two', null]), [1, 'two', null]);
+    expect(client.getJson('${k}json-scalar', 'hi'), 'hi');
+    expect(client.getJson('${k}json-null', null), isNull);
+
+    // An unencodable (cyclic) default returns the exact same instance without
+    // throwing. Asserted with identical() because deep equality can recurse on a
+    // cyclic structure
+    final cyclic = <String, Object?>{};
+    cyclic['self'] = cyclic;
+    expect(identical(client.getJson('${k}json-cyclic', cyclic), cyclic), isTrue);
+  });
+
   testWidgets('bucketForVectors matches all golden vectors',
       (WidgetTester tester) async {
     await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');

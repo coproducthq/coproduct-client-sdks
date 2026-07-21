@@ -420,6 +420,7 @@ dependencies = [
  "async-trait",
  "coproduct-core",
  "flutter_rust_bridge",
+ "serde_json",
  "thiserror",
 ]
 

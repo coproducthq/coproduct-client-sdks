@@ -83,6 +83,47 @@ class CoproductClient {
   bool getBool(String key, bool defaultValue) =>
       frb.getBool(client: _handle, key: key, defaultValue: defaultValue);
 
+  /// Reads a string flag, returning [defaultValue] if the flag is missing, the
+  /// wrong type, or the SDK is not ready
+  String getString(String key, String defaultValue) =>
+      frb.getString(client: _handle, key: key, defaultValue: defaultValue);
+
+  /// Reads an integer flag, returning [defaultValue] if the flag is missing, the
+  /// wrong type, or the SDK is not ready. Integers travel as the numeric flag
+  /// type, so a fractional value is truncated toward zero
+  int getInt(String key, int defaultValue) =>
+      frb.getInt(client: _handle, key: key, defaultValue: defaultValue);
+
+  /// Reads a numeric flag, returning [defaultValue] if the flag is missing, the
+  /// wrong type, or the SDK is not ready
+  double getNumber(String key, double defaultValue) =>
+      frb.getNumber(client: _handle, key: key, defaultValue: defaultValue);
+
+  /// Reads a JSON flag as a native Dart value (map, list, scalar, or null).
+  ///
+  /// [defaultValue] must be JSON-encodable: null, a JSON scalar, a list of
+  /// JSON-encodable values, or a string-keyed map of JSON-encodable values. If
+  /// encoding or decoding fails, the supplied [defaultValue] is returned
+  /// unchanged instead of throwing, matching the "reads do not throw" contract
+  Object? getJson(String key, Object? defaultValue) {
+    final String defaultValueJson;
+    try {
+      defaultValueJson = jsonEncode(defaultValue);
+    } catch (_) {
+      return defaultValue;
+    }
+    final resultJson = frb.getJson(
+      client: _handle,
+      key: key,
+      defaultValueJson: defaultValueJson,
+    );
+    try {
+      return jsonDecode(resultJson);
+    } catch (_) {
+      return defaultValue;
+    }
+  }
+
   /// Low-level observer hook used by current demos.
   Future<Cancellable> observe(
     String key,

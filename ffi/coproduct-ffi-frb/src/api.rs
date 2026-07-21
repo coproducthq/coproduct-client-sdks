@@ -139,6 +139,30 @@ pub fn get_bool(client: &CoproductClientHandle, key: String, default_value: bool
     client.inner.get_bool(key, default_value)
 }
 
+#[frb(sync)]
+pub fn get_string(client: &CoproductClientHandle, key: String, default_value: String) -> String {
+    client.inner.get_string(key, default_value)
+}
+
+#[frb(sync)]
+pub fn get_int(client: &CoproductClientHandle, key: String, default_value: i64) -> i64 {
+    client.inner.get_int(key, default_value)
+}
+
+#[frb(sync)]
+pub fn get_number(client: &CoproductClientHandle, key: String, default_value: f64) -> f64 {
+    client.inner.get_number(key, default_value)
+}
+
+// JSON crosses the FFI as a JSON-encoded string, as in the UniFFI bridge. The
+// caller's default string is parsed, and the resolved value is returned as a
+// string for the Dart wrapper to decode. An unparseable default becomes JSON null
+#[frb(sync)]
+pub fn get_json(client: &CoproductClientHandle, key: String, default_value_json: String) -> String {
+    let default = serde_json::from_str(&default_value_json).unwrap_or(serde_json::Value::Null);
+    client.inner.get_json(key, default).to_string()
+}
+
 pub fn observe(
     client: &CoproductClientHandle,
     key: String,

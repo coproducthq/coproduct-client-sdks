@@ -36,6 +36,46 @@ bool getBool({
   defaultValue: defaultValue,
 );
 
+String getString({
+  required CoproductClientHandle client,
+  required String key,
+  required String defaultValue,
+}) => RustLib.instance.api.crateApiGetString(
+  client: client,
+  key: key,
+  defaultValue: defaultValue,
+);
+
+PlatformInt64 getInt({
+  required CoproductClientHandle client,
+  required String key,
+  required PlatformInt64 defaultValue,
+}) => RustLib.instance.api.crateApiGetInt(
+  client: client,
+  key: key,
+  defaultValue: defaultValue,
+);
+
+double getNumber({
+  required CoproductClientHandle client,
+  required String key,
+  required double defaultValue,
+}) => RustLib.instance.api.crateApiGetNumber(
+  client: client,
+  key: key,
+  defaultValue: defaultValue,
+);
+
+String getJson({
+  required CoproductClientHandle client,
+  required String key,
+  required String defaultValueJson,
+}) => RustLib.instance.api.crateApiGetJson(
+  client: client,
+  key: key,
+  defaultValueJson: defaultValueJson,
+);
+
 Future<SubscriptionHandle> observe({
   required CoproductClientHandle client,
   required String key,
