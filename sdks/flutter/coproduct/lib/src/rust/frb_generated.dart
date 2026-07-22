@@ -133,9 +133,7 @@ abstract class RustLibApi extends BaseApi {
     required FutureOr<void> Function(bool) onChange,
   });
 
-  Future<String?> crateApiPreviousAnonymousId({
-    required CoproductClientHandle handle,
-  });
+  String? crateApiPreviousAnonymousId({required CoproductClientHandle handle});
 
   Future<void> crateApiRemoveAttributes({
     required CoproductClientHandle handle,
@@ -415,7 +413,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
+          decodeErrorData: sse_decode_identity_error,
         ),
         constMeta: kCrateApiIdentifyConstMeta,
         argValues: [handle, userId, attributes, linkAnonymous],
@@ -535,23 +533,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<String?> crateApiPreviousAnonymousId({
-    required CoproductClientHandle handle,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
+  String? crateApiPreviousAnonymousId({required CoproductClientHandle handle}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
             handle,
             serializer,
           );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 10,
-            port: port_,
-          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -670,7 +661,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_AnyhowException,
+          decodeErrorData: sse_decode_identity_error,
         ),
         constMeta: kCrateApiSetContextConstMeta,
         argValues: [handle, targetingKey, attributes],
@@ -1107,6 +1098,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  IdentityError dco_decode_identity_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return IdentityError.values[raw as int];
+  }
+
+  @protected
   InitError dco_decode_init_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -1398,6 +1395,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  IdentityError sse_decode_identity_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return IdentityError.values[inner];
   }
 
   @protected
@@ -1777,6 +1781,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_identity_error(IdentityError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

@@ -81,6 +81,49 @@ void main() {
     expect(identical(client.getJson('${k}json-cyclic', cyclic), cyclic), isTrue);
   });
 
+  testWidgets('identity mutators cross the ffi and surface typed errors',
+      (WidgetTester tester) async {
+    final client = await Coproduct.initialize(
+        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+
+    // Empty keys surface the public typed error, not a generated or bridge type
+    await expectLater(client.identify(userId: ''),
+        throwsA(isA<InvalidTargetingKey>()));
+    await expectLater(client.setContext(targetingKey: ''),
+        throwsA(isA<InvalidTargetingKey>()));
+
+    // A rejected queued mutation does not block a later valid one
+    final rejected = client.identify(userId: '');
+    final accepted = client.identify(userId: 'alice');
+    await expectLater(rejected, throwsA(isA<InvalidTargetingKey>()));
+    await accepted;
+
+    // The first linked identify captures previousAnonymousId (sync getter, no
+    // future), and signOut clears it
+    final captured = client.previousAnonymousId;
+    expect(captured, isNotNull);
+    await client.signOut();
+    expect(client.previousAnonymousId, isNull);
+
+    // Every AttributeValue variant encodes and decodes across the real bridge, and
+    // a later linked identify recaptures the same original anonymous id
+    await client.identify(userId: 'bob', attributes: {
+      'plan': const AttributeValue.string('pro'),
+      'seats': AttributeValue.number(5),
+      'ratio': AttributeValue.number(1.5),
+      'beta': const AttributeValue.bool(true),
+      'roles': AttributeValue.stringList(['admin', 'editor']),
+      'empty': AttributeValue.stringList(const []),
+      'note': const AttributeValue.nullValue(),
+    });
+    expect(client.previousAnonymousId, captured);
+    await client.updateAttributes({'plan': const AttributeValue.string('team')});
+    await client.setContext(targetingKey: 'org-42', attributes: {
+      'tier': const AttributeValue.string('gold'),
+    });
+    await client.removeAttributes(['tier']);
+  });
+
   testWidgets('bucketForVectors matches all golden vectors',
       (WidgetTester tester) async {
     await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');

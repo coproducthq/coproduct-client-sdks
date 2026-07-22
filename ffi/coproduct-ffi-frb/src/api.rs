@@ -69,6 +69,25 @@ pub enum ObserverError {
     Callback(String),
 }
 
+// Typed identity error crossing the binding boundary, mirroring the UniFFI
+// crate's FfiIdentityError. The core rejects an empty identity or targeting
+// key, and the Dart wrapper translates this single variant into its public
+// InvalidTargetingKey. Kept typed rather than anyhow so the generated Dart error
+// is a discriminable type, the same pattern InitError already uses
+#[derive(Debug, thiserror::Error)]
+pub enum IdentityError {
+    #[error("targeting key cannot be empty")]
+    InvalidTargetingKey,
+}
+
+impl From<coproduct_core::error::IdentityError> for IdentityError {
+    fn from(error: coproduct_core::error::IdentityError) -> Self {
+        match error {
+            coproduct_core::error::IdentityError::InvalidTargetingKey => Self::InvalidTargetingKey,
+        }
+    }
+}
+
 pub struct CoproductClientHandle {
     inner: Arc<CoreCoproductClient>,
 }
@@ -177,15 +196,17 @@ pub fn observe(
 
 // Identity mutators for the evaluation context. These are async because an
 // identity change fires identity-lifecycle events, and the sign-out path awaits
-// the persistence queue so the restored anonymous identity is durable before the
-// call returns. The fallible ones surface a thrown Dart exception as anyhow::Error
-// because FRB does not support a custom error type as the future error
+// the persistence attempt for the restored anonymous identity, though a
+// secure-store write failure is logged and swallowed rather than surfaced. The
+// fallible ones return a typed IdentityError. The anyhow restriction applies only
+// to Dart-hosted callback futures, not to exported async functions, which surface
+// a typed error the same way initialize does with InitError
 pub async fn identify(
     handle: &CoproductClientHandle,
     user_id: String,
     attributes: std::collections::HashMap<String, FrbContextValue>,
     link_anonymous: bool,
-) -> anyhow::Result<()> {
+) -> Result<(), IdentityError> {
     let attrs = attributes
         .into_iter()
         .map(|(k, v)| (k, v.into_core()))
@@ -194,7 +215,7 @@ pub async fn identify(
         .inner
         .identify(user_id, attrs, link_anonymous)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(IdentityError::from)
 }
 
 pub async fn sign_out(handle: &CoproductClientHandle) {
@@ -205,7 +226,7 @@ pub async fn set_context(
     handle: &CoproductClientHandle,
     targeting_key: String,
     attributes: std::collections::HashMap<String, FrbContextValue>,
-) -> anyhow::Result<()> {
+) -> Result<(), IdentityError> {
     let attrs = attributes
         .into_iter()
         .map(|(k, v)| (k, v.into_core()))
@@ -214,7 +235,7 @@ pub async fn set_context(
         .inner
         .set_context(targeting_key, attrs)
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))
+        .map_err(IdentityError::from)
 }
 
 pub async fn update_attributes(
@@ -247,6 +268,7 @@ pub async fn set_auto_populated_attributes(
     handle.inner.set_auto_populated_attributes(attrs).await;
 }
 
+#[frb(sync)]
 pub fn previous_anonymous_id(handle: &CoproductClientHandle) -> Option<String> {
     handle.inner.previous_anonymous_id()
 }

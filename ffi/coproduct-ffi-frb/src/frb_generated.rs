@@ -386,7 +386,7 @@ fn wire__crate__api__identify_impl(
             let api_link_anonymous = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                transform_result_sse::<_, crate::api::IdentityError>(
                     (move || async move {
                         let mut api_handle_guard = None;
                         let decode_indices_ =
@@ -536,16 +536,15 @@ fn wire__crate__api__observe_impl(
     )
 }
 fn wire__crate__api__previous_anonymous_id_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "previous_anonymous_id",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -561,29 +560,27 @@ fn wire__crate__api__previous_anonymous_id_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_handle_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_handle,
-                                0,
-                                false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
+            transform_result_sse::<_, ()>((move || {
+                let mut api_handle_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_handle,
+                            0,
+                            false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
                     }
-                    let api_handle_guard = api_handle_guard.unwrap();
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::previous_anonymous_id(&*api_handle_guard))?;
-                    Ok(output_ok)
-                })())
-            }
+                }
+                let api_handle_guard = api_handle_guard.unwrap();
+                let output_ok =
+                    Result::<_, ()>::Ok(crate::api::previous_anonymous_id(&*api_handle_guard))?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -746,7 +743,7 @@ fn wire__crate__api__set_context_impl(
                 );
             deserializer.end();
             move |context| async move {
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                transform_result_sse::<_, crate::api::IdentityError>(
                     (move || async move {
                         let mut api_handle_guard = None;
                         let decode_indices_ =
@@ -1261,6 +1258,17 @@ impl SseDecode for i64 {
     }
 }
 
+impl SseDecode for crate::api::IdentityError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::IdentityError::InvalidTargetingKey,
+            _ => unreachable!("Invalid variant for IdentityError: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::InitError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1433,7 +1441,6 @@ fn pde_ffi_dispatcher_primary_impl(
         7 => wire__crate__api__identify_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__initialize_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__observe_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__previous_anonymous_id_impl(port, ptr, rust_vec_len, data_len),
         11 => wire__crate__api__remove_attributes_impl(port, ptr, rust_vec_len, data_len),
         12 => {
             wire__crate__api__set_auto_populated_attributes_impl(port, ptr, rust_vec_len, data_len)
@@ -1459,6 +1466,7 @@ fn pde_ffi_dispatcher_sync_impl(
         4 => wire__crate__api__get_json_impl(ptr, rust_vec_len, data_len),
         5 => wire__crate__api__get_number_impl(ptr, rust_vec_len, data_len),
         6 => wire__crate__api__get_string_impl(ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__previous_anonymous_id_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1598,6 +1606,21 @@ impl flutter_rust_bridge::IntoDart for crate::api::HttpResponse {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::HttpResponse {}
 impl flutter_rust_bridge::IntoIntoDart<crate::api::HttpResponse> for crate::api::HttpResponse {
     fn into_into_dart(self) -> crate::api::HttpResponse {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::IdentityError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::InvalidTargetingKey => 0.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::IdentityError {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::IdentityError> for crate::api::IdentityError {
+    fn into_into_dart(self) -> crate::api::IdentityError {
         self
     }
 }
@@ -1809,6 +1832,21 @@ impl SseEncode for i64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::IdentityError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::IdentityError::InvalidTargetingKey => 0,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

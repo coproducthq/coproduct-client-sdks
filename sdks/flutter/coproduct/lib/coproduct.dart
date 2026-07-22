@@ -6,10 +6,15 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
     show ExternalLibrary;
 import 'package:path_provider/path_provider.dart';
 
+import 'src/attribute_value.dart';
+import 'src/identity_error_translation.dart';
 import 'src/rust/api.dart' as frb;
 import 'src/rust/frb_generated.dart';
+import 'src/serial_queue.dart';
 
 export 'src/rust/api.dart' show HttpRequest, HttpResponse, HttpHeader, HttpMethod;
+export 'src/attribute_value.dart' show AttributeValue;
+export 'src/invalid_targeting_key.dart' show InvalidTargetingKey;
 
 /// Validation transport. Counts calls so demos can prove Rust invoked the
 /// Dart-hosted capability. Returns a 200 with an empty JSON body.
@@ -75,10 +80,22 @@ class Cancellable {
   final frb.SubscriptionHandle _subscription;
 }
 
+/// A live Coproduct client for reading flags and setting the evaluation identity.
+///
+/// The identity mutators (`identify`, `signOut`, `setContext`, `updateAttributes`,
+/// `removeAttributes`) share these semantics: they perform no network request,
+/// they re-evaluate the currently loaded snapshot locally and may notify
+/// observers, and they apply in call order. Await a mutation to observe its
+/// completion and errors, or to read settled state such as [previousAnonymousId]
+/// afterwards. Ignoring the returned future gives up that observation, and if the
+/// operation fails the error surfaces as an unhandled asynchronous error.
+/// Identified state is not persisted across launches, so call [identify] again
+/// after initialize on each launch. With no snapshot loaded, reads return defaults
 class CoproductClient {
   CoproductClient(this._handle);
 
   final frb.CoproductClientHandle _handle;
+  final SerialQueue _identityQueue = SerialQueue();
 
   bool getBool(String key, bool defaultValue) =>
       frb.getBool(client: _handle, key: key, defaultValue: defaultValue);
@@ -123,6 +140,76 @@ class CoproductClient {
       return defaultValue;
     }
   }
+
+  /// Identifies the evaluated context by [userId] and replaces its developer
+  /// attributes with [attributes], so an attribute not in the map is cleared.
+  /// [linkAnonymous] (default true) carries the pre-identify anonymous id forward,
+  /// readable via [previousAnonymousId]. Reserved keys `user_id` and `targetingKey`
+  /// in [attributes] are ignored, so set identity through [userId]. Throws
+  /// `InvalidTargetingKey` if [userId] is empty. Awaiting settles the in-memory
+  /// transition, lifecycle notifications, and observer fan-out, and performs no
+  /// persistence
+  Future<void> identify({
+    required String userId,
+    Map<String, AttributeValue> attributes = const {},
+    bool linkAnonymous = true,
+  }) {
+    final frbAttributes = toFrbAttributes(attributes);
+    return _identityQueue.add(() => translateIdentityErrors(() => frb.identify(
+          handle: _handle,
+          userId: userId,
+          attributes: frbAttributes,
+          linkAnonymous: linkAnonymous,
+        )));
+  }
+
+  /// Clears the identified user and reverts to the anonymous identity, clearing
+  /// developer attributes. Awaiting settles the transition and the anonymous-id
+  /// persistence attempt, not durable storage, since a write failure is logged and
+  /// swallowed
+  Future<void> signOut() =>
+      _identityQueue.add(() => frb.signOut(handle: _handle));
+
+  /// Replaces the targeting key and developer attributes of the current context,
+  /// so an attribute not in [attributes] is cleared. Reserved keys `user_id` and
+  /// `targetingKey` are ignored. Throws `InvalidTargetingKey` if [targetingKey]
+  /// is empty
+  Future<void> setContext({
+    required String targetingKey,
+    Map<String, AttributeValue> attributes = const {},
+  }) {
+    final frbAttributes = toFrbAttributes(attributes);
+    return _identityQueue.add(
+        () => translateIdentityErrors(() => frb.setContext(
+              handle: _handle,
+              targetingKey: targetingKey,
+              attributes: frbAttributes,
+            )));
+  }
+
+  /// Merges [attributes] into the current developer attributes, so omitted keys
+  /// remain. Reserved keys `user_id` and `targetingKey` are ignored
+  Future<void> updateAttributes(Map<String, AttributeValue> attributes) {
+    final frbAttributes = toFrbAttributes(attributes);
+    return _identityQueue.add(
+        () => frb.updateAttributes(handle: _handle, attributes: frbAttributes));
+  }
+
+  /// Removes the named developer attributes, which may reveal a lower context
+  /// layer's value for those keys
+  Future<void> removeAttributes(List<String> keys) {
+    final snapshot = snapshotKeys(keys);
+    return _identityQueue.add(
+        () => frb.removeAttributes(handle: _handle, names: snapshot));
+  }
+
+  /// The anonymous id captured to link a pre-login session, or null. A linked
+  /// identify captures the current anonymous id only when no id is currently
+  /// stored, so later linked identifies do not overwrite a stored value. signOut
+  /// or an unlinked identify (linkAnonymous false) clears it, after which a later
+  /// linked identify can capture it again. Read it after awaiting the identity
+  /// mutation that should have changed it
+  String? get previousAnonymousId => frb.previousAnonymousId(handle: _handle);
 
   /// Low-level observer hook used by current demos.
   Future<Cancellable> observe(

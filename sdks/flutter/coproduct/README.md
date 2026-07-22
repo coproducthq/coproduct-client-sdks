@@ -1,10 +1,10 @@
-# coproduct_flutter
+# coproduct
 
 Flutter SDK for the [Coproduct](https://coproduct.app) feature flag and experimentation platform. Wraps the shared Rust evaluation engine via [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge).
 
 ## Status
 
-Pre-1.0. The customer-facing API is specified separately and not yet implemented at production polish. Do not adopt for production use until v1.0.
+Pre-1.0. The public API is still being built out and is not yet at production polish. Do not adopt for production use until v1.0.
 
 ## Compatibility
 
@@ -18,41 +18,33 @@ Pre-1.0. The customer-facing API is specified separately and not yet implemented
 
 ## Installation
 
+> The SDK is not yet published to pub.dev. Once it is released, add it to your
+> `pubspec.yaml` (the published version is set at release):
+
 ```yaml
 dependencies:
-  coproduct_flutter: ^1.0.0
+  coproduct: <released-version>
 ```
 
 ## Quickstart
 
 ```dart
-import 'package:coproduct_flutter/coproduct_flutter.dart';
+import 'package:coproduct/coproduct.dart';
 
 final client = await Coproduct.initialize(sdkKey: 'cpk_mob_...');
-await client.identify(userId: 'alice');
 
-if (client.getBool('new-checkout', defaultValue: false)) {
+await client.identify(userId: 'alice', attributes: {
+  'plan': const AttributeValue.string('pro'),
+});
+
+if (client.getBool('new-checkout', false)) {
   showNewCheckoutFlow();
-}
-```
-
-For reactive integration:
-
-```dart
-class CheckoutScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: Coproduct.observe('new-checkout', defaultValue: false),
-      builder: (context, value, _) => value ? NewCheckoutFlow() : OldCheckoutFlow(),
-    );
-  }
 }
 ```
 
 ## Known compatibility notes
 
-**Gradle 9 cargokit patch.** Upstream cargokit calls `project.exec()`, which was removed in Gradle 9. Our vendored cargokit at `cargokit/gradle/plugin.gradle` carries a `ProcessBuilder` patch ([FRB issue #3007](https://github.com/fzyzcjy/flutter_rust_bridge/issues/3007), wontfix upstream). The patch is transparent to Flutter customers but is documented here for completeness.
+**Gradle 9 cargokit patch.** Upstream cargokit calls `project.exec()`, which was removed in Gradle 9. Our vendored cargokit at `cargokit/gradle/plugin.gradle` carries a `ProcessBuilder` patch ([FRB issue #3007](https://github.com/fzyzcjy/flutter_rust_bridge/issues/3007), wontfix upstream). The patch is transparent to Flutter developers but is documented here for completeness.
 
 ## Building from source
 

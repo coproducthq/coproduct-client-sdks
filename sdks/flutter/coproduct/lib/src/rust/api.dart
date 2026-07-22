@@ -10,7 +10,7 @@ part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `to_core_header`, `to_core_response`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ObserverAdapter`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `on_change`, `read`, `request`, `write`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `on_change`, `read`, `request`, `write`
 
 Future<CoproductClientHandle> initialize({
   required String sdkKey,
@@ -133,7 +133,7 @@ Future<void> setAutoPopulatedAttributes({
   attributes: attributes,
 );
 
-Future<String?> previousAnonymousId({required CoproductClientHandle handle}) =>
+String? previousAnonymousId({required CoproductClientHandle handle}) =>
     RustLib.instance.api.crateApiPreviousAnonymousId(handle: handle);
 
 int bucketForVectors({
@@ -235,6 +235,8 @@ class HttpResponse {
           body == other.body &&
           headers == other.headers;
 }
+
+enum IdentityError { invalidTargetingKey }
 
 @freezed
 sealed class InitError with _$InitError implements FrbException {
