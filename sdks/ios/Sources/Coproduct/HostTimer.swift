@@ -126,9 +126,16 @@ final class HostTimer: @unchecked Sendable {
         pollInFlight = false
         if stopped { return }
         guard let delay = Self.nextDelay(for: outcome, interval: interval) else {
-            // A fatal provider is terminal, so stop scheduling further polls
+            // A fatal provider is terminal. Mark stopped and drop the foreground
+            // observer so a later foreground event cannot start another poll,
+            // matching stop
+            stopped = true
             timer?.cancel()
             timer = nil
+            if let observer = foregroundObserver {
+                NotificationCenter.default.removeObserver(observer)
+                foregroundObserver = nil
+            }
             return
         }
         // A foreground bypasses the wait during normal cadence, but must wait out

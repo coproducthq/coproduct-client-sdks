@@ -12,6 +12,12 @@ final class HostTimerTests: XCTestCase {
             n += 1
             return n
         }
+
+        var value: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return n
+        }
     }
 
     func testTimerRepollsAfterASuccessfulOutcome() async {
@@ -47,6 +53,26 @@ final class HostTimerTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 100_000_000)
         NotificationCenter.default.post(name: HostTimer.didBecomeActiveNotification, object: nil)
         await fulfillment(of: [foregroundPoll], timeout: 1.0)
+        timer.stop()
+    }
+
+    func testForegroundDoesNotPollAfterFatal() async {
+        let counter = Counter()
+        let firstPoll = XCTestExpectation(description: "start poll")
+        // A long interval means the scheduled timer will not fire again within the
+        // test, so any second poll could only come from the foreground event
+        let timer = HostTimer(interval: 60, pollOnForeground: true) {
+            if counter.increment() == 1 { firstPoll.fulfill() }
+            return .fatal
+        }
+        timer.start()
+        await fulfillment(of: [firstPoll], timeout: 1.0)
+        // Let the fatal outcome's terminal handling settle, then a foreground
+        // event must be inert because a fatal provider stops polling for good
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        NotificationCenter.default.post(name: HostTimer.didBecomeActiveNotification, object: nil)
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(counter.value, 1)
         timer.stop()
     }
 
