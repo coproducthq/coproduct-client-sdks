@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1483573028;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 788416408;
 
 // Section: executor
 
@@ -445,6 +445,8 @@ fn wire__crate__api__initialize_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_sdk_key = <String>::sse_decode(&mut deserializer);
+            let api_user_agent = <String>::sse_decode(&mut deserializer);
+            let api_config = <crate::api::FfiConfig>::sse_decode(&mut deserializer);
             let api_cache_dir = <String>::sse_decode(&mut deserializer);
             let api_transport_request =
                 decode_DartFn_Inputs_http_request_Output_http_response_AnyhowException(
@@ -462,6 +464,8 @@ fn wire__crate__api__initialize_impl(
                     (move || async move {
                         let output_ok = crate::api::initialize(
                             api_sdk_key,
+                            api_user_agent,
+                            api_config,
                             api_cache_dir,
                             api_transport_request,
                             api_secure_read,
@@ -531,6 +535,64 @@ fn wire__crate__api__observe_impl(
                     ))?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__poll_now_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "poll_now",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_client = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let mut api_client_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_client,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_client_guard =
+                                        Some(api_client.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_client_guard = api_client_guard.unwrap();
+                        let output_ok =
+                            Result::<_, ()>::Ok(crate::api::poll_now(&*api_client_guard).await)?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -778,6 +840,65 @@ fn wire__crate__api__set_context_impl(
         },
     )
 }
+fn wire__crate__api__shutdown_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "shutdown",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_client = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let mut api_client_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_client,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_client_guard =
+                                        Some(api_client.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_client_guard = api_client_guard.unwrap();
+                        let output_ok = Result::<_, ()>::Ok({
+                            crate::api::shutdown(&*api_client_guard).await;
+                        })?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sign_out_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -834,6 +955,54 @@ fn wire__crate__api__sign_out_impl(
                     .await,
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__state_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "state",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_client = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_client_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_client,
+                            0,
+                            false,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_client_guard = Some(api_client.lockable_decode_sync_ref()),
+                        _ => unreachable!(),
+                    }
+                }
+                let api_client_guard = api_client_guard.unwrap();
+                let output_ok = Result::<_, ()>::Ok(crate::api::state(&*api_client_guard))?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -1159,6 +1328,20 @@ impl SseDecode for f64 {
     }
 }
 
+impl SseDecode for crate::api::FfiConfig {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_pollIntervalUs = <i64>::sse_decode(deserializer);
+        let mut var_startupTimeoutUs = <i64>::sse_decode(deserializer);
+        let mut var_endpoint = <Option<String>>::sse_decode(deserializer);
+        return crate::api::FfiConfig {
+            poll_interval_us: var_pollIntervalUs,
+            startup_timeout_us: var_startupTimeoutUs,
+            endpoint: var_endpoint,
+        };
+    }
+}
+
 impl SseDecode for crate::api::FrbContextValue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1387,6 +1570,58 @@ impl SseDecode for Option<Vec<u8>> {
     }
 }
 
+impl SseDecode for crate::api::PollOutcome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::api::PollOutcome::Updated;
+            }
+            1 => {
+                return crate::api::PollOutcome::NotModified;
+            }
+            2 => {
+                return crate::api::PollOutcome::Fatal;
+            }
+            3 => {
+                return crate::api::PollOutcome::Retrying;
+            }
+            4 => {
+                let mut var_retryAfterSecs = <i64>::sse_decode(deserializer);
+                return crate::api::PollOutcome::RateLimited {
+                    retry_after_secs: var_retryAfterSecs,
+                };
+            }
+            5 => {
+                return crate::api::PollOutcome::Stale;
+            }
+            6 => {
+                return crate::api::PollOutcome::DedupedSkipped;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseDecode for crate::api::ProviderState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::ProviderState::NotReady,
+            1 => crate::api::ProviderState::Ready,
+            2 => crate::api::ProviderState::Reconciling,
+            3 => crate::api::ProviderState::Retrying,
+            4 => crate::api::ProviderState::Stale,
+            5 => crate::api::ProviderState::Fatal,
+            _ => unreachable!("Invalid variant for ProviderState: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for (String, crate::api::FrbContextValue) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1441,13 +1676,15 @@ fn pde_ffi_dispatcher_primary_impl(
         7 => wire__crate__api__identify_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__initialize_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__observe_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__remove_attributes_impl(port, ptr, rust_vec_len, data_len),
-        12 => {
+        10 => wire__crate__api__poll_now_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__remove_attributes_impl(port, ptr, rust_vec_len, data_len),
+        13 => {
             wire__crate__api__set_auto_populated_attributes_impl(port, ptr, rust_vec_len, data_len)
         }
-        13 => wire__crate__api__set_context_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__set_context_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__shutdown_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1466,7 +1703,8 @@ fn pde_ffi_dispatcher_sync_impl(
         4 => wire__crate__api__get_json_impl(ptr, rust_vec_len, data_len),
         5 => wire__crate__api__get_number_impl(ptr, rust_vec_len, data_len),
         6 => wire__crate__api__get_string_impl(ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__previous_anonymous_id_impl(ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__previous_anonymous_id_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__state_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1511,6 +1749,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SubscriptionHandle>> for Subsc
     }
 }
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::FfiConfig {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.poll_interval_us.into_into_dart().into_dart(),
+            self.startup_timeout_us.into_into_dart().into_dart(),
+            self.endpoint.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::FfiConfig {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::FfiConfig> for crate::api::FfiConfig {
+    fn into_into_dart(self) -> crate::api::FfiConfig {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::FrbContextValue {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -1659,6 +1914,51 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::InitError> for crate::api::In
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::PollOutcome {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::PollOutcome::Updated => [0.into_dart()].into_dart(),
+            crate::api::PollOutcome::NotModified => [1.into_dart()].into_dart(),
+            crate::api::PollOutcome::Fatal => [2.into_dart()].into_dart(),
+            crate::api::PollOutcome::Retrying => [3.into_dart()].into_dart(),
+            crate::api::PollOutcome::RateLimited { retry_after_secs } => {
+                [4.into_dart(), retry_after_secs.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::PollOutcome::Stale => [5.into_dart()].into_dart(),
+            crate::api::PollOutcome::DedupedSkipped => [6.into_dart()].into_dart(),
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::PollOutcome {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::PollOutcome> for crate::api::PollOutcome {
+    fn into_into_dart(self) -> crate::api::PollOutcome {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::ProviderState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::NotReady => 0.into_dart(),
+            Self::Ready => 1.into_dart(),
+            Self::Reconciling => 2.into_dart(),
+            Self::Retrying => 3.into_dart(),
+            Self::Stale => 4.into_dart(),
+            Self::Fatal => 5.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::ProviderState {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::ProviderState> for crate::api::ProviderState {
+    fn into_into_dart(self) -> crate::api::ProviderState {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1745,6 +2045,15 @@ impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::FfiConfig {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.poll_interval_us, serializer);
+        <i64>::sse_encode(self.startup_timeout_us, serializer);
+        <Option<String>>::sse_encode(self.endpoint, serializer);
     }
 }
 
@@ -1949,6 +2258,59 @@ impl SseEncode for Option<Vec<u8>> {
         if let Some(value) = self {
             <Vec<u8>>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::PollOutcome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::PollOutcome::Updated => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::api::PollOutcome::NotModified => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::api::PollOutcome::Fatal => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::api::PollOutcome::Retrying => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::api::PollOutcome::RateLimited { retry_after_secs } => {
+                <i32>::sse_encode(4, serializer);
+                <i64>::sse_encode(retry_after_secs, serializer);
+            }
+            crate::api::PollOutcome::Stale => {
+                <i32>::sse_encode(5, serializer);
+            }
+            crate::api::PollOutcome::DedupedSkipped => {
+                <i32>::sse_encode(6, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::api::ProviderState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::ProviderState::NotReady => 0,
+                crate::api::ProviderState::Ready => 1,
+                crate::api::ProviderState::Reconciling => 2,
+                crate::api::ProviderState::Retrying => 3,
+                crate::api::ProviderState::Stale => 4,
+                crate::api::ProviderState::Fatal => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

@@ -96,7 +96,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  FfiConfig dco_decode_box_autoadd_ffi_config(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  FfiConfig dco_decode_ffi_config(dynamic raw);
 
   @protected
   FrbContextValue dco_decode_frb_context_value(dynamic raw);
@@ -146,6 +152,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  PollOutcome dco_decode_poll_outcome(dynamic raw);
+
+  @protected
+  ProviderState dco_decode_provider_state(dynamic raw);
 
   @protected
   (String, FrbContextValue) dco_decode_record_string_frb_context_value(
@@ -215,7 +227,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  FfiConfig sse_decode_box_autoadd_ffi_config(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  FfiConfig sse_decode_ffi_config(SseDeserializer deserializer);
 
   @protected
   FrbContextValue sse_decode_frb_context_value(SseDeserializer deserializer);
@@ -265,6 +283,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  PollOutcome sse_decode_poll_outcome(SseDeserializer deserializer);
+
+  @protected
+  ProviderState sse_decode_provider_state(SseDeserializer deserializer);
 
   @protected
   (String, FrbContextValue) sse_decode_record_string_frb_context_value(
@@ -368,7 +392,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_ffi_config(
+    FfiConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ffi_config(FfiConfig self, SseSerializer serializer);
 
   @protected
   void sse_encode_frb_context_value(
@@ -432,6 +465,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Uint8List? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_poll_outcome(PollOutcome self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_provider_state(ProviderState self, SseSerializer serializer);
 
   @protected
   void sse_encode_record_string_frb_context_value(

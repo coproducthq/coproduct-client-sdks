@@ -6,6 +6,7 @@
 import 'dart:convert';
 
 import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/src/mock_host.dart';
 import 'package:coproduct/src/rust/api.dart' show bucketForVectors;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
@@ -14,23 +15,18 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('initialize, host callbacks, getBool, observer registration',
+  testWidgets('initialize, host callbacks, getBool',
       (WidgetTester tester) async {
     final client = await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
 
-    // initialize no longer polls, so it does not invoke the Dart-hosted
-    // Transport. The SecureStore is still exercised by the cold-start identity
-    // read. Transport-bridge coverage returns once the binding exposes a poll
-    // entry point and the scaffold drives a poll after initialize.
+    // initialize does not poll, so it does not invoke the Dart-hosted Transport.
+    // The SecureStore is exercised by the cold-start identity read. Transport
+    // callback coverage requires an explicit poll
     expect(mockTransport.requestCount, 0);
     expect(mockSecureStore.completedHandshake, isTrue);
 
     // Sync getter returns the stub default.
     expect(client.getBool('test-flag', false), isFalse);
-
-    // Observer registration succeeds and yields a live cancellable handle.
-    final subscription = await client.observe('test-flag', false, (_) {});
-    expect(subscription, isNotNull);
   });
 
   testWidgets('typed getters cross the ffi and return defaults for missing keys',

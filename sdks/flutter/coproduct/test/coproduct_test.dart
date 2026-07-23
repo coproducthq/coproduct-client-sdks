@@ -1,9 +1,9 @@
-// Pure-Dart unit tests. The SDK surface itself needs the native library (covered
-// by example/integration_test on a device); what is unit-testable here is the
-// scaffold's host-capability mocks, whose call counting drives the demo's
-// "Host callbacks" signal.
+// Pure-Dart unit tests for the internal scaffold host-capability mocks. The SDK
+// surface itself needs the native library, covered by example/integration_test on
+// a device, which exercises the FRB host callbacks
 
-import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/src/mock_host.dart';
+import 'package:coproduct/src/rust/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

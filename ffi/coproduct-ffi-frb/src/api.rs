@@ -120,6 +120,8 @@ type ObserverFn = dyn Fn(bool) -> DartFnFuture<()> + Send + Sync + 'static;
 // contract lives in AGENTS.md and the core initialize doc instead.
 pub async fn initialize(
     sdk_key: String,
+    user_agent: String,
+    config: FfiConfig,
     cache_dir: String,
     transport_request: impl Fn(HttpRequest) -> DartFnFuture<anyhow::Result<HttpResponse>>
     + Send
@@ -135,12 +137,10 @@ pub async fn initialize(
         read: Arc::new(secure_read),
         write: Arc::new(secure_write),
     });
-    // The user agent and config are defaulted at this layer pending the full
-    // host-config surface
     let inner = CoreCoproductClient::initialize(
         sdk_key,
-        "coproduct-frb".to_string(),
-        coproduct_core::config::CoproductConfig::default(),
+        user_agent,
+        config.into_core(),
         cache_dir,
         transport,
         secure_store,
@@ -303,6 +303,175 @@ impl FrbContextValue {
 #[frb(sync)]
 pub fn bucket_for_vectors(rule_id: String, targeting_key: String, suffix: String) -> u32 {
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
+}
+
+// Host lifecycle config crossing the boundary. Durations are microseconds so a
+// sub-millisecond Dart Duration is not rounded to zero. anonymous_id is not
+// exposed here, it comes from the secure store
+#[derive(Debug)]
+pub struct FfiConfig {
+    pub poll_interval_us: i64,
+    pub startup_timeout_us: i64,
+    pub endpoint: Option<String>,
+}
+
+impl FfiConfig {
+    fn into_core(self) -> coproduct_core::config::CoproductConfig {
+        // Microseconds are non-negative, validated in Dart before the call
+        coproduct_core::config::CoproductConfig {
+            poll_interval: Some(std::time::Duration::from_micros(
+                self.poll_interval_us as u64,
+            )),
+            startup_timeout: Some(std::time::Duration::from_micros(
+                self.startup_timeout_us as u64,
+            )),
+            anonymous_id: None,
+            endpoint: self.endpoint,
+        }
+    }
+}
+
+// Provider lifecycle state crossing the boundary. Mirrors the core enum. state
+// never returns Reconciling, it is kept for enum completeness
+#[derive(Debug)]
+pub enum ProviderState {
+    NotReady,
+    Ready,
+    Reconciling,
+    Retrying,
+    Stale,
+    Fatal,
+}
+
+impl From<coproduct_core::state::ProviderState> for ProviderState {
+    fn from(value: coproduct_core::state::ProviderState) -> Self {
+        use coproduct_core::state::ProviderState as C;
+        match value {
+            C::NotReady => Self::NotReady,
+            C::Ready => Self::Ready,
+            C::Reconciling => Self::Reconciling,
+            C::Retrying => Self::Retrying,
+            C::Stale => Self::Stale,
+            C::Fatal => Self::Fatal,
+        }
+    }
+}
+
+// One poll outcome driving the host scheduler. retry_after_secs is i64 for a
+// plain Dart int. Kept out of the public Dart API
+#[derive(Debug)]
+pub enum PollOutcome {
+    Updated,
+    NotModified,
+    Fatal,
+    Retrying,
+    RateLimited { retry_after_secs: i64 },
+    Stale,
+    DedupedSkipped,
+}
+
+impl From<coproduct_core::polling::PollOutcome> for PollOutcome {
+    fn from(value: coproduct_core::polling::PollOutcome) -> Self {
+        use coproduct_core::polling::PollOutcome as C;
+        match value {
+            C::Updated => Self::Updated,
+            C::NotModified => Self::NotModified,
+            C::Fatal => Self::Fatal,
+            C::Retrying => Self::Retrying,
+            C::RateLimited { retry_after_secs } => Self::RateLimited {
+                retry_after_secs: retry_after_secs as i64,
+            },
+            C::Stale => Self::Stale,
+            C::DedupedSkipped => Self::DedupedSkipped,
+        }
+    }
+}
+
+// The current provider state, a synchronous in-memory read
+#[frb(sync)]
+pub fn state(client: &CoproductClientHandle) -> ProviderState {
+    client.inner.state().into()
+}
+
+// Drive one poll. Async because it performs the network request
+pub async fn poll_now(client: &CoproductClientHandle) -> PollOutcome {
+    client.inner.poll_now().await.into()
+}
+
+// Tear down the core client, stopping polling and setting the shutdown latch
+pub async fn shutdown(client: &CoproductClientHandle) {
+    client.inner.shutdown().await;
+}
+
+#[cfg(test)]
+mod lifecycle_conversion_tests {
+    use super::*;
+
+    #[test]
+    fn provider_state_maps_every_variant() {
+        use coproduct_core::state::ProviderState as C;
+        for (core, want) in [
+            (C::NotReady, ProviderState::NotReady),
+            (C::Ready, ProviderState::Ready),
+            (C::Reconciling, ProviderState::Reconciling),
+            (C::Retrying, ProviderState::Retrying),
+            (C::Stale, ProviderState::Stale),
+            (C::Fatal, ProviderState::Fatal),
+        ] {
+            assert_eq!(
+                format!("{:?}", ProviderState::from(core)),
+                format!("{want:?}")
+            );
+        }
+    }
+
+    #[test]
+    fn poll_outcome_maps_every_variant_including_rate_limited() {
+        use coproduct_core::polling::PollOutcome as C;
+        assert!(matches!(
+            PollOutcome::from(C::Updated),
+            PollOutcome::Updated
+        ));
+        assert!(matches!(
+            PollOutcome::from(C::NotModified),
+            PollOutcome::NotModified
+        ));
+        assert!(matches!(PollOutcome::from(C::Fatal), PollOutcome::Fatal));
+        assert!(matches!(
+            PollOutcome::from(C::Retrying),
+            PollOutcome::Retrying
+        ));
+        assert!(matches!(PollOutcome::from(C::Stale), PollOutcome::Stale));
+        assert!(matches!(
+            PollOutcome::from(C::DedupedSkipped),
+            PollOutcome::DedupedSkipped
+        ));
+        assert!(matches!(
+            PollOutcome::from(C::RateLimited {
+                retry_after_secs: 7
+            }),
+            PollOutcome::RateLimited {
+                retry_after_secs: 7
+            }
+        ));
+    }
+
+    #[test]
+    fn ffi_config_maps_durations_and_endpoint() {
+        let core = FfiConfig {
+            poll_interval_us: 45_000_000,
+            startup_timeout_us: 2_500_000,
+            endpoint: Some("https://h".to_string()),
+        }
+        .into_core();
+        assert_eq!(core.poll_interval, Some(std::time::Duration::from_secs(45)));
+        assert_eq!(
+            core.startup_timeout,
+            Some(std::time::Duration::from_micros(2_500_000))
+        );
+        assert_eq!(core.endpoint.as_deref(), Some("https://h"));
+        assert!(core.anonymous_id.is_none());
+    }
 }
 
 struct TransportAdapter {

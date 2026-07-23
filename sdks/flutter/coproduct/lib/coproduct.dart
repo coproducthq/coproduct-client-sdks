@@ -1,84 +1,35 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
     show ExternalLibrary;
 import 'package:path_provider/path_provider.dart';
 
 import 'src/attribute_value.dart';
+import 'src/config.dart';
+import 'src/errors.dart';
 import 'src/identity_error_translation.dart';
+import 'src/mock_host.dart';
+import 'src/provider_state.dart';
 import 'src/rust/api.dart' as frb;
 import 'src/rust/frb_generated.dart';
+import 'src/sdk_version.dart';
 import 'src/serial_queue.dart';
 
-export 'src/rust/api.dart' show HttpRequest, HttpResponse, HttpHeader, HttpMethod;
 export 'src/attribute_value.dart' show AttributeValue;
 export 'src/invalid_targeting_key.dart' show InvalidTargetingKey;
-
-/// Validation transport. Counts calls so demos can prove Rust invoked the
-/// Dart-hosted capability. Returns a 200 with an empty JSON body.
-///
-/// The public initializer shape below shows where host transport injection will
-/// connect.
-class MockTransport {
-  int requestCount = 0;
-
-  bool get completedHandshake => requestCount > 0;
-
-  void reset() {
-    requestCount = 0;
-  }
-
-  Future<frb.HttpResponse> request(frb.HttpRequest req) async {
-    requestCount += 1;
-    return frb.HttpResponse(
-      status: 200,
-      body: Uint8List.fromList(utf8.encode('{}')),
-      headers: const [frb.HttpHeader(name: 'content-type', value: 'application/json')],
-    );
-  }
-}
-
-/// Validation secure store. Identity-only: write then read back, no delete.
-class MockSecureStore {
-  int readCount = 0;
-  int writeCount = 0;
-  final Map<String, String> _values = {};
-
-  // The core's cold-start identity sequence reads the stored anonymous id and
-  // writes one when none exists, so a completed round trip means the secure
-  // store host bridge was exercised during initialize
-  bool get completedHandshake => writeCount > 0 && readCount > 0;
-
-  void reset() {
-    readCount = 0;
-    writeCount = 0;
-    _values.clear();
-  }
-
-  Future<String?> read(String key) async {
-    readCount += 1;
-    return _values[key];
-  }
-
-  Future<void> write(String key, String value) async {
-    writeCount += 1;
-    _values[key] = value;
-  }
-}
-
-final mockTransport = MockTransport();
-final mockSecureStore = MockSecureStore();
-
-/// Handle to a live observer registration.
-class Cancellable {
-  Cancellable(this._subscription);
-
-  // Held so the Rust-side subscription is not dropped while observing.
-  // ignore: unused_field
-  final frb.SubscriptionHandle _subscription;
-}
+export 'src/config.dart' show CoproductConfig;
+export 'src/provider_state.dart' show ProviderState;
+export 'src/errors.dart'
+    show
+        CoproductException,
+        MissingSdkKey,
+        InvalidKeyType,
+        MalformedSdkKey,
+        InvalidConfig,
+        UnsupportedSchemaVersion,
+        CoproductAlreadyInitialized,
+        CoproductInitializationCancelled;
 
 /// A live Coproduct client for reading flags and setting the evaluation identity.
 ///
@@ -211,37 +162,21 @@ class CoproductClient {
   /// mutation that should have changed it
   String? get previousAnonymousId => frb.previousAnonymousId(handle: _handle);
 
-  /// Low-level observer hook used by current demos.
-  Future<Cancellable> observe(
-    String key,
-    bool defaultValue,
-    void Function(bool value) handler,
-  ) async {
-    final subscription = await frb.observe(
-      client: _handle,
-      key: key,
-      onChange: (value) => handler(value),
-    );
-    return Cancellable(subscription);
-  }
+  /// The current provider lifecycle state. Never returns ProviderState.reconciling
+  ProviderState get state => providerStateFromFrb(frb.state(client: _handle));
 }
 
 class Coproduct {
   static bool _rustInitialized = false;
 
-  // Future public initializer shape once host Transport / SecureStore
-  // interfaces are exposed by the Flutter wrapper.
-  //
-  // static Future<CoproductClient> initialize({
-  //   required String sdkKey,
-  //   required Transport transport,
-  //   required SecureStore secureStore,
-  // }) async { ... }
-
-  static Future<CoproductClient> initialize({required String sdkKey}) async {
-    // Reset validation mocks so a hot-restart or repeated initialize re-runs the
-    // handshake from a clean slate. The integration test asserts requestCount
-    // is exactly 1 after initialize returns, which would fail without this.
+  static Future<CoproductClient> initialize({
+    required String sdkKey,
+    CoproductConfig config = const CoproductConfig(),
+  }) async {
+    final validated = validateConfig(config);
+    // Reset the validation mocks so a hot-restart or repeated initialize re-runs
+    // the cold-start handshake from a clean slate. initialize does not poll, so
+    // the secure-store reset is what matters, for the identity read and write
     mockTransport.reset();
     mockSecureStore.reset();
 
@@ -260,13 +195,24 @@ class Coproduct {
     }
     // The Rust core reads and writes {cacheDir}/coproduct/snapshot.json itself.
     final cacheDir = (await getApplicationCacheDirectory()).path;
-    final handle = await frb.initialize(
-      sdkKey: sdkKey,
-      cacheDir: cacheDir,
-      transportRequest: mockTransport.request,
-      secureRead: mockSecureStore.read,
-      secureWrite: mockSecureStore.write,
-    );
+    final frb.CoproductClientHandle handle;
+    try {
+      handle = await frb.initialize(
+        sdkKey: sdkKey,
+        userAgent: coproductUserAgent,
+        config: frb.FfiConfig(
+          pollIntervalUs: validated.pollInterval.inMicroseconds,
+          startupTimeoutUs: validated.startupTimeout.inMicroseconds,
+          endpoint: validated.endpoint?.toString(),
+        ),
+        cacheDir: cacheDir,
+        transportRequest: mockTransport.request,
+        secureRead: mockSecureStore.read,
+        secureWrite: mockSecureStore.write,
+      );
+    } on frb.InitError catch (error) {
+      throw translateInitError(error);
+    }
     return CoproductClient(handle);
   }
 }

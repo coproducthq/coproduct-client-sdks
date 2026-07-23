@@ -6,6 +6,8 @@ Flutter SDK for the [Coproduct](https://coproduct.app) feature flag and experime
 
 Pre-1.0. The public API is still being built out and is not yet at production polish. Do not adopt for production use until v1.0.
 
+> **Not yet functional.** This preview does not fetch flags: there is no network fetch or polling yet, so the getters return cached or default values. The Quickstart below is an API-shape preview of how the SDK is used; real targeted values arrive once the host runtime (transport plus polling) lands.
+
 ## Compatibility
 
 | | Supported |

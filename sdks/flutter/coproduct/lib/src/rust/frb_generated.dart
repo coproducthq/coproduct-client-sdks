@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1483573028;
+  int get rustContentHash => 788416408;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -121,6 +121,8 @@ abstract class RustLibApi extends BaseApi {
 
   Future<CoproductClientHandle> crateApiInitialize({
     required String sdkKey,
+    required String userAgent,
+    required FfiConfig config,
     required String cacheDir,
     required FutureOr<HttpResponse> Function(HttpRequest) transportRequest,
     required FutureOr<String?> Function(String) secureRead,
@@ -132,6 +134,8 @@ abstract class RustLibApi extends BaseApi {
     required String key,
     required FutureOr<void> Function(bool) onChange,
   });
+
+  Future<PollOutcome> crateApiPollNow({required CoproductClientHandle client});
 
   String? crateApiPreviousAnonymousId({required CoproductClientHandle handle});
 
@@ -151,7 +155,11 @@ abstract class RustLibApi extends BaseApi {
     required Map<String, FrbContextValue> attributes,
   });
 
+  Future<void> crateApiShutdown({required CoproductClientHandle client});
+
   Future<void> crateApiSignOut({required CoproductClientHandle handle});
+
+  ProviderState crateApiState({required CoproductClientHandle client});
 
   Future<void> crateApiUpdateAttributes({
     required CoproductClientHandle handle,
@@ -430,6 +438,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<CoproductClientHandle> crateApiInitialize({
     required String sdkKey,
+    required String userAgent,
+    required FfiConfig config,
     required String cacheDir,
     required FutureOr<HttpResponse> Function(HttpRequest) transportRequest,
     required FutureOr<String?> Function(String) secureRead,
@@ -440,6 +450,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(sdkKey, serializer);
+          sse_encode_String(userAgent, serializer);
+          sse_encode_box_autoadd_ffi_config(config, serializer);
           sse_encode_String(cacheDir, serializer);
           sse_encode_DartFn_Inputs_http_request_Output_http_response_AnyhowException(
             transportRequest,
@@ -468,6 +480,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         constMeta: kCrateApiInitializeConstMeta,
         argValues: [
           sdkKey,
+          userAgent,
+          config,
           cacheDir,
           transportRequest,
           secureRead,
@@ -482,6 +496,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "initialize",
     argNames: [
       "sdkKey",
+      "userAgent",
+      "config",
       "cacheDir",
       "transportRequest",
       "secureRead",
@@ -533,6 +549,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<PollOutcome> crateApiPollNow({required CoproductClientHandle client}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            client,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_poll_outcome,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPollNowConstMeta,
+        argValues: [client],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPollNowConstMeta =>
+      const TaskConstMeta(debugName: "poll_now", argNames: ["client"]);
+
+  @override
   String? crateApiPreviousAnonymousId({required CoproductClientHandle handle}) {
     return handler.executeSync(
       SyncTask(
@@ -542,7 +589,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             handle,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_String,
@@ -578,7 +625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -615,7 +662,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -655,7 +702,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -676,6 +723,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiShutdown({required CoproductClientHandle client}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            client,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiShutdownConstMeta,
+        argValues: [client],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiShutdownConstMeta =>
+      const TaskConstMeta(debugName: "shutdown", argNames: ["client"]);
+
+  @override
   Future<void> crateApiSignOut({required CoproductClientHandle handle}) {
     return handler.executeNormal(
       NormalTask(
@@ -688,7 +766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -707,6 +785,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "sign_out", argNames: ["handle"]);
 
   @override
+  ProviderState crateApiState({required CoproductClientHandle client}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerCoproductClientHandle(
+            client,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_provider_state,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiStateConstMeta,
+        argValues: [client],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiStateConstMeta =>
+      const TaskConstMeta(debugName: "state", argNames: ["client"]);
+
+  @override
   Future<void> crateApiUpdateAttributes({
     required CoproductClientHandle handle,
     required Map<String, FrbContextValue> attributes,
@@ -723,7 +827,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 18,
             port: port_,
           );
         },
@@ -1016,9 +1120,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FfiConfig dco_decode_box_autoadd_ffi_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_ffi_config(raw);
+  }
+
+  @protected
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
+  }
+
+  @protected
+  FfiConfig dco_decode_ffi_config(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return FfiConfig(
+      pollIntervalUs: dco_decode_i_64(arr[0]),
+      startupTimeoutUs: dco_decode_i_64(arr[1]),
+      endpoint: dco_decode_opt_String(arr[2]),
+    );
   }
 
   @protected
@@ -1174,6 +1297,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PollOutcome dco_decode_poll_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return PollOutcome_Updated();
+      case 1:
+        return PollOutcome_NotModified();
+      case 2:
+        return PollOutcome_Fatal();
+      case 3:
+        return PollOutcome_Retrying();
+      case 4:
+        return PollOutcome_RateLimited(retryAfterSecs: dco_decode_i_64(raw[1]));
+      case 5:
+        return PollOutcome_Stale();
+      case 6:
+        return PollOutcome_DedupedSkipped();
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  ProviderState dco_decode_provider_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ProviderState.values[raw as int];
+  }
+
+  @protected
   (String, FrbContextValue) dco_decode_record_string_frb_context_value(
     dynamic raw,
   ) {
@@ -1312,9 +1464,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FfiConfig sse_decode_box_autoadd_ffi_config(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_ffi_config(deserializer));
+  }
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  FfiConfig sse_decode_ffi_config(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pollIntervalUs = sse_decode_i_64(deserializer);
+    var var_startupTimeoutUs = sse_decode_i_64(deserializer);
+    var var_endpoint = sse_decode_opt_String(deserializer);
+    return FfiConfig(
+      pollIntervalUs: var_pollIntervalUs,
+      startupTimeoutUs: var_startupTimeoutUs,
+      endpoint: var_endpoint,
+    );
   }
 
   @protected
@@ -1506,6 +1677,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  PollOutcome sse_decode_poll_outcome(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return PollOutcome_Updated();
+      case 1:
+        return PollOutcome_NotModified();
+      case 2:
+        return PollOutcome_Fatal();
+      case 3:
+        return PollOutcome_Retrying();
+      case 4:
+        var var_retryAfterSecs = sse_decode_i_64(deserializer);
+        return PollOutcome_RateLimited(retryAfterSecs: var_retryAfterSecs);
+      case 5:
+        return PollOutcome_Stale();
+      case 6:
+        return PollOutcome_DedupedSkipped();
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  ProviderState sse_decode_provider_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ProviderState.values[inner];
   }
 
   @protected
@@ -1712,9 +1916,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_ffi_config(
+    FfiConfig self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_ffi_config(self, serializer);
+  }
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_ffi_config(FfiConfig self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self.pollIntervalUs, serializer);
+    sse_encode_i_64(self.startupTimeoutUs, serializer);
+    sse_encode_opt_String(self.endpoint, serializer);
   }
 
   @protected
@@ -1885,6 +2106,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_list_prim_u_8_strict(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_poll_outcome(PollOutcome self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PollOutcome_Updated():
+        sse_encode_i_32(0, serializer);
+      case PollOutcome_NotModified():
+        sse_encode_i_32(1, serializer);
+      case PollOutcome_Fatal():
+        sse_encode_i_32(2, serializer);
+      case PollOutcome_Retrying():
+        sse_encode_i_32(3, serializer);
+      case PollOutcome_RateLimited(retryAfterSecs: final retryAfterSecs):
+        sse_encode_i_32(4, serializer);
+        sse_encode_i_64(retryAfterSecs, serializer);
+      case PollOutcome_Stale():
+        sse_encode_i_32(5, serializer);
+      case PollOutcome_DedupedSkipped():
+        sse_encode_i_32(6, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_provider_state(ProviderState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

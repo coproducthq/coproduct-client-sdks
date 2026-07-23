@@ -8,18 +8,22 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `to_core_header`, `to_core_response`
+// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `into_core`, `to_core_header`, `to_core_response`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ObserverAdapter`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `on_change`, `read`, `request`, `write`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `on_change`, `read`, `request`, `write`
 
 Future<CoproductClientHandle> initialize({
   required String sdkKey,
+  required String userAgent,
+  required FfiConfig config,
   required String cacheDir,
   required FutureOr<HttpResponse> Function(HttpRequest) transportRequest,
   required FutureOr<String?> Function(String) secureRead,
   required FutureOr<void> Function(String, String) secureWrite,
 }) => RustLib.instance.api.crateApiInitialize(
   sdkKey: sdkKey,
+  userAgent: userAgent,
+  config: config,
   cacheDir: cacheDir,
   transportRequest: transportRequest,
   secureRead: secureRead,
@@ -146,11 +150,45 @@ int bucketForVectors({
   suffix: suffix,
 );
 
+ProviderState state({required CoproductClientHandle client}) =>
+    RustLib.instance.api.crateApiState(client: client);
+
+Future<PollOutcome> pollNow({required CoproductClientHandle client}) =>
+    RustLib.instance.api.crateApiPollNow(client: client);
+
+Future<void> shutdown({required CoproductClientHandle client}) =>
+    RustLib.instance.api.crateApiShutdown(client: client);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>>
 abstract class CoproductClientHandle implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SubscriptionHandle>>
 abstract class SubscriptionHandle implements RustOpaqueInterface {}
+
+class FfiConfig {
+  final PlatformInt64 pollIntervalUs;
+  final PlatformInt64 startupTimeoutUs;
+  final String? endpoint;
+
+  const FfiConfig({
+    required this.pollIntervalUs,
+    required this.startupTimeoutUs,
+    this.endpoint,
+  });
+
+  @override
+  int get hashCode =>
+      pollIntervalUs.hashCode ^ startupTimeoutUs.hashCode ^ endpoint.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FfiConfig &&
+          runtimeType == other.runtimeType &&
+          pollIntervalUs == other.pollIntervalUs &&
+          startupTimeoutUs == other.startupTimeoutUs &&
+          endpoint == other.endpoint;
+}
 
 @freezed
 sealed class FrbContextValue with _$FrbContextValue {
@@ -256,3 +294,20 @@ sealed class InitError with _$InitError implements FrbException {
     required int supported,
   }) = InitError_UnsupportedSchemaVersion;
 }
+
+@freezed
+sealed class PollOutcome with _$PollOutcome {
+  const PollOutcome._();
+
+  const factory PollOutcome.updated() = PollOutcome_Updated;
+  const factory PollOutcome.notModified() = PollOutcome_NotModified;
+  const factory PollOutcome.fatal() = PollOutcome_Fatal;
+  const factory PollOutcome.retrying() = PollOutcome_Retrying;
+  const factory PollOutcome.rateLimited({
+    required PlatformInt64 retryAfterSecs,
+  }) = PollOutcome_RateLimited;
+  const factory PollOutcome.stale() = PollOutcome_Stale;
+  const factory PollOutcome.dedupedSkipped() = PollOutcome_DedupedSkipped;
+}
+
+enum ProviderState { notReady, ready, reconciling, retrying, stale, fatal }
