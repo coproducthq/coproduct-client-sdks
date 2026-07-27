@@ -6,7 +6,6 @@
 import 'dart:convert';
 
 import 'package:coproduct/coproduct.dart';
-import 'package:coproduct/src/mock_host.dart';
 import 'package:coproduct/src/rust/api.dart' show bucketForVectors;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
@@ -15,18 +14,22 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('initialize, host callbacks, getBool',
+  tearDown(() async {
+    await Coproduct.shutdown();
+  });
+
+  testWidgets('initialize, read a default, identify, shut down',
       (WidgetTester tester) async {
-    final client = await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+    final client = await Coproduct.initialize(
+        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
 
-    // initialize does not poll, so it does not invoke the Dart-hosted Transport.
-    // The SecureStore is exercised by the cold-start identity read. Transport
-    // callback coverage requires an explicit poll
-    expect(mockTransport.requestCount, 0);
-    expect(mockSecureStore.completedHandshake, isTrue);
-
-    // Sync getter returns the stub default.
+    // With no snapshot fixture, an unknown flag reads its default. The full
+    // targeted-value acceptance against a device fixture is out of scope here
     expect(client.getBool('test-flag', false), isFalse);
+    expect(client.state, isNotNull);
+
+    await client.identify(userId: 'alice');
+    expect(client.previousAnonymousId, isNotNull);
   });
 
   testWidgets('typed getters cross the ffi and return defaults for missing keys',

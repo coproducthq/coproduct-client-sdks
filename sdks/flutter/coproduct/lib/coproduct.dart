@@ -1,18 +1,19 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
 
-import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart'
-    show ExternalLibrary;
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show FlutterError, FlutterErrorDetails;
 
 import 'src/attribute_value.dart';
 import 'src/config.dart';
 import 'src/errors.dart';
+import 'src/foreground.dart';
+import 'src/host.dart';
+import 'src/http_transport.dart';
 import 'src/identity_error_translation.dart';
-import 'src/mock_host.dart';
+import 'src/native_bridge.dart';
+import 'src/platform_metadata.dart';
 import 'src/provider_state.dart';
 import 'src/rust/api.dart' as frb;
-import 'src/rust/frb_generated.dart';
+import 'src/secure_identity_store.dart';
 import 'src/sdk_version.dart';
 import 'src/serial_queue.dart';
 
@@ -166,53 +167,48 @@ class CoproductClient {
   ProviderState get state => providerStateFromFrb(frb.state(client: _handle));
 }
 
+/// The single process-wide runtime, initialized and shut down through the static
+/// entry points. Reads and identity live on the returned [CoproductClient].
 class Coproduct {
-  static bool _rustInitialized = false;
+  Coproduct._();
 
+  static final CoproductHost<frb.CoproductClientHandle, CoproductClient> _host =
+      CoproductHost<frb.CoproductClientHandle, CoproductClient>(
+    bridge: FrbNativeBridge(),
+    userAgent: coproductUserAgent,
+    createTransport: (requestTimeout) =>
+        HttpTransport(requestTimeout: requestTimeout),
+    secureStore:
+        SecureIdentityStore(operationTimeout: const Duration(seconds: 1)),
+    metadataProviders: platformMetadataProviders(),
+    createClient: CoproductClient.new,
+    bindForeground: appLifecycleForegroundBinder,
+    reportError: _reportError,
+  );
+
+  /// Initializes the SDK: validates the config, constructs the client against the
+  /// cache and stored identity, installs automatic context, and starts polling.
+  /// Concurrent or repeated calls with the same key and config join the same
+  /// client, a different key or config throws [CoproductAlreadyInitialized]. The
+  /// returned client is ready to read, serving cache or defaults until the first
+  /// poll lands.
   static Future<CoproductClient> initialize({
     required String sdkKey,
     CoproductConfig config = const CoproductConfig(),
-  }) async {
-    final validated = validateConfig(config);
-    // Reset the validation mocks so a hot-restart or repeated initialize re-runs
-    // the cold-start handshake from a clean slate. initialize does not poll, so
-    // the secure-store reset is what matters, for the identity read and write
-    mockTransport.reset();
-    mockSecureStore.reset();
+  }) =>
+      _host.initialize(sdkKey: sdkKey, config: config);
 
-    if (!_rustInitialized) {
-      if (Platform.isIOS || Platform.isMacOS) {
-        // cargokit force-loads the Rust static library into the app executable,
-        // so the symbols live in the process, not a <stem>.framework bundle that
-        // FRB's default Apple loader looks for.
-        await RustLib.init(
-          externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
-        );
-      } else {
-        await RustLib.init();
-      }
-      _rustInitialized = true;
-    }
-    // The Rust core reads and writes {cacheDir}/coproduct/snapshot.json itself.
-    final cacheDir = (await getApplicationCacheDirectory()).path;
-    final frb.CoproductClientHandle handle;
-    try {
-      handle = await frb.initialize(
-        sdkKey: sdkKey,
-        userAgent: coproductUserAgent,
-        config: frb.FfiConfig(
-          pollIntervalUs: validated.pollInterval.inMicroseconds,
-          startupTimeoutUs: validated.startupTimeout.inMicroseconds,
-          endpoint: validated.endpoint?.toString(),
-        ),
-        cacheDir: cacheDir,
-        transportRequest: mockTransport.request,
-        secureRead: mockSecureStore.read,
-        secureWrite: mockSecureStore.write,
-      );
-    } on frb.InitError catch (error) {
-      throw translateInitError(error);
-    }
-    return CoproductClient(handle);
-  }
+  /// Tears the runtime down: stops polling, sets the core shutdown latch, and
+  /// closes the transport. After shutdown the typed getters on a retained client
+  /// return their supplied defaults. Idempotent, and a no-op when nothing is
+  /// initialized. A later [initialize] builds a fresh runtime.
+  static Future<void> shutdown() => _host.shutdown();
+}
+
+void _reportError(Object error, StackTrace stack) {
+  FlutterError.reportError(FlutterErrorDetails(
+    exception: error,
+    stack: stack,
+    library: 'coproduct',
+  ));
 }

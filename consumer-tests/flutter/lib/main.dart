@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:developer' as developer;
 
 import 'package:coproduct/coproduct.dart';
@@ -26,7 +27,21 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _bootstrap() async {
-    final c = await Coproduct.initialize(sdkKey: 'cpk_mob_test_scaffold');
+    final CoproductClient c;
+    try {
+      c = await Coproduct.initialize(
+        sdkKey: const String.fromEnvironment(
+          'COPRODUCT_SDK_KEY',
+          defaultValue: 'cpk_mob_test_scaffold',
+        ),
+      );
+    } on CoproductInitializationCancelled {
+      return;
+    } catch (error, stack) {
+      developer.log('COPRODUCT_FLUTTER_CONSUMER_INIT_ERROR',
+          name: 'coproduct', error: error, stackTrace: stack);
+      return;
+    }
     final flag = c.getBool('test-flag', false);
 
     if (!mounted) return;
@@ -42,6 +57,15 @@ class _MyAppState extends State<MyApp> {
       'getBool=$flagValue',
       name: 'coproduct',
     );
+  }
+
+  @override
+  void dispose() {
+    unawaited(Coproduct.shutdown().catchError((Object error, StackTrace stack) {
+      developer.log('COPRODUCT_FLUTTER_CONSUMER_SHUTDOWN_ERROR',
+          name: 'coproduct', error: error, stackTrace: stack);
+    }));
+    super.dispose();
   }
 
   @override
