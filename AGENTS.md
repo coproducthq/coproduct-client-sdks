@@ -73,7 +73,7 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
 - Snapshot cache must not cross the FFI boundary. Rust reads and writes `{cache_dir}/coproduct/snapshot.json` directly.
 - FFI crates should expose local wrapper and adapter types, not raw `coproduct-core` types.
 - Config is split by consumer. `coproduct_core::CoproductConfig` holds only values the core reads, validates, or persists. Host-behavior settings such as foreground refresh (`poll_on_foreground`) live on the host-facing configs (the platform SDK config and `FfiConfig`) and are consumed by the host timer, which reads its own copy; they are deliberately not relayed into the core config. `FfiConfig` intentionally carries host-behavior fields the core config does not, so a field that crosses the FFI without a core-side counterpart is by design, not an oversight. If the core ever owns a polling loop, such a field is re-added together with the code that reads it and its tests, never as a speculative field beforehand.
-- `initialize` does not perform a network poll. The contract is: the client is constructed, the cache is loaded if present (so the provider starts `Ready` from cache, otherwise `NotReady`), and reads can immediately evaluate against cache or developer defaults. Driving polling is the host wrapper's responsibility, including the first poll. Do not assume `initialize` has fetched a fresh snapshot. A production wrapper that wants fresh values at launch must start polling right after `initialize` (call `poll_now()` / `pollNow()` or start a host timer whose first tick fires immediately) and, if it wants to wait for readiness, bound that wait with its own `startup_timeout` rather than expecting `initialize` to block. The iOS wrapper already does this (immediate first tick plus a bounded wait for readiness); Android, React Native, and Flutter are scaffold-level and must adopt the same pattern when they grow real polling.
+- `initialize` does not perform a network poll. The contract is: the client is constructed, the cache is loaded if present (so the provider starts `Ready` from cache, otherwise `NotReady`), and reads can immediately evaluate against cache or developer defaults. Driving polling is the host wrapper's responsibility, including the first poll. Do not assume `initialize` has fetched a fresh snapshot. A production wrapper that wants fresh values at launch must start polling right after `initialize` (call `poll_now()` / `pollNow()` or start a host timer whose first tick fires immediately) and, if it wants to wait for readiness, bound that wait with its own `startup_timeout` rather than expecting `initialize` to block. The iOS and Flutter wrappers already do this (immediate first tick plus a bounded wait for readiness); Android and React Native are scaffold-level and must adopt the same pattern when they grow real polling.
 
 ## Identifier unification principle
 
@@ -206,8 +206,9 @@ Native, Flutter):
 Where each lives today (keep this list current as platforms ship): iOS
 `User-Agent` is `coproductUserAgent` in `sdks/ios/Sources/Coproduct/Coproduct.swift`
 and the install doc is `sdks/ios/README.md`; Android and React Native set a
-`USER_AGENT` constant in their wrapper; Flutter sends its own value from the FRB
-path. See `DEVELOPMENT.md` for the release checklist.
+`USER_AGENT` constant in their wrapper; Flutter's is `coproductUserAgent` in
+`sdks/flutter/coproduct/lib/src/sdk_version.dart`, passed through the FRB
+`initialize` call. See `DEVELOPMENT.md` for the release checklist.
 
 ## UniFFI Notes
 
