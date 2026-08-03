@@ -61,4 +61,50 @@ void main() {
     expect(attrs.containsKey('os_version'), isFalse);
     expect(attrs.containsKey('app_version'), isFalse);
   });
+
+  test('reports each field duration and omission to the observer', () async {
+    final ps = providers();
+    final omissions = <String, bool>{};
+    final counts = <String, int>{};
+    await collectStaticAttributes(
+        MetadataProviders(
+          platform: ps.platform,
+          osVersion: () async => throw StateError('no os'),
+          appVersion: () async => '',
+          appBuild: ps.appBuild,
+          locale: ps.locale,
+          timezone: ps.timezone,
+        ),
+        perProviderTimeout: const Duration(seconds: 1),
+        observe: (field, elapsed, {required bool omitted}) {
+          omissions[field] = omitted;
+          counts[field] = (counts[field] ?? 0) + 1;
+        });
+    // Every field is reported exactly once, and the omitted flag reflects a
+    // throw or an empty value as well as a clean collection
+    expect(counts, {
+      'platform': 1,
+      'os_version': 1,
+      'app_version': 1,
+      'app_build': 1,
+      'locale': 1,
+      'timezone': 1,
+    });
+    expect(omissions['platform'], isFalse);
+    expect(omissions['os_version'], isTrue); // threw
+    expect(omissions['app_version'], isTrue); // empty
+    expect(omissions['app_build'], isFalse);
+  });
+
+  test('a throwing observer never fails collection', () async {
+    // A diagnostic sink that throws must not turn a best-effort collection into
+    // a failed initialize, so collection still returns every available field
+    final attrs = await collectStaticAttributes(providers(),
+        perProviderTimeout: const Duration(seconds: 1),
+        observe: (field, elapsed, {required bool omitted}) =>
+            throw StateError('diagnostic sink is down'));
+    expect(attrs['platform'], const frb.FrbContextValue.string('android'));
+    expect(attrs['app_version'], const frb.FrbContextValue.string('2.3.1'));
+    expect(attrs.length, 6);
+  });
 }

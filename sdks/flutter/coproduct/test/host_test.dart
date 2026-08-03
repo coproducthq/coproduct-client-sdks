@@ -233,21 +233,54 @@ void main() {
     await host.shutdown();
   });
 
-  test('auto-populated attributes are installed before the client is created',
+  test('auto-populated attributes are installed before initialize returns',
       () async {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
     final host = _host(bridge);
 
     await host.initialize(sdkKey: 'cpk_mob_a');
 
-    // The install ran while no client had yet been created
-    expect(bridge.attributesInstalledAtClientCount, 0);
+    // The install completed before initialize returned, so an immediate read on
+    // the returned client sees the automatic context
     expect(bridge.installedAttributes, isNotNull);
     expect(bridge.installedAttributes!['platform'],
         const frb.FrbContextValue.string('android'));
     expect(bridge.installedAttributes!['timezone'],
         const frb.FrbContextValue.string('America/New_York'));
 
+    await host.shutdown();
+  });
+
+  test('the first poll overlaps metadata collection', () async {
+    // Park a metadata provider and prove the first poll fires while collection
+    // is still in flight, so a cold start is max(metadata, network) not their
+    // sum. A regression that installed metadata before starting the poll would
+    // never complete firstPoll here while the provider is parked
+    final metadataGate = Completer<void>();
+    final metadataStarted = Completer<void>();
+    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+    final host = _host(
+      bridge,
+      providers: MetadataProviders(
+        platform: () async {
+          if (!metadataStarted.isCompleted) metadataStarted.complete();
+          await metadataGate.future;
+          return 'android';
+        },
+        osVersion: () async => '14',
+        appVersion: () async => '1.2.3',
+        appBuild: () async => '42',
+        locale: () async => 'en-US',
+        timezone: () async => 'America/New_York',
+      ),
+    );
+
+    final pending = host.initialize(sdkKey: 'cpk_mob_a');
+    await metadataStarted.future;
+    await bridge.firstPoll.future;
+    expect(metadataGate.isCompleted, isFalse);
+    metadataGate.complete();
+    await pending;
     await host.shutdown();
   });
 
@@ -424,8 +457,9 @@ void main() {
       ..publishThrows = true;
     final host = _host(bridge, transportClient: transport);
 
-    // A non-init error propagates unchanged (translation is narrow), and both the
-    // handle and the transport are torn down on this pre-runtime failure
+    // A non-init error propagates unchanged (translation is narrow). The runtime
+    // is created before attributes are published, so the created runtime owns the
+    // teardown and shuts down both the core handle and the transport
     await expectLater(
         host.initialize(sdkKey: 'cpk_mob_a'), throwsA(isA<StateError>()));
     expect(bridge.shutdownCalls, greaterThan(0));

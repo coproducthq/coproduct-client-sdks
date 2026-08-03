@@ -1,0 +1,7 @@
+name: coproduct_acceptance
+description: Host-side fixture and device runner for the Flutter acceptance gate.
+publish_to: none
+environment:
+  sdk: ^3.4.0
+dev_dependencies:
+  test: ^1.25.0

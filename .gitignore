@@ -50,6 +50,7 @@ sdks/react-native/coproduct/lib/
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/Flutter/ephemeral/
+scripts/acceptance/pubspec.lock
 
 # Superpowers plugin
 docs/superpowers/

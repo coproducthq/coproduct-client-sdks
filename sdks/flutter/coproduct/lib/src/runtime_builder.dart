@@ -35,12 +35,16 @@ Future<R> buildRuntime<H extends Object, R extends Object>({
   R? builtRuntime;
   try {
     _checkCurrent(isCurrent);
-    await publishAttributes(handle);
-    _checkCurrent(isCurrent);
     final runtime = createRuntime(handle);
     builtRuntime = runtime;
     startRuntime(runtime);
-    await awaitReady(handle);
+    // Install the automatic context and wait for first-poll readiness
+    // concurrently. The poll fetches the snapshot, which does not depend on the
+    // context, so overlapping them makes cold start max(metadata, network)
+    // rather than their sum. Both are awaited before returning, so an immediate
+    // read on the returned client sees the installed attributes. Future.wait
+    // waits for both even when one fails, so no cleanup is skipped
+    await Future.wait([publishAttributes(handle), awaitReady(handle)]);
     _checkCurrent(isCurrent);
     return runtime;
   } catch (error, stack) {

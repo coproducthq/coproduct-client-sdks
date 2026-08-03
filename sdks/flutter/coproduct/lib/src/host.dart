@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'cancellation.dart';
 import 'config.dart';
 import 'init_identity.dart';
@@ -42,7 +44,19 @@ class CoproductHost<H extends Object, C extends Object> {
     required C Function(H handle) createClient,
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
-    Duration perProviderTimeout = const Duration(milliseconds: 500),
+    // The internal ceiling on metadata collection. Providers run concurrently, so
+    // this is one bound over the whole stage, not a per-field delay: collection
+    // finishes as soon as the providers settle and only a wedged channel waits
+    // the whole ceiling. It is measured against cold first-launch latency, where
+    // the platform channels warm up together and the tail reaches well past a
+    // second, so a tight bound silently drops app_version, app_build, os_version,
+    // or timezone for the whole session. It is deliberately generous because
+    // collection overlaps native initialization and any part of the first poll
+    // for which it is still pending (see buildRuntime), so it rarely adds to a
+    // cold start dominated by real provider latency. It is separate from the
+    // caller's startupTimeout, which bounds only the readiness wait, and both
+    // metadata and readiness must settle before initialize returns
+    Duration perProviderTimeout = const Duration(milliseconds: 5000),
     Duration Function()? readinessClock,
     Future<void> Function(Duration)? readinessDelay,
     Duration Function()? schedulerClock,
@@ -124,7 +138,7 @@ class CoproductHost<H extends Object, C extends Object> {
     // is bounded and fail-closed and is awaited only at the publish stage, so a
     // failure before that stage never waits on it and rollback is not blocked
     final metadata = collectStaticAttributes(_metadataProviders,
-        perProviderTimeout: _perProviderTimeout);
+        perProviderTimeout: _perProviderTimeout, observe: _observeMetadata);
     return buildRuntime<H, _ActiveRuntime<C>>(
       initHandle: () async {
         final cacheDir = await _bridge.cacheDirectory();
@@ -193,4 +207,16 @@ class CoproductHost<H extends Object, C extends Object> {
       onCleanupError: _reportError,
     );
   }
+}
+
+/// Surfaces a dropped automatic attribute so the collection ceiling can be tuned
+/// on real device measurements. Confined to debug builds by the assert, so it
+/// carries no cost and no log noise in a release build
+void _observeMetadata(String field, Duration elapsed, {required bool omitted}) {
+  if (!omitted) return;
+  assert(() {
+    debugPrint('coproduct: automatic attribute "$field" omitted after '
+        '${elapsed.inMilliseconds}ms');
+    return true;
+  }());
 }

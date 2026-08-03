@@ -20,6 +20,16 @@ String _platformName() {
 /// the core normalizes them.
 MetadataProviders platformMetadataProviders() {
   final deviceInfo = DeviceInfoPlugin();
+  // Share one PackageInfo channel call across app_version and app_build. Both
+  // read the same record, and the first call after a cold launch pays the whole
+  // platform-channel warm-up, so two calls would double that cost. A failure
+  // resets the memo so a later initialize can retry rather than caching it
+  Future<PackageInfo>? packageInfo;
+  Future<PackageInfo> loadPackageInfo() =>
+      packageInfo ??= PackageInfo.fromPlatform().onError((error, stack) {
+        packageInfo = null;
+        Error.throwWithStackTrace(error!, stack);
+      });
   return MetadataProviders(
     platform: () async => _platformName(),
     osVersion: () async {
@@ -29,8 +39,8 @@ MetadataProviders platformMetadataProviders() {
       if (Platform.isIOS) return (await deviceInfo.iosInfo).systemVersion;
       return null;
     },
-    appVersion: () async => (await PackageInfo.fromPlatform()).version,
-    appBuild: () async => (await PackageInfo.fromPlatform()).buildNumber,
+    appVersion: () async => (await loadPackageInfo()).version,
+    appBuild: () async => (await loadPackageInfo()).buildNumber,
     locale: () async => PlatformDispatcher.instance.locale.toLanguageTag(),
     timezone: () async => (await FlutterTimezone.getLocalTimezone()).identifier,
   );

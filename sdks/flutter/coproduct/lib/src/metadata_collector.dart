@@ -3,6 +3,13 @@ import 'rust/api.dart' as frb;
 /// Produces one static attribute value, or null if it cannot be collected
 typedef MetadataProvider = Future<String?> Function();
 
+/// Reports one provider's outcome for internal diagnostics: how long it ran and
+/// whether its field was omitted (it timed out, threw, or returned null or
+/// empty). Wired to surface omissions so the collection ceiling can be tuned on
+/// real measurements rather than guesses
+typedef MetadataObserver = void Function(String field, Duration elapsed,
+    {required bool omitted});
+
 /// The injectable providers for each static attribute. Real implementations wrap
 /// package_info_plus, device_info_plus, flutter_timezone, and dart:io
 /// Tests substitute fakes. device_type is deliberately absent, no reliable
@@ -34,6 +41,7 @@ class MetadataProviders {
 Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
   MetadataProviders providers, {
   required Duration perProviderTimeout,
+  MetadataObserver? observe,
 }) async {
   final fields = <String, MetadataProvider>{
     'platform': providers.platform,
@@ -45,13 +53,24 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
   };
   final attributes = <String, frb.FrbContextValue>{};
   await Future.wait(fields.entries.map((entry) async {
+    final stopwatch = Stopwatch()..start();
+    var omitted = true;
     try {
       final value = await entry.value().timeout(perProviderTimeout);
       if (value != null && value.isNotEmpty) {
         attributes[entry.key] = frb.FrbContextValue.string(value);
+        omitted = false;
       }
     } catch (_) {
       // Fail closed, omit this field rather than fail collection
+    } finally {
+      stopwatch.stop();
+      try {
+        observe?.call(entry.key, stopwatch.elapsed, omitted: omitted);
+      } catch (_) {
+        // Diagnostics must never affect collection, so a throwing observer is
+        // contained the same way a failing provider is
+      }
     }
   }));
   return attributes;

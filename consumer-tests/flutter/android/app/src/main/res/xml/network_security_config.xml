@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test only: the acceptance gate reaches a host loopback fixture through the
+     Android emulator alias 10.0.2.2 over cleartext. Confined to this unpublished
+     consumer app; the SDK plugin never permits cleartext -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
