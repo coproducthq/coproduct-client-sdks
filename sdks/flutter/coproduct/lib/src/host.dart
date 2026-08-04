@@ -16,6 +16,28 @@ import 'errors.dart';
 import 'http_transport.dart';
 import 'rust/api.dart' as frb;
 
+/// A non-throwing wrapper so the metadata future is observed from creation. An
+/// early-build cancellation therefore never surfaces as an unhandled async error
+/// while the collector is not yet awaited.
+sealed class _MetadataOutcome {}
+
+class _MetadataSuccess extends _MetadataOutcome {
+  _MetadataSuccess(this.attributes);
+  final Map<String, frb.FrbContextValue> attributes;
+}
+
+class _MetadataFailure extends _MetadataOutcome {
+  _MetadataFailure(this.error, this.stack);
+  final Object error;
+  final StackTrace stack;
+}
+
+/// A fresh monotonic clock reading elapsed time from now, one per build.
+Duration Function() _stopwatchClock() {
+  final stopwatch = Stopwatch()..start();
+  return () => stopwatch.elapsed;
+}
+
 /// Binds a foreground refresh to platform lifecycle events, returning a disposer
 /// or null when there is nothing to dispose. Injected so tests drive foreground
 /// events without a widget binding.
@@ -44,21 +66,7 @@ class CoproductHost<H extends Object, C extends Object> {
     required C Function(H handle) createClient,
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
-    // The internal ceiling on metadata collection. Providers run concurrently, so
-    // this is one bound over the whole stage, not a per-field delay: collection
-    // finishes as soon as the providers settle and only a wedged channel waits
-    // the whole ceiling. It is measured against cold first-launch latency, where
-    // the platform channels warm up together and the tail reaches well past a
-    // second, so a tight bound silently drops app_version, app_build, os_version,
-    // or timezone for the whole session. It is deliberately generous because
-    // collection overlaps native initialization and any part of the first poll
-    // for which it is still pending (see buildRuntime), so it rarely adds to a
-    // cold start dominated by real provider latency. It is separate from the
-    // caller's startupTimeout, which bounds only the readiness wait, and both
-    // metadata and readiness must settle before initialize returns
-    Duration perProviderTimeout = const Duration(milliseconds: 5000),
-    Duration Function()? readinessClock,
-    Future<void> Function(Duration)? readinessDelay,
+    Duration Function()? initClock,
     Duration Function()? schedulerClock,
   })  : _bridge = bridge, // ignore: prefer_initializing_formals
         _userAgent = userAgent, // ignore: prefer_initializing_formals
@@ -68,9 +76,7 @@ class CoproductHost<H extends Object, C extends Object> {
         _createClient = createClient, // ignore: prefer_initializing_formals
         _bindForeground = bindForeground, // ignore: prefer_initializing_formals
         _reportError = reportError,
-        _perProviderTimeout = perProviderTimeout, // ignore: prefer_initializing_formals
-        _readinessClock = readinessClock, // ignore: prefer_initializing_formals
-        _readinessDelay = readinessDelay, // ignore: prefer_initializing_formals
+        _initClock = initClock, // ignore: prefer_initializing_formals
         _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
         _manager = CoproductManager<_ActiveRuntime<C>>(
           shutdownClient: (active) => active.runtime.shutdown(),
@@ -85,9 +91,7 @@ class CoproductHost<H extends Object, C extends Object> {
   final C Function(H) _createClient;
   final ForegroundBinder _bindForeground;
   final void Function(Object, StackTrace) _reportError;
-  final Duration _perProviderTimeout;
-  final Duration Function()? _readinessClock;
-  final Future<void> Function(Duration)? _readinessDelay;
+  final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
 
@@ -125,25 +129,34 @@ class CoproductHost<H extends Object, C extends Object> {
     CancellationSignal cancel,
     bool Function() isCurrent,
   ) async {
-    // Load the native library first, before any host resource is allocated, so a
-    // library-load failure never leaves an open HTTP client or in-flight metadata
-    // work. Idempotent, so a joined caller does not repeat it, and this still runs
-    // inside the single-flight claim, so it happens once per generation
+    // One monotonic clock and one absolute deadline for the whole convergence
+    // budget, captured before any mandatory setup so native setup elapses
+    // against the same budget metadata and readiness share
+    final clock = _initClock ?? _stopwatchClock();
+    final deadline = clock() + config.startupTimeout;
+
     await _bridge.ensureInitialized();
     if (!isCurrent()) {
       throw const CoproductInitializationCancelled();
     }
     final transport = _createTransport(config.requestTimeout);
-    // Start static-attribute collection concurrently with the FRB initialize. It
-    // is bounded and fail-closed and is awaited only at the publish stage, so a
-    // failure before that stage never waits on it and rollback is not blocked
-    final metadata = collectStaticAttributes(_metadataProviders,
-        perProviderTimeout: _perProviderTimeout, observe: _observeMetadata);
+    // Start metadata collection concurrently with the FRB initialize, bounded by
+    // the shared deadline and cancellation, and observe it from creation so an
+    // early failure never becomes an unhandled async error before publish
+    final metadata = collectStaticAttributes(
+      _metadataProviders,
+      deadline: deadline,
+      clock: clock,
+      cancel: cancel,
+      observe: _observeMetadata,
+    ).then<_MetadataOutcome>(
+      _MetadataSuccess.new,
+      onError: (Object error, StackTrace stack) =>
+          _MetadataFailure(error, stack),
+    );
     return buildRuntime<H, _ActiveRuntime<C>>(
       initHandle: () async {
         final cacheDir = await _bridge.cacheDirectory();
-        // Recheck after the cache lookup so a shutdown that landed during it stops
-        // the build before it constructs a native handle
         if (!isCurrent()) {
           throw const CoproductInitializationCancelled();
         }
@@ -160,20 +173,20 @@ class CoproductHost<H extends Object, C extends Object> {
       disposeTransport: transport.dispose,
       shutdownHandle: _bridge.shutdown,
       publishAttributes: (handle) async {
-        final attributes = await metadata;
-        // Recheck after metadata collection so a shutdown that landed during it
-        // stops the build before it mutates the core context
+        final outcome = await metadata;
         if (!isCurrent()) {
           throw const CoproductInitializationCancelled();
         }
-        await _bridge.setAutoPopulatedAttributes(handle, attributes);
+        if (outcome is _MetadataFailure) {
+          Error.throwWithStackTrace(outcome.error, outcome.stack);
+        }
+        await _bridge.setAutoPopulatedAttributes(
+            handle, (outcome as _MetadataSuccess).attributes);
+        if (!isCurrent()) {
+          throw const CoproductInitializationCancelled();
+        }
       },
       createRuntime: (handle) {
-        // Build the caller-facing client first, so if it throws no foreground
-        // listener has been installed to leak. Binding the foreground listener is
-        // the only acquisition here and is done last, immediately before the
-        // infallible runtime that owns disposing it. When foreground polling is
-        // off, no listener is registered at all
         final client = _createClient(handle);
         final scheduler = Scheduler(
           poll: () => _bridge.pollNow(handle),
@@ -198,10 +211,9 @@ class CoproductHost<H extends Object, C extends Object> {
       shutdownRuntime: (active) => active.runtime.shutdown(),
       awaitReady: (handle) => awaitInitialReadiness(
         state: () => providerStateFromFrb(_bridge.state(handle)),
-        startupTimeout: config.startupTimeout,
+        deadline: deadline,
+        clock: clock,
         cancel: cancel,
-        clock: _readinessClock,
-        delay: _readinessDelay,
       ),
       isCurrent: isCurrent,
       onCleanupError: _reportError,
@@ -209,9 +221,9 @@ class CoproductHost<H extends Object, C extends Object> {
   }
 }
 
-/// Surfaces a dropped automatic attribute so the collection ceiling can be tuned
-/// on real device measurements. Confined to debug builds by the assert, so it
-/// carries no cost and no log noise in a release build
+/// Surfaces a dropped automatic attribute so the shared startup budget can be
+/// tuned on real device measurements. Confined to debug builds by the assert, so
+/// it carries no cost and no log noise in a release build
 void _observeMetadata(String field, Duration elapsed, {required bool omitted}) {
   if (!omitted) return;
   assert(() {

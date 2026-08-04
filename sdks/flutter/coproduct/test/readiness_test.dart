@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:coproduct/src/cancellation.dart';
 import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/provider_state.dart';
@@ -15,9 +17,9 @@ void main() {
           reads++;
           return ProviderState.ready;
         },
-        startupTimeout: const Duration(seconds: 3),
-        cancel: CancellationSignal(),
+        deadline: const Duration(seconds: 5),
         clock: () => async.elapsed,
+        cancel: CancellationSignal(),
       ).then((_) => done = true);
       async.flushMicrotasks();
       expect(done, isTrue);
@@ -25,15 +27,15 @@ void main() {
     });
   });
 
-  test('returns for a non-notReady state without waiting', () {
+  test('returns for any non-notReady state without waiting', () {
     for (final s in [ProviderState.retrying, ProviderState.fatal]) {
       fakeAsync((async) {
         var done = false;
         awaitInitialReadiness(
           state: () => s,
-          startupTimeout: const Duration(seconds: 3),
-          cancel: CancellationSignal(),
+          deadline: const Duration(seconds: 5),
           clock: () => async.elapsed,
+          cancel: CancellationSignal(),
         ).then((_) => done = true);
         async.flushMicrotasks();
         expect(done, isTrue, reason: '$s should return at once');
@@ -41,15 +43,15 @@ void main() {
     }
   });
 
-  test('returns once the first poll leaves notReady before the timeout', () {
+  test('returns once the provider leaves notReady before the deadline', () {
     fakeAsync((async) {
       var current = ProviderState.notReady;
       var done = false;
       awaitInitialReadiness(
         state: () => current,
-        startupTimeout: const Duration(seconds: 3),
-        cancel: CancellationSignal(),
+        deadline: const Duration(seconds: 3),
         clock: () => async.elapsed,
+        cancel: CancellationSignal(),
       ).then((_) => done = true);
       async.elapse(const Duration(milliseconds: 200));
       expect(done, isFalse);
@@ -67,14 +69,36 @@ void main() {
       // capped to the 10ms remaining rather than overshooting a full interval
       awaitInitialReadiness(
         state: () => ProviderState.notReady,
-        startupTimeout: const Duration(milliseconds: 3010),
-        cancel: CancellationSignal(),
+        deadline: const Duration(milliseconds: 3010),
         clock: () => async.elapsed,
+        cancel: CancellationSignal(),
       ).then((_) => done = true);
       async.elapse(const Duration(milliseconds: 3000));
       expect(done, isFalse);
       async.elapse(const Duration(milliseconds: 10)); // exactly the deadline
       expect(done, isTrue);
+    });
+  });
+
+  test('a provider turning ready at the deadline is read, not timed out', () {
+    fakeAsync((async) {
+      var ready = false;
+      var readyReads = 0;
+      // The flip is scheduled for the exact deadline instant, so the final state
+      // read must observe ready, and counting reads while ready proves the state
+      // was read at the boundary rather than the wait ending on plain expiry
+      Timer(const Duration(milliseconds: 100), () => ready = true);
+      awaitInitialReadiness(
+        state: () {
+          if (ready) readyReads++;
+          return ready ? ProviderState.ready : ProviderState.notReady;
+        },
+        deadline: const Duration(milliseconds: 100),
+        clock: () => async.elapsed,
+        cancel: CancellationSignal(),
+      );
+      async.elapse(const Duration(milliseconds: 100));
+      expect(readyReads, greaterThan(0));
     });
   });
 
@@ -84,9 +108,9 @@ void main() {
       Object? error;
       awaitInitialReadiness(
         state: () => ProviderState.ready,
-        startupTimeout: const Duration(seconds: 3),
-        cancel: cancel,
+        deadline: const Duration(seconds: 5),
         clock: () => async.elapsed,
+        cancel: cancel,
       ).then<void>((_) {}, onError: (Object e, StackTrace _) => error = e);
       async.flushMicrotasks();
       expect(error, isA<CoproductInitializationCancelled>());
@@ -99,15 +123,18 @@ void main() {
       Object? error;
       awaitInitialReadiness(
         state: () => ProviderState.notReady,
-        startupTimeout: const Duration(seconds: 3),
-        cancel: cancel,
+        deadline: const Duration(seconds: 3),
         clock: () => async.elapsed,
+        cancel: cancel,
       ).then<void>((_) {}, onError: (Object e, StackTrace _) => error = e);
       async.elapse(const Duration(milliseconds: 200));
       expect(error, isNull);
       cancel.cancel();
       async.flushMicrotasks();
       expect(error, isA<CoproductInitializationCancelled>());
+      // Drain the losing Future.delayed that cancellation raced but cannot cancel
+      async.elapse(const Duration(milliseconds: 25));
+      async.flushMicrotasks();
     });
   });
 }

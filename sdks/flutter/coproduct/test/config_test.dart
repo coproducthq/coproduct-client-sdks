@@ -6,7 +6,7 @@ void main() {
   test('defaults and value equality', () {
     const c = CoproductConfig();
     expect(c.pollInterval, const Duration(seconds: 60));
-    expect(c.startupTimeout, const Duration(seconds: 3));
+    expect(c.startupTimeout, const Duration(seconds: 5));
     expect(c.requestTimeout, const Duration(seconds: 30));
     expect(c.endpoint, isNull);
     expect(c.pollOnForeground, isTrue);

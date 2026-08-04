@@ -8,6 +8,7 @@ import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
 import 'package:coproduct/src/secure_identity_store.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' show MockClient;
@@ -150,13 +151,27 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
     if (publishThrows) throw StateError('publish failed');
   }
 
+  int stateReads = 0;
+  final Completer<void> stateRead = Completer<void>();
+
   @override
-  frb.ProviderState state(_FakeHandle handle) => stateValue;
+  frb.ProviderState state(_FakeHandle handle) {
+    stateReads++;
+    if (!stateRead.isCompleted) stateRead.complete();
+    return stateValue;
+  }
+
+  Completer<void>? pollGate; // suspends the first poll in flight
+  final Completer<void> pollEntered = Completer<void>();
+  bool pollFinished = false;
 
   @override
   Future<frb.PollOutcome> pollNow(_FakeHandle handle) async {
     pollCalls++;
+    if (!pollEntered.isCompleted) pollEntered.complete();
     if (!firstPoll.isCompleted) firstPoll.complete();
+    if (pollGate != null) await pollGate!.future;
+    pollFinished = true;
     return const frb.PollOutcome.updated();
   }
 
@@ -180,8 +195,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   MetadataProviders? providers,
   http.Client? transportClient,
   _RecordingForeground? foreground,
-  Duration Function()? readinessClock,
-  Future<void> Function(Duration)? readinessDelay,
+  Duration Function()? initClock,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -200,8 +214,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
     },
     bindForeground: foreground?.binder ?? (onForeground) => null,
     reportError: (e, s) {},
-    readinessClock: readinessClock,
-    readinessDelay: readinessDelay,
+    initClock: initClock,
   );
 }
 
@@ -490,36 +503,238 @@ void main() {
     expect(transport.closed, isTrue); // transport disposed
   });
 
-  test('a shutdown during the readiness wait cancels through the runtime teardown',
+  test('the deadline is captured before native setup, so it consumes the budget',
+      () {
+    fakeAsync((async) {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady)
+        ..ensureInitializedGate = Completer<void>();
+      final host = _host(bridge, initClock: () => async.elapsed);
+      var returned = false;
+      host
+          .initialize(
+            sdkKey: 'cpk_mob_a',
+            config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+          )
+          .then((_) => returned = true);
+      async.flushMicrotasks();
+      async.elapse(const Duration(seconds: 2)); // native load burns the budget
+      expect(returned, isFalse, reason: 'still blocked on mandatory native setup');
+      bridge.ensureInitializedGate!.complete();
+      async.flushMicrotasks();
+      expect(returned, isTrue); // no budget remains, so no further wait
+      host.shutdown();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('automatic attributes are installed before initialize returns', () async {
+    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+    final host = _host(bridge);
+    await host.initialize(sdkKey: 'cpk_mob_a');
+    expect(bridge.installedAttributes!['platform'],
+        const frb.FrbContextValue.string('android'));
+    await host.shutdown();
+  });
+
+  test('native setup consuming part of the budget still delivers attributes', () {
+    fakeAsync((async) {
+      // Gated native load burns part of a 1s budget, and the immediate providers
+      // still fit in the remainder, so the attributes are installed rather than dropped
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..ensureInitializedGate = Completer<void>();
+      final host = _host(bridge, initClock: () => async.elapsed);
+      host.initialize(
+        sdkKey: 'cpk_mob_a',
+        config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+      );
+      async.flushMicrotasks();
+      async.elapse(const Duration(milliseconds: 400)); // partial budget spent
+      bridge.ensureInitializedGate!.complete();
+      async.flushMicrotasks();
+      expect(bridge.installedAttributes!['platform'],
+          const frb.FrbContextValue.string('android'));
+      host.shutdown();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('slow metadata and slow readiness share one deadline, not the sum', () {
+    fakeAsync((async) {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
+      var returned = false;
+      final host = _host(
+        bridge,
+        initClock: () => async.elapsed,
+        // platform never settles, so metadata rides the deadline
+        providers: MetadataProviders(
+          platform: () => Completer<String?>().future,
+          osVersion: () async => '14',
+          appVersion: () async => '1.2.3',
+          appBuild: () async => '42',
+          locale: () async => 'en-US',
+          timezone: () async => 'America/New_York',
+        ),
+      );
+      host
+          .initialize(
+            sdkKey: 'cpk_mob_a',
+            config: const CoproductConfig(startupTimeout: Duration(seconds: 2)),
+          )
+          .then((_) => returned = true);
+      async.elapse(const Duration(milliseconds: 1999));
+      expect(returned, isFalse);
+      async.elapse(const Duration(milliseconds: 1)); // one shared 2s deadline
+      async.flushMicrotasks();
+      expect(returned, isTrue); // not 4s (metadata 2s + readiness 2s)
+      host.shutdown();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('an in-flight first poll stays scheduler-owned and completes after return',
+      () {
+    fakeAsync((async) {
+      // The first poll is held in flight while readiness times out, so initialize
+      // returns NotReady with the poll still running. Releasing it proves the
+      // scheduler still owns and completes the poll after initialize returned,
+      // rather than abandoning it at the deadline
+      final pollGate = Completer<void>();
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady)
+        ..pollGate = pollGate;
+      final host = _host(bridge, initClock: () => async.elapsed);
+      var returned = false;
+      host
+          .initialize(
+            sdkKey: 'cpk_mob_a',
+            config: const CoproductConfig(startupTimeout: Duration(milliseconds: 100)),
+          )
+          .then((_) => returned = true);
+      async.elapse(const Duration(milliseconds: 100)); // readiness deadline
+      async.flushMicrotasks();
+      expect(returned, isTrue);
+      expect(bridge.pollEntered.isCompleted, isTrue);
+      expect(bridge.pollFinished, isFalse); // still in flight at return
+      pollGate.complete();
+      async.flushMicrotasks();
+      expect(bridge.pollFinished, isTrue); // completed after return
+      host.shutdown();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('joined callers share one deadline rather than restarting it', () {
+    fakeAsync((async) {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
+      var firstReturned = false;
+      var secondReturned = false;
+      const config = CoproductConfig(startupTimeout: Duration(seconds: 2));
+      final host = _host(bridge, initClock: () => async.elapsed);
+      host.initialize(sdkKey: 'cpk_mob_a', config: config)
+          .then((_) => firstReturned = true);
+      async.elapse(const Duration(seconds: 1)); // first build is 1s in
+      host.initialize(sdkKey: 'cpk_mob_a', config: config)
+          .then((_) => secondReturned = true);
+      async.elapse(const Duration(seconds: 1)); // the original 2s deadline elapses
+      async.flushMicrotasks();
+      expect(firstReturned, isTrue);
+      expect(secondReturned, isTrue); // joined, not restarted at 3s
+      host.shutdown();
+      async.flushMicrotasks();
+    });
+  });
+
+  test('a shutdown during metadata collection throws with no unhandled error',
       () async {
-    // State never leaves notReady and the readiness delay never completes, so the
-    // wait sits until cancellation. Gate on the delay being entered, so the build
-    // is proven to be inside the real readiness wait rather than an earlier stage,
-    // and a fixed clock keeps the deadline ahead so nothing else ends the wait. A
-    // mis-wired CancellationSignal would leave this hanging instead of passing
+    final gate = Completer<String?>();
     final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
-    final foreground = _RecordingForeground();
-    final readinessEntered = Completer<void>();
     final host = _host(
       bridge,
-      foreground: foreground,
-      readinessClock: () => Duration.zero,
-      readinessDelay: (_) {
-        if (!readinessEntered.isCompleted) readinessEntered.complete();
-        return Completer<void>().future;
-      },
+      providers: MetadataProviders(
+        platform: () => gate.future,
+        osVersion: () async => '14',
+        appVersion: () async => '1.2.3',
+        appBuild: () async => '42',
+        locale: () async => 'en-US',
+        timezone: () async => 'America/New_York',
+      ),
     );
+    final pending = host.initialize(
+      sdkKey: 'cpk_mob_a',
+      config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
+    );
+    await bridge.initializeEntered.future;
+    final shutdown = host.shutdown();
+    await expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
+    await shutdown;
+    // No unhandled async error: flutter_test would fail this test if the abandoned
+    // metadata future's cancellation escaped
+  });
 
-    final pending = host.initialize(sdkKey: 'cpk_mob_a');
-    final expectation =
-        expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
-    await readinessEntered.future; // the build is now parked in the readiness wait
-    await host.shutdown();
-    await expectation;
-    // The rollback used runtime shutdown, which disposes the foreground listener,
-    // proving the post-runtime cancellation path is the runtime teardown, not a
-    // separate handle/transport cleanup
-    expect(foreground.disposes, greaterThan(0));
+  test('metadata cancellation before any handle exists does not leak an error',
+      () async {
+    // Park in the cache lookup with wedged metadata, then shut down before a handle
+    // exists, so the collector is cancelled and abandoned before publishAttributes
+    // ever runs. The outcome wrapper must absorb its cancellation. Without the
+    // wrapper the collector would throw with no listener and flutter_test would
+    // fail this test on the unhandled async error
+    final cacheGate = Completer<void>();
+    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+      ..cacheDirectoryGate = cacheGate;
+    final host = _host(
+      bridge,
+      providers: MetadataProviders(
+        platform: () => Completer<String?>().future, // wedged
+        osVersion: () async => '14',
+        appVersion: () async => '1.2.3',
+        appBuild: () async => '42',
+        locale: () async => 'en-US',
+        timezone: () async => 'America/New_York',
+      ),
+    );
+    final pending = host.initialize(
+      sdkKey: 'cpk_mob_a',
+      config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
+    );
+    await bridge.cacheDirectoryEntered.future; // parked in cache lookup, no handle
+    final shutdown = host.shutdown(); // bumps generation, cancels synchronously
+    cacheGate.complete(); // cache lookup finishes, then isCurrent is false
+    await expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
+    await shutdown;
+    expect(bridge.initializeEntered.isCompleted, isFalse); // no handle was built
+  });
+
+  test('a shutdown during the readiness wait cancels through the runtime teardown',
+      () {
+    fakeAsync((async) {
+      // State never leaves notReady and the deadline stays ahead, so readiness
+      // loops. Gate the shutdown on readiness having actually read state, so the
+      // build is proven inside the readiness wait rather than an earlier stage
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
+      final foreground = _RecordingForeground();
+      final host = _host(
+        bridge,
+        foreground: foreground,
+        initClock: () => async.elapsed,
+      );
+      Object? error;
+      host
+          .initialize(
+            sdkKey: 'cpk_mob_a',
+            config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
+          )
+          .then<void>((_) {}, onError: (Object e, StackTrace _) => error = e);
+      async.elapse(const Duration(milliseconds: 50));
+      expect(bridge.stateReads, greaterThan(0), reason: 'readiness entered');
+      host.shutdown();
+      async.flushMicrotasks();
+      expect(error, isA<CoproductInitializationCancelled>());
+      // Rollback used runtime shutdown, which disposes the foreground listener
+      expect(foreground.disposes, greaterThan(0));
+      // Drain the readiness step's losing Future.delayed, which cancellation raced
+      // but cannot cancel, so no bounded timer is left pending in the fake zone
+      async.elapse(const Duration(milliseconds: 25));
+      async.flushMicrotasks();
+    });
   });
 
   test('a shutdown during the cache lookup cancels before the native initialize',

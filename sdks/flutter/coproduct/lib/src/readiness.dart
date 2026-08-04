@@ -6,34 +6,23 @@ import 'provider_state.dart';
 
 /// The cadence at which readiness re-reads the provider state while it waits,
 /// short enough to return promptly once the first poll lands, coarse enough not
-/// to spin
+/// to spin.
 const Duration _readinessReadInterval = Duration(milliseconds: 25);
 
-/// Waits until the provider leaves [ProviderState.notReady] or the monotonic
-/// [startupTimeout] elapses, whichever comes first. Returns at once when the
-/// provider is already off notReady, for example Ready from a cached snapshot. A
-/// cancelled [cancel] aborts the wait and throws
-/// [CoproductInitializationCancelled], checked synchronously before every state
-/// read and raced in each wait. Each wait is capped to the remaining deadline, so
-/// the total is strictly bounded by [startupTimeout]. It observes [state] and
-/// never drives polling, which the scheduler owns. [delay] is the between-read
-/// wait, injected only for tests
+/// Waits until the provider leaves [ProviderState.notReady] or the shared
+/// monotonic [deadline] elapses, whichever comes first, throwing
+/// [CoproductInitializationCancelled] if [cancel] fires. Each pass runs in a
+/// fixed order so a provider that turns ready at the deadline instant is seen by
+/// the final state read rather than lost to expiry: a synchronous cancellation
+/// check, then a synchronous state read, then the deadline check. [clock] is the
+/// build's shared monotonic clock, so the deadline is measured on the same origin
+/// as metadata collection.
 Future<void> awaitInitialReadiness({
   required ProviderState Function() state,
-  required Duration startupTimeout,
+  required Duration deadline,
+  required Duration Function() clock,
   required CancellationSignal cancel,
-  Duration Function()? clock,
-  Future<void> Function(Duration)? delay,
 }) async {
-  if (cancel.isCancelled) {
-    throw const CoproductInitializationCancelled();
-  }
-  if (state() != ProviderState.notReady) {
-    return;
-  }
-  final now = clock ?? _stopwatchClock();
-  final deadline = now() + startupTimeout;
-  final wait = delay ?? (Duration d) => Future<void>.delayed(d);
   while (true) {
     if (cancel.isCancelled) {
       throw const CoproductInitializationCancelled();
@@ -41,19 +30,14 @@ Future<void> awaitInitialReadiness({
     if (state() != ProviderState.notReady) {
       return;
     }
-    final remaining = deadline - now();
+    final remaining = deadline - clock();
     if (remaining <= Duration.zero) {
       return;
     }
     final step =
         remaining < _readinessReadInterval ? remaining : _readinessReadInterval;
-    // Race the wait against cancellation, so a cancel does not sit out the full
-    // step before the loop notices, the loop then re-checks isCancelled
-    await Future.any([wait(step), cancel.whenCancelled]);
+    // Race the wait against cancellation so a cancel does not sit out the full
+    // step, then the loop re-checks in order
+    await Future.any([Future<void>.delayed(step), cancel.whenCancelled]);
   }
-}
-
-Duration Function() _stopwatchClock() {
-  final stopwatch = Stopwatch()..start();
-  return () => stopwatch.elapsed;
 }

@@ -2,11 +2,23 @@ import 'errors.dart';
 
 /// Configuration for Coproduct.initialize. Immutable and const-constructible.
 /// [pollInterval] must be at least 30 seconds. [requestTimeout] bounds a single
-/// snapshot request. [endpoint] overrides the default Coproduct endpoint
+/// snapshot request. [endpoint] overrides the default Coproduct endpoint.
+///
+/// [startupTimeout] is one monotonic budget for startup convergence: automatic
+/// metadata collection and initial provider readiness. The budget begins with
+/// the single-flight initialization attempt, so required native client
+/// construction consumes part of it and only the remaining budget is available
+/// for metadata and readiness. Metadata and readiness proceed concurrently. At
+/// expiry the SDK stops waiting for convergence, freezes the metadata completed
+/// within the budget, then proceeds through mandatory publication and
+/// finalization before returning the client with its current provider state.
+/// Those mandatory operations are not governed by [startupTimeout], so return
+/// time can exceed it. Polling continues in the background, and shutdown takes
+/// precedence.
 class CoproductConfig {
   const CoproductConfig({
     this.pollInterval = const Duration(seconds: 60),
-    this.startupTimeout = const Duration(seconds: 3),
+    this.startupTimeout = const Duration(seconds: 5),
     this.requestTimeout = const Duration(seconds: 30),
     this.endpoint,
     this.pollOnForeground = true,

@@ -188,10 +188,13 @@ class Coproduct {
 
   /// Initializes the SDK: validates the config, constructs the client against the
   /// cache and stored identity, installs automatic context, and starts polling.
-  /// Concurrent or repeated calls with the same key and config join the same
-  /// client, a different key or config throws [CoproductAlreadyInitialized]. The
-  /// returned client is ready to read, serving cache or defaults until the first
-  /// poll lands.
+  /// Initialization waits for automatic metadata collection and initial provider
+  /// readiness against the [CoproductConfig.startupTimeout] convergence budget.
+  /// Mandatory native construction runs outside that budget, so the return time
+  /// can exceed it. Concurrent or repeated calls with the same key and config
+  /// join the same client, a different key or config throws
+  /// [CoproductAlreadyInitialized]. The returned client is ready to read, serving
+  /// cache or defaults until the first poll lands.
   static Future<CoproductClient> initialize({
     required String sdkKey,
     CoproductConfig config = const CoproductConfig(),
