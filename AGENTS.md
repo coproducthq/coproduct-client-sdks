@@ -35,6 +35,15 @@ Every SDK surface has a build script under `scripts/build/`. Use these rather th
 
 The two acceptance gates additionally require a booted simulator/emulator device id, passed via `COPRODUCT_ACCEPTANCE_IOS_DEVICE` / `COPRODUCT_ACCEPTANCE_ANDROID_DEVICE` (see `flutter devices`); they consume an already-booted device and do not boot or provision one. Each emits `COPRODUCT_FLUTTER_ACCEPTANCE_<PLATFORM>_STATUS pass=true` on success.
 
+FVM is maintainer-only release infrastructure, not a consumer requirement. The
+Flutter floor-verification matrix and the release-preparation step run through
+`scripts/build/with-fvm-toolchain.sh <flutter-version> -- <command>`, which pins
+an exact FVM-managed Flutter and Dart onto `PATH` for every nested process and
+purges the native config that would otherwise pin a global SDK, without mutating
+the repository. A developer integrating Coproduct needs only the documented
+supported Flutter/Dart versions; FVM never appears in the package README. See
+`DEVELOPMENT.md` for the floor gate and the release-preparation procedure.
+
 Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set (except `scripts/package/rn-build-native.sh android` and `scripts/package/android-build-jnilibs.sh`, which need only `ANDROID_NDK_HOME` and `cargo-ndk`). iOS-touching scripts require Xcode and CocoaPods on PATH (except `scripts/package/rn-build-native.sh ios`, which needs only Xcode). Supporting packaging scripts live under `scripts/package/` (`ios-build-xcframework.sh` rebuilds `CoproductFFI.xcframework` from Rust source, `ios-spm-binary.sh` archives it, `ios-spm-fixture.sh` packages the consumer-test fixture). When a change alters the UniFFI-exposed surface, rebuild the xcframework (the source-linked iOS build does this automatically) so the iOS bindings link against the live symbols.
 
 `DEVELOPMENT.md` documents the underlying manual commands for stage-by-stage debugging.

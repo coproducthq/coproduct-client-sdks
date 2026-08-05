@@ -1,4 +1,11 @@
 include: package:flutter_lints/flutter.yaml
 
+# The analyzer must not descend into the vendored cargokit build tool, which is a
+# separate package whose own dependencies are not resolved by this package's pub
+# get. Excluding it keeps `flutter analyze` reproducible from a clean checkout
+analyzer:
+  exclude:
+    - cargokit/**
+
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

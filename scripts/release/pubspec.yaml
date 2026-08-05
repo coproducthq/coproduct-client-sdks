@@ -1,0 +1,8 @@
+name: coproduct_release
+description: Release-preparation tooling for the Coproduct Flutter SDK.
+publish_to: none
+version: 0.0.0
+environment:
+  sdk: ^3.10.0
+dev_dependencies:
+  test: ^1.25.0

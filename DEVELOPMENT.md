@@ -168,6 +168,68 @@ On a development branch these stay at an explicit dev value (for example
 `coproduct-ios/0.0.1-dev`), and the README install is phrased as a post-release
 instruction, not a copy-pasteable command for an unpublished tag.
 
+### Flutter release preparation and publication
+
+FVM is maintainer-only release infrastructure; adopters never need it. All
+floor-verification and release commands run through
+`scripts/build/with-fvm-toolchain.sh <flutter-version> -- <command>`, which pins
+the exact Flutter/Dart onto `PATH` for every nested process, verifies both resolve
+inside the selected SDK, and purges the native config that would otherwise pin a
+global SDK. It never runs `fvm use`, so it does not mutate the repository.
+
+The compatibility floor is a tested matrix, never a claim from dependency metadata
+alone. Before lowering the published `environment` constraints, the FVM
+minimum-floor matrix (resolution, analyze, test, the publish dry-run gate,
+artifact-linked iOS and Android builds, and both device acceptance gates) must
+pass on the candidate toolchain, and the same matrix must pass on the primary
+toolchain. Run each stage in this order from a clean checkout, all through the
+launcher:
+
+```
+scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd sdks/flutter/coproduct && flutter pub get && flutter analyze && flutter test'
+scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd sdks/flutter/coproduct/example && flutter pub get && flutter analyze'
+scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-consumer-test-ios.sh
+scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-consumer-test-android.sh
+COPRODUCT_ACCEPTANCE_IOS_DEVICE=<sim> scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-acceptance-ios.sh
+COPRODUCT_ACCEPTANCE_ANDROID_DEVICE=<emu> scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-acceptance-android.sh
+```
+
+`flutter analyze` is reproducible from a clean checkout because the package
+`analysis_options.yaml` excludes the vendored `cargokit/` tree, whose nested build
+tool is a separate package the SDK's `pub get` does not resolve. Do not remove that
+exclude, or a fresh analyze reports unresolved-import errors inside
+`cargokit/build_tool` that have nothing to do with the SDK. `flutter pub publish --dry-run` exits nonzero on the two expected
+warnings (the exact flutter_rust_bridge pin and, before release preparation, the
+Unreleased changelog); the gate accepts those and fails only on errors or
+unexpected warnings. Record the resolved dependency versions and native toolchain
+versions as the release evidence; `pubspec.lock` is not committed, so the resolved
+set is otherwise not reproducible from the tree.
+
+Publishing `0.1.0` (run by a human with pub.dev credentials):
+
+1. Start from a clean, reviewed `main`.
+2. Select the verified toolchains through `scripts/build/with-fvm-toolchain.sh`.
+3. Run the release-preparation command through the launcher, resolving its Dart
+   package first so a clean checkout works (the tool's `.dart_tool/` is gitignored):
+   `scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c '(cd scripts/release && dart pub get) && dart run scripts/release/bin/prepare_release.dart --version 0.1.0 --date <today>'`.
+   It validates the version and date, then flips the pubspec version, the SDK
+   version constant and derived `User-Agent`, the README install example, and the
+   CHANGELOG from `0.1.0-dev` to the release as coordinated writes, and runs an
+   identity audit afterward. On a write failure it makes a best-effort rollback,
+   restoring each original file. If a restore write itself fails (a full or
+   read-only disk), the command names the files it could not restore in its error
+   and states that the rollback was incomplete, so reset those files with
+   `git checkout` before retrying. The command resolves the Flutter package from
+   its own script location, so it works regardless of the working directory.
+4. Run the minimum-toolchain and primary-toolchain matrices, the acceptance gates,
+   and the publish dry-run gate against the prepared tree.
+5. Commit the exact prepared tree locally.
+6. `flutter pub publish` that exact tree.
+7. Only after pub.dev succeeds, create and push the git tag and release commit.
+
+The checked-in tree stays at `0.1.0-dev`; the prepared tree exists only during a
+publish.
+
 ## Recovering local disk space
 
 Every gitignored directory is a regenerable cache or build output. None of these contain durable work.
@@ -188,4 +250,4 @@ Every gitignored directory is a regenerable cache or build output. None of these
 
 Worst-case full-cold rebuild after deleting all 25+ GB is roughly 15-25 minutes assuming dependency downloads succeed.
 
-**Do not delete lockfiles** (`Cargo.lock`, `Podfile.lock`, `yarn.lock`, `package-lock.json`, `pubspec.lock`, `Gemfile.lock`). They are tracked and pin exact dependency versions for reproducible builds.
+**Do not delete tracked lockfiles** (`Cargo.lock`, `Podfile.lock`, `yarn.lock`, `package-lock.json`, `Gemfile.lock`, and the vendored `cargokit/build_tool/pubspec.lock`). They pin exact dependency versions for reproducible builds. The first-party Dart `pubspec.lock` files (the SDK package, its example, `consumer-tests`, and the `scripts/*` tool packages) are regenerable and gitignored, so deleting them is harmless; `flutter pub get` or `dart pub get` recreates them.

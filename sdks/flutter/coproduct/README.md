@@ -15,8 +15,8 @@ Pre-1.0. The public API is still being built out and is not yet at production po
 
 | | Supported |
 |---|---|
-| Flutter | >= 3.44.0 |
-| Dart | >= 3.12.0 |
+| Flutter | >= 3.38.1 |
+| Dart | >= 3.10.0 |
 | iOS deployment target | 15.0+ |
 | Android minSdk | 24 |
 | Gradle (Android side) | 9.x (cargokit Gradle 9 patch carried in our vendored cargokit) |

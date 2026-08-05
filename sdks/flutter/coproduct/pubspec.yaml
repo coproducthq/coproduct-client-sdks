@@ -5,8 +5,8 @@ homepage: https://coproduct.app
 repository: https://github.com/coproducthq/coproduct-client-sdks
 
 environment:
-  sdk: ^3.12.0
-  flutter: '>=3.44.0'
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.1"
 
 dependencies:
   flutter:

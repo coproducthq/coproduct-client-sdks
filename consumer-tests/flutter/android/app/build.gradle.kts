@@ -40,6 +40,18 @@ kotlin {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // The espresso version integration_test resolves transitively under older
+        // Flutter shares one namespace between espresso-core and
+        // espresso-idling-resource, which AGP 9 rejects during manifest merge. Force
+        // a version whose modules carry unique namespaces so the debug
+        // instrumentation build merges on every supported Flutter
+        force("androidx.test.espresso:espresso-core:3.6.1")
+        force("androidx.test.espresso:espresso-idling-resource:3.6.1")
+    }
+}
+
 flutter {
     source = "../.."
 }

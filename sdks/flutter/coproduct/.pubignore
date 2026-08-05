@@ -1,0 +1,39 @@
+# A .pubignore replaces this package's .gitignore for pub (pub does not merge the
+# two), so reproduce the .gitignore exclusions here, unanchored so the nested
+# example is also caught, then add the development test trees
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Flutter, Dart, and Pub related
+.dart_tool/
+.flutter-plugins-dependencies
+pubspec.lock
+build/
+coverage/
+doc/api/
+
+# CocoaPods build products from the nested example
+Pods/
+.symlinks/
+
+# The SDK's own unit tests and integration-test infrastructure are development-only
+test/
+test_driver/
