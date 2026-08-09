@@ -19,6 +19,7 @@ pub mod observer;
 pub mod operators;
 pub mod pipeline;
 pub mod polling;
+pub mod revision;
 pub mod rule_walker;
 pub mod secure_store;
 pub mod snapshot;

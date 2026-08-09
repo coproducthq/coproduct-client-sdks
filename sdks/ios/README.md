@@ -248,11 +248,11 @@ entry, so a name that passes there always matches what your app sends.
 
 There are three reactive surfaces, all backed by the same observation. Pick the one that fits your call site.
 
-Changes are delivered on a background thread (the transport callback thread). `@CoproductFlag` hops to the main thread for you, but raw `publisher` and `values` streams do not — add `.receive(on: DispatchQueue.main)` (or hop yourself) before touching UI. A synchronous sink runs on that delivery thread while the observation holds its delivery lock, so keep sink work light (hop queues for anything heavy) to avoid back-pressuring flag delivery.
+Changes are delivered from the observation's drain task and are not guaranteed to run on the main thread. `@CoproductFlag` hops to the main thread for you, but raw `publisher` and `values` streams do not — add `.receive(on: DispatchQueue.main)` (or hop yourself) before touching UI. A synchronous sink runs on that drain task, so keep sink work light (hop queues for anything heavy) to avoid stalling delivery to that observation.
 
 ### SwiftUI: `@CoproductFlag`
 
-The property wrapper re-renders the view on every flag change. It supports `Bool`, `String`, `Int`, and `Double`:
+The property wrapper re-renders the view for each delivered state update. It supports `Bool`, `String`, `Int`, and `Double`:
 
 ```swift
 struct CheckoutView: View {
@@ -270,7 +270,7 @@ struct CheckoutView: View {
 
 ### Combine publisher
 
-`Coproduct.observe(_:default:)` returns a `FlagObservation` whose `publisher` emits the current value immediately and then every change. Overloads exist for `Bool`, `String`, `Int`, and `Double`:
+`Coproduct.observe(_:default:)` returns a `FlagObservation` whose `publisher` emits the current value immediately and converges to later values in revision order; when the host is still processing an update, intermediate transitions may be coalesced to the latest state. Overloads exist for `Bool`, `String`, `Int`, and `Double`:
 
 ```swift
 let observation = Coproduct.observe("rollout-ratio", default: 0.0)

@@ -82,7 +82,14 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
 - Host languages provide only platform capabilities. The core defines the internal `Transport` and `SecureStore` traits; the host-facing FFI protocols that adapt to them are `HostTransport` and `HostSecureStore`. Hosts implement:
   - async `HostTransport`
   - async identity-only `HostSecureStore`
-  - async observer callbacks
+  - an ordered observation drain, not an observer callback. The core hands each
+    subscription its complete current state through a synchronous non-blocking
+    enqueue and never calls host code under its delivery lane. Flutter receives a
+    `StreamSink` on Dart's event loop; the native wrappers await a Rust-owned
+    mailbox (`pollNext`), which renders as Swift `async`, Kotlin `suspend`, and a
+    React Native `Promise`. Developer callbacks therefore run off the delivery
+    lane, so one that re-enters the SDK cannot deadlock delivery. This is distinct
+    from the anyhow-Result rule for fallible host callbacks
 - Snapshot cache must not cross the FFI boundary. Rust reads and writes `{cache_dir}/coproduct/snapshot.json` directly.
 - FFI crates should expose local wrapper and adapter types, not raw `coproduct-core` types.
 - Config is split by consumer. `coproduct_core::CoproductConfig` holds only values the core reads, validates, or persists. Host-behavior settings such as foreground refresh (`poll_on_foreground`) live on the host-facing configs (the platform SDK config and `FfiConfig`) and are consumed by the host timer, which reads its own copy; they are deliberately not relayed into the core config. `FfiConfig` intentionally carries host-behavior fields the core config does not, so a field that crosses the FFI without a core-side counterpart is by design, not an oversight. If the core ever owns a polling loop, such a field is re-added together with the code that reads it and its tests, never as a speculative field beforehand.
@@ -95,7 +102,7 @@ Use identical identifiers across all four SDK surfaces wherever the language per
 
 Examples this rule covers:
 
-- Public method names: `initialize`, `getBool`, `getString`, `getNumber`, `getInt`, `getJSON`, `identify`, `signOut`, `setContext`, `updateAttributes`, `removeAttributes`, `observe`, `addHandler`, `addEvaluationHook`, `shutdown`
+- Public method names: `initialize`, `getBool`, `getString`, `getNumber`, `getInt`, `getJSON`, `identify`, `signOut`, `setContext`, `updateAttributes`, `removeAttributes`, `addHandler`, `addEvaluationHook`, `shutdown` (observation methods are typed per flag type; see the deviations below)
 - Public type names: `CoproductClient`, `CoproductConfig`, `CoproductSnapshot`, `Logger`, `HostTransport`, `HostSecureStore`, `EvaluationEvent`, `ProviderState`
 - Thrown error names: `InvalidKeyType`, `UnsupportedSchemaVersion`, `InvalidTargetingKey`, `TransportError`, `SecureStoreError`
 - Internal accessors: `bucketForVectors` (per-platform visibility mechanism: Swift `internal`, Kotlin `internal`, TS `/internal` subpath, Dart `lib/src/`)
@@ -103,8 +110,22 @@ Examples this rule covers:
 Documented per-platform deviations:
 
 - Swift uses all-caps initialisms: `getJSON` (not `getJson`) per Apple convention. Other platforms use camelCase `getJson`.
-- Cancellation semantics for observers follow platform-native idioms (`AnyCancellable` on iOS, `Job.cancel()` on Kotlin, `.unsubscribe()` on RN, `StreamSubscription.cancel()` on Flutter). A unified `Cancellable` type is deliberately NOT in the identifier list because spec §3.3 routes through each platform's native cancel mechanism.
-- Dart's `Coproduct.observe(...)` returns `ValueListenable<T>` because Dart's idiomatic primitive differs. The identifier `observe` is identical across all four platforms. The return type adapts per platform.
+- Observation is typed per flag type rather than a single `observe`:
+  `observeBool`, `observeString`, `observeInt`, `observeNumber`, and `observeJson`,
+  consistent with the already-typed getters. Kotlin and React Native expose only
+  `observe` for booleans today, which is a coverage gap rather than a naming
+  divergence; the cross-platform public naming is reconciled when those platforms
+  gain ergonomic reactive APIs.
+- JSON observation is Flutter-specific. iOS has no `observeJSON`, because its
+  bundle observation already carries JSON through `FlagDetailValue`.
+- Cancelling an observation is per platform, and none of them is the stream-primitive
+  cancel: iOS releases the `FlagObservation` (its `deinit` ends the native session),
+  Kotlin and React Native call `cancel()` on the returned handle, and Flutter will call
+  `FlagObservation.dispose()`. A unified `Cancellable` type is deliberately not in the
+  identifier list. On Flutter in particular, cancelling only a Dart stream subscription
+  would leave the native session registered, which is why disposal is the documented verb.
+- Flutter has no public observation surface yet. Its typed FRB sessions are private
+  plumbing until the Dart layer lands.
 - The OpenFeature `errorCode` enum (`FLAG_NOT_FOUND`, `TYPE_MISMATCH`, etc.) is a separate concept from thrown error names. The codes are data on `FlagEvaluationDetails.errorCode`, not catchable exception types.
 
 ## Evaluation semantics (cross-platform)
@@ -224,6 +245,17 @@ and the install doc is `sdks/ios/README.md`; Android and React Native set a
 `sdks/flutter/coproduct/lib/src/sdk_version.dart`, passed through the FRB
 `initialize` call. See `DEVELOPMENT.md` for the release checklist.
 
+### Breaking low-level observer migration
+
+The generated observer protocol was replaced, not extended. The UniFFI
+`FlagObserver` callback interface and the `Subscription` object are gone, as is the
+FRB `observe` function; registration now returns a typed session carrying its own
+evaluated seed, and delivery is drained rather than pushed. None of these SDKs had
+been published, so this landed as a single breaking change with every in-repo
+consumer migrated in the same branch rather than as a dual-protocol shim. A
+developer implementing the raw generated observer directly must migrate; the
+wrapped public APIs on each platform shield ordinary consumers.
+
 ## UniFFI Notes
 
 - Avoid FFI parameter names that are C/Swift keywords. In particular, do not use `default`. Use `default_value`.
@@ -276,7 +308,7 @@ Load-bearing invariants. Breaking any of these breaks the build or runtime:
 - The FRB crate package name is `coproduct_ffi_frb` with underscores, even though the directory is `coproduct-ffi-frb`. cargokit derives the built library filename from the package name verbatim, so a dashed package makes it look for `libcoproduct-ffi-frb.a` while cargo emits underscores. Do not rename it to dashes for symmetry with `coproduct-ffi-uniffi`.
 - The exported API lives in `ffi/coproduct-ffi-frb/src/api.rs`, and `lib.rs` is only `mod frb_generated; pub mod api;`. FRB injects `frb_generated.rs` at the crate root, and `rust_input: crate::api` must point at a submodule, never the crate root. Do not move the API back into `lib.rs`.
 - Host callbacks use `anyhow::Result<T>`, not custom error enums. FRB does not support a custom error type as the error of a `DartFnFuture<Result<T, E>>`. The Rust adapters convert `anyhow::Error` into the typed core errors. This is an intentional divergence from the UniFFI crate, which keeps typed errors.
-- Free functions take the client by reference (`&CoproductClientHandle`) and `initialize` / `observe` return bare handles, not `Arc<...>`. Passing the handle by value makes FRB move-and-dispose the Dart handle (`DroppableDisposedException`), and returning `Arc<...>` emits an `Arc`-prefixed Dart type that mismatches the borrowed-parameter type.
+- Free functions take the client by reference (`&CoproductClientHandle`) and `initialize` / the typed observation registrations (`observe_bool` and its siblings) return bare handles, not `Arc<...>`. Passing the handle by value makes FRB move-and-dispose the Dart handle (`DroppableDisposedException`), and returning `Arc<...>` emits an `Arc`-prefixed Dart type that mismatches the borrowed-parameter type.
 - The plugin is an FFI plugin: `pubspec.yaml` declares `ffiPlugin: true` for android and ios with no `pluginClass`, and there are no Kotlin/Swift plugin classes. FRB loads the native library directly.
 - On iOS and macOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true))`, because cargokit force-loads the static library into the app executable and the default Apple loader looks for a non-existent `<stem>.framework`. Android uses the default loader (`lib<crate>.so`).
 - Regenerate bindings with `flutter_rust_bridge_codegen generate` after editing `api.rs`. The codegen binary is pinned to the same version as the `flutter_rust_bridge` crate (`2.12.0`). Codegen rewrites `frb_generated.rs`, `lib/src/rust/*`, and re-injects the `mod frb_generated;` line.

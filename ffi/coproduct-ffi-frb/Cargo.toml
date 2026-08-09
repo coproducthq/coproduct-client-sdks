@@ -20,5 +20,6 @@ anyhow = "1.0.102"
 async-trait.workspace = true
 coproduct-core = { path = "../../core/coproduct-core" }
 flutter_rust_bridge = "=2.12.0"
+parking_lot.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

@@ -8,9 +8,8 @@ struct Sink {
     fired: Mutex<usize>,
 }
 
-#[async_trait::async_trait]
 impl TypedFlagObserver for Sink {
-    async fn on_change(&self, _key: &str, _value: &FlagValue) {
+    fn on_transition(&self, _revision: u64, _state: &[(String, Option<FlagValue>)]) {
         *self.fired.lock().unwrap() += 1;
     }
 }

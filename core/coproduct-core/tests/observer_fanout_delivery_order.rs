@@ -4,25 +4,26 @@ use coproduct_core::client::CoproductClient;
 use coproduct_core::observer::{FlagValue, TypedFlagObserver};
 use coproduct_core::snapshot::test_support::{bool_flag, snapshot_with_flags};
 
-// The fanout computes a sorted, deduped set of observed keys and must deliver in
-// that order. Collecting changes into a sorted vec rather than a hash map keeps
-// cross-key delivery order deterministic across runs, so multi-key observer tests
-// and bundle emission order stay stable.
+// A delivery carries the subscription's complete current state for every key it
+// registered, in registration order, so a host that builds a bundle from a batch
+// gets a stable key order. Cross-subscription order is subscription id order,
+// which is registration order
 
 #[derive(Debug, Clone)]
-struct KeyRecorder {
-    seen: Arc<Mutex<Vec<String>>>,
+struct BatchRecorder {
+    label: String,
+    seen: Arc<Mutex<Vec<(String, Vec<String>)>>>,
 }
 
-#[async_trait::async_trait]
-impl TypedFlagObserver for KeyRecorder {
-    async fn on_change(&self, key: &str, _value: &FlagValue) {
-        self.seen.lock().unwrap().push(key.to_string());
+impl TypedFlagObserver for BatchRecorder {
+    fn on_transition(&self, _revision: u64, state: &[(String, Option<FlagValue>)]) {
+        let keys = state.iter().map(|(key, _)| key.clone()).collect();
+        self.seen.lock().unwrap().push((self.label.clone(), keys));
     }
 }
 
 #[tokio::test]
-async fn fanout_delivers_changed_keys_in_sorted_order() {
+async fn a_batch_carries_every_subscribed_key_in_registration_order() {
     let client = CoproductClient::test_instance_with_snapshot(snapshot_with_flags(vec![
         bool_flag("cherry", false),
         bool_flag("apple", false),
@@ -30,28 +31,68 @@ async fn fanout_delivers_changed_keys_in_sorted_order() {
     ]))
     .await;
 
-    let recorder = KeyRecorder {
-        seen: Arc::new(Mutex::new(Vec::new())),
-    };
-    // Register in a deliberately unsorted order so the assertion reflects the
-    // fanout's ordering, not the registration order
-    let _c = client.observe_key("cherry".to_string(), Arc::new(recorder.clone()));
-    let _a = client.observe_key("apple".to_string(), Arc::new(recorder.clone()));
-    let _b = client.observe_key("banana".to_string(), Arc::new(recorder.clone()));
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // Register a deliberately unsorted key list so the assertion reflects the
+    // batch's own ordering rule, not incidental sorting
+    let _bundle = client.observe_keys(
+        vec![
+            "cherry".to_string(),
+            "apple".to_string(),
+            "banana".to_string(),
+        ],
+        Arc::new(BatchRecorder {
+            label: "bundle".to_string(),
+            seen: seen.clone(),
+        }),
+    );
 
-    // Every observed flag flips false -> true, so all three fire on the swap
+    // Only apple moves, and the batch still carries all three keys
     client
         .swap_snapshot_for_test(Arc::new(snapshot_with_flags(vec![
-            bool_flag("cherry", true),
+            bool_flag("cherry", false),
             bool_flag("apple", true),
-            bool_flag("banana", true),
+            bool_flag("banana", false),
         ])))
         .await;
 
-    let order = recorder.seen.lock().unwrap().clone();
-    assert_eq!(
-        order,
-        vec!["apple", "banana", "cherry"],
-        "cross-key delivery follows sorted key order"
-    );
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 1, "one delivery for the one changed transition");
+    assert_eq!(seen[0].1, vec!["cherry", "apple", "banana"]);
+}
+
+#[tokio::test]
+async fn subscriptions_are_delivered_in_registration_order() {
+    let client =
+        CoproductClient::test_instance_with_snapshot(snapshot_with_flags(vec![bool_flag(
+            "k", false,
+        )]))
+        .await;
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    // Retain every session for the whole test: dropping one would cancel its
+    // subscription and silence that recorder
+    let _sessions: Vec<_> = ["first", "second", "third"]
+        .into_iter()
+        .map(|label| {
+            client.observe_key(
+                "k".to_string(),
+                Arc::new(BatchRecorder {
+                    label: label.to_string(),
+                    seen: seen.clone(),
+                }),
+            )
+        })
+        .collect();
+
+    client
+        .swap_snapshot_for_test(Arc::new(snapshot_with_flags(vec![bool_flag("k", true)])))
+        .await;
+
+    let labels: Vec<String> = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(l, _)| l.clone())
+        .collect();
+    assert_eq!(labels, vec!["first", "second", "third"]);
 }

@@ -2,7 +2,10 @@ uniffi::setup_scaffolding!();
 
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
@@ -194,12 +197,6 @@ impl From<coproduct_core::observer::FlagValue> for FlagValue {
     }
 }
 
-#[uniffi::export(with_foreign)]
-#[async_trait::async_trait]
-pub trait FlagObserver: Send + Sync + std::fmt::Debug {
-    async fn on_change(&self, key: String, value: FlagValue) -> Result<(), ObserverError>;
-}
-
 /// Context attribute value crossing the binding boundary. The core attribute
 /// type is not exported directly so the boundary keeps a stable local shape
 #[derive(uniffi::Enum)]
@@ -300,30 +297,6 @@ impl From<coproduct_core::polling::PollOutcome> for PollOutcome {
 #[derive(uniffi::Object)]
 pub struct CoproductClient {
     inner: Arc<CoreCoproductClient>,
-}
-
-#[derive(uniffi::Object)]
-pub struct Subscription {
-    inner: Arc<core_observer::Subscription>,
-}
-
-#[uniffi::export]
-impl Subscription {
-    pub fn id(&self) -> u64 {
-        self.inner.id()
-    }
-
-    pub fn keys(&self) -> Vec<String> {
-        self.inner.keys().to_vec()
-    }
-
-    pub fn is_cancelled(&self) -> bool {
-        self.inner.is_cancelled()
-    }
-
-    pub fn cancel(&self) {
-        self.inner.cancel();
-    }
 }
 
 /// Flat config the Swift wrapper assembles from CoproductConfig. Only the
@@ -565,22 +538,6 @@ impl CoproductClient {
         details_json_to_ffi(self.inner.get_json_details(key, default))
     }
 
-    pub fn observe_key(&self, key: String, observer: Arc<dyn FlagObserver>) -> Arc<Subscription> {
-        let observer = Arc::new(ObserverAdapter { host: observer });
-        let inner = self.inner.observe_key(key, observer);
-        Arc::new(Subscription { inner })
-    }
-
-    pub fn observe_keys(
-        &self,
-        keys: Vec<String>,
-        observer: Arc<dyn FlagObserver>,
-    ) -> Arc<Subscription> {
-        let observer = Arc::new(ObserverAdapter { host: observer });
-        let inner = self.inner.observe_keys(keys, observer);
-        Arc::new(Subscription { inner })
-    }
-
     /// Current value of each key, for seeding a multi-key observation so it is
     /// populated at subscription. Keys absent from the snapshot are omitted
     pub fn current_flag_values(&self, keys: Vec<String>) -> HashMap<String, FlagValue> {
@@ -701,6 +658,569 @@ impl CoproductClient {
 
     pub fn snapshot_view(&self) -> CoproductSnapshot {
         CoproductSnapshot::from(self.inner.snapshot_view())
+    }
+}
+
+/// One delivered batch: the transition's revision and the subscription's complete
+/// state for every key it subscribed to, in registration order
+#[derive(Debug, Clone, PartialEq)]
+struct Delivery {
+    revision: u64,
+    values: Vec<(String, Option<core_observer::FlagValue>)>,
+}
+
+#[derive(Debug)]
+enum MailboxState {
+    Open {
+        /// At most one batch is held, because each batch is complete state and a
+        /// newer one fully supersedes an older one
+        latest: Option<Delivery>,
+        /// Wakers of the drain futures currently waiting, each tagged with its
+        /// waiter id so a cancelled future can remove exactly its own. One drain
+        /// per observation is the intended shape, but several are tolerated
+        wakers: Vec<(u64, Waker)>,
+        next_waiter_id: u64,
+    },
+    Closed,
+}
+
+/// Rust-owned handoff between the core delivery lane and the host drain loop.
+/// `record` runs under the core lane: it takes this mutex, stores the batch, and
+/// returns without waking. `notify` runs after the lane is released and is the
+/// only place a foreign continuation can be resumed. The host awaits `next`, so
+/// no platform blocks a thread waiting on it
+#[derive(Debug)]
+struct Mailbox {
+    state: Mutex<MailboxState>,
+}
+
+impl Mailbox {
+    fn open() -> Self {
+        Self {
+            state: Mutex::new(MailboxState::Open {
+                latest: None,
+                wakers: Vec::new(),
+                next_waiter_id: 0,
+            }),
+        }
+    }
+
+    /// Store the batch. Called under the core delivery lane, so it must not wake
+    fn record(&self, delivery: Delivery) {
+        if let MailboxState::Open { latest, .. } = &mut *self.state.lock() {
+            *latest = Some(delivery);
+        }
+    }
+
+    /// Wake the waiting drain. Called after the delivery lane is released,
+    /// because a UniFFI waker resumes a foreign continuation inline
+    fn notify(&self) {
+        let wakers = match &mut *self.state.lock() {
+            MailboxState::Open { wakers, .. } => std::mem::take(wakers),
+            MailboxState::Closed => Vec::new(),
+        };
+        wake_all(wakers);
+    }
+
+    /// Idempotent close. A waiting drain resolves to closed, so the host loop
+    /// terminates. Never called under the delivery lane: the core hands the
+    /// adapter its close after releasing every lock
+    fn close(&self) {
+        let wakers = match std::mem::replace(&mut *self.state.lock(), MailboxState::Closed) {
+            MailboxState::Open { wakers, .. } => wakers,
+            MailboxState::Closed => Vec::new(),
+        };
+        wake_all(wakers);
+    }
+
+    /// Resolves with the next batch, or `None` once the mailbox is closed
+    fn next(&self) -> NextDelivery<'_> {
+        NextDelivery {
+            mailbox: self,
+            waiter: None,
+        }
+    }
+}
+
+/// Waking always happens after the mailbox mutex is released, so a foreign
+/// continuation never runs while this crate holds a lock of its own
+fn wake_all(wakers: Vec<(u64, Waker)>) {
+    for (_id, waker) in wakers {
+        waker.wake();
+    }
+}
+
+/// A pending drain. It takes a waiter id the first time it parks, and its `Drop`
+/// removes that id, so a host that starts and abandons `poll_next` repeatedly
+/// (a cancelled task, a timeout) cannot accumulate dead wakers in the mailbox
+struct NextDelivery<'a> {
+    mailbox: &'a Mailbox,
+    waiter: Option<u64>,
+}
+
+impl Future for NextDelivery<'_> {
+    type Output = Option<Delivery>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.as_mut().get_mut();
+        let mut state = this.mailbox.state.lock();
+        match &mut *state {
+            MailboxState::Closed => Poll::Ready(None),
+            MailboxState::Open {
+                latest,
+                wakers,
+                next_waiter_id,
+            } => match latest.take() {
+                Some(delivery) => Poll::Ready(Some(delivery)),
+                None => {
+                    let waiter = *this.waiter.get_or_insert_with(|| {
+                        let id = *next_waiter_id;
+                        *next_waiter_id += 1;
+                        id
+                    });
+                    // Re-polling the same future replaces its own waker rather
+                    // than adding another
+                    match wakers.iter_mut().find(|(id, _)| *id == waiter) {
+                        Some((_, held)) => {
+                            if !held.will_wake(cx.waker()) {
+                                *held = cx.waker().clone();
+                            }
+                        }
+                        None => wakers.push((waiter, cx.waker().clone())),
+                    }
+                    Poll::Pending
+                }
+            },
+        }
+    }
+}
+
+impl Drop for NextDelivery<'_> {
+    fn drop(&mut self) {
+        let Some(waiter) = self.waiter else {
+            return;
+        };
+        if let MailboxState::Open { wakers, .. } = &mut *self.mailbox.state.lock() {
+            wakers.retain(|(id, _)| *id != waiter);
+        }
+    }
+}
+
+/// Bridges the core observer callback onto one mailbox. The core calls `on_close`
+/// when the subscription ends, by cancellation or by client shutdown, which
+/// releases every waiting drain loop. `Drop` repeats the close as a backstop for
+/// an observation abandoned without a cancel
+#[derive(Debug)]
+struct MailboxObserver {
+    mailbox: Arc<Mailbox>,
+}
+
+impl Drop for MailboxObserver {
+    fn drop(&mut self) {
+        self.mailbox.close();
+    }
+}
+
+impl core_observer::TypedFlagObserver for MailboxObserver {
+    /// Runs under the core delivery lane, so it stores and returns. Waking is
+    /// deferred to `after_delivery` because a UniFFI waker resumes a foreign
+    /// continuation inline
+    fn on_transition(&self, revision: u64, state: &[(String, Option<core_observer::FlagValue>)]) {
+        self.mailbox.record(Delivery {
+            revision,
+            values: state.to_vec(),
+        });
+    }
+
+    /// Runs after the delivery lane is released
+    fn after_delivery(&self) {
+        self.mailbox.notify();
+    }
+
+    fn on_close(&self) {
+        self.mailbox.close();
+    }
+}
+
+/// State shared by every observation shape. The typed wrappers differ only in how
+/// they project a core value for the host
+#[derive(Debug)]
+struct Observation {
+    subscription: Arc<core_observer::Subscription>,
+    mailbox: Arc<Mailbox>,
+    seed: Vec<(String, Option<core_observer::FlagValue>)>,
+}
+
+impl Observation {
+    fn register(inner: &Arc<CoreCoproductClient>, keys: Vec<String>) -> Self {
+        let mailbox = Arc::new(Mailbox::open());
+        let observer = Arc::new(MailboxObserver {
+            mailbox: mailbox.clone(),
+        });
+        let session = inner.observe_keys(keys, observer);
+        // A registration made after shutdown is already cancelled and receives no
+        // deliveries, so its drain loop must terminate immediately
+        if session.subscription.is_cancelled() {
+            mailbox.close();
+        }
+        Self {
+            subscription: session.subscription,
+            mailbox,
+            seed: session.seed,
+        }
+    }
+
+    /// The single subscribed key's seed value, for the typed single observations
+    fn single_seed(&self) -> Option<core_observer::FlagValue> {
+        self.seed.first().and_then(|(_, value)| value.clone())
+    }
+
+    /// The single subscribed key's value in one delivered batch
+    fn single_value(delivery: &Delivery) -> Option<core_observer::FlagValue> {
+        delivery.values.first().and_then(|(_, value)| value.clone())
+    }
+
+    fn cancel(&self) {
+        self.subscription.cancel();
+        self.mailbox.close();
+    }
+}
+
+/// One delivery to a bool observation. `Closed` ends the host drain loop
+#[derive(Debug, uniffi::Enum)]
+pub enum BoolDelivery {
+    Value { revision: u64, value: Option<bool> },
+    Closed,
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct BoolObservation {
+    inner: Observation,
+}
+
+#[uniffi::export]
+impl BoolObservation {
+    /// Value at registration, evaluated inside the same critical section that
+    /// inserted the subscription. `None` is unavailable, which the wrapper
+    /// resolves to the caller's default
+    pub fn seed(&self) -> Option<bool> {
+        self.inner.single_seed().and_then(|value| value.as_bool())
+    }
+
+    /// Resolves with the next batch, or `Closed` once the observation is
+    /// cancelled or the client shuts down. Await it in a loop: no thread is
+    /// blocked while it is pending, so a React Native host can drive it straight
+    /// from the JavaScript thread
+    pub async fn poll_next(&self) -> BoolDelivery {
+        match self.inner.mailbox.next().await {
+            Some(delivery) => BoolDelivery::Value {
+                revision: delivery.revision,
+                value: Observation::single_value(&delivery).and_then(|value| value.as_bool()),
+            },
+            None => BoolDelivery::Closed,
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.subscription.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.subscription.is_cancelled()
+    }
+}
+
+/// One delivery to a string observation. `Closed` ends the host drain loop
+#[derive(Debug, uniffi::Enum)]
+pub enum StringDelivery {
+    Value {
+        revision: u64,
+        value: Option<String>,
+    },
+    Closed,
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct StringObservation {
+    inner: Observation,
+}
+
+#[uniffi::export]
+impl StringObservation {
+    /// Value at registration, evaluated inside the same critical section that
+    /// inserted the subscription. `None` is unavailable, which the wrapper
+    /// resolves to the caller's default
+    pub fn seed(&self) -> Option<String> {
+        self.inner.single_seed().and_then(|value| value.as_string())
+    }
+
+    /// Resolves with the next batch, or `Closed` once the observation is
+    /// cancelled or the client shuts down
+    pub async fn poll_next(&self) -> StringDelivery {
+        match self.inner.mailbox.next().await {
+            Some(delivery) => StringDelivery::Value {
+                revision: delivery.revision,
+                value: Observation::single_value(&delivery).and_then(|value| value.as_string()),
+            },
+            None => StringDelivery::Closed,
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.subscription.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.subscription.is_cancelled()
+    }
+}
+
+/// One delivery to an int observation. `Closed` ends the host drain loop
+#[derive(Debug, uniffi::Enum)]
+pub enum IntDelivery {
+    Value { revision: u64, value: Option<i64> },
+    Closed,
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct IntObservation {
+    inner: Observation,
+}
+
+#[uniffi::export]
+impl IntObservation {
+    /// Value at registration, evaluated inside the same critical section that
+    /// inserted the subscription. `None` is unavailable, which the wrapper
+    /// resolves to the caller's default
+    pub fn seed(&self) -> Option<i64> {
+        self.inner.single_seed().and_then(|value| value.as_int())
+    }
+
+    /// Resolves with the next batch, or `Closed` once the observation is
+    /// cancelled or the client shuts down
+    pub async fn poll_next(&self) -> IntDelivery {
+        match self.inner.mailbox.next().await {
+            Some(delivery) => IntDelivery::Value {
+                revision: delivery.revision,
+                value: Observation::single_value(&delivery).and_then(|value| value.as_int()),
+            },
+            None => IntDelivery::Closed,
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.subscription.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.subscription.is_cancelled()
+    }
+}
+
+/// One delivery to a number observation. `Closed` ends the host drain loop
+#[derive(Debug, uniffi::Enum)]
+pub enum NumberDelivery {
+    Value { revision: u64, value: Option<f64> },
+    Closed,
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct NumberObservation {
+    inner: Observation,
+}
+
+#[uniffi::export]
+impl NumberObservation {
+    /// Value at registration, evaluated inside the same critical section that
+    /// inserted the subscription. `None` is unavailable, which the wrapper
+    /// resolves to the caller's default
+    pub fn seed(&self) -> Option<f64> {
+        self.inner.single_seed().and_then(|value| value.as_number())
+    }
+
+    /// Resolves with the next batch, or `Closed` once the observation is
+    /// cancelled or the client shuts down
+    pub async fn poll_next(&self) -> NumberDelivery {
+        match self.inner.mailbox.next().await {
+            Some(delivery) => NumberDelivery::Value {
+                revision: delivery.revision,
+                value: Observation::single_value(&delivery).and_then(|value| value.as_number()),
+            },
+            None => NumberDelivery::Closed,
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.subscription.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.subscription.is_cancelled()
+    }
+}
+
+/// One delivery to a JSON observation, carrying the JSON-encoded string because
+/// the binding layer has no native JSON type. `Closed` ends the host drain loop
+#[derive(Debug, uniffi::Enum)]
+pub enum JsonDelivery {
+    Value {
+        revision: u64,
+        value: Option<String>,
+    },
+    Closed,
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct JsonObservation {
+    inner: Observation,
+}
+
+#[uniffi::export]
+impl JsonObservation {
+    /// Value at registration, evaluated inside the same critical section that
+    /// inserted the subscription. `None` is unavailable, which the wrapper
+    /// resolves to the caller's default
+    pub fn seed(&self) -> Option<String> {
+        self.inner
+            .single_seed()
+            .and_then(|value| value.as_json_string())
+    }
+
+    /// Resolves with the next batch, or `Closed` once the observation is
+    /// cancelled or the client shuts down
+    pub async fn poll_next(&self) -> JsonDelivery {
+        match self.inner.mailbox.next().await {
+            Some(delivery) => JsonDelivery::Value {
+                revision: delivery.revision,
+                value: Observation::single_value(&delivery)
+                    .and_then(|value| value.as_json_string()),
+            },
+            None => JsonDelivery::Closed,
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.subscription.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.subscription.is_cancelled()
+    }
+}
+
+#[derive(Debug, uniffi::Enum)]
+pub enum BundleDelivery {
+    Value {
+        revision: u64,
+        /// Complete map over every subscribed key. An unavailable key is present
+        /// with a `None` value rather than omitted, so a batch never loses a key
+        values: HashMap<String, Option<FlagValue>>,
+    },
+    Closed,
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct BundleObservation {
+    inner: Observation,
+}
+
+#[uniffi::export]
+impl BundleObservation {
+    pub fn seed(&self) -> HashMap<String, Option<FlagValue>> {
+        to_ffi_map(&self.inner.seed)
+    }
+
+    pub async fn poll_next(&self) -> BundleDelivery {
+        match self.inner.mailbox.next().await {
+            Some(delivery) => BundleDelivery::Value {
+                revision: delivery.revision,
+                values: to_ffi_map(&delivery.values),
+            },
+            None => BundleDelivery::Closed,
+        }
+    }
+
+    pub fn cancel(&self) {
+        self.inner.cancel();
+    }
+
+    pub fn keys(&self) -> Vec<String> {
+        self.inner.subscription.keys().to_vec()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.inner.subscription.is_cancelled()
+    }
+}
+
+fn to_ffi_map(
+    values: &[(String, Option<core_observer::FlagValue>)],
+) -> HashMap<String, Option<FlagValue>> {
+    values
+        .iter()
+        .map(|(key, value)| (key.clone(), value.clone().map(FlagValue::from)))
+        .collect()
+}
+
+/// Observation registration. Each typed shape subscribes to a single key and
+/// projects every delivery onto that type; the bundle subscribes to many keys
+/// and carries raw values
+#[uniffi::export]
+impl CoproductClient {
+    pub fn observe_bool(&self, key: String) -> Arc<BoolObservation> {
+        Arc::new(BoolObservation {
+            inner: Observation::register(&self.inner, vec![key]),
+        })
+    }
+
+    pub fn observe_string(&self, key: String) -> Arc<StringObservation> {
+        Arc::new(StringObservation {
+            inner: Observation::register(&self.inner, vec![key]),
+        })
+    }
+
+    pub fn observe_int(&self, key: String) -> Arc<IntObservation> {
+        Arc::new(IntObservation {
+            inner: Observation::register(&self.inner, vec![key]),
+        })
+    }
+
+    pub fn observe_number(&self, key: String) -> Arc<NumberObservation> {
+        Arc::new(NumberObservation {
+            inner: Observation::register(&self.inner, vec![key]),
+        })
+    }
+
+    pub fn observe_json(&self, key: String) -> Arc<JsonObservation> {
+        Arc::new(JsonObservation {
+            inner: Observation::register(&self.inner, vec![key]),
+        })
+    }
+
+    pub fn observe_bundle(&self, keys: Vec<String>) -> Arc<BundleObservation> {
+        Arc::new(BundleObservation {
+            inner: Observation::register(&self.inner, keys),
+        })
     }
 }
 
@@ -980,11 +1500,6 @@ struct SecureStoreAdapter {
 }
 
 #[derive(Debug)]
-struct ObserverAdapter {
-    host: Arc<dyn FlagObserver>,
-}
-
-#[derive(Debug)]
 struct LifecycleHandlerAdapter {
     host: Arc<dyn LifecycleHandler>,
 }
@@ -1036,17 +1551,6 @@ impl core_secure_store::SecureStore for SecureStoreAdapter {
             .write(key, value)
             .await
             .map_err(to_core_secure_store_error)
-    }
-}
-
-// Maps the core typed value onto the FFI value and forwards it to the host
-// observer. A host callback error is ignored so one failing observer cannot
-// abort fanout to the others
-#[async_trait::async_trait]
-impl core_observer::TypedFlagObserver for ObserverAdapter {
-    async fn on_change(&self, key: &str, value: &core_observer::FlagValue) {
-        let ffi_value = FlagValue::from(value.clone());
-        let _ = self.host.on_change(key.to_string(), ffi_value).await;
     }
 }
 
@@ -1255,5 +1759,253 @@ impl EvaluationContextHandle {
     pub fn set_attribute(&self, name: String, value: AttributeValueFfi) {
         let mut guard = self.inner.lock();
         guard.set_attribute(name, value.into());
+    }
+}
+
+#[cfg(test)]
+mod mailbox_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::task::Wake;
+
+    /// Counts wakes so a test can prove the drain future was actually registered
+    /// as waiting and then woken, rather than inferring it from a sleep
+    #[derive(Debug, Default)]
+    struct CountingWaker {
+        wakes: AtomicUsize,
+    }
+
+    impl Wake for CountingWaker {
+        fn wake(self: Arc<Self>) {
+            self.wakes.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    /// Poll a throwaway drain future once. Only valid for the immediate cases
+    /// (a batch is already held, or the mailbox is closed), because the future is
+    /// dropped here and a parked one would deregister its waiter on the way out.
+    /// Anything that parks and then expects a wake must keep its future alive
+    /// with `pin!`, as the tests below do
+    fn poll_once(mailbox: &Mailbox, counter: &Arc<CountingWaker>) -> Poll<Option<Delivery>> {
+        let waker = Waker::from(counter.clone());
+        let mut cx = Context::from_waker(&waker);
+        let mut future = mailbox.next();
+        Pin::new(&mut future).poll(&mut cx)
+    }
+
+    fn delivery(revision: u64, value: bool) -> Delivery {
+        Delivery {
+            revision,
+            values: vec![("k".to_string(), Some(core_observer::FlagValue::Bool(value)))],
+        }
+    }
+
+    #[test]
+    fn recording_does_not_wake_and_notifying_does() {
+        // The split is load-bearing: recording happens under the core delivery
+        // lane, and a UniFFI wake resumes a foreign continuation inline, so a wake
+        // from record would run foreign code under the lane
+        let mailbox = Mailbox::open();
+        let counter = Arc::new(CountingWaker::default());
+        let waker = Waker::from(counter.clone());
+        let mut cx = Context::from_waker(&waker);
+        // The drain stays alive across the record and the notify. A future dropped
+        // while parked deregisters its waiter, which is the production behavior
+        // this test must not accidentally exercise
+        let mut drain = std::pin::pin!(mailbox.next());
+        assert!(
+            drain.as_mut().poll(&mut cx).is_pending(),
+            "an empty mailbox parks the drain"
+        );
+        assert_eq!(counter.wakes.load(Ordering::SeqCst), 0);
+
+        mailbox.record(delivery(4, true));
+        assert_eq!(
+            counter.wakes.load(Ordering::SeqCst),
+            0,
+            "recording under the lane must not wake"
+        );
+
+        mailbox.notify();
+        assert_eq!(
+            counter.wakes.load(Ordering::SeqCst),
+            1,
+            "notifying after the lane is released woke the parked drain"
+        );
+        match drain.as_mut().poll(&mut cx) {
+            Poll::Ready(Some(received)) => assert_eq!(received.revision, 4),
+            other => panic!("expected the recorded batch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn recording_coalesces_to_the_latest_batch() {
+        let mailbox = Mailbox::open();
+        let counter = Arc::new(CountingWaker::default());
+        mailbox.record(delivery(1, true));
+        mailbox.notify();
+        mailbox.record(delivery(2, false));
+        mailbox.notify();
+        match poll_once(&mailbox, &counter) {
+            Poll::Ready(Some(received)) => assert_eq!(received.revision, 2),
+            other => panic!("expected the latest batch, got {other:?}"),
+        }
+        assert!(
+            poll_once(&mailbox, &counter).is_pending(),
+            "only one batch was held"
+        );
+    }
+
+    #[test]
+    fn closing_resolves_a_parked_drain() {
+        let mailbox = Mailbox::open();
+        let counter = Arc::new(CountingWaker::default());
+        let waker = Waker::from(counter.clone());
+        let mut cx = Context::from_waker(&waker);
+        let mut drain = std::pin::pin!(mailbox.next());
+        assert!(drain.as_mut().poll(&mut cx).is_pending());
+
+        mailbox.close();
+        assert_eq!(
+            counter.wakes.load(Ordering::SeqCst),
+            1,
+            "closing woke the drain"
+        );
+        assert_eq!(
+            drain.as_mut().poll(&mut cx),
+            Poll::Ready(None),
+            "a closed mailbox ends the drain loop"
+        );
+    }
+
+    #[test]
+    fn re_polling_a_parked_drain_does_not_accumulate_wakers() {
+        let mailbox = Mailbox::open();
+        let counter = Arc::new(CountingWaker::default());
+        let waker = Waker::from(counter.clone());
+        let mut cx = Context::from_waker(&waker);
+        let mut drain = std::pin::pin!(mailbox.next());
+        assert!(drain.as_mut().poll(&mut cx).is_pending());
+        assert!(drain.as_mut().poll(&mut cx).is_pending());
+        mailbox.close();
+        assert_eq!(counter.wakes.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn an_abandoned_drain_leaves_no_waker_behind() {
+        // A host that starts poll_next and drops it (a cancelled task, a timeout)
+        // must not leave its waker in the mailbox, or repeated cancellation would
+        // grow the waker list until the next delivery
+        let mailbox = Mailbox::open();
+        let abandoned: Vec<Arc<CountingWaker>> = (0..3)
+            .map(|_| {
+                let counter = Arc::new(CountingWaker::default());
+                let waker = Waker::from(counter.clone());
+                let mut cx = Context::from_waker(&waker);
+                let mut future = mailbox.next();
+                assert!(Pin::new(&mut future).poll(&mut cx).is_pending());
+                // `future` drops here, deregistering its waiter
+                counter
+            })
+            .collect();
+
+        // The live drain, unlike the abandoned ones, stays alive across the wake
+        let live = Arc::new(CountingWaker::default());
+        let waker = Waker::from(live.clone());
+        let mut cx = Context::from_waker(&waker);
+        let mut drain = std::pin::pin!(mailbox.next());
+        assert!(drain.as_mut().poll(&mut cx).is_pending());
+
+        mailbox.record(delivery(1, true));
+        mailbox.notify();
+
+        for counter in &abandoned {
+            assert_eq!(
+                counter.wakes.load(Ordering::SeqCst),
+                0,
+                "an abandoned drain's waker was still registered"
+            );
+        }
+        assert_eq!(live.wakes.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_batch_racing_a_close_is_dropped_and_the_loop_still_terminates() {
+        let mailbox = Mailbox::open();
+        let counter = Arc::new(CountingWaker::default());
+        mailbox.close();
+        mailbox.record(delivery(9, true));
+        mailbox.notify();
+        assert_eq!(poll_once(&mailbox, &counter), Poll::Ready(None));
+    }
+
+    #[test]
+    fn the_adapter_records_without_waking_and_wakes_after_delivery() {
+        // Guards the split at the adapter, not just at the mailbox. `after_delivery`
+        // has an empty default body on the core trait, so losing the override here
+        // would silently stop every host drain loop, and moving the notify into
+        // `on_transition` would resume a foreign continuation under the delivery lane
+        use core_observer::TypedFlagObserver;
+
+        let mailbox = Arc::new(Mailbox::open());
+        let counter = Arc::new(CountingWaker::default());
+        let waker = Waker::from(counter.clone());
+        let mut cx = Context::from_waker(&waker);
+        let mut drain = std::pin::pin!(mailbox.next());
+        assert!(drain.as_mut().poll(&mut cx).is_pending());
+
+        let observer = MailboxObserver {
+            mailbox: mailbox.clone(),
+        };
+        observer.on_transition(
+            7,
+            &[("k".to_string(), Some(core_observer::FlagValue::Bool(true)))],
+        );
+        assert_eq!(
+            counter.wakes.load(Ordering::SeqCst),
+            0,
+            "on_transition runs under the lane and must not wake"
+        );
+
+        observer.after_delivery();
+        assert_eq!(
+            counter.wakes.load(Ordering::SeqCst),
+            1,
+            "after_delivery is where the wake happens"
+        );
+        match drain.as_mut().poll(&mut cx) {
+            Poll::Ready(Some(received)) => assert_eq!(received.revision, 7),
+            other => panic!("expected the recorded batch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn closing_the_adapter_closes_the_mailbox() {
+        let mailbox = Arc::new(Mailbox::open());
+        let counter = Arc::new(CountingWaker::default());
+        let waker = Waker::from(counter.clone());
+        let mut cx = Context::from_waker(&waker);
+        let mut drain = std::pin::pin!(mailbox.next());
+        assert!(drain.as_mut().poll(&mut cx).is_pending());
+
+        // The core hands the adapter its end-of-life close when the subscription
+        // ends, which must release the parked drain
+        let observer = MailboxObserver {
+            mailbox: mailbox.clone(),
+        };
+        core_observer::TypedFlagObserver::on_close(&observer);
+        assert_eq!(counter.wakes.load(Ordering::SeqCst), 1);
+        assert_eq!(drain.as_mut().poll(&mut cx), Poll::Ready(None));
+    }
+
+    #[test]
+    fn dropping_the_adapter_closes_the_mailbox_as_a_backstop() {
+        let mailbox = Arc::new(Mailbox::open());
+        let counter = Arc::new(CountingWaker::default());
+        let observer = MailboxObserver {
+            mailbox: mailbox.clone(),
+        };
+        drop(observer);
+        assert_eq!(poll_once(&mailbox, &counter), Poll::Ready(None));
     }
 }

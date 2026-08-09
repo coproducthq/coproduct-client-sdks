@@ -168,6 +168,22 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus
   ): void;
   ubrn_ffi_coproduct_ffi_uniffi_rust_future_free_void(handle: bigint): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
@@ -197,14 +213,6 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus
   ): bigint;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_free_evaluationlistener(
-    ptr: bigint,
-    uniffi_out_err: UniffiRustCallStatus
-  ): void;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(
-    ptr: bigint,
-    uniffi_out_err: UniffiRustCallStatus
-  ): bigint;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): void;
@@ -240,6 +248,22 @@ interface NativeModuleInterface {
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_intobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_intobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
@@ -248,11 +272,19 @@ interface NativeModuleInterface {
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): void;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_subscription(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): bigint;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_subscription(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation(
+    ptr: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(
     ptr: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): void;
@@ -261,9 +293,6 @@ interface NativeModuleInterface {
   ): void;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_evaluationlistener(
     vtable: UniffiVTableCallbackInterfaceCoproductFfiUniffiEvaluationListener
-  ): void;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(
-    vtable: UniffiVTableCallbackInterfaceCoproductFfiUniffiFlagObserver
   ): void;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_hostsecurestore(
     vtable: UniffiVTableCallbackInterfaceCoproductFfiUniffiHostSecureStore
@@ -288,6 +317,44 @@ interface NativeModuleInterface {
     transport: bigint,
     secureStore: bigint
   ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next(
+    uniffiSelf: bigint
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next(
+    uniffiSelf: bigint
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_evaluation_hook(
     uniffiSelf: bigint,
     hook: bigint,
@@ -370,16 +437,34 @@ interface NativeModuleInterface {
     attributes: Uint8Array,
     linkAnonymous: number
   ): bigint;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool(
     uniffiSelf: bigint,
     key: Uint8Array,
-    observer: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): bigint;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle(
     uniffiSelf: bigint,
     keys: Uint8Array,
-    observer: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string(
+    uniffiSelf: bigint,
+    key: Uint8Array,
     uniffi_out_err: UniffiRustCallStatus
   ): bigint;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(
@@ -455,11 +540,6 @@ interface NativeModuleInterface {
     event: Uint8Array,
     uniffi_out_err: UniffiRustCallStatus
   ): void;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(
-    uniffiSelf: bigint,
-    key: Uint8Array,
-    value: Uint8Array
-  ): bigint;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_handlerhandle_cancel(
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus
@@ -497,29 +577,99 @@ interface NativeModuleInterface {
     uniffiSelf: bigint,
     req: Uint8Array
   ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next(
+    uniffiSelf: bigint
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next(
+    uniffiSelf: bigint
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_lifecyclehandler_on_event(
     uniffiSelf: bigint,
     event: Uint8Array
   ): bigint;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel(
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): void;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(
-    uniffiSelf: bigint,
-    uniffi_out_err: UniffiRustCallStatus
-  ): bigint;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled(
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next(
+    uniffiSelf: bigint
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): void;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys(
+    uniffiSelf: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next(
+    uniffiSelf: bigint
+  ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): Uint8Array;
   ubrn_ffi_coproduct_ffi_uniffi_uniffi_contract_version(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_initialize(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(): number;
@@ -534,8 +684,12 @@ interface NativeModuleInterface {
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(): number;
@@ -553,7 +707,6 @@ interface NativeModuleInterface {
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled(): number;
@@ -563,11 +716,35 @@ interface NativeModuleInterface {
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_write(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled(): number;
-  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed(): number;
+  ubrn_uniffi_internal_fn_method_boolobservation_ffi__bless_pointer(
+    pointer: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): UniffiGcObject;
+  ubrn_uniffi_internal_fn_method_bundleobservation_ffi__bless_pointer(
+    pointer: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): UniffiGcObject;
   ubrn_uniffi_internal_fn_method_evaluationhook_ffi__bless_pointer(
     pointer: bigint,
     uniffi_out_err: UniffiRustCallStatus
@@ -584,11 +761,19 @@ interface NativeModuleInterface {
     pointer: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): UniffiGcObject;
-  ubrn_uniffi_internal_fn_method_flagobserver_ffi__bless_pointer(
+  ubrn_uniffi_internal_fn_method_intobservation_ffi__bless_pointer(
     pointer: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): UniffiGcObject;
-  ubrn_uniffi_internal_fn_method_subscription_ffi__bless_pointer(
+  ubrn_uniffi_internal_fn_method_jsonobservation_ffi__bless_pointer(
+    pointer: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): UniffiGcObject;
+  ubrn_uniffi_internal_fn_method_numberobservation_ffi__bless_pointer(
+    pointer: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): UniffiGcObject;
+  ubrn_uniffi_internal_fn_method_stringobservation_ffi__bless_pointer(
     pointer: bigint,
     uniffi_out_err: UniffiRustCallStatus
   ): UniffiGcObject;
@@ -666,31 +851,6 @@ export type UniffiVTableCallbackInterfaceCoproductFfiUniffiEvaluationListener =
     uniffi_clone: UniffiCallbackInterfaceCloneCoproductFfiUniffiEvaluationListener;
     on_evaluation: UniffiCallbackInterfaceCoproductFfiUniffiEvaluationListenerMethod0;
   };
-export type UniffiForeignFutureResultVoid = {
-  call_status: UniffiRustCallStatus;
-};
-export type UniffiForeignFutureCompletevoid = (
-  callbackData: bigint,
-  result: UniffiForeignFutureResultVoid
-) => void;
-type UniffiCallbackInterfaceCoproductFfiUniffiFlagObserverMethod0 = (
-  uniffiHandle: bigint,
-  key: Uint8Array,
-  value: Uint8Array,
-  uniffiFutureCallback: UniffiForeignFutureCompletevoid,
-  uniffiCallbackData: bigint
-) => UniffiForeignFutureDroppedCallbackStruct;
-type UniffiCallbackInterfaceCloneCoproductFfiUniffiFlagObserver = (
-  handle: bigint
-) => UniffiResult<void>;
-type UniffiCallbackInterfaceFreeCoproductFfiUniffiFlagObserver = (
-  handle: bigint
-) => void;
-export type UniffiVTableCallbackInterfaceCoproductFfiUniffiFlagObserver = {
-  uniffi_free: UniffiCallbackInterfaceFreeCoproductFfiUniffiFlagObserver;
-  uniffi_clone: UniffiCallbackInterfaceCloneCoproductFfiUniffiFlagObserver;
-  on_change: UniffiCallbackInterfaceCoproductFfiUniffiFlagObserverMethod0;
-};
 export type UniffiForeignFutureResultRustBuffer = {
   return_value: Uint8Array;
   call_status: UniffiRustCallStatus;
@@ -705,6 +865,13 @@ type UniffiCallbackInterfaceCoproductFfiUniffiHostSecureStoreMethod0 = (
   uniffiFutureCallback: UniffiForeignFutureCompleterustBuffer,
   uniffiCallbackData: bigint
 ) => UniffiForeignFutureDroppedCallbackStruct;
+export type UniffiForeignFutureResultVoid = {
+  call_status: UniffiRustCallStatus;
+};
+export type UniffiForeignFutureCompletevoid = (
+  callbackData: bigint,
+  result: UniffiForeignFutureResultVoid
+) => void;
 type UniffiCallbackInterfaceCoproductFfiUniffiHostSecureStoreMethod1 = (
   uniffiHandle: bigint,
   key: Uint8Array,

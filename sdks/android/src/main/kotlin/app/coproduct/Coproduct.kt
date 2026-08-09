@@ -1,16 +1,21 @@
 package app.coproduct
 
 import android.content.Context
+import android.util.Log
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import uniffi.coproduct_ffi_uniffi.BoolDelivery
+import uniffi.coproduct_ffi_uniffi.BoolObservation
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
 import uniffi.coproduct_ffi_uniffi.FfiConfig
-import uniffi.coproduct_ffi_uniffi.FlagObserver
-import uniffi.coproduct_ffi_uniffi.FlagValue
 import uniffi.coproduct_ffi_uniffi.HostSecureStore
 import uniffi.coproduct_ffi_uniffi.HostTransport
 import uniffi.coproduct_ffi_uniffi.HttpResponse
-import uniffi.coproduct_ffi_uniffi.Subscription
 import uniffi.coproduct_ffi_uniffi.initialize
 
 // Validation transport used by the current convenience initializer. The public
@@ -109,30 +114,83 @@ class CoproductClient internal constructor(
         return inner.getBool(key, defaultValue)
     }
 
-    // Low-level observer hook used by current demos. Higher-level UI bindings can
-    // layer on top of this cancellation primitive.
+    // Low-level observation hook used by current demos. Higher-level UI bindings
+    // can layer on top of this cancellation primitive. The handler is invoked
+    // once with the value at subscription and then on every change. A key with no
+    // usable value resolves to defaultValue
     fun observe(
         key: String,
-        @Suppress("UNUSED_PARAMETER") defaultValue: Boolean,
+        defaultValue: Boolean,
         handler: (Boolean) -> Unit,
     ): Cancellable {
-        val observer = object : FlagObserver {
-            override suspend fun onChange(key: String, value: FlagValue) {
-                val boolValue = (value as? FlagValue.Bool)?.value ?: return
-                withContext(Dispatchers.Main.immediate) {
-                    handler(boolValue)
+        val observation = inner.observeBool(key)
+        val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+        // The drain runs off the core delivery lane, so a handler that calls back
+        // into the SDK cannot stall delivery
+        scope.launch {
+            val seed = try {
+                observation.seed()
+            } catch (error: Throwable) {
+                // A cancel racing this launch can destroy the observation before
+                // the seed read runs. There is nothing left to drain
+                Log.e(LOG_TAG, "flag observation seed failed for $key", error)
+                return@launch
+            }
+            deliver(handler, seed ?: defaultValue)
+            while (true) {
+                val delivery = try {
+                    observation.pollNext()
+                } catch (error: Throwable) {
+                    // The observation was destroyed underneath the loop, or the
+                    // bridge failed. Either way there is nothing left to drain
+                    Log.e(LOG_TAG, "flag observation drain ended for $key", error)
+                    return@launch
+                }
+                when (delivery) {
+                    is BoolDelivery.Value -> deliver(handler, delivery.value ?: defaultValue)
+                    is BoolDelivery.Closed -> return@launch
                 }
             }
         }
-        return Cancellable(inner.observeKey(key, observer))
+        return Cancellable(observation, scope)
+    }
+
+    // A handler failure is the developer's, not the SDK's. It is reported through
+    // the platform log and swallowed so one bad callback cannot end delivery for
+    // an observation that is still live
+    private suspend fun deliver(handler: (Boolean) -> Unit, value: Boolean) {
+        withContext(Dispatchers.Main.immediate) {
+            try {
+                handler(value)
+            } catch (error: Throwable) {
+                Log.e(LOG_TAG, "flag observation handler threw", error)
+            }
+        }
     }
 }
 
+private const val LOG_TAG = "Coproduct"
+
 class Cancellable internal constructor(
-    private val subscription: Subscription,
+    private val observation: BoolObservation,
+    private val scope: CoroutineScope,
 ) {
+    private val cancelled = AtomicBoolean(false)
+
+    // Idempotent. A second call must not reach the generated object: `destroy`
+    // itself is idempotent, but any exported method called after it throws
+    // IllegalStateException from the generated call counter
     fun cancel() {
-        subscription.destroy()
+        if (!cancelled.compareAndSet(false, true)) {
+            return
+        }
+        // Cancelling closes the mailbox, so a pollNext parked right now resolves
+        // to Closed. The loop may still be between that resolution and its return
+        // when destroy runs, which is why the drain treats a throw from pollNext
+        // as a normal end rather than an error to surface
+        observation.cancel()
+        scope.cancel()
+        observation.destroy()
     }
 }
 

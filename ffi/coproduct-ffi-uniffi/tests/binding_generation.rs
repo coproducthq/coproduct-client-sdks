@@ -57,11 +57,9 @@ fn committed_swift_bindings_expose_lifecycle_surface() {
 }
 
 #[test]
-fn committed_swift_bindings_expose_observer_and_lifecycle_handlers() {
+fn committed_swift_bindings_expose_lifecycle_handler_surface() {
     let src = std::fs::read_to_string(generated_swift()).expect("committed swift bindings exist");
     for symbol in [
-        "func observeKey",
-        "func observeKeys",
         "func addHandler",
         "func addEvaluationHook",
         "func setEvaluationListener",
@@ -92,6 +90,27 @@ fn committed_swift_bindings_expose_identity_surface() {
         "func previousAnonymousId(",
         "enum ContextValue",
         "enum FfiIdentityError",
+    ] {
+        assert!(
+            src.contains(symbol),
+            "committed bindings missing symbol: {symbol}"
+        );
+    }
+}
+
+#[test]
+fn committed_swift_bindings_expose_typed_observations() {
+    let src = std::fs::read_to_string(generated_swift()).expect("committed swift bindings exist");
+    for symbol in [
+        "func observeBool(",
+        "func observeString(",
+        "func observeInt(",
+        "func observeNumber(",
+        "func observeJson(",
+        "func observeBundle(",
+        "func pollNext(",
+        "enum BoolDelivery",
+        "enum BundleDelivery",
     ] {
         assert!(
             src.contains(symbol),

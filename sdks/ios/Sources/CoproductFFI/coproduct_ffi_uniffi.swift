@@ -588,6 +588,358 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 
+public protocol BoolObservationProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+    func keys()  -> [String]
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down. Await it in a loop: no thread is
+     * blocked while it is pending, so a React Native host can drive it straight
+     * from the JavaScript thread
+     */
+    func pollNext() async  -> BoolDelivery
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+    func seed()  -> Bool?
+    
+}
+open class BoolObservation: BoolObservationProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func keys() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down. Await it in a loop: no thread is
+     * blocked while it is pending, so a React Native host can drive it straight
+     * from the JavaScript thread
+     */
+open func pollNext()async  -> BoolDelivery  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBoolDelivery_lift,
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+open func seed() -> Bool?  {
+    return try!  FfiConverterOptionBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBoolObservation: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = BoolObservation
+
+    public static func lift(_ handle: UInt64) throws -> BoolObservation {
+        return BoolObservation(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: BoolObservation) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BoolObservation {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: BoolObservation, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBoolObservation_lift(_ handle: UInt64) throws -> BoolObservation {
+    return try FfiConverterTypeBoolObservation.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBoolObservation_lower(_ value: BoolObservation) -> UInt64 {
+    return FfiConverterTypeBoolObservation.lower(value)
+}
+
+
+
+
+
+
+public protocol BundleObservationProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+    func keys()  -> [String]
+    
+    func pollNext() async  -> BundleDelivery
+    
+    func seed()  -> [String: FlagValue?]
+    
+}
+open class BundleObservation: BundleObservationProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func keys() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func pollNext()async  -> BundleDelivery  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeBundleDelivery_lift,
+            errorHandler: nil
+            
+        )
+}
+    
+open func seed() -> [String: FlagValue?]  {
+    return try!  FfiConverterDictionaryStringOptionTypeFlagValue.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBundleObservation: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = BundleObservation
+
+    public static func lift(_ handle: UInt64) throws -> BundleObservation {
+        return BundleObservation(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: BundleObservation) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BundleObservation {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: BundleObservation, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBundleObservation_lift(_ handle: UInt64) throws -> BundleObservation {
+    return try FfiConverterTypeBundleObservation.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBundleObservation_lower(_ value: BundleObservation) -> UInt64 {
+    return FfiConverterTypeBundleObservation.lower(value)
+}
+
+
+
+
+
+
 public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func addEvaluationHook(hook: EvaluationHook)  -> HookHandle
@@ -627,9 +979,17 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func identify(userId: String, attributes: [String: ContextValue], linkAnonymous: Bool) async throws 
     
-    func observeKey(key: String, observer: FlagObserver)  -> Subscription
+    func observeBool(key: String)  -> BoolObservation
     
-    func observeKeys(keys: [String], observer: FlagObserver)  -> Subscription
+    func observeBundle(keys: [String])  -> BundleObservation
+    
+    func observeInt(key: String)  -> IntObservation
+    
+    func observeJson(key: String)  -> JsonObservation
+    
+    func observeNumber(key: String)  -> NumberObservation
+    
+    func observeString(key: String)  -> StringObservation
     
     func pollNow() async  -> PollOutcome
     
@@ -868,22 +1228,56 @@ open func identify(userId: String, attributes: [String: ContextValue], linkAnony
         )
 }
     
-open func observeKey(key: String, observer: FlagObserver) -> Subscription  {
-    return try!  FfiConverterTypeSubscription_lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(
+open func observeBool(key: String) -> BoolObservation  {
+    return try!  FfiConverterTypeBoolObservation_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool(
             self.uniffiCloneHandle(),
-        FfiConverterString.lower(key),
-        FfiConverterTypeFlagObserver_lower(observer),$0
+        FfiConverterString.lower(key),$0
     )
 })
 }
     
-open func observeKeys(keys: [String], observer: FlagObserver) -> Subscription  {
-    return try!  FfiConverterTypeSubscription_lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(
+open func observeBundle(keys: [String]) -> BundleObservation  {
+    return try!  FfiConverterTypeBundleObservation_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle(
             self.uniffiCloneHandle(),
-        FfiConverterSequenceString.lower(keys),
-        FfiConverterTypeFlagObserver_lower(observer),$0
+        FfiConverterSequenceString.lower(keys),$0
+    )
+})
+}
+    
+open func observeInt(key: String) -> IntObservation  {
+    return try!  FfiConverterTypeIntObservation_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),$0
+    )
+})
+}
+    
+open func observeJson(key: String) -> JsonObservation  {
+    return try!  FfiConverterTypeJsonObservation_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),$0
+    )
+})
+}
+    
+open func observeNumber(key: String) -> NumberObservation  {
+    return try!  FfiConverterTypeNumberObservation_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),$0
+    )
+})
+}
+    
+open func observeString(key: String) -> StringObservation  {
+    return try!  FfiConverterTypeStringObservation_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),$0
     )
 })
 }
@@ -1654,227 +2048,6 @@ public func FfiConverterTypeEvaluationListener_lift(_ handle: UInt64) throws -> 
 #endif
 public func FfiConverterTypeEvaluationListener_lower(_ value: EvaluationListener) -> UInt64 {
     return FfiConverterTypeEvaluationListener.lower(value)
-}
-
-
-
-
-
-
-public protocol FlagObserver: AnyObject, Sendable {
-    
-    func onChange(key: String, value: FlagValue) async throws 
-    
-}
-open class FlagObserverImpl: FlagObserver, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        if handle == 0 {
-            // Mock objects have handle=0 don't try to free them
-            return
-        }
-
-        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(handle, $0) }
-    }
-
-    
-
-    
-open func onChange(key: String, value: FlagValue)async throws   {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(
-                    self.uniffiCloneHandle(),
-                    FfiConverterString.lower(key),FfiConverterTypeFlagValue_lower(value)
-                )
-            },
-            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_void,
-            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_void,
-            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_void,
-            liftFunc: { $0 },
-            errorHandler: FfiConverterTypeObserverError_lift
-        )
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceFlagObserver {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // Store the vtable directly.
-    static let vtable: UniffiVTableCallbackInterfaceFlagObserver = UniffiVTableCallbackInterfaceFlagObserver(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeFlagObserver.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface FlagObserver: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeFlagObserver.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface FlagObserver: handle missing in uniffiClone")
-            }
-        },
-        onChange: { (
-            uniffiHandle: UInt64,
-            key: RustBuffer,
-            value: RustBuffer,
-            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
-            uniffiCallbackData: UInt64,
-            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
-        ) in
-            let makeCall = {
-                () async throws -> () in
-                guard let uniffiObj = try? FfiConverterTypeFlagObserver.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try await uniffiObj.onChange(
-                     key: try FfiConverterString.lift(key),
-                     value: try FfiConverterTypeFlagValue_lift(value)
-                )
-            }
-
-            let uniffiHandleSuccess = { (returnValue: ()) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultVoid(
-                        callStatus: RustCallStatus()
-                    )
-                )
-            }
-            let uniffiHandleError = { (statusCode, errorBuf) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultVoid(
-                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
-                    )
-                )
-            }
-            uniffiTraitInterfaceCallAsyncWithError(
-                makeCall: makeCall,
-                handleSuccess: uniffiHandleSuccess,
-                handleError: uniffiHandleError,
-                lowerError: FfiConverterTypeObserverError_lower,
-                droppedCallback: uniffiOutDroppedCallback
-            )
-        }
-    )
-
-    // Rust stores this pointer for future callback invocations, so it must live
-    // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceFlagObserver> = {
-        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceFlagObserver>.allocate(capacity: 1)
-        ptr.initialize(to: vtable)
-        return UnsafePointer(ptr)
-    }()
-}
-
-private func uniffiCallbackInitFlagObserver() {
-    uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(UniffiCallbackInterfaceFlagObserver.vtablePtr)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFlagObserver: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<FlagObserver>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = FlagObserver
-
-    public static func lift(_ handle: UInt64) throws -> FlagObserver {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return FlagObserverImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: FlagObserver) -> UInt64 {
-         if let rustImpl = value as? FlagObserverImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlagObserver {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: FlagObserver, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFlagObserver_lift(_ handle: UInt64) throws -> FlagObserver {
-    return try FfiConverterTypeFlagObserver.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFlagObserver_lower(_ value: FlagObserver) -> UInt64 {
-    return FfiConverterTypeFlagObserver.lower(value)
 }
 
 
@@ -2668,6 +2841,372 @@ public func FfiConverterTypeHostTransport_lower(_ value: HostTransport) -> UInt6
 
 
 
+public protocol IntObservationProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+    func keys()  -> [String]
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+    func pollNext() async  -> IntDelivery
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+    func seed()  -> Int64?
+    
+}
+open class IntObservation: IntObservationProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_intobservation(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_intobservation(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func keys() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+open func pollNext()async  -> IntDelivery  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeIntDelivery_lift,
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+open func seed() -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIntObservation: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = IntObservation
+
+    public static func lift(_ handle: UInt64) throws -> IntObservation {
+        return IntObservation(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: IntObservation) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IntObservation {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: IntObservation, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIntObservation_lift(_ handle: UInt64) throws -> IntObservation {
+    return try FfiConverterTypeIntObservation.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIntObservation_lower(_ value: IntObservation) -> UInt64 {
+    return FfiConverterTypeIntObservation.lower(value)
+}
+
+
+
+
+
+
+public protocol JsonObservationProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+    func keys()  -> [String]
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+    func pollNext() async  -> JsonDelivery
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+    func seed()  -> String?
+    
+}
+open class JsonObservation: JsonObservationProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func keys() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+open func pollNext()async  -> JsonDelivery  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeJsonDelivery_lift,
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+open func seed() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeJsonObservation: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = JsonObservation
+
+    public static func lift(_ handle: UInt64) throws -> JsonObservation {
+        return JsonObservation(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: JsonObservation) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonObservation {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: JsonObservation, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonObservation_lift(_ handle: UInt64) throws -> JsonObservation {
+    return try FfiConverterTypeJsonObservation.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonObservation_lower(_ value: JsonObservation) -> UInt64 {
+    return FfiConverterTypeJsonObservation.lower(value)
+}
+
+
+
+
+
+
 /**
  * Host-supplied lifecycle handler. Fired asynchronously when the registered
  * event occurs so the host can run async work such as cache invalidation
@@ -2895,18 +3434,29 @@ public func FfiConverterTypeLifecycleHandler_lower(_ value: LifecycleHandler) ->
 
 
 
-public protocol SubscriptionProtocol: AnyObject, Sendable {
+public protocol NumberObservationProtocol: AnyObject, Sendable {
     
     func cancel() 
-    
-    func id()  -> UInt64
     
     func isCancelled()  -> Bool
     
     func keys()  -> [String]
     
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+    func pollNext() async  -> NumberDelivery
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+    func seed()  -> Double?
+    
 }
-open class Subscription: SubscriptionProtocol, @unchecked Sendable {
+open class NumberObservation: NumberObservationProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
 
     /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
@@ -2943,7 +3493,7 @@ open class Subscription: SubscriptionProtocol, @unchecked Sendable {
     @_documentation(visibility: private)
 #endif
     public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_subscription(self.handle, $0) }
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation(self.handle, $0) }
     }
     // No primary constructor declared for this class.
 
@@ -2953,30 +3503,22 @@ open class Subscription: SubscriptionProtocol, @unchecked Sendable {
             return
         }
 
-        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_subscription(handle, $0) }
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(handle, $0) }
     }
 
     
 
     
 open func cancel()  {try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(
+    uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel(
             self.uniffiCloneHandle(),$0
     )
 }
-}
-    
-open func id() -> UInt64  {
-    return try!  FfiConverterUInt64.lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(
-            self.uniffiCloneHandle(),$0
-    )
-})
 }
     
 open func isCancelled() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(
+    uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2984,7 +3526,42 @@ open func isCancelled() -> Bool  {
     
 open func keys() -> [String]  {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
-    uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(
+    uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+open func pollNext()async  -> NumberDelivery  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeNumberDelivery_lift,
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+open func seed() -> Double?  {
+    return try!  FfiConverterOptionDouble.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2998,24 +3575,24 @@ open func keys() -> [String]  {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeSubscription: FfiConverter {
+public struct FfiConverterTypeNumberObservation: FfiConverter {
     typealias FfiType = UInt64
-    typealias SwiftType = Subscription
+    typealias SwiftType = NumberObservation
 
-    public static func lift(_ handle: UInt64) throws -> Subscription {
-        return Subscription(unsafeFromHandle: handle)
+    public static func lift(_ handle: UInt64) throws -> NumberObservation {
+        return NumberObservation(unsafeFromHandle: handle)
     }
 
-    public static func lower(_ value: Subscription) -> UInt64 {
+    public static func lower(_ value: NumberObservation) -> UInt64 {
         return value.uniffiCloneHandle()
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Subscription {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NumberObservation {
         let handle: UInt64 = try readInt(&buf)
         return try lift(handle)
     }
 
-    public static func write(_ value: Subscription, into buf: inout [UInt8]) {
+    public static func write(_ value: NumberObservation, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
@@ -3024,15 +3601,198 @@ public struct FfiConverterTypeSubscription: FfiConverter {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeSubscription_lift(_ handle: UInt64) throws -> Subscription {
-    return try FfiConverterTypeSubscription.lift(handle)
+public func FfiConverterTypeNumberObservation_lift(_ handle: UInt64) throws -> NumberObservation {
+    return try FfiConverterTypeNumberObservation.lift(handle)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeSubscription_lower(_ value: Subscription) -> UInt64 {
-    return FfiConverterTypeSubscription.lower(value)
+public func FfiConverterTypeNumberObservation_lower(_ value: NumberObservation) -> UInt64 {
+    return FfiConverterTypeNumberObservation.lower(value)
+}
+
+
+
+
+
+
+public protocol StringObservationProtocol: AnyObject, Sendable {
+    
+    func cancel() 
+    
+    func isCancelled()  -> Bool
+    
+    func keys()  -> [String]
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+    func pollNext() async  -> StringDelivery
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+    func seed()  -> String?
+    
+}
+open class StringObservation: StringObservationProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(handle, $0) }
+    }
+
+    
+
+    
+open func cancel()  {try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func isCancelled() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func keys() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Resolves with the next batch, or `Closed` once the observation is
+     * cancelled or the client shuts down
+     */
+open func pollNext()async  -> StringDelivery  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_coproduct_ffi_uniffi_rust_future_poll_rust_buffer,
+            completeFunc: ffi_coproduct_ffi_uniffi_rust_future_complete_rust_buffer,
+            freeFunc: ffi_coproduct_ffi_uniffi_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStringDelivery_lift,
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Value at registration, evaluated inside the same critical section that
+     * inserted the subscription. `None` is unavailable, which the wrapper
+     * resolves to the caller's default
+     */
+open func seed() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStringObservation: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = StringObservation
+
+    public static func lift(_ handle: UInt64) throws -> StringObservation {
+        return StringObservation(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: StringObservation) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StringObservation {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: StringObservation, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStringObservation_lift(_ handle: UInt64) throws -> StringObservation {
+    return try FfiConverterTypeStringObservation.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStringObservation_lower(_ value: StringObservation) -> UInt64 {
+    return FfiConverterTypeStringObservation.lower(value)
 }
 
 
@@ -3955,6 +4715,155 @@ public func FfiConverterTypeAttributeValueFfi_lower(_ value: AttributeValueFfi) 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * One delivery to a bool observation. `Closed` ends the host drain loop
+ */
+
+public enum BoolDelivery: Equatable, Hashable {
+    
+    case value(revision: UInt64, value: Bool?
+    )
+    case closed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BoolDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBoolDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = BoolDelivery
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BoolDelivery {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .value(revision: try FfiConverterUInt64.read(from: &buf), value: try FfiConverterOptionBool.read(from: &buf)
+        )
+        
+        case 2: return .closed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BoolDelivery, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .value(revision,value):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(revision, into: &buf)
+            FfiConverterOptionBool.write(value, into: &buf)
+            
+        
+        case .closed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBoolDelivery_lift(_ buf: RustBuffer) throws -> BoolDelivery {
+    return try FfiConverterTypeBoolDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBoolDelivery_lower(_ value: BoolDelivery) -> RustBuffer {
+    return FfiConverterTypeBoolDelivery.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum BundleDelivery: Equatable, Hashable {
+    
+    case value(revision: UInt64, 
+        /**
+         * Complete map over every subscribed key. An unavailable key is present
+         * with a `None` value rather than omitted, so a batch never loses a key
+         */values: [String: FlagValue?]
+    )
+    case closed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BundleDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBundleDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = BundleDelivery
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BundleDelivery {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .value(revision: try FfiConverterUInt64.read(from: &buf), values: try FfiConverterDictionaryStringOptionTypeFlagValue.read(from: &buf)
+        )
+        
+        case 2: return .closed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BundleDelivery, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .value(revision,values):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(revision, into: &buf)
+            FfiConverterDictionaryStringOptionTypeFlagValue.write(values, into: &buf)
+            
+        
+        case .closed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBundleDelivery_lift(_ buf: RustBuffer) throws -> BundleDelivery {
+    return try FfiConverterTypeBundleDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBundleDelivery_lower(_ value: BundleDelivery) -> RustBuffer {
+    return FfiConverterTypeBundleDelivery.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Context attribute value crossing the binding boundary. The core attribute
  * type is not exported directly so the boundary keeps a stable local shape
  */
@@ -4685,6 +5594,155 @@ public func FfiConverterTypeInitError_lower(_ value: InitError) -> RustBuffer {
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * One delivery to an int observation. `Closed` ends the host drain loop
+ */
+
+public enum IntDelivery: Equatable, Hashable {
+    
+    case value(revision: UInt64, value: Int64?
+    )
+    case closed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension IntDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIntDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = IntDelivery
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IntDelivery {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .value(revision: try FfiConverterUInt64.read(from: &buf), value: try FfiConverterOptionInt64.read(from: &buf)
+        )
+        
+        case 2: return .closed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IntDelivery, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .value(revision,value):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(revision, into: &buf)
+            FfiConverterOptionInt64.write(value, into: &buf)
+            
+        
+        case .closed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIntDelivery_lift(_ buf: RustBuffer) throws -> IntDelivery {
+    return try FfiConverterTypeIntDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIntDelivery_lower(_ value: IntDelivery) -> RustBuffer {
+    return FfiConverterTypeIntDelivery.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * One delivery to a JSON observation, carrying the JSON-encoded string because
+ * the binding layer has no native JSON type. `Closed` ends the host drain loop
+ */
+
+public enum JsonDelivery: Equatable, Hashable {
+    
+    case value(revision: UInt64, value: String?
+    )
+    case closed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension JsonDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeJsonDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = JsonDelivery
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonDelivery {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .value(revision: try FfiConverterUInt64.read(from: &buf), value: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .closed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: JsonDelivery, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .value(revision,value):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(revision, into: &buf)
+            FfiConverterOptionString.write(value, into: &buf)
+            
+        
+        case .closed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonDelivery_lift(_ buf: RustBuffer) throws -> JsonDelivery {
+    return try FfiConverterTypeJsonDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonDelivery_lower(_ value: JsonDelivery) -> RustBuffer {
+    return FfiConverterTypeJsonDelivery.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Lifecycle event crossing the binding boundary. Mirrors the core provider
  * event vocabulary so the host can react to readiness, configuration, and
  * context transitions without depending on core types directly
@@ -4786,6 +5844,80 @@ public func FfiConverterTypeLifecycleEvent_lift(_ buf: RustBuffer) throws -> Lif
 #endif
 public func FfiConverterTypeLifecycleEvent_lower(_ value: LifecycleEvent) -> RustBuffer {
     return FfiConverterTypeLifecycleEvent.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * One delivery to a number observation. `Closed` ends the host drain loop
+ */
+
+public enum NumberDelivery: Equatable, Hashable {
+    
+    case value(revision: UInt64, value: Double?
+    )
+    case closed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NumberDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNumberDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = NumberDelivery
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NumberDelivery {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .value(revision: try FfiConverterUInt64.read(from: &buf), value: try FfiConverterOptionDouble.read(from: &buf)
+        )
+        
+        case 2: return .closed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NumberDelivery, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .value(revision,value):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(revision, into: &buf)
+            FfiConverterOptionDouble.write(value, into: &buf)
+            
+        
+        case .closed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNumberDelivery_lift(_ buf: RustBuffer) throws -> NumberDelivery {
+    return try FfiConverterTypeNumberDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNumberDelivery_lower(_ value: NumberDelivery) -> RustBuffer {
+    return FfiConverterTypeNumberDelivery.lower(value)
 }
 
 
@@ -5160,6 +6292,80 @@ public func FfiConverterTypeSecureStoreError_lower(_ value: SecureStoreError) ->
     return FfiConverterTypeSecureStoreError.lower(value)
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * One delivery to a string observation. `Closed` ends the host drain loop
+ */
+
+public enum StringDelivery: Equatable, Hashable {
+    
+    case value(revision: UInt64, value: String?
+    )
+    case closed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension StringDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStringDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = StringDelivery
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StringDelivery {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .value(revision: try FfiConverterUInt64.read(from: &buf), value: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .closed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StringDelivery, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .value(revision,value):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt64.write(revision, into: &buf)
+            FfiConverterOptionString.write(value, into: &buf)
+            
+        
+        case .closed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStringDelivery_lift(_ buf: RustBuffer) throws -> StringDelivery {
+    return try FfiConverterTypeStringDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStringDelivery_lower(_ value: StringDelivery) -> RustBuffer {
+    return FfiConverterTypeStringDelivery.lower(value)
+}
+
+
 
 public enum TransportError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -5266,6 +6472,78 @@ public func FfiConverterTypeTransportError_lift(_ buf: RustBuffer) throws -> Tra
 #endif
 public func FfiConverterTypeTransportError_lower(_ value: TransportError) -> RustBuffer {
     return FfiConverterTypeTransportError.lower(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
+    typealias SwiftType = Int64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
+    typealias SwiftType = Double?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterDouble.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterDouble.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
+    typealias SwiftType = Bool?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterBool.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterBool.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
 }
 
 #if swift(>=5.8)
@@ -5465,6 +6743,32 @@ fileprivate struct FfiConverterDictionaryStringTypeFlagValue: FfiConverterRustBu
         return dict
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringOptionTypeFlagValue: FfiConverterRustBuffer {
+    public static func write(_ value: [String: FlagValue?], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterOptionTypeFlagValue.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: FlagValue?] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: FlagValue?]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterOptionTypeFlagValue.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
 private let UNIFFI_RUST_FUTURE_POLL_WAKE: Int8 = 1
 
@@ -5652,6 +6956,36 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel() != 7578) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled() != 43875) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys() != 36135) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next() != 181) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed() != 35025) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel() != 59207) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled() != 50480) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys() != 57071) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next() != 19403) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed() != 50471) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook() != 40101) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -5694,10 +7028,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key() != 60160) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool() != 9702) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys() != 20186) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle() != 16193) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int() != 65401) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json() != 51107) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number() != 1811) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string() != 4265) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now() != 20968) {
@@ -5748,9 +7094,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation() != 49466) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change() != 44507) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel() != 5211) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -5778,19 +7121,67 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request() != 50214) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel() != 20818) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled() != 21365) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys() != 30549) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next() != 51624) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed() != 35687) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel() != 53018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled() != 37538) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys() != 11338) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next() != 33187) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed() != 39229) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event() != 35580) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel() != 277) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel() != 11288) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id() != 50269) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled() != 17054) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled() != 2778) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys() != 63781) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys() != 2901) {
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next() != 16582) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed() != 50333) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel() != 1914) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled() != 30604) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys() != 5437) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next() != 37274) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed() != 19901) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new() != 4096) {
@@ -5799,7 +7190,6 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitEvaluationHook()
     uniffiCallbackInitEvaluationListener()
-    uniffiCallbackInitFlagObserver()
     uniffiCallbackInitHostSecureStore()
     uniffiCallbackInitHostTransport()
     uniffiCallbackInitLifecycleHandler()

@@ -64,18 +64,28 @@ async fn transition_state(ctx: &PollContext, next: ProviderState) {
     }
 }
 
-/// Receiver of snapshot-swap notifications from the polling layer. Kept as a
-/// trait rather than a closure so the implementer has access to its full
-/// state (observer registry, identity context) without having to capture
-/// those by `Arc<Mutex<...>>` clones at hook-installation time
+/// The polling layer's seam into the owning client. The client commits the
+/// mutation under its transition coordinator, so the state change, its revision,
+/// and the captured prior and next evaluation points are one linearized step, and
+/// then fans out. A poll context with no hook installed applies the mutation
+/// directly and performs no fanout, which is what the polling unit tests want
 #[async_trait::async_trait]
 pub trait SnapshotSwapHook {
-    async fn on_swap(
+    /// Install `next` as the held snapshot and `next_sdk_context` as the
+    /// edge-derived context layer. `None` means the client shut down first and
+    /// the transition was rejected, so the caller must do nothing further.
+    /// Otherwise the outcome carries whether this moved between two snapshot
+    /// versions, which the caller reports as a configuration change once it has
+    /// finished its own provider-state move
+    async fn commit_snapshot_swap(
         &self,
-        prev: Option<&Arc<crate::snapshot::IndexedSnapshot>>,
-        next: &Arc<crate::snapshot::IndexedSnapshot>,
-        prev_sdk_context: std::collections::HashMap<String, crate::context::AttributeValue>,
-    );
+        next: Arc<crate::snapshot::IndexedSnapshot>,
+        next_sdk_context: std::collections::HashMap<String, crate::context::AttributeValue>,
+    ) -> Option<crate::client::SnapshotCommit>;
+
+    /// Drop the held snapshot, delivering unavailable for every observed key.
+    /// `None` means the clear was rejected because the client shut down first
+    async fn commit_snapshot_clear(&self) -> Option<crate::client::SnapshotCommit>;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -305,6 +315,36 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             if ctx.shutdown.load(Ordering::Acquire) {
                 return PollOutcome::DedupedSkipped;
             }
+            // Hand the swap to the client so the mutation, its revision, and the
+            // captured prior and next evaluation points are one linearized step,
+            // then fan out. Without a hook this poll context owns the cells
+            // directly and performs no fanout, and the latch it checks is the same
+            // one the client would have checked under the coordinator gate
+            let commit = match ctx.on_snapshot_swapped.as_ref() {
+                Some(hook) => {
+                    hook.commit_snapshot_swap(snapshot.clone(), sdk_context_map)
+                        .await
+                }
+                None => {
+                    if ctx.shutdown.load(Ordering::Acquire) {
+                        None
+                    } else {
+                        *ctx.snapshot.lock() = Some(snapshot.clone());
+                        *ctx.sdk_context.lock() = sdk_context_map;
+                        Some(crate::client::SnapshotCommit {
+                            configuration_changed: false,
+                        })
+                    }
+                }
+            };
+            // A rejected commit means the client shut down. Nothing else in this
+            // branch may run: no persist, no failure-counter reset, no state move,
+            // no event. DedupedSkipped is the outcome every shutdown-observing
+            // branch already returns
+            let Some(commit) = commit else {
+                return PollOutcome::DedupedSkipped;
+            };
+            let configuration_changed = commit.configuration_changed;
             // Persist the raw bytes (round-trip wins on cold-start latency
             // versus re-serializing). A persist failure does not undo the
             // in-memory swap. The next successful poll re-persists.
@@ -318,35 +358,24 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             if let Some(etag) = extract_etag(&resp.headers) {
                 let _ = crate::cache::write_etag(&ctx.cache_dir, &ctx.sdk_key, &etag);
             }
-            // Snapshot the prior value before swapping so the
-            // snapshot-swap hook can diff. Hold each lock only for the
-            // swap, not across any I/O. Capture the prior `sdk_context`
-            // too, so the fanout can diff against the context observers
-            // last saw: a flag whose targeting reads an edge attribute
-            // moves value when the edge geo shifts, even if the flag
-            // definition is unchanged
-            let prev = ctx.snapshot.lock().clone();
-            let prev_sdk_context = ctx.sdk_context.lock().clone();
-            *ctx.snapshot.lock() = Some(snapshot.clone());
-            *ctx.sdk_context.lock() = sdk_context_map;
             *ctx.consecutive_failures.lock() = 0;
-            // Move to Ready before the fanout so observers re-evaluate against a
-            // Ready provider. Hold the resulting transition to fire its lifecycle
-            // event after the fanout, keeping the Ready event ordered after the
-            // observer callbacks and the ConfigurationChanged the swap hook emits
+            // Order: swap, then Ready, then the lifecycle events. The swap runs
+            // first so a getter never sees Ready against the prior snapshot, and
+            // the state cell moves before any event fires so a lifecycle handler,
+            // which is host code, never observes NotReady while the getters
+            // already serve the new snapshot. The observer enqueue inside the swap
+            // is not host code, so it cannot observe the intervening moment
             let became_ready = ctx.state.transition(ProviderState::Ready).is_some();
 
-            // Fire the optional snapshot-swap hook so a registered
-            // listener can diff `(prev, next)` and notify only the keys
-            // whose values changed. When no hook is installed this poll
-            // performs the swap without any fanout
-            if let Some(hook) = ctx.on_snapshot_swapped.as_ref() {
-                hook.on_swap(prev.as_ref(), &snapshot, prev_sdk_context)
-                    .await;
-            }
-
-            if became_ready && let Some(events) = ctx.events.as_ref() {
-                events.fire(crate::events::LifecycleEvent::Ready).await;
+            if let Some(events) = ctx.events.as_ref() {
+                if configuration_changed {
+                    events
+                        .fire(crate::events::LifecycleEvent::ConfigurationChanged)
+                        .await;
+                }
+                if became_ready {
+                    events.fire(crate::events::LifecycleEvent::Ready).await;
+                }
             }
 
             PollOutcome::Updated
@@ -366,7 +395,24 @@ pub async fn poll_now(ctx: PollContext) -> PollOutcome {
             // operator intent end-to-end. ETag is removed alongside the
             // snapshot so a later session on this same key starts clean
             // and does not send a stale If-None-Match
-            *ctx.snapshot.lock() = None;
+            let cleared = match ctx.on_snapshot_swapped.as_ref() {
+                Some(hook) => hook.commit_snapshot_clear().await,
+                None => {
+                    if ctx.shutdown.load(Ordering::Acquire) {
+                        None
+                    } else {
+                        *ctx.snapshot.lock() = None;
+                        Some(crate::client::SnapshotCommit {
+                            configuration_changed: false,
+                        })
+                    }
+                }
+            };
+            if cleared.is_none() {
+                // Shut down between the earlier check and the clear. A revoked key
+                // is cleared by the next session's first poll instead
+                return PollOutcome::DedupedSkipped;
+            }
             let _ = crate::cache::clear_snapshot(&ctx.cache_dir, &ctx.sdk_key);
             let _ = crate::cache::clear_etag(&ctx.cache_dir, &ctx.sdk_key);
             transition_state(&ctx, ProviderState::Fatal).await;

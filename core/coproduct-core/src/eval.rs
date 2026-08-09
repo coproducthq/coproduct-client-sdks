@@ -9,6 +9,26 @@ use crate::observer::FlagValue;
 use crate::pipeline::{RequestedType, evaluate};
 use crate::snapshot::{FlagType, IndexedSnapshot, VariationValue};
 
+/// Smallest `f64` that is too large for an `i64`. `i64::MAX` is not exactly
+/// representable as an `f64` and rounds up to 2^63, so an upper bound written as
+/// `value > i64::MAX as f64` admits exactly 2^63, which the float-to-integer cast
+/// then saturates to `i64::MAX`. Comparing against 2^63 exclusively keeps an
+/// unrepresentable value unavailable instead of silently clamping it. `i64::MIN`
+/// is exactly representable, so the lower bound stays inclusive
+const INT_UPPER_EXCLUSIVE: f64 = 9_223_372_036_854_775_808.0;
+
+/// Project a NUMBER flag value onto an integer by truncating toward zero.
+/// Returns `None` when the truncated value is not finite or not representable as
+/// an `i64`. The integer getters and the FFI integer observations share this so
+/// an observation always equals `get_int` for the same value
+pub fn number_to_int(value: f64) -> Option<i64> {
+    let truncated = value.trunc();
+    if !truncated.is_finite() || truncated < i64::MIN as f64 || truncated >= INT_UPPER_EXCLUSIVE {
+        return None;
+    }
+    Some(truncated as i64)
+}
+
 /// Resolve a flag for the observer fanout path.
 ///
 /// Returns `None` when `key` is absent from the snapshot so callers can treat a
@@ -18,10 +38,12 @@ use crate::snapshot::{FlagType, IndexedSnapshot, VariationValue};
 /// return for the same context.
 ///
 /// The evaluation runs through the same `crate::pipeline::evaluate` path the
-/// typed getters use, with no evaluation hooks. A present flag always yields a
-/// concrete value: if the pipeline does not resolve a usable variation the
-/// type-appropriate fallback is used (false, empty string, 0, 0.0, or JSON
-/// null) so a found flag never collapses back to `None`.
+/// typed getters use, with no evaluation hooks. A present flag whose resolved
+/// variation does not match its declared `FlagType` has no usable value, so
+/// evaluation is unavailable (`None`) rather than a type zero value, and the
+/// caller falls back to its own default. A usable resolution, including a
+/// circuit-break off variation whose value matches the type, still yields
+/// `Some(FlagValue)`.
 pub fn evaluate_for_observer(
     snapshot: &IndexedSnapshot,
     key: &str,
@@ -53,24 +75,23 @@ pub fn evaluate_for_observer(
     });
 
     let value = match flag_type {
-        FlagType::Bool => FlagValue::Bool(match resolved {
-            Some(VariationValue::Bool(b)) => b,
-            _ => false,
-        }),
-        FlagType::String => FlagValue::String(match resolved {
-            Some(VariationValue::String(s)) => s,
-            _ => String::new(),
-        }),
+        FlagType::Bool => match resolved {
+            Some(VariationValue::Bool(b)) => FlagValue::Bool(b),
+            _ => return None,
+        },
+        FlagType::String => match resolved {
+            Some(VariationValue::String(s)) => FlagValue::String(s),
+            _ => return None,
+        },
         FlagType::Number => match resolved {
             Some(VariationValue::Number(n)) => FlagValue::Number(n),
-            _ => FlagValue::Number(0.0),
+            _ => return None,
         },
-        FlagType::Json => FlagValue::Json(match resolved {
-            Some(VariationValue::Json(j)) => j,
-            _ => serde_json::Value::Null,
-        }),
+        FlagType::Json => match resolved {
+            Some(VariationValue::Json(j)) => FlagValue::Json(j),
+            _ => return None,
+        },
         // Unreachable: an unknown type returned above. Kept for exhaustiveness
-        // and to fail closed if that early return is ever removed
         FlagType::Unknown => return None,
     };
 

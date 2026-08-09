@@ -13,15 +13,19 @@ use crate::evaluation_event::{
     EvaluationEvent, EvaluationEventDispatcher, EvaluationListener, EvaluationReason as EventReason,
 };
 use crate::events::{EventRegistry, HandlerHandle, LifecycleEvent, LifecycleHandler};
+use crate::fanout::EvaluationPoint;
 use crate::hooks::{
     EvaluationHook, EvaluationStage, FlagType, HookContext, HookHandle, HookRegistry,
 };
 use crate::identity::{cold_start_anonymous_id, generate_anonymous_id};
 use crate::identity_state::IdentityState;
 use crate::identity_writer::IdentityWriter;
-use crate::observer::{FlagValue, ObserverRegistry, Subscription, TypedFlagObserver};
+use crate::observer::{
+    CapturedDelivery, FlagValue, ObserverRegistry, ObserverSession, Subscription, TypedFlagObserver,
+};
 use crate::pipeline::{EvaluationReason, RequestedType, evaluate};
 use crate::polling::{PollContext, SnapshotSwapHook, poll_now};
+use crate::revision::TransitionCoordinator;
 use crate::secure_store::{SecureStore, SecureStoreError};
 pub use crate::snapshot::SnapshotView;
 use crate::snapshot::{IndexedSnapshot, Snapshot, VariationValue};
@@ -84,6 +88,9 @@ fn is_crockford_lower(c: char) -> bool {
 
 pub struct CoproductClient {
     observers: Arc<ObserverRegistry>,
+    /// Serializes every accepted transition with observer registration, so a
+    /// commit, its revision, and its captured evaluation points are one step
+    coordinator: Arc<TransitionCoordinator>,
     events: Arc<EventRegistry>,
     snapshot: Arc<Mutex<Option<Arc<IndexedSnapshot>>>>,
     hooks: Arc<HookRegistry>,
@@ -262,6 +269,7 @@ impl CoproductClient {
         // until the first successful poll lands and transitions the state
         Ok(Arc::new(CoproductClient {
             observers: ObserverRegistry::new(),
+            coordinator: TransitionCoordinator::new(),
             events: EventRegistry::new(),
             snapshot: snapshot_cell,
             hooks: HookRegistry::new(),
@@ -337,22 +345,32 @@ impl CoproductClient {
         self: &Arc<Self>,
         key: String,
         observer: Arc<dyn TypedFlagObserver>,
-    ) -> Arc<Subscription> {
-        if self.is_shutdown() {
-            return Arc::new(Subscription::cancelled_stub(vec![key]));
-        }
-        self.observers.register(vec![key], observer)
+    ) -> ObserverSession {
+        self.observe_keys(vec![key], observer)
     }
 
+    /// Register an observation and return its subscription together with the seed
+    /// evaluated for every requested key. The shutdown check runs inside the
+    /// coordinator gate, so a registration is ordered either before shutdown (a
+    /// live subscription) or after it (a cancelled subscription seeding
+    /// unavailable for every key, which the host resolves to its own defaults)
     pub fn observe_keys(
         self: &Arc<Self>,
         keys: Vec<String>,
         observer: Arc<dyn TypedFlagObserver>,
-    ) -> Arc<Subscription> {
-        if self.is_shutdown() {
-            return Arc::new(Subscription::cancelled_stub(keys));
-        }
-        self.observers.register(keys, observer)
+    ) -> ObserverSession {
+        let registry = self.observers.clone();
+        self.coordinator.register(|revision| {
+            if self.is_shutdown() {
+                return ObserverSession {
+                    seed: keys.iter().map(|key| (key.clone(), None)).collect(),
+                    subscription: Arc::new(Subscription::cancelled_stub(keys)),
+                };
+            }
+            let seed = crate::fanout::project_state(&self.evaluation_point(), &keys);
+            let subscription = registry.register(keys, observer, revision);
+            ObserverSession { subscription, seed }
+        })
     }
 
     /// Evaluate the current value of each key against the loaded snapshot and
@@ -453,8 +471,28 @@ impl CoproductClient {
     /// observer, lifecycle, hook, and evaluation-event registries so dropped
     /// handles no longer reference the client. Repeated calls are no-ops
     pub async fn shutdown(self: &Arc<Self>) {
-        if self.shutdown.swap(true, Ordering::AcqRel) {
+        // Latch and take every entry inside the coordinator gate. A registration
+        // is therefore ordered either entirely before shutdown or entirely after
+        // it, never half-inserted into a registry that is being torn down, and
+        // taking the entry is what claims the right to end it, so a concurrent
+        // cancel either took it first or finds it gone and leaves it to this
+        let committed = self.coordinator.commit(|| {
+            if self.shutdown.swap(true, Ordering::AcqRel) {
+                // A repeated shutdown is a no-op and allocates no revision
+                return None;
+            }
+            Some(self.observers.take_all())
+        });
+        let Some((_revision, ended)) = committed else {
             return;
+        };
+        // End each subscription only after the coordinator gate and the registry
+        // lock are released, so quiescing a lane, completing a host stream, or
+        // releasing a drain loop never happens under a core lock. Dropping the
+        // entries here is the last reference for an adapter the host has already
+        // released
+        for entry in ended {
+            entry.end();
         }
         // Persist the held snapshot one final time in the same envelope shape
         // the polling 200 handler writes, so a cold start can rehydrate it. The
@@ -470,9 +508,8 @@ impl CoproductClient {
                 let _ = crate::cache::write_snapshot(&self.cache_dir, &self.sdk_key, &bytes);
             }
         }
-        // Drain registries so dropped subscription, handler, and hook handles no
+        // Drain the remaining registries so dropped handler and hook handles no
         // longer reference the client
-        self.observers.drain();
         self.events.drain();
         self.hooks.drain();
         self.evaluation_events.clear();
@@ -487,6 +524,11 @@ impl CoproductClient {
     pub fn is_shutdown_for_test(&self) -> bool {
         self.is_shutdown()
     }
+
+    #[doc(hidden)]
+    pub fn coordinator_gate_is_held_for_test(&self) -> bool {
+        self.coordinator.gate_is_held()
+    }
 }
 
 impl CoproductClient {
@@ -496,6 +538,7 @@ impl CoproductClient {
         let cold = cold_start_anonymous_id(store.clone(), None).await;
         Arc::new(CoproductClient {
             observers: ObserverRegistry::new(),
+            coordinator: TransitionCoordinator::new(),
             events: EventRegistry::new(),
             snapshot: Arc::new(Mutex::new(None)),
             hooks: HookRegistry::new(),
@@ -522,67 +565,46 @@ impl CoproductClient {
         attributes: HashMap<String, AttributeValue>,
         link_anonymous: bool,
     ) -> Result<(), IdentityError> {
-        if self.is_shutdown() {
-            return Ok(());
-        }
         // The identifier is deliberately not persisted: the stored anonymous-id
         // slot is reserved for the auto-anonymous identity and persists across
         // cold starts, so writing a caller-supplied id there would surface it as a
         // prior anonymous id on the next start. Identified state is rebuilt by
         // the application calling identify again after a restart
         //
-        // Capture the prior context before the mutation so the fanout helper can
-        // diff observed-flag values across the swap. Drop the guard before any
-        // await so the identity lock is never held across the callback boundary.
-        // A rejected mutation returns before any lifecycle event fires
-        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        {
+        // The shutdown check, the mutation, and the prior and next captures are
+        // one linearized step, so a mutation cannot land after teardown and the
+        // Reconciling callback below cannot run between the identity change and
+        // the capture of the state it produced. A rejected mutation returns before
+        // any lifecycle event fires
+        let Some((revision, result, prev, next)) = self.commit_identity(|| {
             let mut guard = self.identity.lock();
-            guard.identify(user_id, attributes, link_anonymous)?;
-        }
+            guard.identify(user_id, attributes, link_anonymous)
+        }) else {
+            // Shut down: the post-shutdown contract is a silent success
+            return Ok(());
+        };
+        result?;
         // Reconciling is fired as a lifecycle event only. The provider state cell
         // is deliberately not moved to Reconciling here or in the other identity
         // mutators: a return-to-Ready would clobber a Retrying / Stale a concurrent
         // poll set, so `state()` never surfaces the reconcile window. See the note
         // on `ProviderState::Reconciling`
         self.events.fire(LifecycleEvent::Reconciling).await;
-        let snap = self.snapshot.lock().clone();
-        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        if let Some(snap) = snap {
-            crate::fanout::fire_changed_for_context_swap(
-                &self.observers,
-                snap.as_ref(),
-                &prev_context,
-                &next_context,
-            )
-            .await;
-        }
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         self.events.fire(LifecycleEvent::ContextChanged).await;
         Ok(())
     }
 
     pub async fn sign_out(self: &Arc<Self>) {
-        if self.is_shutdown() {
-            return;
-        }
-        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        let anonymous_id = {
+        let Some((revision, anonymous_id, prev, next)) = self.commit_identity(|| {
             let mut guard = self.identity.lock();
             guard.sign_out();
             guard.original_anonymous_id().to_string()
+        }) else {
+            return;
         };
         self.events.fire(LifecycleEvent::Reconciling).await;
-        let snap = self.snapshot.lock().clone();
-        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        if let Some(snap) = snap {
-            crate::fanout::fire_changed_for_context_swap(
-                &self.observers,
-                snap.as_ref(),
-                &prev_context,
-                &next_context,
-            )
-            .await;
-        }
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         // Re-assert the anonymous id in the persisted slot. This is the only
         // normal write after cold start, so the supersession queue mainly absorbs
         // concurrent sign-outs
@@ -595,72 +617,41 @@ impl CoproductClient {
         targeting_key: String,
         attributes: HashMap<String, AttributeValue>,
     ) -> Result<(), IdentityError> {
-        if self.is_shutdown() {
-            return Ok(());
-        }
         // The targeting key here is caller-supplied and must not be written to
         // the anonymous-id slot. A rejected mutation returns before any lifecycle
         // event fires
-        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        {
+        let Some((revision, result, prev, next)) = self.commit_identity(|| {
             let mut guard = self.identity.lock();
-            guard.set_context(targeting_key, attributes)?;
-        }
+            guard.set_context(targeting_key, attributes)
+        }) else {
+            return Ok(());
+        };
+        result?;
         self.events.fire(LifecycleEvent::Reconciling).await;
-        let snap = self.snapshot.lock().clone();
-        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        if let Some(snap) = snap {
-            crate::fanout::fire_changed_for_context_swap(
-                &self.observers,
-                snap.as_ref(),
-                &prev_context,
-                &next_context,
-            )
-            .await;
-        }
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         self.events.fire(LifecycleEvent::ContextChanged).await;
         Ok(())
     }
 
     pub async fn update_attributes(self: &Arc<Self>, attributes: HashMap<String, AttributeValue>) {
-        if self.is_shutdown() {
+        let Some((revision, (), prev, next)) =
+            self.commit_identity(|| self.identity.lock().update_attributes(attributes))
+        else {
             return;
-        }
-        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        self.identity.lock().update_attributes(attributes);
+        };
         self.events.fire(LifecycleEvent::Reconciling).await;
-        let snap = self.snapshot.lock().clone();
-        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        if let Some(snap) = snap {
-            crate::fanout::fire_changed_for_context_swap(
-                &self.observers,
-                snap.as_ref(),
-                &prev_context,
-                &next_context,
-            )
-            .await;
-        }
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         self.events.fire(LifecycleEvent::ContextChanged).await;
     }
 
     pub async fn remove_attributes(self: &Arc<Self>, names: &[String]) {
-        if self.is_shutdown() {
+        let Some((revision, (), prev, next)) =
+            self.commit_identity(|| self.identity.lock().remove_attributes(names))
+        else {
             return;
-        }
-        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        self.identity.lock().remove_attributes(names);
+        };
         self.events.fire(LifecycleEvent::Reconciling).await;
-        let snap = self.snapshot.lock().clone();
-        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        if let Some(snap) = snap {
-            crate::fanout::fire_changed_for_context_swap(
-                &self.observers,
-                snap.as_ref(),
-                &prev_context,
-                &next_context,
-            )
-            .await;
-        }
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         self.events.fire(LifecycleEvent::ContextChanged).await;
     }
 
@@ -680,29 +671,18 @@ impl CoproductClient {
         self: &Arc<Self>,
         attributes: HashMap<String, AttributeValue>,
     ) {
-        if self.is_shutdown() {
+        let Some((revision, changed, prev, next)) = self.commit_identity(|| {
+            self.identity
+                .lock()
+                .set_auto_populated_attributes(attributes)
+        }) else {
             return;
-        }
-        let prev_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        let changed = self
-            .identity
-            .lock()
-            .set_auto_populated_attributes(attributes);
+        };
         if !changed {
             return;
         }
         self.events.fire(LifecycleEvent::Reconciling).await;
-        let snap = self.snapshot.lock().clone();
-        let next_context = self.context_with_sdk_layer(self.identity.lock().context().clone());
-        if let Some(snap) = snap {
-            crate::fanout::fire_changed_for_context_swap(
-                &self.observers,
-                snap.as_ref(),
-                &prev_context,
-                &next_context,
-            )
-            .await;
-        }
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         self.events.fire(LifecycleEvent::ContextChanged).await;
     }
 
@@ -745,6 +725,7 @@ impl CoproductClient {
     pub fn for_testing(snapshot: IndexedSnapshot) -> Arc<Self> {
         Arc::new(CoproductClient {
             observers: ObserverRegistry::new(),
+            coordinator: TransitionCoordinator::new(),
             events: EventRegistry::new(),
             snapshot: Arc::new(Mutex::new(Some(Arc::new(snapshot)))),
             hooks: HookRegistry::new(),
@@ -888,6 +869,7 @@ impl CoproductClient {
         let indexed = IndexedSnapshot::from(snapshot);
         Arc::new(Self {
             observers: ObserverRegistry::new(),
+            coordinator: TransitionCoordinator::new(),
             events: EventRegistry::new(),
             snapshot: Arc::new(Mutex::new(Some(Arc::new(indexed)))),
             hooks: HookRegistry::new(),
@@ -913,6 +895,7 @@ impl CoproductClient {
     pub fn empty_for_test() -> Arc<Self> {
         Arc::new(Self {
             observers: ObserverRegistry::new(),
+            coordinator: TransitionCoordinator::new(),
             events: EventRegistry::new(),
             snapshot: Arc::new(Mutex::new(None)),
             hooks: HookRegistry::new(),
@@ -935,6 +918,93 @@ impl CoproductClient {
 
     fn current_snapshot(&self) -> Option<Arc<IndexedSnapshot>> {
         self.snapshot.lock().clone()
+    }
+
+    /// Capture what a getter would evaluate against right now. Each lock is taken
+    /// and released separately: the snapshot lock is never held while the identity
+    /// and SDK-context locks are taken. Called under the coordinator gate, so the
+    /// prior and next captures of one transition cannot straddle another commit
+    fn evaluation_point(&self) -> EvaluationPoint {
+        let snapshot = self.snapshot.lock().clone();
+        let context = self.build_evaluation_context();
+        EvaluationPoint { snapshot, context }
+    }
+
+    /// Commit a snapshot-layer transition: check the shutdown latch, swap the
+    /// held snapshot and the edge-derived SDK context, capture the prior and next
+    /// evaluation points, and allocate the revision, all inside one coordinator
+    /// critical section. The fanout runs after the gate is released, against the
+    /// captured points. `None` means the transition was rejected because the
+    /// client had already shut down, and the caller must then perform no further
+    /// side effect of its own. `Some` carries whether the swap moved between two
+    /// held snapshots of different versions, which the caller turns into a
+    /// lifecycle event in the order it wants relative to its own provider-state
+    /// move.
+    ///
+    /// The shutdown check is inside the gate, not before it, because shutdown
+    /// latches under the same gate. Checked outside, a mutation could read
+    /// "not shut down", be descheduled, and land its mutation and fanout after
+    /// teardown had already ended every subscription
+    fn commit_snapshot(
+        &self,
+        next: Option<Arc<IndexedSnapshot>>,
+        next_sdk_context: HashMap<String, AttributeValue>,
+    ) -> Option<SnapshotCommit> {
+        let committed = self.coordinator.commit(|| {
+            if self.is_shutdown() {
+                return None;
+            }
+            let prev = self.evaluation_point();
+            *self.snapshot.lock() = next.clone();
+            *self.sdk_context.lock() = next_sdk_context;
+            let next_point = self.evaluation_point();
+            Some((prev, next_point))
+        });
+        let Some((revision, (prev, next_point))) = committed else {
+            return None;
+        };
+        crate::fanout::fire_transition(&self.observers, revision, &prev, &next_point);
+        // A configuration change is a move between two held snapshots of
+        // different versions. Comparing for inequality rather than a strict
+        // increase keeps this consistent with the fanout: a server-side rollback
+        // still changes the served values. A first load signals Ready, and a
+        // clear signals Fatal, so neither reports a configuration change
+        let prev_version = prev.snapshot.as_ref().map(|snapshot| snapshot.version);
+        let next_version = next_point
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.version);
+        Some(SnapshotCommit {
+            configuration_changed: matches!(
+                (prev_version, next_version),
+                (Some(prev), Some(next)) if prev != next
+            ),
+        })
+    }
+
+    /// Commit an identity-layer transition. The shutdown check and `mutate` both
+    /// run between the prior and next capture inside the coordinator gate, so no
+    /// lifecycle callback can run between the mutation and the capture of the
+    /// state it produced, and a mutation racing teardown is rejected rather than
+    /// half-applied. `None` means the transition was rejected: nothing was
+    /// mutated, no revision was allocated, and the caller returns without firing
+    /// any lifecycle event. A mutation the identity layer itself rejects still
+    /// commits, but leaves the two points equal, so the fanout delivers nothing
+    fn commit_identity<T>(
+        &self,
+        mutate: impl FnOnce() -> T,
+    ) -> Option<(u64, T, EvaluationPoint, EvaluationPoint)> {
+        self.coordinator
+            .commit(|| {
+                if self.is_shutdown() {
+                    return None;
+                }
+                let prev = self.evaluation_point();
+                let result = mutate();
+                let next = self.evaluation_point();
+                Some((result, prev, next))
+            })
+            .map(|(revision, (result, prev, next))| (revision, result, prev, next))
     }
 
     /// Merge the server-derived SDK context layer onto a base evaluation context.
@@ -1085,16 +1155,7 @@ impl CoproductClient {
 
     fn resolve_int(&self, key: &str, default: i64) -> (i64, EvalMeta) {
         self.resolve_typed(key, RequestedType::Number, default, |value| match value {
-            VariationValue::Number(n) => {
-                let truncated = n.trunc();
-                if !truncated.is_finite()
-                    || truncated < i64::MIN as f64
-                    || truncated > i64::MAX as f64
-                {
-                    return None;
-                }
-                Some(truncated as i64)
-            }
+            VariationValue::Number(n) => crate::eval::number_to_int(*n),
             _ => None,
         })
     }
@@ -1272,17 +1333,7 @@ impl CoproductClient {
         let outcome_reason = outcome.reason;
         let value = resolve_variation(snapshot.as_deref(), key, outcome.variation_key.as_deref());
         let details = build_details(key.to_string(), outcome, value, default, |v| match v {
-            VariationValue::Number(n) => {
-                let truncated = n.trunc();
-                if !truncated.is_finite()
-                    || truncated < i64::MIN as f64
-                    || truncated > i64::MAX as f64
-                {
-                    Err(())
-                } else {
-                    Ok(truncated as i64)
-                }
-            }
+            VariationValue::Number(n) => crate::eval::number_to_int(n).ok_or(()),
             _ => Err(()),
         });
         let meta = meta_from_details(outcome_reason, &details);
@@ -1386,80 +1437,100 @@ impl CoproductClient {
     }
 }
 
-/// The single seam where the polling layer reaches the observer registry. Every
-/// successful snapshot swap drives this method, which clones the held evaluation
-/// context and fans out to observers whose values changed
+/// Outcome of an accepted snapshot-layer transition. Its absence is what tells a
+/// caller the transition was rejected, so a rejected commit is never mistaken for
+/// an accepted one that simply did not change the configuration
+#[derive(Debug, Clone, Copy)]
+pub struct SnapshotCommit {
+    pub configuration_changed: bool,
+}
+
+/// The single seam where the polling layer reaches the client's transition
+/// coordinator. Polling hands over the parsed result and the client makes the
+/// mutation, the revision, and the captured evaluation points one linearized step
 #[async_trait::async_trait]
 impl SnapshotSwapHook for CoproductClient {
-    async fn on_swap(
+    /// `None` means the client shut down and the transition was rejected, so the
+    /// caller must abandon the rest of its work. `Some` reports whether the swap
+    /// moved between two snapshot versions, so the polling layer can order the
+    /// ConfigurationChanged event after its own move to Ready. This deliberately
+    /// fires no event itself: the caller owns the order in which a host observes
+    /// the state cell and the lifecycle events
+    async fn commit_snapshot_swap(
         &self,
-        prev: Option<&Arc<IndexedSnapshot>>,
-        next: &Arc<IndexedSnapshot>,
-        prev_sdk_context: HashMap<String, AttributeValue>,
-    ) {
-        // Clone the identity context out before awaiting so the identity lock is
-        // not held across the observer callbacks, then layer the prior and next
-        // SDK context onto copies. Diffing the prior snapshot under the prior SDK
-        // context and the next snapshot under the next context means a value that
-        // moved only because the edge geo changed still notifies observers
-        let identity = self.identity.lock().context().clone();
-        let mut prev_context = identity.clone();
-        prev_context.replace_sdk_context(prev_sdk_context);
-        let next_context = self.context_with_sdk_layer(identity);
-        crate::fanout::fire_changed_for_swap(
-            &self.observers,
-            prev.map(|s| (s.as_ref(), &prev_context)),
-            next.as_ref(),
-            &next_context,
-        )
-        .await;
-        // Fire ConfigurationChanged when the swap moved to a different snapshot
-        // version. Comparing for inequality rather than a strict increase keeps
-        // this consistent with the observer fanout above: a server-side rollback
-        // to a lower version still changes the served flag values, so lifecycle
-        // listeners must hear it too, and nothing here assumes the version only
-        // ever advances. The first load (no prior snapshot) signals Ready, not
-        // ConfigurationChanged, so the `is_some_and` leaves it out
-        let prev_version = prev.map(|s| s.version);
-        if prev_version.is_some_and(|v| next.version != v) {
-            self.events.fire(LifecycleEvent::ConfigurationChanged).await;
-        }
+        next: Arc<IndexedSnapshot>,
+        next_sdk_context: HashMap<String, AttributeValue>,
+    ) -> Option<SnapshotCommit> {
+        self.commit_snapshot(Some(next), next_sdk_context)
+    }
+
+    async fn commit_snapshot_clear(&self) -> Option<SnapshotCommit> {
+        // A revoked key clears the held snapshot. The edge-derived SDK context is
+        // deliberately left in place: with no snapshot nothing evaluates, and the
+        // next successful poll replaces it wholesale
+        let sdk_context = self.sdk_context.lock().clone();
+        self.commit_snapshot(None, sdk_context)
     }
 }
 
 impl CoproductClient {
-    /// Test-only snapshot swap that mirrors the production poll seam. Captures
-    /// the prior snapshot, installs the next one, then fans out to observers
+    /// Test-only snapshot swap that mirrors the production poll seam, including
+    /// the ConfigurationChanged event the polling layer fires after its own move
+    /// to Ready
     #[doc(hidden)]
     pub async fn swap_snapshot_for_test(self: &Arc<Self>, next: Arc<IndexedSnapshot>) {
-        if self.is_shutdown() {
-            return;
+        // The test swap does not move the SDK context, so the prior and next
+        // points differ only in the snapshot
+        let sdk_context = self.sdk_context.lock().clone();
+        if let Some(commit) = self.commit_snapshot(Some(next), sdk_context)
+            && commit.configuration_changed
+        {
+            self.events.fire(LifecycleEvent::ConfigurationChanged).await;
         }
-        let prev = self.snapshot.lock().clone();
-        *self.snapshot.lock() = Some(next.clone());
-        // The test swap does not move the SDK context, so the prior context equals
-        // the current one and the fanout diffs purely on the snapshot change
-        let prev_sdk_context = self.sdk_context.lock().clone();
-        self.on_swap(prev.as_ref(), &next, prev_sdk_context).await;
     }
 
     /// Test-only SDK-context swap that mirrors a poll whose snapshot is unchanged
-    /// but whose edge-derived SDK context moved. Fans out through the same
-    /// snapshot-swap seam so observers see the value change the new context drives
+    /// but whose edge-derived context moved, so observers see the value change the
+    /// new context drives
     #[doc(hidden)]
     pub async fn swap_sdk_context_for_test(
         self: &Arc<Self>,
         next_sdk_context: HashMap<String, AttributeValue>,
     ) {
-        if self.is_shutdown() {
-            return;
-        }
-        let Some(snap) = self.snapshot.lock().clone() else {
+        let Some(snapshot) = self.snapshot.lock().clone() else {
             return;
         };
-        let prev_sdk_context = self.sdk_context.lock().clone();
-        *self.sdk_context.lock() = next_sdk_context;
-        self.on_swap(Some(&snap), &snap, prev_sdk_context).await;
+        // The snapshot version is unchanged, so this never reports a
+        // configuration change
+        let _ = self.commit_snapshot(Some(snapshot), next_sdk_context);
+    }
+
+    /// Test-only snapshot clear that mirrors the revoked-key path
+    #[doc(hidden)]
+    pub async fn clear_snapshot_for_test(self: &Arc<Self>) {
+        let sdk_context = self.sdk_context.lock().clone();
+        let _ = self.commit_snapshot(None, sdk_context);
+    }
+
+    /// Capture one subscription's delivery target the way the fanout does, for
+    /// tests that drive the lane directly rather than through a transition
+    #[doc(hidden)]
+    pub fn capture_for_test(&self, subscription_id: u64) -> Option<CapturedDelivery> {
+        self.observers.capture_for_test(subscription_id)
+    }
+
+    /// Capture and deliver in one step, for tests that do not need to interleave
+    /// anything between the two
+    #[doc(hidden)]
+    pub fn deliver_for_test(
+        &self,
+        subscription_id: u64,
+        revision: u64,
+        state: Vec<(String, Option<FlagValue>)>,
+    ) {
+        if let Some(captured) = self.capture_for_test(subscription_id) {
+            captured.deliver(revision, state);
+        }
     }
 
     #[doc(hidden)]
@@ -1477,6 +1548,7 @@ impl CoproductClient {
     ) -> Arc<Self> {
         Arc::new(Self {
             observers: ObserverRegistry::new(),
+            coordinator: TransitionCoordinator::new(),
             events: EventRegistry::new(),
             snapshot: Arc::new(Mutex::new(Some(Arc::new(snapshot)))),
             hooks: HookRegistry::new(),

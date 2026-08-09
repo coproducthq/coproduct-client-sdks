@@ -9,13 +9,14 @@ struct Recorder {
     seen: Mutex<Vec<(String, FlagValue)>>,
 }
 
-#[async_trait::async_trait]
 impl TypedFlagObserver for Recorder {
-    async fn on_change(&self, key: &str, value: &FlagValue) {
-        self.seen
-            .lock()
-            .unwrap()
-            .push((key.to_string(), value.clone()));
+    fn on_transition(&self, _revision: u64, state: &[(String, Option<FlagValue>)]) {
+        let mut seen = self.seen.lock().unwrap();
+        for (key, value) in state {
+            if let Some(value) = value {
+                seen.push((key.clone(), value.clone()));
+            }
+        }
     }
 }
 

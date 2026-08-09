@@ -1,23 +1,11 @@
-// Compiled (not executed) to prove the typed observer, lifecycle handler,
-// evaluation hook, and evaluation listener traits exported over UniFFI can be
-// satisfied from Swift, and that the registration entry points and shutdown are
-// reachable with the expected call shapes and case spellings. If this
-// typechecks, the lifecycle and observer binding surface is correct
+// Compiled (not executed) to prove the lifecycle handler, evaluation hook, and
+// evaluation listener traits exported over UniFFI can be satisfied from Swift,
+// and that the registration entry points, the typed and bundle observations, and
+// shutdown are reachable with the expected call shapes and case spellings. If
+// this typechecks, the lifecycle handler, evaluation hook, evaluation listener,
+// and observation binding surface is correct
 
 import Foundation
-
-private final class SmokeFlagObserver: FlagObserver, @unchecked Sendable {
-    func onChange(key: String, value: FlagValue) async throws {
-        switch value {
-        case let .bool(value): _ = value
-        case let .string(value): _ = value
-        case let .int(value): _ = value
-        case let .number(value): _ = value
-        case let .json(value): _ = value
-        }
-        _ = key
-    }
-}
 
 private final class SmokeLifecycleHandler: LifecycleHandler, @unchecked Sendable {
     func onEvent(event: LifecycleEvent) async {
@@ -64,15 +52,6 @@ private final class SmokeEvaluationListener: EvaluationListener, @unchecked Send
 }
 
 func proveLifecycleObserverSurfaceCompiles(client: CoproductClient) async {
-    let observer = SmokeFlagObserver()
-    let single: Subscription = client.observeKey(key: "flag", observer: observer)
-    let multi: Subscription = client.observeKeys(keys: ["a", "b"], observer: observer)
-    let _: UInt64 = single.id()
-    let _: [String] = multi.keys()
-    let _: Bool = single.isCancelled()
-    single.cancel()
-    multi.cancel()
-
     let handle: HandlerHandle = client.addHandler(
         event: .ready,
         handler: SmokeLifecycleHandler()
@@ -87,6 +66,28 @@ func proveLifecycleObserverSurfaceCompiles(client: CoproductClient) async {
     hookHandle.cancel()
 
     client.setEvaluationListener(listener: SmokeEvaluationListener())
+
+    let single: BoolObservation = client.observeBool(key: "flag")
+    let _: Bool? = single.seed()
+    switch await single.pollNext() {
+    case let .value(revision, value):
+        let _: UInt64 = revision
+        let _: Bool? = value
+    case .closed: break
+    }
+    let _: [String] = single.keys()
+    let _: Bool = single.isCancelled()
+    single.cancel()
+
+    let bundle: BundleObservation = client.observeBundle(keys: ["a", "b"])
+    let _: [String: FlagValue?] = bundle.seed()
+    switch await bundle.pollNext() {
+    case let .value(revision, values):
+        let _: UInt64 = revision
+        let _: [String: FlagValue?] = values
+    case .closed: break
+    }
+    bundle.cancel()
 
     await client.shutdown()
 }

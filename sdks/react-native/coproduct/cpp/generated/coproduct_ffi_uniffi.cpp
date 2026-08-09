@@ -143,15 +143,6 @@ extern "C" {
     void * uniffi_out_return, RustCallStatus* rust_call_status
     );
     typedef void
-    (*UniffiCallbackInterfaceFlagObserverMethod0)(
-    uint64_t uniffi_handle, 
-    RustBuffer key, 
-    RustBuffer value, 
-    UniffiForeignFutureCompleteVoid uniffi_future_callback, 
-    uint64_t uniffi_callback_data, 
-    UniffiForeignFutureDroppedCallbackStruct * uniffi_out_dropped_callback
-    );
-    typedef void
     (*UniffiCallbackInterfaceHostSecureStoreMethod0)(
     uint64_t uniffi_handle, 
     RustBuffer key, 
@@ -191,11 +182,7 @@ extern "C" {
         UniffiCallbackInterfaceFree uniffi_free;
         UniffiCallbackInterfaceClone uniffi_clone;
         UniffiCallbackInterfaceEvaluationListenerMethod0 on_evaluation;
-    } UniffiVTableCallbackInterfaceEvaluationListener;typedef struct UniffiVTableCallbackInterfaceFlagObserver {
-        UniffiCallbackInterfaceFree uniffi_free;
-        UniffiCallbackInterfaceClone uniffi_clone;
-        UniffiCallbackInterfaceFlagObserverMethod0 on_change;
-    } UniffiVTableCallbackInterfaceFlagObserver;typedef struct UniffiVTableCallbackInterfaceHostSecureStore {
+    } UniffiVTableCallbackInterfaceEvaluationListener;typedef struct UniffiVTableCallbackInterfaceHostSecureStore {
         UniffiCallbackInterfaceFree uniffi_free;
         UniffiCallbackInterfaceClone uniffi_clone;
         UniffiCallbackInterfaceHostSecureStoreMethod0 read;
@@ -209,6 +196,60 @@ extern "C" {
         UniffiCallbackInterfaceClone uniffi_clone;
         UniffiCallbackInterfaceLifecycleHandlerMethod0 on_event;
     } UniffiVTableCallbackInterfaceLifecycleHandler;
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    int8_t uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next(
+        /*handle*/ uint64_t ptr
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    int8_t uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next(
+        /*handle*/ uint64_t ptr
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
     /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient(
         /*handle*/ uint64_t handle, 
         RustCallStatus *uniffi_out_err
@@ -299,16 +340,34 @@ extern "C" {
         RustBuffer attributes, 
         int8_t link_anonymous
     );
-    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool(
         /*handle*/ uint64_t ptr, 
         RustBuffer key, 
-        /*handle*/ uint64_t observer, 
         RustCallStatus *uniffi_out_err
     );
-    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle(
         /*handle*/ uint64_t ptr, 
         RustBuffer keys, 
-        /*handle*/ uint64_t observer, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
         RustCallStatus *uniffi_out_err
     );
     /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now(
@@ -414,22 +473,6 @@ extern "C" {
         RustBuffer event, 
         RustCallStatus *uniffi_out_err
     );
-    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(
-        /*handle*/ uint64_t handle, 
-        RustCallStatus *uniffi_out_err
-    );
-    void uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(
-        /*handle*/ uint64_t handle, 
-        RustCallStatus *uniffi_out_err
-    );
-    void uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(
-        UniffiVTableCallbackInterfaceFlagObserver * vtable
-    );
-    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(
-        /*handle*/ uint64_t ptr, 
-        RustBuffer key, 
-        RustBuffer value
-    );
     /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle(
         /*handle*/ uint64_t handle, 
         RustCallStatus *uniffi_out_err
@@ -505,6 +548,60 @@ extern "C" {
         /*handle*/ uint64_t ptr, 
         RustBuffer req
     );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_intobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_free_intobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    int8_t uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next(
+        /*handle*/ uint64_t ptr
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    int8_t uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next(
+        /*handle*/ uint64_t ptr
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
     /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(
         /*handle*/ uint64_t handle, 
         RustCallStatus *uniffi_out_err
@@ -520,27 +617,57 @@ extern "C" {
         /*handle*/ uint64_t ptr, 
         RustBuffer event
     );
-    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_subscription(
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation(
         /*handle*/ uint64_t handle, 
         RustCallStatus *uniffi_out_err
     );
-    void uniffi_coproduct_ffi_uniffi_fn_free_subscription(
+    void uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(
         /*handle*/ uint64_t handle, 
         RustCallStatus *uniffi_out_err
     );
-    void uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(
+    void uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel(
         /*handle*/ uint64_t ptr, 
         RustCallStatus *uniffi_out_err
     );
-    uint64_t uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(
+    int8_t uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled(
         /*handle*/ uint64_t ptr, 
         RustCallStatus *uniffi_out_err
     );
-    int8_t uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys(
         /*handle*/ uint64_t ptr, 
         RustCallStatus *uniffi_out_err
     );
-    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next(
+        /*handle*/ uint64_t ptr
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(
+        /*handle*/ uint64_t handle, 
+        RustCallStatus *uniffi_out_err
+    );
+    void uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    int8_t uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys(
+        /*handle*/ uint64_t ptr, 
+        RustCallStatus *uniffi_out_err
+    );
+    /*handle*/ uint64_t uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next(
+        /*handle*/ uint64_t ptr
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(
         /*handle*/ uint64_t ptr, 
         RustCallStatus *uniffi_out_err
     );
@@ -759,6 +886,26 @@ extern "C" {
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_initialize(
     );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed(
+    );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler(
@@ -787,9 +934,17 @@ extern "C" {
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key(
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys(
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now(
     );
@@ -823,8 +978,6 @@ extern "C" {
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change(
-    );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id(
@@ -843,15 +996,47 @@ extern "C" {
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request(
     );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed(
+    );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel(
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id(
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled(
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys(
     );
-    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys(
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new(
     );
@@ -1564,121 +1749,6 @@ namespace uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceevaluationlis
         rsLambda = nullptr;
     }
 } // namespace uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceevaluationlistener::vtablecallbackinterfaceevaluationlistener::free
-
-// Callback function: uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceflagobserver::vtablecallbackinterfaceflagobserver::free::UniffiCallbackInterfaceFree
-//
-// We have the following constraints:
-// - we need to pass a function pointer to Rust.
-// - we need a jsi::Runtime and jsi::Function to call into JS.
-// - function pointers can't store state, so we can't use a lamda.
-//
-// For this, we store a lambda as a global, as `rsLambda`. The `callback` function calls
-// the lambda, which itself calls the `body` which then calls into JS.
-//
-// We then give the `callback` function pointer to Rust which will call the lambda sometime in the
-// future.
-namespace uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceflagobserver::vtablecallbackinterfaceflagobserver::free {
-    using namespace facebook;
-
-    // We need to store a lambda in a global so we can call it from
-    // a function pointer. The function pointer is passed to Rust.
-    static std::function<void(uint64_t)> rsLambda = nullptr;
-
-    // This is the main body of the callback. It's called from the lambda,
-    // which itself is called from the callback function which is passed to Rust.
-    static void body(jsi::Runtime &rt,
-                     std::shared_ptr<uniffi_runtime::UniffiCallInvoker> callInvoker,
-                     std::shared_ptr<jsi::Value> callbackValue
-            ,uint64_t rs_handle) {
-
-        // Convert the arguments from Rust, into jsi::Values.
-        // We'll use the Bridging class to do this…
-        auto js_handle = uniffi_jsi::Bridging<uint64_t>::toJs(rt, callInvoker, rs_handle);
-
-        // Now we are ready to call the callback.
-        // We are already on the JS thread, because this `body` function was
-        // invoked from the CallInvoker.
-        try {
-            // Getting the callback function
-            auto cb = callbackValue->asObject(rt).asFunction(rt);
-            auto uniffiResult = cb.call(rt, js_handle
-            );
-
-            
-
-            
-        } catch (const jsi::JSError &error) {
-            std::cout << "Error in callback UniffiCallbackInterfaceFree: "
-                    << error.what() << std::endl;
-            throw error;
-        }
-    }
-
-    static void callback(uint64_t rs_handle) {
-        // If the runtime has shutdown, then there is no point in trying to
-        // call into Javascript. BUT how do we tell if the runtime has shutdown?
-        //
-        // Answer: the module destructor calls into callback `cleanup` method,
-        // which nulls out the rsLamda.
-        //
-        // If rsLamda is null, then there is no runtime to call into.
-        if (rsLambda == nullptr) {
-            // This only occurs when destructors are calling into Rust free/drop,
-            // which causes the JS callback to be dropped.
-            return;
-        }
-
-        // The runtime, the actual callback jsi::funtion, and the callInvoker
-        // are all in the lambda.
-        rsLambda(
-            rs_handle);
-    }
-
-    [[maybe_unused]] static UniffiCallbackInterfaceFree
-    makeCallbackFunction( // uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceflagobserver::vtablecallbackinterfaceflagobserver::free
-                    jsi::Runtime &rt,
-                     std::shared_ptr<uniffi_runtime::UniffiCallInvoker> callInvoker,
-                     const jsi::Value &value) {
-        if (rsLambda != nullptr) {
-            // `makeCallbackFunction` is called in two circumstances:
-            //
-            // 1. at startup, when initializing callback interface vtables.
-            // 2. when polling futures. This happens at least once per future that is
-            //    exposed to Javascript. We know that this is always the same function,
-            //    `uniffiFutureContinuationCallback` in `async-rust-calls.ts`.
-            //
-            // We can therefore return the callback function without making anything
-            // new if we've been initialized already.
-            return callback;
-        }
-        auto callbackFunction = value.asObject(rt).asFunction(rt);
-        auto callbackValue = std::make_shared<jsi::Value>(rt, callbackFunction);
-        rsLambda = [&rt, callInvoker, callbackValue](uint64_t rs_handle) {
-                // We immediately make a lambda which will do the work of transforming the
-                // arguments into JSI values and calling the callback.
-                uniffi_runtime::UniffiCallFunc jsLambda = [
-                    callInvoker,
-                    callbackValue
-                    , rs_handle](jsi::Runtime &rt) mutable {
-                    body(rt, callInvoker, callbackValue
-                        , rs_handle);
-                };
-                // We'll then call that lambda from the callInvoker which will
-                // look after calling it on the correct thread.
-                
-                callInvoker->invokeNonBlocking(rt, jsLambda);
-        };
-        return callback;
-    }
-
-    // This method is called from the destructor of NativeCoproductFfiUniffi, which only happens
-    // when the jsi::Runtime is being destroyed.
-    static void cleanup() {
-        // The lambda holds a reference to the the Runtime, so when this is nulled out,
-        // then the pointer will no longer be left dangling.
-        rsLambda = nullptr;
-    }
-} // namespace uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceflagobserver::vtablecallbackinterfaceflagobserver::free
 
 // Callback function: uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacehostsecurestore::vtablecallbackinterfacehostsecurestore::free::UniffiCallbackInterfaceFree
 //
@@ -3533,316 +3603,6 @@ template <> struct Bridging<UniffiVTableCallbackInterfaceEvaluationListener> {
 };
 
 } // namespace uniffi::coproduct_ffi_uniffi
-    // Implementation of CallbackInterfaceClone for vtable field uniffi_clone in VTableCallbackInterfaceFlagObserver
-
-
-// Callback function: uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceflagobserver::UniffiCallbackInterfaceClone
-//
-// We have the following constraints:
-// - we need to pass a function pointer to Rust.
-// - we need a jsi::Runtime and jsi::Function to call into JS.
-// - function pointers can't store state, so we can't use a lamda.
-//
-// For this, we store a lambda as a global, as `rsLambda`. The `callback` function calls
-// the lambda, which itself calls the `body` which then calls into JS.
-//
-// We then give the `callback` function pointer to Rust which will call the lambda sometime in the
-// future.
-namespace uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceflagobserver {
-    using namespace facebook;
-
-    // We need to store a lambda in a global so we can call it from
-    // a function pointer. The function pointer is passed to Rust.
-    static std::function<void(uint64_t, uint64_t*)> rsLambda = nullptr;
-
-    // This is the main body of the callback. It's called from the lambda,
-    // which itself is called from the callback function which is passed to Rust.
-    static void body(jsi::Runtime &rt,
-                     std::shared_ptr<uniffi_runtime::UniffiCallInvoker> callInvoker,
-                     std::shared_ptr<jsi::Value> callbackValue
-            ,uint64_t rs_handle
-            , uint64_t* uniffi_direct_return) {
-
-        // Convert the arguments from Rust, into jsi::Values.
-        // We'll use the Bridging class to do this…
-        auto js_handle = uniffi_jsi::Bridging<uint64_t>::toJs(rt, callInvoker, rs_handle);
-
-        // Now we are ready to call the callback.
-        // We are already on the JS thread, because this `body` function was
-        // invoked from the CallInvoker.
-        try {
-            // Getting the callback function
-            auto cb = callbackValue->asObject(rt).asFunction(rt);
-            auto uniffiResult = cb.call(rt, js_handle
-            );
-
-            
-
-            
-            // Write the direct return value back to the caller.
-            if (uniffi_direct_return != nullptr) {
-                *uniffi_direct_return = uniffi_jsi::Bridging<uint64_t>::fromJs(
-                    rt, callInvoker, uniffiResult
-                );
-            }
-        } catch (const jsi::JSError &error) {
-            std::cout << "Error in callback UniffiCallbackInterfaceClone: "
-                    << error.what() << std::endl;
-            throw error;
-        }
-    }
-
-    static uint64_t callback(uint64_t rs_handle) {
-        // If the runtime has shutdown, then there is no point in trying to
-        // call into Javascript. BUT how do we tell if the runtime has shutdown?
-        //
-        // Answer: the module destructor calls into callback `cleanup` method,
-        // which nulls out the rsLamda.
-        //
-        // If rsLamda is null, then there is no runtime to call into.
-        if (rsLambda == nullptr) {
-            // This only occurs when destructors are calling into Rust free/drop,
-            // which causes the JS callback to be dropped.
-            return 0;
-        }
-        uint64_t uniffi_result = 0;
-
-        // The runtime, the actual callback jsi::funtion, and the callInvoker
-        // are all in the lambda.
-        rsLambda(
-            rs_handle, 
-            &uniffi_result);
-        return uniffi_result;
-    }
-
-    [[maybe_unused]] static UniffiCallbackInterfaceClone
-    makeCallbackFunction( // uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceflagobserver
-                    jsi::Runtime &rt,
-                     std::shared_ptr<uniffi_runtime::UniffiCallInvoker> callInvoker,
-                     const jsi::Value &value) {
-        if (rsLambda != nullptr) {
-            // `makeCallbackFunction` is called in two circumstances:
-            //
-            // 1. at startup, when initializing callback interface vtables.
-            // 2. when polling futures. This happens at least once per future that is
-            //    exposed to Javascript. We know that this is always the same function,
-            //    `uniffiFutureContinuationCallback` in `async-rust-calls.ts`.
-            //
-            // We can therefore return the callback function without making anything
-            // new if we've been initialized already.
-            return callback;
-        }
-        auto callbackFunction = value.asObject(rt).asFunction(rt);
-        auto callbackValue = std::make_shared<jsi::Value>(rt, callbackFunction);
-        rsLambda = [&rt, callInvoker, callbackValue](uint64_t rs_handle, uint64_t* uniffi_direct_return) {
-                // We immediately make a lambda which will do the work of transforming the
-                // arguments into JSI values and calling the callback.
-                uniffi_runtime::UniffiCallFunc jsLambda = [
-                    callInvoker,
-                    callbackValue
-                    , rs_handle, uniffi_direct_return](jsi::Runtime &rt) mutable {
-                    body(rt, callInvoker, callbackValue
-                        , rs_handle, uniffi_direct_return);
-                };
-                // We'll then call that lambda from the callInvoker which will
-                // look after calling it on the correct thread.
-                callInvoker->invokeBlocking(rt, jsLambda);
-        };
-        return callback;
-    }
-
-    // This method is called from the destructor of NativeCoproductFfiUniffi, which only happens
-    // when the jsi::Runtime is being destroyed.
-    static void cleanup() {
-        // The lambda holds a reference to the the Runtime, so when this is nulled out,
-        // then the pointer will no longer be left dangling.
-        rsLambda = nullptr;
-    }
-} // namespace uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceflagobserver
-    // Implementation of CallbackInterfaceFlagObserverMethod0 for vtable field on_change in VTableCallbackInterfaceFlagObserver
-
-
-// Callback function: uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceflagobservermethod0::vtablecallbackinterfaceflagobserver::UniffiCallbackInterfaceFlagObserverMethod0
-//
-// We have the following constraints:
-// - we need to pass a function pointer to Rust.
-// - we need a jsi::Runtime and jsi::Function to call into JS.
-// - function pointers can't store state, so we can't use a lamda.
-//
-// For this, we store a lambda as a global, as `rsLambda`. The `callback` function calls
-// the lambda, which itself calls the `body` which then calls into JS.
-//
-// We then give the `callback` function pointer to Rust which will call the lambda sometime in the
-// future.
-namespace uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceflagobservermethod0::vtablecallbackinterfaceflagobserver {
-    using namespace facebook;
-
-    // We need to store a lambda in a global so we can call it from
-    // a function pointer. The function pointer is passed to Rust.
-    static std::function<void(uint64_t, RustBuffer, RustBuffer, UniffiForeignFutureCompleteVoid, uint64_t, UniffiForeignFutureDroppedCallbackStruct *)> rsLambda = nullptr;
-
-    // This is the main body of the callback. It's called from the lambda,
-    // which itself is called from the callback function which is passed to Rust.
-    static void body(jsi::Runtime &rt,
-                     std::shared_ptr<uniffi_runtime::UniffiCallInvoker> callInvoker,
-                     std::shared_ptr<jsi::Value> callbackValue
-            ,uint64_t rs_uniffiHandle
-            ,RustBuffer rs_key
-            ,RustBuffer rs_value
-            ,UniffiForeignFutureCompleteVoid rs_uniffiFutureCallback
-            ,uint64_t rs_uniffiCallbackData
-            ,UniffiForeignFutureDroppedCallbackStruct * rs_uniffiOutDroppedCallback) {
-
-        // Convert the arguments from Rust, into jsi::Values.
-        // We'll use the Bridging class to do this…
-        auto js_uniffiHandle = uniffi_jsi::Bridging<uint64_t>::toJs(rt, callInvoker, rs_uniffiHandle);
-        auto js_key = uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, rs_key);
-        auto js_value = uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, rs_value);
-        auto js_uniffiFutureCallback = uniffi::coproduct_ffi_uniffi::Bridging<UniffiForeignFutureCompleteVoid>::toJs(rt, callInvoker, rs_uniffiFutureCallback);
-        auto js_uniffiCallbackData = uniffi_jsi::Bridging<uint64_t>::toJs(rt, callInvoker, rs_uniffiCallbackData);
-
-        // Now we are ready to call the callback.
-        // We are already on the JS thread, because this `body` function was
-        // invoked from the CallInvoker.
-        try {
-            // Getting the callback function
-            auto cb = callbackValue->asObject(rt).asFunction(rt);
-            auto uniffiResult = cb.call(rt, js_uniffiHandle, js_key, js_value, js_uniffiFutureCallback, js_uniffiCallbackData
-            );
-
-            
-
-            
-            // return type is Struct("ForeignFutureDroppedCallbackStruct")
-            // Finally, we need to copy the return value back into the Rust pointer.
-            *rs_uniffiOutDroppedCallback =
-                uniffi::coproduct_ffi_uniffi::Bridging<
-                    UniffiForeignFutureDroppedCallbackStruct
-                >::fromJs(
-                    rt, callInvoker, uniffiResult
-                );
-        } catch (const jsi::JSError &error) {
-            std::cout << "Error in callback UniffiCallbackInterfaceFlagObserverMethod0: "
-                    << error.what() << std::endl;
-            throw error;
-        }
-    }
-
-    static void callback(uint64_t rs_uniffiHandle, RustBuffer rs_key, RustBuffer rs_value, UniffiForeignFutureCompleteVoid rs_uniffiFutureCallback, uint64_t rs_uniffiCallbackData, UniffiForeignFutureDroppedCallbackStruct * rs_uniffiOutDroppedCallback) {
-        // If the runtime has shutdown, then there is no point in trying to
-        // call into Javascript. BUT how do we tell if the runtime has shutdown?
-        //
-        // Answer: the module destructor calls into callback `cleanup` method,
-        // which nulls out the rsLamda.
-        //
-        // If rsLamda is null, then there is no runtime to call into.
-        if (rsLambda == nullptr) {
-            // This only occurs when destructors are calling into Rust free/drop,
-            // which causes the JS callback to be dropped.
-            return;
-        }
-
-        // The runtime, the actual callback jsi::funtion, and the callInvoker
-        // are all in the lambda.
-        rsLambda(
-            rs_uniffiHandle, 
-            rs_key, 
-            rs_value, 
-            rs_uniffiFutureCallback, 
-            rs_uniffiCallbackData, 
-            rs_uniffiOutDroppedCallback);
-    }
-
-    [[maybe_unused]] static UniffiCallbackInterfaceFlagObserverMethod0
-    makeCallbackFunction( // uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceflagobservermethod0::vtablecallbackinterfaceflagobserver
-                    jsi::Runtime &rt,
-                     std::shared_ptr<uniffi_runtime::UniffiCallInvoker> callInvoker,
-                     const jsi::Value &value) {
-        if (rsLambda != nullptr) {
-            // `makeCallbackFunction` is called in two circumstances:
-            //
-            // 1. at startup, when initializing callback interface vtables.
-            // 2. when polling futures. This happens at least once per future that is
-            //    exposed to Javascript. We know that this is always the same function,
-            //    `uniffiFutureContinuationCallback` in `async-rust-calls.ts`.
-            //
-            // We can therefore return the callback function without making anything
-            // new if we've been initialized already.
-            return callback;
-        }
-        auto callbackFunction = value.asObject(rt).asFunction(rt);
-        auto callbackValue = std::make_shared<jsi::Value>(rt, callbackFunction);
-        rsLambda = [&rt, callInvoker, callbackValue](uint64_t rs_uniffiHandle, RustBuffer rs_key, RustBuffer rs_value, UniffiForeignFutureCompleteVoid rs_uniffiFutureCallback, uint64_t rs_uniffiCallbackData, UniffiForeignFutureDroppedCallbackStruct * rs_uniffiOutDroppedCallback) {
-                // We immediately make a lambda which will do the work of transforming the
-                // arguments into JSI values and calling the callback.
-                uniffi_runtime::UniffiCallFunc jsLambda = [
-                    callInvoker,
-                    callbackValue
-                    , rs_uniffiHandle
-                    , rs_key
-                    , rs_value
-                    , rs_uniffiFutureCallback
-                    , rs_uniffiCallbackData
-                    , rs_uniffiOutDroppedCallback](jsi::Runtime &rt) mutable {
-                    body(rt, callInvoker, callbackValue
-                        , rs_uniffiHandle
-                        , rs_key
-                        , rs_value
-                        , rs_uniffiFutureCallback
-                        , rs_uniffiCallbackData
-                        , rs_uniffiOutDroppedCallback);
-                };
-                // We'll then call that lambda from the callInvoker which will
-                // look after calling it on the correct thread.
-                callInvoker->invokeBlocking(rt, jsLambda);
-        };
-        return callback;
-    }
-
-    // This method is called from the destructor of NativeCoproductFfiUniffi, which only happens
-    // when the jsi::Runtime is being destroyed.
-    static void cleanup() {
-        // The lambda holds a reference to the the Runtime, so when this is nulled out,
-        // then the pointer will no longer be left dangling.
-        rsLambda = nullptr;
-    }
-} // namespace uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceflagobservermethod0::vtablecallbackinterfaceflagobserver
-namespace uniffi::coproduct_ffi_uniffi {
-using namespace facebook;
-using CallInvoker = uniffi_runtime::UniffiCallInvoker;
-
-template <> struct Bridging<UniffiVTableCallbackInterfaceFlagObserver> {
-  static UniffiVTableCallbackInterfaceFlagObserver fromJs(jsi::Runtime &rt,
-    std::shared_ptr<CallInvoker> callInvoker,
-    const jsi::Value &jsValue
-  ) {
-    // Check if the input is an object
-    if (!jsValue.isObject()) {
-      throw jsi::JSError(rt, "Expected an object for UniffiVTableCallbackInterfaceFlagObserver");
-    }
-
-    // Get the object from the jsi::Value
-    auto jsObject = jsValue.getObject(rt);
-
-    // Create the vtable struct
-    UniffiVTableCallbackInterfaceFlagObserver rsObject;
-
-    // Create the vtable from the js callbacks.
-    rsObject.uniffi_free = uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceflagobserver::vtablecallbackinterfaceflagobserver::free::makeCallbackFunction(
-          rt, callInvoker, jsObject.getProperty(rt, "uniffi_free")
-        );
-    rsObject.uniffi_clone = uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceflagobserver::makeCallbackFunction(
-          rt, callInvoker, jsObject.getProperty(rt, "uniffi_clone")
-        );
-    rsObject.on_change = uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceflagobservermethod0::vtablecallbackinterfaceflagobserver::makeCallbackFunction(
-          rt, callInvoker, jsObject.getProperty(rt, "on_change")
-        );
-
-    return rsObject;
-  }
-};
-
-} // namespace uniffi::coproduct_ffi_uniffi
     // Implementation of CallbackInterfaceClone for vtable field uniffi_clone in VTableCallbackInterfaceHostSecureStore
 
 
@@ -4972,6 +4732,118 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_internal_fn_func_ffi__read_string_from_buffer(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_boolobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_boolobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient"),
@@ -5100,20 +4972,52 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_identify(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key"),
-        3,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool"),
+        2,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys"),
-        3,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle"),
+        2,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_poll_now"] = jsi::Function::createFromHostFunction(
@@ -5316,38 +5220,6 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_evaluationlistener_on_evaluation(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver"] = jsi::Function::createFromHostFunction(
-        rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver"),
-        1,
-        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(rt, thisVal, args, count);
-        }
-    );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_flagobserver"] = jsi::Function::createFromHostFunction(
-        rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_flagobserver"),
-        1,
-        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(rt, thisVal, args, count);
-        }
-    );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver"] = jsi::Function::createFromHostFunction(
-        rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver"),
-        1,
-        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(rt, thisVal, args, count);
-        }
-    );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change"] = jsi::Function::createFromHostFunction(
-        rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change"),
-        3,
-        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(rt, thisVal, args, count);
-        }
-    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle"),
@@ -5500,6 +5372,118 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_hosttransport_request(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_intobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_intobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_intobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_intobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_intobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_intobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler"),
@@ -5532,52 +5516,116 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_lifecyclehandler_on_event(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_subscription"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_subscription"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_subscription(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_subscription"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_numberobservation"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_subscription"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_numberobservation"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_subscription(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_id"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_id"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_free_stringobservation"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_free_stringobservation"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors"] = jsi::Function::createFromHostFunction(
@@ -5996,6 +6044,86 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_func_initialize(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook"),
@@ -6108,20 +6236,52 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now"] = jsi::Function::createFromHostFunction(
@@ -6252,14 +6412,6 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change"] = jsi::Function::createFromHostFunction(
-        rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change"),
-        0,
-        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change(rt, thisVal, args, count);
-        }
-    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel"),
@@ -6332,6 +6484,86 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event"),
@@ -6340,36 +6572,84 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next"),
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys(rt, thisVal, args, count);
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new"] = jsi::Function::createFromHostFunction(
@@ -6386,6 +6666,22 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_ffi_coproduct_ffi_uniffi_uniffi_contract_version(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_internal_fn_method_boolobservation_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_boolobservation_ffi__bless_pointer"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_internal_fn_method_boolobservation_ffi__bless_pointer(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_internal_fn_method_bundleobservation_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_bundleobservation_ffi__bless_pointer"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_internal_fn_method_bundleobservation_ffi__bless_pointer(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_internal_fn_method_coproductclient_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
@@ -6420,14 +6716,6 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_internal_fn_method_evaluationlistener_ffi__bless_pointer(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_internal_fn_method_flagobserver_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
-        rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_flagobserver_ffi__bless_pointer"),
-        1,
-        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_internal_fn_method_flagobserver_ffi__bless_pointer(rt, thisVal, args, count);
-        }
-    );
     props["ubrn_uniffi_internal_fn_method_handlerhandle_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_handlerhandle_ffi__bless_pointer"),
@@ -6460,6 +6748,22 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_internal_fn_method_hosttransport_ffi__bless_pointer(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_internal_fn_method_intobservation_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_intobservation_ffi__bless_pointer"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_internal_fn_method_intobservation_ffi__bless_pointer(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_internal_fn_method_jsonobservation_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_jsonobservation_ffi__bless_pointer"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_internal_fn_method_jsonobservation_ffi__bless_pointer(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_internal_fn_method_lifecyclehandler_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_lifecyclehandler_ffi__bless_pointer"),
@@ -6468,12 +6772,20 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_internal_fn_method_lifecyclehandler_ffi__bless_pointer(rt, thisVal, args, count);
         }
     );
-    props["ubrn_uniffi_internal_fn_method_subscription_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
+    props["ubrn_uniffi_internal_fn_method_numberobservation_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_subscription_ffi__bless_pointer"),
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_numberobservation_ffi__bless_pointer"),
         1,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
-            return this->cpp_uniffi_internal_fn_method_subscription_ffi__bless_pointer(rt, thisVal, args, count);
+            return this->cpp_uniffi_internal_fn_method_numberobservation_ffi__bless_pointer(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_internal_fn_method_stringobservation_ffi__bless_pointer"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_internal_fn_method_stringobservation_ffi__bless_pointer"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_internal_fn_method_stringobservation_ffi__bless_pointer(rt, thisVal, args, count);
         }
     );
 
@@ -6595,13 +6907,11 @@ uniffi::coproduct_ffi_uniffi::cb::rustfuturecontinuationcallback::cleanup();
     // Cleanup for callback function ForeignFutureDroppedCallback
 uniffi::coproduct_ffi_uniffi::cb::foreignfuturedroppedcallback::cleanup();
     // Cleanup for "free" callback function CallbackInterfaceFree
-uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceevaluationhook::vtablecallbackinterfaceevaluationhook::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceevaluationlistener::vtablecallbackinterfaceevaluationlistener::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceflagobserver::vtablecallbackinterfaceflagobserver::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacehostsecurestore::vtablecallbackinterfacehostsecurestore::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacehosttransport::vtablecallbackinterfacehosttransport::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacelifecyclehandler::vtablecallbackinterfacelifecyclehandler::free::cleanup();
+uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceevaluationhook::vtablecallbackinterfaceevaluationhook::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfaceevaluationlistener::vtablecallbackinterfaceevaluationlistener::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacehostsecurestore::vtablecallbackinterfacehostsecurestore::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacehosttransport::vtablecallbackinterfacehosttransport::free::cleanup();uniffi::coproduct_ffi_uniffi::st::vtablecallbackinterfacelifecyclehandler::vtablecallbackinterfacelifecyclehandler::free::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceevaluationhook::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceevaluationhookmethod0::vtablecallbackinterfaceevaluationhook::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceevaluationlistener::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceevaluationlistenermethod0::vtablecallbackinterfaceevaluationlistener::cleanup();
-uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfaceflagobserver::cleanup();
-uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceflagobservermethod0::vtablecallbackinterfaceflagobserver::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfaceclone::vtablecallbackinterfacehostsecurestore::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfacehostsecurestoremethod0::vtablecallbackinterfacehostsecurestore::cleanup();
 uniffi::coproduct_ffi_uniffi::cb::callbackinterfacehostsecurestoremethod1::vtablecallbackinterfacehostsecurestore::cleanup();
@@ -6626,6 +6936,24 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_func_ffi__string_fro
 
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_func_ffi__read_string_from_buffer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
     return uniffi_jsi::Bridging<std::string>::read_string_from_buffer(rt, args[0], args[1], args[2]);
+}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_boolobservation_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+    auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
+    auto static destructor = [](uint64_t p) {
+        RustCallStatus status = {0};
+        uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(p, &status);
+    };
+    auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
+    auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
+    return jsi::Value(rt, obj);
+}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_bundleobservation_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+    auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
+    auto static destructor = [](uint64_t p) {
+        RustCallStatus status = {0};
+        uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(p, &status);
+    };
+    auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
+    auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
+    return jsi::Value(rt, obj);
 }jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_coproductclient_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
     auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
     auto static destructor = [](uint64_t p) {
@@ -6658,15 +6986,6 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_func_ffi__read_strin
     auto static destructor = [](uint64_t p) {
         RustCallStatus status = {0};
         uniffi_coproduct_ffi_uniffi_fn_free_evaluationlistener(p, &status);
-    };
-    auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
-    auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
-    return jsi::Value(rt, obj);
-}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_flagobserver_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-    auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
-    auto static destructor = [](uint64_t p) {
-        RustCallStatus status = {0};
-        uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(p, &status);
     };
     auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
     auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
@@ -6707,6 +7026,24 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_func_ffi__read_strin
     auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
     auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
     return jsi::Value(rt, obj);
+}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_intobservation_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+    auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
+    auto static destructor = [](uint64_t p) {
+        RustCallStatus status = {0};
+        uniffi_coproduct_ffi_uniffi_fn_free_intobservation(p, &status);
+    };
+    auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
+    auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
+    return jsi::Value(rt, obj);
+}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_jsonobservation_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+    auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
+    auto static destructor = [](uint64_t p) {
+        RustCallStatus status = {0};
+        uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(p, &status);
+    };
+    auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
+    auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
+    return jsi::Value(rt, obj);
 }jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_lifecyclehandler_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
     auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
     auto static destructor = [](uint64_t p) {
@@ -6716,11 +7053,20 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_func_ffi__read_strin
     auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
     auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
     return jsi::Value(rt, obj);
-}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_subscription_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_numberobservation_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
     auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
     auto static destructor = [](uint64_t p) {
         RustCallStatus status = {0};
-        uniffi_coproduct_ffi_uniffi_fn_free_subscription(p, &status);
+        uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(p, &status);
+    };
+    auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
+    auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
+    return jsi::Value(rt, obj);
+}jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_method_stringobservation_ffi__bless_pointer(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+    auto pointer = uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[0]);
+    auto static destructor = [](uint64_t p) {
+        RustCallStatus status = {0};
+        uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(p, &status);
     };
     auto ptrObj = std::make_shared<uniffi_jsi::DestructibleObject>(pointer, destructor);
     auto obj = jsi::Object::createFromHostObject(rt, ptrObj);
@@ -6728,6 +7074,140 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_internal_fn_func_ffi__read_strin
 }
 
 // Methods calling directly into the uniffi generated C API of the Rust crate.
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_boolobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_free_boolobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_poll_next(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_seed(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_bundleobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_free_bundleobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_poll_next(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_bundleobservation_seed(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_coproduct_ffi_uniffi_fn_clone_coproductclient(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
@@ -6885,9 +7365,9 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_c
         
         return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_key(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[2]), 
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bool(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -6895,9 +7375,49 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_c
         
         return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[2]), 
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_bundle(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_int(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_json(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_number(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_observe_string(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -7148,50 +7668,6 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_e
         
         return jsi::Value::undefined();
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_flagobserver(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
-            &status
-        );
-        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
-
-        
-        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
-}
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        uniffi_coproduct_ffi_uniffi_fn_free_flagobserver(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
-            &status
-        );
-        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
-
-        
-        return jsi::Value::undefined();
-}
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-    auto vtableInstance =
-        uniffi::coproduct_ffi_uniffi::Bridging<UniffiVTableCallbackInterfaceFlagObserver>::fromJs(
-            rt,
-            callInvoker,
-            args[0]
-        );
-
-    std::lock_guard<std::mutex> lock(uniffi::coproduct_ffi_uniffi::registry::vtableMutex);
-    uniffi_coproduct_ffi_uniffi_fn_init_callback_vtable_flagobserver(
-        uniffi::coproduct_ffi_uniffi::registry::putTable(
-            "UniffiVTableCallbackInterfaceFlagObserver",
-            vtableInstance
-        )
-    );
-    return jsi::Value::undefined();
-}
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_fn_method_flagobserver_on_change(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2])
-        );
-
-        
-        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
-}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_coproduct_ffi_uniffi_fn_clone_handlerhandle(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
@@ -7387,6 +7863,140 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_h
         
         return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_intobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_intobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_intobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_free_intobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_method_intobservation_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_intobservation_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_intobservation_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_intobservation_poll_next(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_intobservation_seed(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_jsonobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_free_jsonobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_poll_next(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_jsonobservation_seed(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_coproduct_ffi_uniffi_fn_clone_lifecyclehandler(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
@@ -7431,9 +8041,9 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_l
         
         return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_subscription(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_subscription(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_numberobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -7441,9 +8051,9 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_su
         
         return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_subscription(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        uniffi_coproduct_ffi_uniffi_fn_free_subscription(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+        uniffi_coproduct_ffi_uniffi_fn_free_numberobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -7451,9 +8061,9 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_sub
         
         return jsi::Value::undefined();
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        uniffi_coproduct_ffi_uniffi_fn_method_subscription_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+        uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -7461,19 +8071,9 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_s
         
         return jsi::Value::undefined();
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_method_subscription_id(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
-            &status
-        );
-        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
-
-        
-        return uniffi_jsi::Bridging<uint64_t>::toJs(rt, callInvoker, value);
-}
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_method_subscription_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -7481,9 +8081,93 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_s
         
         return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
-        auto value = uniffi_coproduct_ffi_uniffi_fn_method_subscription_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_poll_next(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_numberobservation_seed(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_clone_stringobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_free_stringobservation(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_cancel(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return jsi::Value::undefined();
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_is_cancelled(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<int8_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_keys(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_poll_next(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0])
+        );
+
+        
+        return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -7894,6 +8578,76 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_fu
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(
         );
@@ -7992,15 +8746,43 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_key(
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(
         );
 
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_keys(
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string(
         );
 
         
@@ -8118,13 +8900,6 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_flagobserver_on_change(
-        );
-
-        
-        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
-}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel(
         );
@@ -8188,6 +8963,76 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(
         );
@@ -8195,29 +9040,71 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_subscription_cancel(
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel(
         );
 
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_subscription_id(
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled(
         );
 
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_subscription_is_cancelled(
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys(
         );
 
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
-jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
-        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_subscription_keys(
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed(
         );
 
         

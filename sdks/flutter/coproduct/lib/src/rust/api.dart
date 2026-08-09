@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `into_core`, `to_core_header`, `to_core_response`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ObserverAdapter`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `on_change`, `read`, `request`, `write`
+// These functions are ignored because they are not marked as `pub`: `attach`, `close`, `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `into_core`, `record`, `register_single`, `to_core_header`, `to_core_response`, `unattached`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ChannelObserver`, `ChannelState`, `ObserveChannel`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `drop`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `on_close`, `on_transition`, `read`, `request`, `write`
 
 Future<CoproductClientHandle> initialize({
   required String sdkKey,
@@ -78,16 +78,6 @@ String getJson({
   client: client,
   key: key,
   defaultValueJson: defaultValueJson,
-);
-
-Future<SubscriptionHandle> observe({
-  required CoproductClientHandle client,
-  required String key,
-  required FutureOr<void> Function(bool) onChange,
-}) => RustLib.instance.api.crateApiObserve(
-  client: client,
-  key: key,
-  onChange: onChange,
 );
 
 Future<void> identify({
@@ -159,11 +149,93 @@ Future<PollOutcome> pollNow({required CoproductClientHandle client}) =>
 Future<void> shutdown({required CoproductClientHandle client}) =>
     RustLib.instance.api.crateApiShutdown(client: client);
 
+BoolObserveSession observeBool({
+  required CoproductClientHandle client,
+  required String key,
+}) => RustLib.instance.api.crateApiObserveBool(client: client, key: key);
+
+bool? observeBoolSeed({required BoolObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveBoolSeed(session: session);
+
+Stream<bool?> observeBoolEvents({required BoolObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveBoolEvents(session: session);
+
+void cancelBoolObservation({required BoolObserveSession session}) =>
+    RustLib.instance.api.crateApiCancelBoolObservation(session: session);
+
+StringObserveSession observeString({
+  required CoproductClientHandle client,
+  required String key,
+}) => RustLib.instance.api.crateApiObserveString(client: client, key: key);
+
+String? observeStringSeed({required StringObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveStringSeed(session: session);
+
+Stream<String?> observeStringEvents({required StringObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveStringEvents(session: session);
+
+void cancelStringObservation({required StringObserveSession session}) =>
+    RustLib.instance.api.crateApiCancelStringObservation(session: session);
+
+IntObserveSession observeInt({
+  required CoproductClientHandle client,
+  required String key,
+}) => RustLib.instance.api.crateApiObserveInt(client: client, key: key);
+
+PlatformInt64? observeIntSeed({required IntObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveIntSeed(session: session);
+
+Stream<PlatformInt64?> observeIntEvents({required IntObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveIntEvents(session: session);
+
+void cancelIntObservation({required IntObserveSession session}) =>
+    RustLib.instance.api.crateApiCancelIntObservation(session: session);
+
+NumberObserveSession observeNumber({
+  required CoproductClientHandle client,
+  required String key,
+}) => RustLib.instance.api.crateApiObserveNumber(client: client, key: key);
+
+double? observeNumberSeed({required NumberObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveNumberSeed(session: session);
+
+Stream<double?> observeNumberEvents({required NumberObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveNumberEvents(session: session);
+
+void cancelNumberObservation({required NumberObserveSession session}) =>
+    RustLib.instance.api.crateApiCancelNumberObservation(session: session);
+
+JsonObserveSession observeJson({
+  required CoproductClientHandle client,
+  required String key,
+}) => RustLib.instance.api.crateApiObserveJson(client: client, key: key);
+
+String? observeJsonSeed({required JsonObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveJsonSeed(session: session);
+
+Stream<String?> observeJsonEvents({required JsonObserveSession session}) =>
+    RustLib.instance.api.crateApiObserveJsonEvents(session: session);
+
+void cancelJsonObservation({required JsonObserveSession session}) =>
+    RustLib.instance.api.crateApiCancelJsonObservation(session: session);
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BoolObserveSession>>
+abstract class BoolObserveSession implements RustOpaqueInterface {}
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>>
 abstract class CoproductClientHandle implements RustOpaqueInterface {}
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SubscriptionHandle>>
-abstract class SubscriptionHandle implements RustOpaqueInterface {}
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<IntObserveSession>>
+abstract class IntObserveSession implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<JsonObserveSession>>
+abstract class JsonObserveSession implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<NumberObserveSession>>
+abstract class NumberObserveSession implements RustOpaqueInterface {}
+
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<StringObserveSession>>
+abstract class StringObserveSession implements RustOpaqueInterface {}
 
 class FfiConfig {
   final PlatformInt64 pollIntervalUs;

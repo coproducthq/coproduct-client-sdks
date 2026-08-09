@@ -33,7 +33,7 @@ final class AsyncSequencesTests: XCTestCase {
         }
 
         try? await Task.sleep(nanoseconds: 50_000_000)
-        observation.testOnlyMerge(key: "k", value: .bool(true))
+        observation.testOnlyReplace(with: ["k": .bool(true)])
         let count = await collector.value
         XCTAssertEqual(count, 2)
     }

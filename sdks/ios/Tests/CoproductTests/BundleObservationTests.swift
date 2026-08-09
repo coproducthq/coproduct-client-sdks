@@ -3,7 +3,7 @@ import XCTest
 
 // Exercises the live observe(keys:) path end to end: a JSON flag change delivered
 // by a poll must reach the bundle observation as a .json value, not a flattened
-// string. This covers the BundleFlagObserver to merge glue that the FlagValue
+// string. This covers the bundle drain feeding replace, which the FlagValue
 // detailValue unit test does not drive directly
 @MainActor
 final class BundleObservationTests: XCTestCase {

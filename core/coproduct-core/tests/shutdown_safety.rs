@@ -15,9 +15,8 @@ struct Sink {
     seen: Mutex<u32>,
 }
 
-#[async_trait::async_trait]
 impl TypedFlagObserver for Sink {
-    async fn on_change(&self, _key: &str, _value: &FlagValue) {
+    fn on_transition(&self, _revision: u64, _state: &[(String, Option<FlagValue>)]) {
         *self.seen.lock().unwrap() += 1;
     }
 }
@@ -101,9 +100,10 @@ async fn observe_after_shutdown_returns_a_cancelled_subscription() {
     client.shutdown().await;
 
     let sink: Arc<Sink> = Arc::new(Sink::default());
-    let sub = client.observe_key("f".to_string(), sink.clone());
+    let session = client.observe_key("f".to_string(), sink.clone());
 
-    assert!(sub.is_cancelled());
+    assert!(session.subscription.is_cancelled());
+    assert!(session.seed.iter().all(|(_, value)| value.is_none()));
     assert_eq!(client.observer_count_for_test("f"), 0);
 }
 
