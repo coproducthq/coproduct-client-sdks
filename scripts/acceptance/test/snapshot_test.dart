@@ -83,4 +83,33 @@ void main() {
     expect(intRow['callerDefault'], -1);
     expect(intRow['kind'], 'identity');
   });
+
+  test('the envelope omits the requested flags and carries the version', () {
+    final full = buildSnapshotEnvelope(
+      expectedPlatform: 'ios',
+      appVersion: '1.2.3',
+      appBuild: '45',
+      generatedAt: '2026-08-01T00:00:00Z',
+    );
+    final fullFlags =
+        ((full['snapshot']! as Map)['flags']! as List).cast<Map<String, Object?>>();
+    expect((full['snapshot']! as Map)['version'], 1,
+        reason: 'the default reproduces the original envelope');
+
+    final trimmed = buildSnapshotEnvelope(
+      expectedPlatform: 'ios',
+      appVersion: '1.2.3',
+      appBuild: '45',
+      generatedAt: '2026-08-01T00:00:00Z',
+      version: 7,
+      omitFlags: {'fetch-control'},
+    );
+    final trimmedFlags =
+        ((trimmed['snapshot']! as Map)['flags']! as List).cast<Map<String, Object?>>();
+
+    expect((trimmed['snapshot']! as Map)['version'], 7);
+    expect(trimmedFlags.map((f) => f['key']), isNot(contains('fetch-control')));
+    expect(trimmedFlags, hasLength(fullFlags.length - 1),
+        reason: 'exactly the omitted flag is gone');
+  });
 }
