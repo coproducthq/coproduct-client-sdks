@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show FlutterError, FlutterErrorDetails;
 import 'src/attribute_value.dart';
 import 'src/config.dart';
 import 'src/errors.dart';
+import 'src/flag_observation.dart';
 import 'src/foreground.dart';
 import 'src/host.dart';
 import 'src/http_transport.dart';
@@ -21,6 +22,8 @@ export 'src/attribute_value.dart' show AttributeValue;
 export 'src/invalid_targeting_key.dart' show InvalidTargetingKey;
 export 'src/config.dart' show CoproductConfig;
 export 'src/provider_state.dart' show ProviderState;
+export 'src/flag_observation.dart' show FlagObservation;
+export 'src/coproduct_flag_builder.dart' show CoproductFlagBuilder;
 export 'src/errors.dart'
     show
         CoproductException,
@@ -165,6 +168,84 @@ class CoproductClient {
 
   /// The current provider lifecycle state. Never returns ProviderState.reconciling
   ProviderState get state => providerStateFromFrb(frb.state(client: _handle));
+
+  /// Observes a boolean flag, returning a [FlagObservation] whose value is
+  /// already seeded with what [getBool] would return right now.
+  ///
+  /// The observation updates when a poll, an identity change, or a context
+  /// change alters this flag's value, and resolves to [defaultValue] whenever
+  /// the flag is unavailable. The caller owns it: call
+  /// [FlagObservation.dispose] when the owner goes away, or let
+  /// [CoproductFlagBuilder] own one for you
+  FlagObservation<bool> observeBool(String key, bool defaultValue) {
+    final session = frb.observeBool(client: _handle, key: key);
+    return boolObservation(
+      defaultValue: defaultValue,
+      seed: frb.observeBoolSeed(session: session),
+      events: frb.observeBoolEvents(session: session),
+      cancel: () => frb.cancelBoolObservation(session: session),
+    );
+  }
+
+  /// Observes a string flag. See [observeBool] for ownership and update
+  /// semantics
+  FlagObservation<String> observeString(String key, String defaultValue) {
+    final session = frb.observeString(client: _handle, key: key);
+    return stringObservation(
+      defaultValue: defaultValue,
+      seed: frb.observeStringSeed(session: session),
+      events: frb.observeStringEvents(session: session),
+      cancel: () => frb.cancelStringObservation(session: session),
+    );
+  }
+
+  /// Observes an integer flag. Integers travel as the numeric flag type, so a
+  /// fractional value is truncated toward zero and a value outside the integer
+  /// range is unavailable, matching [getInt]. See [observeBool] for ownership
+  /// and update semantics
+  FlagObservation<int> observeInt(String key, int defaultValue) {
+    final session = frb.observeInt(client: _handle, key: key);
+    return intObservation(
+      defaultValue: defaultValue,
+      seed: frb.observeIntSeed(session: session),
+      events: frb.observeIntEvents(session: session),
+      cancel: () => frb.cancelIntObservation(session: session),
+    );
+  }
+
+  /// Observes a numeric flag. See [observeBool] for ownership and update
+  /// semantics
+  FlagObservation<double> observeNumber(String key, double defaultValue) {
+    final session = frb.observeNumber(client: _handle, key: key);
+    return numberObservation(
+      defaultValue: defaultValue,
+      seed: frb.observeNumberSeed(session: session),
+      events: frb.observeNumberEvents(session: session),
+      cancel: () => frb.cancelNumberObservation(session: session),
+    );
+  }
+
+  /// Observes a JSON flag as a native Dart value (map, list, scalar, or null).
+  ///
+  /// This is the one observation whose value is legitimately nullable: a flag
+  /// serving the JSON document `null` resolves to Dart `null`, which is a real
+  /// value and is distinct from the flag being unavailable. An unavailable flag
+  /// resolves to [defaultValue] like every other type.
+  ///
+  /// Decoded values are deeply unmodifiable. [defaultValue] should be
+  /// JSON-encodable, and an encodable one is served back in its decoded form so
+  /// it matches [getJson]. One that is not encodable is served back exactly as
+  /// supplied rather than throwing. See [observeBool] for ownership and update
+  /// semantics
+  FlagObservation<Object?> observeJson(String key, Object? defaultValue) {
+    final session = frb.observeJson(client: _handle, key: key);
+    return jsonObservation(
+      defaultValue: defaultValue,
+      seed: frb.observeJsonSeed(session: session),
+      events: frb.observeJsonEvents(session: session),
+      cancel: () => frb.cancelJsonObservation(session: session),
+    );
+  }
 }
 
 /// The single process-wide runtime, initialized and shut down through the static

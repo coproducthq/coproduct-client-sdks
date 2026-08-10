@@ -6,10 +6,11 @@ Flutter SDK for the [Coproduct](https://coproduct.app) feature flag and experime
 
 Pre-1.0. The public API is still being built out and is not yet at production polish. Do not adopt for production use until v1.0.
 
-> **Pre-release.** The SDK now fetches and evaluates real flags: it polls the
-> Coproduct endpoint, applies automatic device and app context, and serves
-> targeted values from the synchronous getters. The reactive layer, provider
-> widget, and detail getters are still to come before v1.0.
+> **Pre-release.** The SDK fetches and evaluates real flags: it polls the
+> Coproduct endpoint, applies automatic device and app context, serves
+> targeted values from the synchronous getters, and observes flags reactively
+> so a widget rebuilds when a value changes. A context-based client provider,
+> a multi-flag API, and the detail getters are still to come before v1.0.
 
 ## Compatibility
 
@@ -46,6 +47,28 @@ if (client.getBool('new-checkout', false)) {
   showNewCheckoutFlow();
 }
 ```
+
+## Reacting to flag changes
+
+Read a flag once with the getters, or observe it and rebuild when it changes:
+
+```dart
+CoproductFlagBuilder.boolFlag(
+  client: client,
+  flagKey: 'new-checkout',
+  defaultValue: false,
+  builder: (context, enabled, child) =>
+      enabled ? const NewCheckout() : const OldCheckout(),
+)
+```
+
+For direct ownership, `client.observeBool('new-checkout', false)` returns a
+`FlagObservation<bool>`, a `ValueListenable` you dispose when you are done with
+it. Observations are also available for string, int, number, and JSON flags.
+
+Ownership recipes for Provider, Riverpod, and BLoC, plus a zero-dependency way
+to reach the client from deep in the widget tree, are in
+[doc/state_management_recipes.md](doc/state_management_recipes.md).
 
 ## Known compatibility notes
 

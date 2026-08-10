@@ -36,8 +36,9 @@ Future<void> main(List<String> args) async {
   }
 
   final key = generateSdkKey();
-  // A distinct key for the control test, so its snapshot cache starts cold
+  // A distinct key per test that must start from a cold snapshot cache
   final controlKey = generateSdkKey();
+  final reactiveKey = generateSdkKey();
   final expected = jsonEncode(expectedTable());
 
   final code = await runAcceptance(
@@ -45,7 +46,8 @@ Future<void> main(List<String> args) async {
       Platform.resolvedExecutable, 'run', 'bin/fixture.dart',
       '--platform', platform, '--version', pin.version, '--build', pin.build,
       '--key', key,
-      '--second-key', controlKey,
+      '--key', controlKey,
+      '--key', reactiveKey,
     ],
     endpointForPort: (port) => endpointFor(platform, port),
     testCommandForEndpoint: (endpoint) => [
@@ -54,6 +56,7 @@ Future<void> main(List<String> args) async {
       '--dart-define=COPRODUCT_ENDPOINT=$endpoint',
       '--dart-define=COPRODUCT_SDK_KEY=$key',
       '--dart-define=COPRODUCT_SDK_KEY_CONTROL=$controlKey',
+      '--dart-define=COPRODUCT_SDK_KEY_REACTIVE=$reactiveKey',
       '--dart-define=COPRODUCT_EXPECTED=$expected',
     ],
     testWorkingDirectory: consumerDir,

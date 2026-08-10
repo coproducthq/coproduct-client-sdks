@@ -118,14 +118,18 @@ Documented per-platform deviations:
   gain ergonomic reactive APIs.
 - JSON observation is Flutter-specific. iOS has no `observeJSON`, because its
   bundle observation already carries JSON through `FlagDetailValue`.
+- Flutter's observations are `FlagObservation<T>`, a `ValueListenable` seeded
+  synchronously from the native session and disposed by its owner, plus
+  `CoproductFlagBuilder` for widgets that should own that lifecycle themselves.
+  Flutter deliberately has no context-based client provider and no multi-flag
+  observation: both are additive and are held until their shape is settled, so a
+  builder call takes an explicit `client`.
 - Cancelling an observation is per platform, and none of them is the stream-primitive
   cancel: iOS releases the `FlagObservation` (its `deinit` ends the native session),
-  Kotlin and React Native call `cancel()` on the returned handle, and Flutter will call
+  Kotlin and React Native call `cancel()` on the returned handle, and Flutter calls
   `FlagObservation.dispose()`. A unified `Cancellable` type is deliberately not in the
   identifier list. On Flutter in particular, cancelling only a Dart stream subscription
   would leave the native session registered, which is why disposal is the documented verb.
-- Flutter has no public observation surface yet. Its typed FRB sessions are private
-  plumbing until the Dart layer lands.
 - The OpenFeature `errorCode` enum (`FLAG_NOT_FOUND`, `TYPE_MISMATCH`, etc.) is a separate concept from thrown error names. The codes are data on `FlagEvaluationDetails.errorCode`, not catchable exception types.
 
 ## Evaluation semantics (cross-platform)

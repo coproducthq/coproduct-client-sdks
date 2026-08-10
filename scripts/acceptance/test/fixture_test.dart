@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-Future<(Process, int)> _startFixture(String key) async {
+Future<(Process, int)> _startFixture(String key,
+    {List<String> alsoAuthorize = const []}) async {
   final p = await Process.start(Platform.resolvedExecutable, [
     'run',
     'bin/fixture.dart',
@@ -11,6 +12,7 @@ Future<(Process, int)> _startFixture(String key) async {
     '--version', '1.0.0',
     '--build', '1',
     '--key', key,
+    for (final extra in alsoAuthorize) ...['--key', extra],
   ]);
   final line = await p.stdout
       .transform(utf8.decoder)
@@ -208,6 +210,32 @@ void main() {
         ((jsonDecode(served.body) as Map)['snapshot'] as Map)['flags'],
         isA<List>(),
         reason: 'the completed response carries a real snapshot body');
+  });
+
+  test('authorizes every key it was given and nothing else', () async {
+    const first = 'cpk_mob_abcdefghjkmnpqrstvwxyz0123456789';
+    const second = 'cpk_mob_zyxwvutsrqpnmkjhgfedcba9876543210';
+    const third = 'cpk_mob_0123456789abcdefghjkmnpqrstvwxyz';
+    final (proc, port) = await _startFixture(first,
+        alsoAuthorize: const [second, third]);
+    addTearDown(() => proc.kill(ProcessSignal.sigkill));
+    final client = HttpClient();
+    addTearDown(() => client.close(force: true));
+
+    Future<int> statusFor(String key) async {
+      final req = await client
+          .getUrl(Uri.parse('http://127.0.0.1:$port/v1/snapshot'));
+      req.headers.set('Authorization', 'Bearer $key');
+      final resp = await req.close();
+      await resp.drain<void>();
+      return resp.statusCode;
+    }
+
+    for (final key in const [first, second, third]) {
+      expect(await statusFor(key), 200, reason: 'authorized key $key');
+    }
+    expect(await statusFor('cpk_mob_neverissuedneverissuedneverissued'), 401,
+        reason: 'an unlisted key must not authorize');
   });
 }
 

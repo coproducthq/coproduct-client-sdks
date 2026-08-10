@@ -10,28 +10,24 @@ import 'package:coproduct_acceptance/snapshot.dart';
 // snapshot for an authorized GET /v1/snapshot. All logs go to stderr
 Future<void> main(List<String> args) async {
   final opts = _parse(args);
-  final platform = opts['platform'];
+  final platform = opts['platform']?.single;
   if (platform != 'ios' && platform != 'android') {
     stderr.writeln('fixture: --platform must be ios or android');
     exit(2);
   }
-  final key = opts['key'];
-  if (key == null || key.isEmpty) {
-    stderr.writeln('fixture: --key is required');
+  // One key per test that needs its own snapshot cache scope. Repeat --key to
+  // authorize more than one
+  final keys = {...?opts['key']}..removeWhere((key) => key.isEmpty);
+  if (keys.isEmpty) {
+    stderr.writeln('fixture: at least one --key is required');
     exit(2);
   }
-  // A second key lets one fixture serve two tests whose snapshot caches must
-  // not share a scope. Optional, so a single-test run is unchanged
-  final keys = {
-    key,
-    if (opts['second-key']?.isNotEmpty ?? false) opts['second-key']!,
-  };
 
   final control = FixtureControl(
     buildBody: (version, omitted) => jsonEncode(buildSnapshotEnvelope(
       expectedPlatform: platform!,
-      appVersion: opts['version']!,
-      appBuild: opts['build']!,
+      appVersion: opts['version']!.single,
+      appBuild: opts['build']!.single,
       generatedAt: '2026-08-01T00:00:00Z',
       version: version,
       omitFlags: omitted,
@@ -192,10 +188,14 @@ Future<void> _handleControl(
   }));
 }
 
-Map<String, String> _parse(List<String> args) {
-  final map = <String, String>{};
+// Values are collected per flag rather than overwritten, so --key can be
+// repeated once per test that needs its own snapshot cache scope
+Map<String, List<String>> _parse(List<String> args) {
+  final map = <String, List<String>>{};
   for (var i = 0; i + 1 < args.length; i += 2) {
-    if (args[i].startsWith('--')) map[args[i].substring(2)] = args[i + 1];
+    if (args[i].startsWith('--')) {
+      map.putIfAbsent(args[i].substring(2), () => <String>[]).add(args[i + 1]);
+    }
   }
   return map;
 }
