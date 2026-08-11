@@ -26,16 +26,24 @@ before `runApp`. Both are correct; this one keeps the first frame immediate.
 
 ## Running
 
+From this directory, with a booted simulator or emulator:
+
 ```bash
-flutter run                 # picks the booted device
-flutter run -d <udid>       # or target one
+cd sdks/flutter/coproduct/example
+flutter run --dart-define=COPRODUCT_SDK_KEY=<your-mobile-sdk-key>
 ```
 
-Without `--dart-define=COPRODUCT_SDK_KEY=<key>` the app falls back to a
-well-formed placeholder key, so `initialize` succeeds and the SDK reports
-ready, but no snapshot ever arrives and both readings show the caller default.
-That is the expected result: this sample exists to show the shape of the API,
-not to serve live values.
+Add `-d <udid>` to choose a specific device.
+
+To see a real value rather than the default, create a boolean flag with the key
+`test-flag` in Coproduct, or change `test-flag` in `lib/main.dart` to a boolean
+flag key you already have. Flags and SDK keys are created through the Coproduct
+MCP app.
+
+Running without `--dart-define` still works: the app falls back to a
+well-formed placeholder key, so it starts and reports ready, but no flag data
+ever arrives and both readings show the default. If you passed a real key and
+still see the default, the flag key is the thing to check first.
 
 The repository's build scripts compile this app on both platforms, so it also
 serves as a compile check that the public API is usable as written. See
