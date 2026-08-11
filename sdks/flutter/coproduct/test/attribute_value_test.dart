@@ -14,6 +14,21 @@ void main() {
         const frb.FrbContextValue.null_());
   });
 
+  test('every single-value factory is const constructible', () {
+    // A compile-time proof: if any of these stopped being a const factory this
+    // list would not compile. The asymmetry it guards against is real, since
+    // reaching for const beside a string attribute is the natural thing to write
+    const values = <AttributeValue>[
+      AttributeValue.string('a'),
+      AttributeValue.number(5),
+      AttributeValue.bool(true),
+      AttributeValue.nullValue(),
+    ];
+
+    expect(values, hasLength(4));
+    expect(values[1], AttributeValue.number(5.0));
+  });
+
   test('number(num) normalizes an integer to a double', () {
     expect(toFrbContextValue(AttributeValue.number(42)),
         const frb.FrbContextValue.number(42.0));

@@ -226,7 +226,7 @@ downloaded, so values update immediately.
 The other calls:
 
 ```dart
-await client.updateAttributes({'seats': AttributeValue.number(5)});
+await client.updateAttributes({'seats': const AttributeValue.number(5)});
 await client.removeAttributes(['seats']);
 await client.signOut();
 ```

@@ -11,12 +11,17 @@ sealed class AttributeValue {
 
   /// A numeric attribute. The value is stored as a double, so an integer
   /// identifier larger than 2^53 loses precision. Pass such an identifier as a
-  /// string with [AttributeValue.string] instead
-  factory AttributeValue.number(num value) =>
-      NumberAttributeValue(value.toDouble());
+  /// string with [AttributeValue.string] instead.
+  ///
+  /// An integer literal is accepted, so `AttributeValue.number(5)` reads
+  /// naturally. Call `.toDouble()` yourself when you hold a `num` variable
+  const factory AttributeValue.number(double value) = NumberAttributeValue;
 
   const factory AttributeValue.bool(bool value) = BoolAttributeValue;
 
+  /// A string list attribute. This is the one factory that cannot be `const`,
+  /// because it copies the values so a later change to the caller's list cannot
+  /// alter an attribute already sent
   factory AttributeValue.stringList(Iterable<String> values) =>
       StringListAttributeValue(List<String>.unmodifiable(values));
 
