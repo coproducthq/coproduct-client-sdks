@@ -76,6 +76,14 @@ Ownership recipes for Provider, Riverpod, and BLoC, plus a zero-dependency way
 to reach the client from deep in the widget tree, are in
 [doc/state_management_recipes.md](doc/state_management_recipes.md).
 
+## A runnable sample
+
+[`example/`](example/) is a source-linked app showing the shape above end to
+end: a `CoproductScope` installed once after initialization, a flag read
+through `CoproductFlagBuilder` with no `client` argument, and a getter read
+beside it so the difference between a point-in-time read and a live observation
+is visible on screen.
+
 ## Known compatibility notes
 
 **Gradle 9 cargokit patch.** Upstream cargokit calls `project.exec()`, which was removed in Gradle 9. Our vendored cargokit at `cargokit/gradle/plugin.gradle` carries a `ProcessBuilder` patch ([FRB issue #3007](https://github.com/fzyzcjy/flutter_rust_bridge/issues/3007), wontfix upstream). The patch is transparent to Flutter developers but is documented here for completeness.

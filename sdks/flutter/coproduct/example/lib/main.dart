@@ -71,18 +71,52 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final c = client;
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: const Text('Coproduct Flutter scaffold')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('SDK ready: ${ready ? "yes" : "no"}'),
-              Text('getBool: $flagValue'),
-            ],
+        // The shell renders immediately and the scope is installed once
+        // initialize returns, so startup is never blocked on the SDK. An app
+        // that prefers the simpler shape can await initialize before runApp
+        // instead, which the README shows
+        body: c == null
+            ? const Center(child: Text('SDK ready: no'))
+            : CoproductScope(
+                client: c,
+                child: const _FlagDemo(),
+              ),
+      ),
+    );
+  }
+}
+
+/// Everything below the scope reads flags without being handed the client
+class _FlagDemo extends StatelessWidget {
+  const _FlagDemo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('SDK ready: yes'),
+          // Rebuilds by itself whenever the flag changes, and disposes its
+          // observation when this widget leaves the tree
+          CoproductFlagBuilder.boolFlag(
+            flagKey: 'test-flag',
+            defaultValue: false,
+            builder: (context, enabled, child) =>
+                Text('observeBool: $enabled'),
           ),
-        ),
+          // The synchronous getter reads the value once, when this widget
+          // builds. It does not follow later changes the way the builder above
+          // does, which is the difference between the two surfaces
+          Text('getBool at build: ${CoproductScope.of(context).getBool(
+            'test-flag',
+            false,
+          )}'),
+        ],
       ),
     );
   }

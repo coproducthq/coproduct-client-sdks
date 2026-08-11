@@ -205,7 +205,10 @@ and should be investigated as one.
 
 The clean runs through the launcher like every other command here, so it uses the
 toolchain under test rather than whatever Flutter happens to be on `PATH`, and so
-it works on a machine that has no global Flutter at all:
+it works on a machine that has no global Flutter at all. Run it as part of the
+sequence below rather than on its own: a bare clean leaves the consumer with no
+package resolution, which shows up as unresolved imports in an editor until
+something resolves it again.
 
 ```
 scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd consumer-tests/flutter && flutter clean'

@@ -196,6 +196,25 @@ void main() {
     expect(numberFlag.value, -2.5);
     expect(jsonFlag.value, jsonDefault);
 
+    // A real client, a real scope, and a builder that omits client entirely
+    // This is the composition a developer actually writes, and every other test
+    // of these two widgets uses an interface fake, so this is the only place
+    // the whole path runs against the native SDK
+    await tester.pumpWidget(CoproductScope(
+      client: client,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: CoproductFlagBuilder.stringFlag(
+          flagKey: 'identity-string',
+          defaultValue: stringDefault,
+          builder: _renderFlag,
+        ),
+      ),
+    ));
+    expect(find.text(stringDefault), findsOneWidget,
+        reason: 'the builder seeds from the scoped client while the poll is '
+            'still held');
+
     await _waitForFixtureState(endpoint, 'blocked');
     expect(await _release(endpoint), 200);
 
@@ -222,6 +241,9 @@ void main() {
     expect(numberFlag.value, 0.0);
     expect(jsonFlag.value, {'variant': 'missed'});
 
+    await _pumpUntilText(tester, 'identity-string-missed',
+        because: 'the released poll reaches the widget, not only the client');
+
     // An identity change re-evaluates every observation without a poll
     await client.identify(
         userId: 'reactive-user',
@@ -246,6 +268,9 @@ void main() {
     expect(intFlag.value, 42, reason: 'a fractional number truncates for int');
     expect(numberFlag.value, 3.5);
     expect(jsonFlag.value, jsonTarget);
+
+    await _pumpUntilText(tester, 'identity-string-matched',
+        because: 'an identity change rebuilds the widget');
 
     // A disposed observation stops receiving while a live one on the same key
     // keeps receiving. On its own this does not prove the native session was
@@ -277,6 +302,10 @@ void main() {
         because: 'a flag that left the snapshot serves the caller default');
     expect(disposed.value, 'identity-string-matched',
         reason: 'a disposed observation receives nothing further');
+
+    await _pumpUntilText(tester, stringDefault,
+        because: 'a flag that left the snapshot returns the widget to the '
+            'caller default');
 
     // Finally, re-enter the SDK from inside a listener, synchronously and
     // asynchronously. Both are ordinary things to write in a listener, and
@@ -333,6 +362,11 @@ void main() {
         reason: 'a synchronous SDK call from inside a notification returns');
   }, timeout: const Timeout(Duration(minutes: 2)));
 }
+
+// Top level rather than a closure, so the widget tree above reads as the shape
+// a developer would write rather than as test scaffolding
+Widget _renderFlag(BuildContext context, String value, Widget? child) =>
+    Text(value);
 
 /// Drives a second poll through the production foreground path: the SDK binds
 /// an AppLifecycleListener and the scheduler refreshes on resume without waiting
@@ -425,6 +459,21 @@ String _renderAll(
     'bool=${boolFlag.value} string=${stringFlag.value} '
     'int=${intFlag.value} number=${numberFlag.value} '
     'json=${jsonEncode(jsonFlag.value)}';
+
+// Waits for the widget under test rather than for a value on some other
+// subscription. The builder owns its own observation, and independent
+// subscriptions are not ordered against each other, so a wait satisfied by a
+// direct observation says nothing about whether the builder's event has landed
+Future<void> _pumpUntilText(WidgetTester tester, String expected,
+    {required String because}) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 15));
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump();
+    if (find.text(expected).evaluate().isNotEmpty) return;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+  fail('the widget never rendered "$expected": $because');
+}
 
 // Structural comparison for a JSON observation inside a wait predicate, where a
 // mismatch must simply retry rather than fail. Keys are sorted before encoding
