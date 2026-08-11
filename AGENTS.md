@@ -121,9 +121,11 @@ Documented per-platform deviations:
 - Flutter's observations are `FlagObservation<T>`, a `ValueListenable` seeded
   synchronously from the native session and disposed by its owner, plus
   `CoproductFlagBuilder` for widgets that should own that lifecycle themselves.
-  Flutter deliberately has no context-based client provider and no multi-flag
-  observation: both are additive and are held until their shape is settled, so a
-  builder call takes an explicit `client`.
+  `CoproductScope` is the Flutter client-access surface: a builder resolves the
+  client from the nearest scope when `client` is omitted, and an explicit
+  `client` still wins so an app carrying it in Provider, Riverpod, or BLoC needs
+  no scope. Flutter deliberately has no multi-flag observation, which is
+  additive and held until its shape is settled.
 - Cancelling an observation is per platform, and none of them is the stream-primitive
   cancel: iOS releases the `FlagObservation` (its `deinit` ends the native session),
   Kotlin and React Native call `cancel()` on the returned handle, and Flutter calls

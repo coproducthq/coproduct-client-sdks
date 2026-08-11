@@ -86,48 +86,42 @@ different client, replace the observation in `didUpdateWidget` when
 ## Recipe 3: reaching the client from deep in the tree
 
 The client comes back from `Coproduct.initialize` at startup, and the widgets
-that read flags are usually far below that. An `InheritedWidget` carries it down
-without any package:
-
-```dart
-class CoproductScope extends InheritedWidget {
-  const CoproductScope({
-    super.key,
-    required this.client,
-    required super.child,
-  });
-
-  final CoproductClient client;
-
-  static CoproductClient of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<CoproductScope>();
-    assert(scope != null, 'No CoproductScope found above this widget');
-    return scope!.client;
-  }
-
-  @override
-  bool updateShouldNotify(CoproductScope oldWidget) =>
-      !identical(client, oldWidget.client);
-}
-```
+that read flags are usually far below that. `CoproductScope` carries it down.
 
 Install it once, above anything that reads a flag:
 
 ```dart
-final client = await Coproduct.initialize(sdkKey: 'your-key');
-runApp(CoproductScope(client: client, child: const MyApp()));
+import 'package:coproduct/coproduct.dart';
+import 'package:flutter/widgets.dart';
+
+Future<void> main() async {
+  // initialize reads the app version and cache directory through platform
+  // plugins, so the binding has to exist before it runs
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final client = await Coproduct.initialize(sdkKey: 'your-key');
+  runApp(CoproductScope(client: client, child: const MyApp()));
+}
 ```
 
-Then any descendant reads it from the context:
+Then any descendant can omit `client` entirely:
 
 ```dart
 CoproductFlagBuilder.stringFlag(
-  client: CoproductScope.of(context),
   flagKey: 'greeting',
   defaultValue: 'Hello',
   builder: (context, greeting, child) => Text(greeting),
 )
 ```
+
+And anything that needs the client itself reads it from the context:
+
+```dart
+await CoproductScope.of(context).identify(userId: 'alice');
+```
+
+`CoproductScope.of` throws with a message naming both remedies when no scope is
+above it, so a missing scope is a loud failure rather than a silent default.
 
 Two things this scope deliberately does **not** do. It does not own SDK
 lifetime: `Coproduct.shutdown()` is process-wide and is called by whatever set
@@ -138,6 +132,9 @@ your app decides what to show while `initialize` is still running.
 
 `ListenableProvider` disposes what it creates, which is what an observation
 needs:
+
+If you already keep the client in a Provider, read it from there and pass
+`client:` explicitly. You do not need a `CoproductScope` as well.
 
 ```dart
 ListenableProvider<FlagObservation<bool>>(
@@ -161,6 +158,9 @@ session to it. A plain `Provider` lives as long as its container, so reach for
 `Provider.autoDispose` when the observation should be released with the screen
 that watched it. `clientProvider` below is your own provider holding the client
 returned by `Coproduct.initialize`:
+
+The same applies to the client itself: read it from your own provider and pass
+`client:` explicitly rather than installing a `CoproductScope`.
 
 ```dart
 final newCheckoutProvider = Provider<FlagObservation<bool>>((ref) {
@@ -194,6 +194,9 @@ the observation for a rebuild to happen.
 
 Forward the observation's notifications into your state and dispose it in
 `close()`. A `Cubit` shows the ownership without event-handler boilerplate:
+
+If a repository provider already carries the client, pass `client:` from it and
+skip the `CoproductScope`.
 
 ```dart
 class CheckoutCubit extends Cubit<bool> {
@@ -236,7 +239,7 @@ safe. An observation created after shutdown serves the default you supply.
 
 ## A note on these samples
 
-The `CoproductScope` recipe is compiled and checked by this package's own test
-suite. The Provider, Riverpod, and BLoC samples reference packages this SDK does
-not depend on, so they are reviewed by hand rather than compiled here. Adapt
-names to your version of those packages.
+`CoproductScope` and `CoproductFlagBuilder` are shipped code, tested by this
+package's own suite. The Provider, Riverpod, and BLoC samples reference packages
+this SDK does not depend on, so they are reviewed by hand rather than compiled
+here. Adapt names to your version of those packages.

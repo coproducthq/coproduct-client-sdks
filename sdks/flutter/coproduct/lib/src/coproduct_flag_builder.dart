@@ -18,13 +18,17 @@ import 'json_value.dart';
 ///
 /// ```dart
 /// CoproductFlagBuilder.boolFlag(
-///   client: client,
 ///   flagKey: 'new-checkout',
 ///   defaultValue: false,
 ///   builder: (context, enabled, child) =>
 ///       enabled ? const NewCheckout() : const OldCheckout(),
 /// )
 /// ```
+///
+/// The client is resolved in one of two ways: an explicit `client` argument
+/// wins, and otherwise the nearest enclosing [CoproductScope] is used and is
+/// required. Pass `client` explicitly when something else already holds it,
+/// such as a Provider, Riverpod, or BLoC container, and no scope is needed.
 ///
 /// The observation is replaced only when the client, the flag key, or the
 /// default changes, so a rebuilding ancestor does not churn native sessions. An advanced caller who wants to share one observation across
@@ -39,104 +43,136 @@ class CoproductFlagBuilder {
   /// Builds from a boolean flag
   static Widget boolFlag({
     Key? key,
-    required CoproductClient client,
+    CoproductClient? client,
     required String flagKey,
     required bool defaultValue,
     required ValueWidgetBuilder<bool> builder,
     Widget? child,
   }) =>
-      ObservedFlagBuilder<bool>(
+      Builder(
+        // The key belongs on the outer widget, because that is what
+        // participates in sibling reconciliation at the call site. With it on
+        // the inner widget, reordered siblings would match positionally and
+        // the inner elements would be replaced rather than moved, which reads
+        // correctly on screen while churning native sessions
         key: key,
-        clientIdentity: client,
-        flagKey: flagKey,
-        defaultValue: defaultValue,
-        create: () => client.observeBool(flagKey, defaultValue),
-        unchangedDefault: (a, b) => a == b,
-        builder: builder,
-        child: child,
+        builder: (context) {
+          // Short-circuits, so an explicit client never registers an inherited
+          // dependency and a scope change cannot rebuild this subtree
+          final resolved = client ?? CoproductScope.of(context);
+          return ObservedFlagBuilder<bool>(
+            clientIdentity: resolved,
+            flagKey: flagKey,
+            defaultValue: defaultValue,
+            create: () => resolved.observeBool(flagKey, defaultValue),
+            unchangedDefault: (a, b) => a == b,
+            builder: builder,
+            child: child,
+          );
+        },
       );
 
   /// Builds from a string flag
   static Widget stringFlag({
     Key? key,
-    required CoproductClient client,
+    CoproductClient? client,
     required String flagKey,
     required String defaultValue,
     required ValueWidgetBuilder<String> builder,
     Widget? child,
   }) =>
-      ObservedFlagBuilder<String>(
+      Builder(
         key: key,
-        clientIdentity: client,
-        flagKey: flagKey,
-        defaultValue: defaultValue,
-        create: () => client.observeString(flagKey, defaultValue),
-        unchangedDefault: (a, b) => a == b,
-        builder: builder,
-        child: child,
+        builder: (context) {
+          final resolved = client ?? CoproductScope.of(context);
+          return ObservedFlagBuilder<String>(
+            clientIdentity: resolved,
+            flagKey: flagKey,
+            defaultValue: defaultValue,
+            create: () => resolved.observeString(flagKey, defaultValue),
+            unchangedDefault: (a, b) => a == b,
+            builder: builder,
+            child: child,
+          );
+        },
       );
 
   /// Builds from an integer flag
   static Widget intFlag({
     Key? key,
-    required CoproductClient client,
+    CoproductClient? client,
     required String flagKey,
     required int defaultValue,
     required ValueWidgetBuilder<int> builder,
     Widget? child,
   }) =>
-      ObservedFlagBuilder<int>(
+      Builder(
         key: key,
-        clientIdentity: client,
-        flagKey: flagKey,
-        defaultValue: defaultValue,
-        create: () => client.observeInt(flagKey, defaultValue),
-        unchangedDefault: (a, b) => a == b,
-        builder: builder,
-        child: child,
+        builder: (context) {
+          final resolved = client ?? CoproductScope.of(context);
+          return ObservedFlagBuilder<int>(
+            clientIdentity: resolved,
+            flagKey: flagKey,
+            defaultValue: defaultValue,
+            create: () => resolved.observeInt(flagKey, defaultValue),
+            unchangedDefault: (a, b) => a == b,
+            builder: builder,
+            child: child,
+          );
+        },
       );
 
   /// Builds from a numeric flag
   static Widget numberFlag({
     Key? key,
-    required CoproductClient client,
+    CoproductClient? client,
     required String flagKey,
     required double defaultValue,
     required ValueWidgetBuilder<double> builder,
     Widget? child,
   }) =>
-      ObservedFlagBuilder<double>(
+      Builder(
         key: key,
-        clientIdentity: client,
-        flagKey: flagKey,
-        defaultValue: defaultValue,
-        create: () => client.observeNumber(flagKey, defaultValue),
-        unchangedDefault: (a, b) => a == b || (a.isNaN && b.isNaN),
-        builder: builder,
-        child: child,
+        builder: (context) {
+          final resolved = client ?? CoproductScope.of(context);
+          return ObservedFlagBuilder<double>(
+            clientIdentity: resolved,
+            flagKey: flagKey,
+            defaultValue: defaultValue,
+            create: () => resolved.observeNumber(flagKey, defaultValue),
+            unchangedDefault: (a, b) => a == b || (a.isNaN && b.isNaN),
+            builder: builder,
+            child: child,
+          );
+        },
       );
 
   /// Builds from a JSON flag. The value is a decoded, deeply unmodifiable Dart
   /// structure
   static Widget jsonFlag({
     Key? key,
-    required CoproductClient client,
+    CoproductClient? client,
     required String flagKey,
     required Object? defaultValue,
     required ValueWidgetBuilder<Object?> builder,
     Widget? child,
   }) =>
-      ObservedFlagBuilder<Object?>(
+      Builder(
         key: key,
-        clientIdentity: client,
-        flagKey: flagKey,
-        defaultValue: defaultValue,
-        create: () => client.observeJson(flagKey, defaultValue),
-        // Defaults are compared the way the observation resolves them, so two
-        // objects that encode to the same document are one default
-        unchangedDefault: jsonDefaultsEqual,
-        builder: builder,
-        child: child,
+        builder: (context) {
+          final resolved = client ?? CoproductScope.of(context);
+          return ObservedFlagBuilder<Object?>(
+            clientIdentity: resolved,
+            flagKey: flagKey,
+            defaultValue: defaultValue,
+            create: () => resolved.observeJson(flagKey, defaultValue),
+            // Defaults are compared the way the observation resolves them, so
+            // two objects that encode to the same document are one default
+            unchangedDefault: jsonDefaultsEqual,
+            builder: builder,
+            child: child,
+          );
+        },
       );
 }
 

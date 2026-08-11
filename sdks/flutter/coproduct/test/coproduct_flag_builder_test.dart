@@ -258,6 +258,231 @@ void main() {
     expect(creates, 1);
   });
 
+  testWidgets('omitting client resolves the nearest scope', (tester) async {
+    final scoped = _FakeClient(() {});
+
+    await tester.pumpWidget(_host(
+      scoped,
+      CoproductFlagBuilder.stringFlag(
+        flagKey: 'greeting',
+        defaultValue: 'fallback',
+        builder: (context, value, child) => Text(value),
+      ),
+    ));
+
+    expect(scoped.registrations, 1);
+    expect(find.text('greeting'), findsOneWidget,
+        reason: 'the scoped client is the one that was observed');
+  });
+
+  testWidgets('an explicit client works with no scope anywhere',
+      (tester) async {
+    final explicit = _FakeClient(() {});
+
+    await tester.pumpWidget(Directionality(
+      textDirection: TextDirection.ltr,
+      child: CoproductFlagBuilder.stringFlag(
+        client: explicit,
+        flagKey: 'greeting',
+        defaultValue: 'fallback',
+        builder: (context, value, child) => Text(value),
+      ),
+    ));
+
+    expect(explicit.registrations, 1);
+  });
+
+  testWidgets('an explicit client wins over a surrounding scope',
+      (tester) async {
+    final scoped = _FakeClient(() {});
+    final explicit = _FakeClient(() {});
+
+    await tester.pumpWidget(_host(
+      scoped,
+      CoproductFlagBuilder.stringFlag(
+        client: explicit,
+        flagKey: 'greeting',
+        defaultValue: 'fallback',
+        builder: (context, value, child) => Text(value),
+      ),
+    ));
+
+    expect(explicit.registrations, 1);
+    expect(scoped.registrations, 0);
+  });
+
+  testWidgets('an explicit client does not depend on the scope',
+      (tester) async {
+    final explicit = _FakeClient(() {});
+    final scopedFirst = _FakeClient(() {});
+    final scopedSecond = _FakeClient(() {});
+    var builds = 0;
+
+    // One widget instance, reused beneath both scopes. updateChild skips an
+    // identical child, so the ordinary parent-driven rebuild is gone. An
+    // inherited notification marks a dependent dirty by a separate path, so if
+    // the facade wrongly looked the scope up despite an explicit client, this
+    // subtree would rebuild and the count would move
+    final flagWidget = CoproductFlagBuilder.stringFlag(
+      client: explicit,
+      flagKey: 'greeting',
+      defaultValue: 'fallback',
+      builder: (context, value, child) {
+        builds += 1;
+        return Text(value);
+      },
+    );
+
+    await tester.pumpWidget(_host(scopedFirst, flagWidget));
+    expect(builds, 1);
+
+    await tester.pumpWidget(_host(scopedSecond, flagWidget));
+    expect(builds, 1,
+        reason: 'an explicit client registers no scope dependency');
+  });
+
+  testWidgets('replacing the scoped client re-registers exactly once',
+      (tester) async {
+    final first = _FakeClient(() {});
+    final second = _FakeClient(() {});
+    final flagWidget = CoproductFlagBuilder.stringFlag(
+      flagKey: 'greeting',
+      defaultValue: 'fallback',
+      builder: (context, value, child) => Text(value),
+    );
+
+    await tester.pumpWidget(_host(first, flagWidget));
+    expect(first.registrations, 1);
+
+    await tester.pumpWidget(_host(second, flagWidget));
+
+    expect(second.registrations, 1);
+    expect(first.cancellations, 1,
+        reason: 'the observation on the old client is disposed');
+    expect(first.registrations, 1,
+        reason: 'and the old client is never observed again');
+  });
+
+  testWidgets('a keyed reorder moves observations rather than replacing them',
+      (tester) async {
+    final client = _FakeClient(() {});
+    Widget flag(String flagKey) => CoproductFlagBuilder.stringFlag(
+          key: ValueKey<String>(flagKey),
+          client: client,
+          flagKey: flagKey,
+          defaultValue: 'fallback',
+          builder: (context, value, child) => Text(value),
+        );
+    final alpha = flag('alpha');
+    final beta = flag('beta');
+
+    await tester.pumpWidget(_column([alpha, beta]));
+    expect(client.registrations, 2);
+    expect(client.cancellations, 0);
+
+    await tester.pumpWidget(_column([beta, alpha]));
+
+    // Lifecycle, not rendered output. With the key on the inner widget the
+    // values would still be correct while both observations were torn down and
+    // rebuilt, which is exactly what a value-only assertion would miss
+    expect(client.registrations, 2,
+        reason: 'a keyed reorder moves elements, it does not re-register');
+    expect(client.cancellations, 0);
+  });
+
+  // The scope fallback and the key placement are written out five times, once
+  // per entry point, so a test that exercises one proves nothing about the
+  // other four. These three cover all five
+  List<Widget> everyEntryPoint({CoproductClient? client}) => [
+        CoproductFlagBuilder.boolFlag(
+            client: client,
+            flagKey: 'b',
+            defaultValue: false,
+            builder: (context, value, child) => Text('$value')),
+        CoproductFlagBuilder.stringFlag(
+            client: client,
+            flagKey: 's',
+            defaultValue: 'd',
+            builder: (context, value, child) => Text(value)),
+        CoproductFlagBuilder.intFlag(
+            client: client,
+            flagKey: 'i',
+            defaultValue: 0,
+            builder: (context, value, child) => Text('$value')),
+        CoproductFlagBuilder.numberFlag(
+            client: client,
+            flagKey: 'n',
+            defaultValue: 0,
+            builder: (context, value, child) => Text('$value')),
+        CoproductFlagBuilder.jsonFlag(
+            client: client,
+            flagKey: 'j',
+            defaultValue: null,
+            builder: (context, value, child) => Text('$value')),
+      ];
+
+  testWidgets('every entry point resolves the scope when client is omitted',
+      (tester) async {
+    final scoped = _FakeClient(() {});
+
+    await tester.pumpWidget(_host(scoped, _column(everyEntryPoint())));
+
+    expect(scoped.observedKeys, ['b', 's', 'i', 'n', 'j'],
+        reason: 'each entry point must reach the scoped client');
+  });
+
+  testWidgets('every entry point accepts an explicit client with no scope',
+      (tester) async {
+    final explicit = _FakeClient(() {});
+
+    await tester.pumpWidget(_column(everyEntryPoint(client: explicit)));
+
+    expect(explicit.observedKeys, ['b', 's', 'i', 'n', 'j']);
+  });
+
+  test('every entry point puts the key on the widget it returns', () {
+    // The returned widget is what a parent reconciles, so the key has to be on
+    // it rather than on anything it wraps. Constructing does not build, so no
+    // observation is registered here
+    const key = ValueKey<String>('flag');
+    final client = _FakeClient(() {});
+    for (final widget in [
+      CoproductFlagBuilder.boolFlag(
+          key: key,
+          client: client,
+          flagKey: 'b',
+          defaultValue: false,
+          builder: (context, value, child) => const SizedBox.shrink()),
+      CoproductFlagBuilder.stringFlag(
+          key: key,
+          client: client,
+          flagKey: 's',
+          defaultValue: 'd',
+          builder: (context, value, child) => const SizedBox.shrink()),
+      CoproductFlagBuilder.intFlag(
+          key: key,
+          client: client,
+          flagKey: 'i',
+          defaultValue: 0,
+          builder: (context, value, child) => const SizedBox.shrink()),
+      CoproductFlagBuilder.numberFlag(
+          key: key,
+          client: client,
+          flagKey: 'n',
+          defaultValue: 0,
+          builder: (context, value, child) => const SizedBox.shrink()),
+      CoproductFlagBuilder.jsonFlag(
+          key: key,
+          client: client,
+          flagKey: 'j',
+          defaultValue: null,
+          builder: (context, value, child) => const SizedBox.shrink()),
+    ]) {
+      expect(widget.key, same(key));
+    }
+    expect(client.observedKeys, isEmpty);
+  });
+
   test('every typed entry point keeps its documented signature', () {
     // Each tear-off is assigned to an explicitly typed variable, so a renamed,
     // reordered, or retyped parameter fails to compile here rather than
@@ -265,7 +490,7 @@ void main() {
     // signature pin, and behavior is proven on device
     final Widget Function({
       Key? key,
-      required CoproductClient client,
+      CoproductClient? client,
       required String flagKey,
       required bool defaultValue,
       required ValueWidgetBuilder<bool> builder,
@@ -273,7 +498,7 @@ void main() {
     }) boolFlag = CoproductFlagBuilder.boolFlag;
     final Widget Function({
       Key? key,
-      required CoproductClient client,
+      CoproductClient? client,
       required String flagKey,
       required String defaultValue,
       required ValueWidgetBuilder<String> builder,
@@ -281,7 +506,7 @@ void main() {
     }) stringFlag = CoproductFlagBuilder.stringFlag;
     final Widget Function({
       Key? key,
-      required CoproductClient client,
+      CoproductClient? client,
       required String flagKey,
       required int defaultValue,
       required ValueWidgetBuilder<int> builder,
@@ -289,7 +514,7 @@ void main() {
     }) intFlag = CoproductFlagBuilder.intFlag;
     final Widget Function({
       Key? key,
-      required CoproductClient client,
+      CoproductClient? client,
       required String flagKey,
       required double defaultValue,
       required ValueWidgetBuilder<double> builder,
@@ -297,7 +522,7 @@ void main() {
     }) numberFlag = CoproductFlagBuilder.numberFlag;
     final Widget Function({
       Key? key,
-      required CoproductClient client,
+      CoproductClient? client,
       required String flagKey,
       required Object? defaultValue,
       required ValueWidgetBuilder<Object?> builder,
@@ -318,9 +543,69 @@ class _FakeClient implements CoproductClient {
   final void Function() onCreate;
   final List<StreamController<String?>> controllers = [];
   final List<StreamController<double?>> numberControllers = [];
+  final List<StreamController<bool?>> boolControllers = [];
+  final List<StreamController<int?>> intControllers = [];
+
+  /// How many observations this client has handed out, and how many of those
+  /// have been cancelled. A reorder that preserves state moves neither
+  int registrations = 0;
+  int cancellations = 0;
+
+  /// Every flag key observed, in order, so a test can prove which entry point
+  /// reached this client rather than only how many did
+  final List<String> observedKeys = [];
+
+  @override
+  FlagObservation<bool> observeBool(String key, bool defaultValue) {
+    registrations += 1;
+    observedKeys.add(key);
+    onCreate();
+    final controller = StreamController<bool?>();
+    boolControllers.add(controller);
+    return boolObservation(
+      defaultValue: defaultValue,
+      seed: null,
+      events: controller.stream,
+      cancel: () => cancellations += 1,
+    );
+  }
+
+  @override
+  FlagObservation<int> observeInt(String key, int defaultValue) {
+    registrations += 1;
+    observedKeys.add(key);
+    onCreate();
+    final controller = StreamController<int?>();
+    intControllers.add(controller);
+    return intObservation(
+      defaultValue: defaultValue,
+      seed: null,
+      events: controller.stream,
+      cancel: () => cancellations += 1,
+    );
+  }
+
+  @override
+  FlagObservation<String> observeString(String key, String defaultValue) {
+    registrations += 1;
+    observedKeys.add(key);
+    onCreate();
+    final controller = StreamController<String?>();
+    controllers.add(controller);
+    // Seeded with the flag key, so the rendered text says which observation is
+    // on screen and a reorder test can tell them apart
+    return stringObservation(
+      defaultValue: defaultValue,
+      seed: key,
+      events: controller.stream,
+      cancel: () => cancellations += 1,
+    );
+  }
 
   @override
   FlagObservation<double> observeNumber(String key, double defaultValue) {
+    registrations += 1;
+    observedKeys.add(key);
     onCreate();
     final controller = StreamController<double?>();
     numberControllers.add(controller);
@@ -334,6 +619,8 @@ class _FakeClient implements CoproductClient {
 
   @override
   FlagObservation<Object?> observeJson(String key, Object? defaultValue) {
+    registrations += 1;
+    observedKeys.add(key);
     onCreate();
     final controller = StreamController<String?>();
     controllers.add(controller);
@@ -354,3 +641,13 @@ class _Encodable {
 }
 
 class _Unencodable {}
+
+Widget _host(CoproductClient client, Widget child) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: CoproductScope(client: client, child: child),
+    );
+
+Widget _column(List<Widget> children) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Column(children: children),
+    );

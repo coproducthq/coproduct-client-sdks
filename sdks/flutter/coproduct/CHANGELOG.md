@@ -13,8 +13,9 @@ return and updated when a poll or an identity change alters it. An observation
 notifies only when the value actually changes, resolves to the caller's default
 whenever the flag is unavailable, and is ended with `dispose()`.
 `CoproductFlagBuilder` builds a widget from a flag and owns that lifecycle for
-you. This pre-release does not include a context-based client provider, a
-multi-flag API, or the detail getters.
+you. `CoproductScope` carries the client down the widget tree, so a builder can
+omit `client` and resolve it from the context instead. This pre-release does not
+include a multi-flag API or the detail getters.
 
 ## 0.0.1
 

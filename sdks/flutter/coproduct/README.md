@@ -9,8 +9,9 @@ Pre-1.0. The public API is still being built out and is not yet at production po
 > **Pre-release.** The SDK fetches and evaluates real flags: it polls the
 > Coproduct endpoint, applies automatic device and app context, serves
 > targeted values from the synchronous getters, and observes flags reactively
-> so a widget rebuilds when a value changes. A context-based client provider,
-> a multi-flag API, and the detail getters are still to come before v1.0.
+> so a widget rebuilds when a value changes, and `CoproductScope` carries the
+> client down the widget tree. A multi-flag API and the detail getters are still
+> to come before v1.0.
 
 ## Compatibility
 
@@ -36,15 +37,21 @@ dependencies:
 
 ```dart
 import 'package:coproduct/coproduct.dart';
+import 'package:flutter/widgets.dart';
 
-final client = await Coproduct.initialize(sdkKey: 'cpk_mob_...');
+Future<void> main() async {
+  // Required before initialize, which reads the app version and cache
+  // directory through platform plugins
+  WidgetsFlutterBinding.ensureInitialized();
 
-await client.identify(userId: 'alice', attributes: {
-  'plan': const AttributeValue.string('pro'),
-});
+  final client = await Coproduct.initialize(sdkKey: 'cpk_mob_...');
 
-if (client.getBool('new-checkout', false)) {
-  showNewCheckoutFlow();
+  await client.identify(userId: 'alice', attributes: {
+    'plan': const AttributeValue.string('pro'),
+  });
+
+  // Install once, so widgets below can read flags without being handed the client
+  runApp(CoproductScope(client: client, child: const MyApp()));
 }
 ```
 
@@ -54,7 +61,6 @@ Read a flag once with the getters, or observe it and rebuild when it changes:
 
 ```dart
 CoproductFlagBuilder.boolFlag(
-  client: client,
   flagKey: 'new-checkout',
   defaultValue: false,
   builder: (context, enabled, child) =>

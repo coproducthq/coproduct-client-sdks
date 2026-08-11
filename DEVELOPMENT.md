@@ -183,9 +183,32 @@ minimum-floor matrix (resolution, analyze, test, the publish dry-run gate,
 artifact-linked iOS and Android builds, and both device acceptance gates) must
 pass on the candidate toolchain, and the same matrix must pass on the primary
 toolchain. Run each stage in this order from a clean checkout, all through the
-launcher:
+launcher.
+
+Clean the artifact consumer's generated build state before switching toolchains,
+then resolve and rebuild. Flutter versions ship different `Flutter.framework`
+headers, so an artifact-linked iOS build that reuses output from another version
+fails with a stale precompiled header:
 
 ```
+Swift Compiler Error (Xcode): File '.../Flutter.framework/Headers/FlutterPlugin.h'
+has been modified since the precompiled header ... was built
+```
+
+That signature means the precompiled state is stale, which after a toolchain
+switch is usually because the build directory was produced by a different
+Flutter. It is not by itself evidence that the SDK is incompatible with the
+toolchain under test, and reading it that way sends you hunting a bug that does
+not exist, or worse, raising the published floor to make a stale artifact go
+away. Clean and retry first. A recurrence from a clean build is a real failure
+and should be investigated as one.
+
+The clean runs through the launcher like every other command here, so it uses the
+toolchain under test rather than whatever Flutter happens to be on `PATH`, and so
+it works on a machine that has no global Flutter at all:
+
+```
+scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd consumer-tests/flutter && flutter clean'
 scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd sdks/flutter/coproduct && flutter pub get && flutter analyze && flutter test'
 scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd sdks/flutter/coproduct/example && flutter pub get && flutter analyze'
 scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-consumer-test-ios.sh
