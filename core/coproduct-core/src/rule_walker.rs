@@ -14,10 +14,11 @@ pub enum RuleWalkResult {
     /// No rule both matched and included the user via its coverage gate. The
     /// caller serves the fallthrough variation
     Fallthrough,
-    /// A rule's condition tree contained an unknown node, or evaluating a
-    /// condition reached a malformed or unsupported path, tripping
-    /// RULE_CIRCUIT_BREAK. The unknown-node case is caught by the up-front scan
-    /// before any condition is evaluated. The caller serves the off variation
+    /// A rule's condition tree contained an unknown node type or an unknown
+    /// operator, or evaluating a condition reached a malformed or unsupported
+    /// path, tripping RULE_CIRCUIT_BREAK. The unknown node-type and unknown
+    /// operator cases are caught by the up-front scan before any condition is
+    /// evaluated. The caller serves the off variation
     CircuitBreak,
 }
 
@@ -28,14 +29,18 @@ pub enum RuleWalkResult {
 /// conservative negation, missing segment) continue the walk.
 ///
 /// A flag fails closed on a circuit break in two ways. A rule whose condition tree
-/// contains an unknown node anywhere fails the whole flag closed up front, before
-/// any rule is evaluated, so the break holds for every context regardless of rule
-/// order or short-circuit evaluation. This is computed from the flag on each walk,
-/// so it holds no matter how the flag was constructed, not only for flags that
-/// went through snapshot ingestion. Separately, a CircuitBreak that surfaces while
-/// actually evaluating a condition also fails the flag closed. With the up-front
-/// scan in place, that second path now only covers breaks not caused by an unknown
-/// node, such as an unknown operator on an otherwise valid attribute condition
+/// contains anything this build cannot evaluate, an unknown node type or an
+/// unknown operator, inline or inside a referenced segment, fails the whole flag
+/// closed up front, before any targeting rule is walked, so once a context reaches
+/// the walker the break holds regardless of rule order or short-circuit evaluation.
+/// This is computed from the flag on each walk, so it holds no matter how the flag
+/// was constructed, not only for flags that went through snapshot ingestion. The
+/// walker sits behind the pipeline's flag-level gates, so a disabled, paused, or
+/// prerequisite-failed flag serves off with its own reason without reaching this
+/// scan. Separately, a CircuitBreak that surfaces while actually evaluating a
+/// condition also fails the flag closed. With the up-front scan in place, that
+/// second path is a residual backstop for a malformed path the structural scan
+/// cannot see, not the normal route for an unknown node or operator
 ///
 /// An empty targeting key skips all targeting rules and serves the fallthrough:
 /// there is no identity to bucket, so this is a deliberate "no targeting without
@@ -47,19 +52,20 @@ pub fn walk_rules(
     segments: &HashMap<String, Segment>,
 ) -> RuleWalkResult {
     // Strict fail-closed: if any targeting rule's condition tree contains an
-    // unknown node, the whole flag fails closed before we evaluate a single rule.
+    // unknown node type or an unknown operator, inline or inside a referenced
+    // segment, the whole flag fails closed before we evaluate a single rule.
     // The scan runs up front, ahead of the walk, so the break holds for every
     // context, including one that would have matched an earlier valid rule and
     // one whose evaluation would short-circuit past the unknown child. This is the
     // whole-flag strict variant of the per-context break that `evaluate_condition`
-    // returns when the walk actually reaches an unknown node. The scan is cheap
-    // next to the condition evaluation and per-rule bucketing that follow, and
-    // computing it here rather than caching it on the rule keeps the guarantee
+    // returns when the walk actually reaches an unknown node or operator. The scan
+    // is cheap next to the condition evaluation and per-rule bucketing that follow,
+    // and computing it here rather than caching it on the rule keeps the guarantee
     // true for any flag the walker is handed, however it was built
     if flag
         .targeting_rules
         .iter()
-        .any(|rule| condition_contains_unknown(&rule.condition))
+        .any(|rule| condition_contains_unknown(&rule.condition, segments))
     {
         return RuleWalkResult::CircuitBreak;
     }

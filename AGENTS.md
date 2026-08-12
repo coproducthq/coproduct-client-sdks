@@ -165,16 +165,26 @@ parity bug. The authoritative implementation is `coproduct-core`.
   (fail closed) while the rest of the snapshot applies. The top-level envelope
   stays strict. A malformed weight coalesces the way coverage does.
 - **An empty `And` condition is vacuously true** and matches every context.
-- **An unknown condition node fails the whole flag closed, strictly.** A condition
-  type this SDK build does not understand trips `RULE_CIRCUIT_BREAK`. A rule whose
-  condition tree contains an unknown node anywhere fails the flag closed for every
-  context, before any rule is evaluated, so the break does not depend on rule order
-  or on whether a given context's evaluation would short-circuit past the unknown
-  child. In particular, a flag whose last rule carries an unknown node fails closed
-  even for a context that matches an earlier valid rule. The walker computes this
-  from the flag on each evaluation rather than caching it, so the guarantee holds
-  for any flag the walker is handed, however it was constructed, not only for flags
-  that went through snapshot ingestion.
+- **An unknown condition node or unknown operator fails the flag closed,
+  strictly.** A condition type or an attribute operator this SDK build does not
+  understand trips `RULE_CIRCUIT_BREAK`. The rule walker scans each targeting rule
+  up front, so a rule whose condition tree contains an unknown node type or an
+  unknown operator anywhere, inline or inside a referenced segment, fails the flag
+  closed before any targeting rule is walked. Once a context reaches targeting
+  evaluation the break therefore does not depend on rule order or on whether that
+  context's evaluation would short-circuit past the unknown child: a flag whose
+  last rule carries an unknown node or operator fails closed even for a context
+  that an earlier valid rule would have matched. The flag-level gates run ahead of
+  the walker, so a disabled, paused, or prerequisite-failed flag still serves its
+  off variation first, with its own reason, without reaching the scan. The served
+  value is the off variation either way; the `RULE_CIRCUIT_BREAK` reason is what is
+  reserved for contexts that reach targeting evaluation. Node types and operators
+  are held to the same rule so a re-implementer cannot make one order-dependent
+  while the other is strict. A reference to a segment that is not in the snapshot is
+  not unknown: it resolves to no-match, not a circuit break. The walker computes
+  this from the flag on each evaluation rather than caching it, so the guarantee
+  holds for any flag the walker is handed, however it was constructed, not only for
+  flags that went through snapshot ingestion.
 - **A circuit break serves the off variation, not the caller default.** When a
   rule error trips `RULE_CIRCUIT_BREAK`, the flag resolves to its off variation.
   Every read surface serves that off value: the plain getters, the observers, and

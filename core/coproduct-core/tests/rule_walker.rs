@@ -3,8 +3,8 @@ use coproduct_core::operators::Operator;
 use coproduct_core::rule_walker::{RuleWalkResult, walk_rules};
 use coproduct_core::snapshot::Condition;
 use coproduct_core::snapshot::{
-    Coverage, Flag, FlagType, Rollout, Segment, TargetingRule, Variation, VariationValue,
-    WeightedVariation,
+    Coverage, Flag, FlagType, Rollout, Segment, SegmentRule, TargetingRule, Variation,
+    VariationValue, WeightedVariation,
 };
 use std::collections::HashMap;
 
@@ -278,5 +278,88 @@ fn rule_walker_fails_closed_on_directly_deserialized_flag_with_unknown_node() {
         walk_rules(&flag, &ctx, &segments),
         RuleWalkResult::CircuitBreak,
         "an unknown node in a later rule fails the flag closed even for a directly deserialized flag"
+    );
+}
+
+// An unknown operator on an otherwise valid attribute condition fails the whole
+// flag closed up front, exactly like an unknown node type. Rule 1 (always -> on)
+// matches first, so a walker that only tripped when evaluation reached the
+// unknown operator would return Match here. The strict scan must catch the
+// unknown operator before any rule runs, so every context fails closed
+// regardless of rule order
+#[test]
+fn rule_walker_fails_closed_on_unknown_operator_in_later_rule() {
+    let segments: HashMap<String, Segment> = HashMap::new();
+    let flag = flag_with_rules(vec![
+        always_rule_with_rollout(
+            "00000000-0000-4000-8000-0000000000b1",
+            Rollout::Variation {
+                variation: "on".into(),
+            },
+        ),
+        TargetingRule {
+            rule_id: "00000000-0000-4000-8000-0000000000b2".into(),
+            condition: Condition::Attribute {
+                attribute: "plan".into(),
+                operator: Operator::Unknown,
+                values: vec!["premium".to_string()],
+            },
+            coverage: Coverage(10_000),
+            rollout: Rollout::Variation {
+                variation: "off".into(),
+            },
+            description: None,
+        },
+    ]);
+    let ctx = ctx_with("user_1", Some("premium"));
+    assert_eq!(
+        walk_rules(&flag, &ctx, &segments),
+        RuleWalkResult::CircuitBreak,
+        "an unknown operator in a later rule fails the flag closed even when an earlier rule matches"
+    );
+}
+
+// The strict scan resolves referenced segments too: an unknown operator inside a
+// segment a rule points at fails the whole flag closed up front, so an inline
+// unknown operator and a segment-embedded one behave identically
+#[test]
+fn rule_walker_fails_closed_on_unknown_operator_in_referenced_segment() {
+    let mut segments: HashMap<String, Segment> = HashMap::new();
+    segments.insert(
+        "beta".into(),
+        Segment {
+            key: "beta".into(),
+            name: "Beta".into(),
+            rules: vec![SegmentRule {
+                attribute: "plan".into(),
+                operator: Operator::Unknown,
+                values: vec!["premium".to_string()],
+            }],
+        },
+    );
+    let flag = flag_with_rules(vec![
+        always_rule_with_rollout(
+            "00000000-0000-4000-8000-0000000000c1",
+            Rollout::Variation {
+                variation: "on".into(),
+            },
+        ),
+        TargetingRule {
+            rule_id: "00000000-0000-4000-8000-0000000000c2".into(),
+            condition: Condition::Segment {
+                segment_key: "beta".into(),
+            },
+            coverage: Coverage(10_000),
+            rollout: Rollout::Variation {
+                variation: "off".into(),
+            },
+            description: None,
+        },
+    ]);
+    let ctx = ctx_with("user_1", Some("premium"));
+    assert_eq!(
+        walk_rules(&flag, &ctx, &segments),
+        RuleWalkResult::CircuitBreak,
+        "an unknown operator inside a referenced segment fails the flag closed"
     );
 }

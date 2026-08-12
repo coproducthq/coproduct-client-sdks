@@ -1,10 +1,13 @@
 //! Targeting rule, condition tree, rollout, and the attribute operator set
 
+use std::collections::HashMap;
+
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use super::coverage::{Coverage, deserialize_coverage};
+use super::segment::Segment;
 
 /// One targeting rule.
 ///
@@ -22,18 +25,34 @@ pub struct TargetingRule {
     pub description: Option<String>,
 }
 
-/// Whether a condition tree contains any `Unknown` node. The rule walker calls
-/// this up front for each rule so a flag with an unknown node anywhere fails
-/// closed before any rule is evaluated, independent of how the flag was
-/// constructed and of short-circuit order
-pub(crate) fn condition_contains_unknown(condition: &Condition) -> bool {
+/// Whether a condition tree contains anything this SDK build cannot evaluate:
+/// an unknown node type, or an attribute condition whose operator is unknown.
+/// Referenced segments are resolved and their rules scanned the same way, so an
+/// unknown operator inside a segment fails the flag closed up front just as an
+/// inline one does. The rule walker calls this up front for each rule so a flag
+/// carrying anything unknown fails closed before any rule is evaluated,
+/// independent of how the flag was constructed and of short-circuit order. A
+/// missing segment is not unknown: a reference to a segment that is not in the
+/// snapshot resolves to no-match during evaluation, not a circuit break, so the
+/// scan leaves it to the walk
+pub(crate) fn condition_contains_unknown(
+    condition: &Condition,
+    segments: &HashMap<String, Segment>,
+) -> bool {
     match condition {
         Condition::Unknown { .. } => true,
-        Condition::And { rules } | Condition::Or { rules } => {
-            rules.iter().any(condition_contains_unknown)
-        }
-        Condition::Not { rule } => condition_contains_unknown(rule),
-        Condition::Attribute { .. } | Condition::Segment { .. } | Condition::Always => false,
+        Condition::Attribute { operator, .. } => *operator == Operator::Unknown,
+        Condition::Segment { segment_key } => segments.get(segment_key).is_some_and(|segment| {
+            segment
+                .rules
+                .iter()
+                .any(|rule| rule.operator == Operator::Unknown)
+        }),
+        Condition::And { rules } | Condition::Or { rules } => rules
+            .iter()
+            .any(|child| condition_contains_unknown(child, segments)),
+        Condition::Not { rule } => condition_contains_unknown(rule, segments),
+        Condition::Always => false,
     }
 }
 

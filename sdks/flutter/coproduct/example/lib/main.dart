@@ -8,6 +8,15 @@ void main() {
   runApp(const MyApp());
 }
 
+// Demo flag keys, one per value type. With no real snapshot loaded the reads
+// return the defaults passed here, so the example runs end to end against the
+// placeholder key and still exercises every read and mutate surface
+const String _boolFlag = 'test-flag';
+const String _stringFlag = 'greeting';
+const String _intFlag = 'max-items';
+const String _numberFlag = 'ratio';
+const String _jsonFlag = 'theme';
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -18,7 +27,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   CoproductClient? client;
   bool ready = false;
-  bool flagValue = false;
 
   @override
   void initState() {
@@ -43,19 +51,21 @@ class _MyAppState extends State<MyApp> {
           name: 'coproduct', error: error, stackTrace: stack);
       return;
     }
-    final flag = c.getBool('test-flag', false);
 
     if (!mounted) return;
     setState(() {
       client = c;
       ready = true;
-      flagValue = flag;
     });
 
     developer.log(
       'COPRODUCT_FLUTTER_DEMO_STATUS '
       'ready=$ready '
-      'getBool=$flagValue',
+      'getBool=${c.getBool(_boolFlag, false)} '
+      'getString=${c.getString(_stringFlag, 'default')} '
+      'getInt=${c.getInt(_intFlag, 0)} '
+      'getNumber=${c.getNumber(_numberFlag, 0)} '
+      'getJson=${c.getJson(_jsonFlag, const <String, Object?>{})}',
       name: 'coproduct',
     );
   }
@@ -96,28 +106,118 @@ class _FlagDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    // Resolved once from the nearest scope, then passed to the identity
+    // controls. The reads below resolve the scope themselves
+    final client = CoproductScope.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('SDK ready: yes'),
-          // Rebuilds by itself whenever the flag changes, and disposes its
-          // observation when this widget leaves the tree
+          const SizedBox(height: 16),
+
+          // Reactive reads. Each builder rebuilds by itself whenever its flag
+          // changes and disposes its observation when it leaves the tree
+          const Text('Observed (live)',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           CoproductFlagBuilder.boolFlag(
-            flagKey: 'test-flag',
+            flagKey: _boolFlag,
             defaultValue: false,
-            builder: (context, enabled, child) =>
-                Text('observeBool: $enabled'),
+            builder: (context, value, child) => Text('observeBool: $value'),
           ),
-          // The synchronous getter reads the value once, when this widget
-          // builds. It does not follow later changes the way the builder above
-          // does, which is the difference between the two surfaces
-          Text('getBool at build: ${CoproductScope.of(context).getBool(
-            'test-flag',
-            false,
-          )}'),
+          CoproductFlagBuilder.stringFlag(
+            flagKey: _stringFlag,
+            defaultValue: 'default',
+            builder: (context, value, child) => Text('observeString: $value'),
+          ),
+          CoproductFlagBuilder.intFlag(
+            flagKey: _intFlag,
+            defaultValue: 0,
+            builder: (context, value, child) => Text('observeInt: $value'),
+          ),
+          CoproductFlagBuilder.numberFlag(
+            flagKey: _numberFlag,
+            defaultValue: 0,
+            builder: (context, value, child) => Text('observeNumber: $value'),
+          ),
+          CoproductFlagBuilder.jsonFlag(
+            flagKey: _jsonFlag,
+            defaultValue: const <String, Object?>{},
+            builder: (context, value, child) => Text('observeJson: $value'),
+          ),
+          const SizedBox(height: 16),
+
+          // One-shot reads. The synchronous getters read each value once, when
+          // this widget builds, and do not follow later changes the way the
+          // builders above do. That is the difference between the two surfaces
+          const Text('Read at build (one-shot)',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('getBool: ${CoproductScope.of(context).getBool(_boolFlag, false)}'),
+          Text('getString: '
+              '${CoproductScope.of(context).getString(_stringFlag, 'default')}'),
+          Text('getInt: ${CoproductScope.of(context).getInt(_intFlag, 0)}'),
+          Text('getNumber: '
+              '${CoproductScope.of(context).getNumber(_numberFlag, 0)}'),
+          Text('getJson: '
+              '${CoproductScope.of(context).getJson(_jsonFlag, const <String, Object?>{})}'),
+          const SizedBox(height: 16),
+
+          // Identity mutations re-evaluate the loaded snapshot locally and
+          // notify the observers above, so a rule keyed on identity moves the
+          // live reads without a network round trip
+          const Text('Identity', style: TextStyle(fontWeight: FontWeight.bold)),
+          Wrap(
+            spacing: 8,
+            children: [
+              ElevatedButton(
+                onPressed: () => _run('identify', () => client.identify(
+                      userId: 'user-123',
+                      attributes: const {'plan': AttributeValue.string('pro')},
+                    )),
+                child: const Text('identify'),
+              ),
+              ElevatedButton(
+                onPressed: () => _run('updateAttributes',
+                    () => client.updateAttributes(
+                          const {'seats': AttributeValue.number(5)},
+                        )),
+                child: const Text('update attrs'),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    _run('removeAttributes', () => client.removeAttributes(
+                          const ['seats'],
+                        )),
+                child: const Text('remove attrs'),
+              ),
+              ElevatedButton(
+                onPressed: () => _run('setContext', () => client.setContext(
+                      targetingKey: 'tenant-42',
+                      attributes: const {'tier': AttributeValue.string('gold')},
+                    )),
+                child: const Text('set context'),
+              ),
+              ElevatedButton(
+                onPressed: () => _run('signOut', () => client.signOut()),
+                child: const Text('sign out'),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  // Fire an identity mutation and log its outcome. A real app awaits the future
+  // where it needs to read settled state such as previousAnonymousId afterward
+  void _run(String label, Future<void> Function() action) {
+    unawaited(action().then((_) {
+      developer.log('COPRODUCT_FLUTTER_DEMO_IDENTITY ok=$label',
+          name: 'coproduct');
+    }).catchError((Object error, StackTrace stack) {
+      developer.log('COPRODUCT_FLUTTER_DEMO_IDENTITY_ERROR label=$label',
+          name: 'coproduct', error: error, stackTrace: stack);
+    }));
   }
 }

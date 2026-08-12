@@ -1,27 +1,19 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Widget test for the Coproduct Flutter scaffold. A plain `flutter test` runs
+// without the native FRB bridge, so this asserts the deterministic first frame,
+// before initialize resolves, rather than any flag read that would cross the
+// bridge. The on-device behavior is covered by integration_test
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:coproduct_example/main.dart';
 
 void main() {
-  testWidgets('Verify Platform version', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('renders the not-ready shell before initialize resolves',
+      (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that platform version is retrieved.
-    expect(
-      find.byWidgetPredicate(
-        (Widget widget) =>
-            widget is Text && widget.data!.startsWith('Running on:'),
-      ),
-      findsOneWidget,
-    );
+    // The shell renders immediately and the scope is installed only once
+    // initialize returns, so the first frame shows the not-ready indicator
+    expect(find.text('SDK ready: no'), findsOneWidget);
   });
 }
