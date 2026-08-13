@@ -8,14 +8,31 @@ app's code: a switch that turns a feature on or off, or a piece of
 configuration you can change without shipping a release.
 
 Flags do not have to be the same for everybody. In Coproduct you attach
-targeting rules to a flag, and those rules match on **attributes** your app
-sends about the person using it, such as their plan, their region, or whether
-they joined this month. That is how one flag serves `true` to the segment you
+targeting rules to a flag, and those rules match on **attributes** describing
+the person using your app. That is how one flag serves `true` to the segment you
 choose and `false` to everyone else, or serves a different limit to trial
 accounts than to paid ones.
 
-This SDK downloads your flags, works out which value applies to the current
-person, and hands it to your widgets.
+Attributes come from two places:
+
+- **The SDK fills in six automatically**, with no code from you: `platform`,
+  `os_version`, `app_version`, `app_build`, `locale`, and `timezone`. So you can
+  target Android only, or a locale, or roll a feature out to builds at or above
+  a version, straight away.
+- **You supply the rest**, through [`identify`](#identity). These are whatever
+  your product needs a rule to match on, such as `plan`, `region`, or
+  `signup_date`. Their names are yours, and they have to match the names your
+  targeting rules use.
+
+The two sets are kept apart, so supplying your own attributes never disturbs the
+automatic ones.
+
+**Flags are evaluated on the device, not on a server.** The SDK downloads your
+flag definitions and their targeting rules once, then works out which value
+applies using attributes you set locally with `identify`. Reading a flag is a
+synchronous in-memory lookup: it makes no network request, so it never blocks a
+build and never fails because the network is down. The attributes you set stay
+on the device unless you send them somewhere yourself.
 
 ## Compatibility
 
@@ -41,9 +58,15 @@ value:
 You create both in Coproduct, whose primary interface is the Coproduct MCP app,
 so you can issue a mobile SDK key and create a flag from there.
 
-If a flag key is wrong, missing, or of a different type than you asked for, the
-SDK returns the default value you passed. It does not throw and it does not warn
-you, so check your spelling first when a flag seems stuck.
+**Every read is safe.** Whatever happens, you get back a usable value: if the
+key does not exist, or names a flag of a different type, or nothing has
+downloaded yet, the SDK serves the default you passed. Reads never throw, so a
+mistyped key or an outage degrades to your default rather than breaking a build
+method.
+
+The trade-off is that a wrong key looks exactly like a flag that is switched
+off. If a flag seems stuck on its default, check the spelling and the
+environment of your SDK key before looking anywhere else.
 
 ## Installation
 
@@ -132,6 +155,12 @@ always has something sensible to render.
 
 That is the whole integration. Everything below is reference.
 
+One thing to expect before you go looking for a bug: flipping the flag in
+Coproduct does not change your running app straight away, because the SDK checks
+for updates on a timer. See
+[Seeing a flag change while you develop](#seeing-a-flag-change-while-you-develop)
+for the quickest way to force it.
+
 ## Reading flags
 
 Five getters, one per flag type. Each takes the flag key and the value to serve
@@ -218,7 +247,10 @@ and values must line up with the rules on your flags.
 
 Call this after your app knows who is signed in, not during startup. None of the
 identity calls makes a network request: each re-evaluates the flags already
-downloaded, so values update immediately.
+downloaded, so values update immediately. That is only true of identity. Editing
+a flag in Coproduct changes the definitions themselves, which the SDK has to
+download before it can see them, so those changes are not immediate. See
+[Seeing a flag change while you develop](#seeing-a-flag-change-while-you-develop).
 
 **Identity is not saved between launches.** Call `identify` again after
 `initialize` every time your app starts, or your flags evaluate anonymously.
@@ -271,14 +303,34 @@ invalid value throws `InvalidConfig` rather than being silently corrected:
 | `endpoint` | Coproduct's endpoint | `http` or `https`, with a host, and no query or fragment |
 | `pollOnForeground` | `true` | Check for updates when the app returns to the foreground |
 
-`startupTimeout` is a budget, not a guarantee of promptness in both directions:
-`initialize` returns as soon as startup settles, and at expiry it stops waiting
-and returns anyway. Some required setup runs outside the budget, so the call can
-take slightly longer than the value you set. Flags keep downloading in the
-background either way.
+`startupTimeout` is a ceiling on waiting, not a promise about timing.
+`initialize` returns as soon as startup settles, which is usually sooner, and
+when the budget expires it stops waiting and returns anyway. Some required setup
+runs outside the budget, so the call can also take slightly longer than the value
+you set. Flags keep downloading in the background either way.
 
 Calling `initialize` again with the same key and config gives you the same
 client. A different key or config throws `CoproductAlreadyInitialized`.
+
+## Seeing a flag change while you develop
+
+Change a flag in Coproduct and your app will not notice immediately. The SDK
+checks for updates every `pollInterval`, which defaults to sixty seconds, so a
+change can take that long to appear.
+
+Two ways to see it sooner:
+
+- **Background the app and bring it back.** With `pollOnForeground` left at its
+  default of `true`, returning to the foreground triggers an immediate check.
+  This is the fastest loop and needs no code change. It does not apply while the
+  SDK is backing off after failed checks, or once it has stopped for a rejected
+  key, both of which `client.state` reports.
+- **Lower `pollInterval` while developing.** Thirty seconds is the floor, so this
+  halves the wait at most. Backgrounding is usually quicker.
+
+If a change still does not appear after a refresh, the flag is not reaching your
+app at all rather than arriving late. See
+[Troubleshooting](#troubleshooting).
 
 ## SDK status
 
@@ -296,7 +348,10 @@ unavailable. Read it for diagnostics, a debug screen, or logging:
 | `reconciling` | Never returned by `state`, and listed only because it exists in the type |
 
 `state` is a plain getter with no listener, so read it when you need it rather
-than watching it. `fatal` is worth logging: it means downloads have stopped and
+than watching it. If what you actually want is to react when flags arrive, do not
+wait on `state` at all: observe the flag you care about, with
+`CoproductFlagBuilder` or `observeBool`, and it rebuilds on its own once real
+values land. `fatal` is worth logging: it means downloads have stopped and
 will not resume, and a rejected key also clears the saved flags, so reads fall
 back to your defaults.
 
@@ -318,9 +373,13 @@ starts fresh.
 4. The flag targets an identity you have not set. Call `identify` and confirm
    your attribute names match the rules configured on the flag.
 
-**My widget does not update when I change the flag.** You are probably calling
-a getter inside `build`. Use `CoproductFlagBuilder` or an observation instead;
-see [Which read API should I use?](#which-read-api-should-i-use).
+**My widget does not update when I change the flag.** Two different causes. If
+the value never updates no matter how long you wait, you are probably calling a
+getter inside `build`; use `CoproductFlagBuilder` or an observation instead, and
+see [Which read API should I use?](#which-read-api-should-i-use). If it updates
+eventually but not straight away, that is the poll interval, and
+[Seeing a flag change while you develop](#seeing-a-flag-change-while-you-develop)
+shows how to shorten the wait.
 
 **`initialize` throws `CoproductAlreadyInitialized`.** Something already
 initialized the SDK with a different key or config. Initialize once, at startup.
