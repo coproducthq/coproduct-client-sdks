@@ -68,7 +68,10 @@ fn set_context_drops_reserved_names() {
                     "targetingKey".to_string(),
                     AttributeValue::String("also-not-identity".to_string()),
                 ),
-                ("plan".to_string(), AttributeValue::String("pro".to_string())),
+                (
+                    "plan".to_string(),
+                    AttributeValue::String("pro".to_string()),
+                ),
             ]),
         )
         .expect("set_context with a non-empty key succeeds");
