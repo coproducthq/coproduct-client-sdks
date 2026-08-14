@@ -318,13 +318,11 @@ impl FfiConfig {
     }
 }
 
-// Provider lifecycle state crossing the boundary. Mirrors the core enum. state
-// never returns Reconciling, it is kept for enum completeness
+// Provider lifecycle state crossing the boundary. Mirrors the core enum
 #[derive(Debug)]
 pub enum ProviderState {
     NotReady,
     Ready,
-    Reconciling,
     Retrying,
     Stale,
     Fatal,
@@ -336,7 +334,6 @@ impl From<coproduct_core::state::ProviderState> for ProviderState {
         match value {
             C::NotReady => Self::NotReady,
             C::Ready => Self::Ready,
-            C::Reconciling => Self::Reconciling,
             C::Retrying => Self::Retrying,
             C::Stale => Self::Stale,
             C::Fatal => Self::Fatal,
@@ -894,7 +891,6 @@ mod lifecycle_conversion_tests {
         for (core, want) in [
             (C::NotReady, ProviderState::NotReady),
             (C::Ready, ProviderState::Ready),
-            (C::Reconciling, ProviderState::Reconciling),
             (C::Retrying, ProviderState::Retrying),
             (C::Stale, ProviderState::Stale),
             (C::Fatal, ProviderState::Fatal),

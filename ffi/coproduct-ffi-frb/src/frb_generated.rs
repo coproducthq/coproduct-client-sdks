@@ -2613,10 +2613,9 @@ impl SseDecode for crate::api::ProviderState {
         return match inner {
             0 => crate::api::ProviderState::NotReady,
             1 => crate::api::ProviderState::Ready,
-            2 => crate::api::ProviderState::Reconciling,
-            3 => crate::api::ProviderState::Retrying,
-            4 => crate::api::ProviderState::Stale,
-            5 => crate::api::ProviderState::Fatal,
+            2 => crate::api::ProviderState::Retrying,
+            3 => crate::api::ProviderState::Stale,
+            4 => crate::api::ProviderState::Fatal,
             _ => unreachable!("Invalid variant for ProviderState: {}", inner),
         };
     }
@@ -3033,10 +3032,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::ProviderState {
         match self {
             Self::NotReady => 0.into_dart(),
             Self::Ready => 1.into_dart(),
-            Self::Reconciling => 2.into_dart(),
-            Self::Retrying => 3.into_dart(),
-            Self::Stale => 4.into_dart(),
-            Self::Fatal => 5.into_dart(),
+            Self::Retrying => 2.into_dart(),
+            Self::Stale => 3.into_dart(),
+            Self::Fatal => 4.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -3529,10 +3527,9 @@ impl SseEncode for crate::api::ProviderState {
             match self {
                 crate::api::ProviderState::NotReady => 0,
                 crate::api::ProviderState::Ready => 1,
-                crate::api::ProviderState::Reconciling => 2,
-                crate::api::ProviderState::Retrying => 3,
-                crate::api::ProviderState::Stale => 4,
-                crate::api::ProviderState::Fatal => 5,
+                crate::api::ProviderState::Retrying => 2,
+                crate::api::ProviderState::Stale => 3,
+                crate::api::ProviderState::Fatal => 4,
                 _ => {
                     unimplemented!("");
                 }

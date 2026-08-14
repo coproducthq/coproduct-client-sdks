@@ -3408,7 +3408,6 @@ const FfiConverterTypePollOutcome = (() => {
 export enum ProviderState {
   NotReady,
   Ready,
-  Reconciling,
   Retrying,
   Stale,
   Fatal,
@@ -3425,12 +3424,10 @@ const FfiConverterTypeProviderState = (() => {
         case 2:
           return ProviderState.Ready;
         case 3:
-          return ProviderState.Reconciling;
-        case 4:
           return ProviderState.Retrying;
-        case 5:
+        case 4:
           return ProviderState.Stale;
-        case 6:
+        case 5:
           return ProviderState.Fatal;
         default:
           throw new UniffiInternalError.UnexpectedEnumCase();
@@ -3442,14 +3439,12 @@ const FfiConverterTypeProviderState = (() => {
           return ordinalConverter.write(1, into);
         case ProviderState.Ready:
           return ordinalConverter.write(2, into);
-        case ProviderState.Reconciling:
-          return ordinalConverter.write(3, into);
         case ProviderState.Retrying:
-          return ordinalConverter.write(4, into);
+          return ordinalConverter.write(3, into);
         case ProviderState.Stale:
-          return ordinalConverter.write(5, into);
+          return ordinalConverter.write(4, into);
         case ProviderState.Fatal:
-          return ordinalConverter.write(6, into);
+          return ordinalConverter.write(5, into);
       }
     }
     allocationSize(value: TypeName): number {

@@ -6116,7 +6116,6 @@ public enum ProviderState: Equatable, Hashable {
     
     case notReady
     case ready
-    case reconciling
     case retrying
     case stale
     case fatal
@@ -6145,13 +6144,11 @@ public struct FfiConverterTypeProviderState: FfiConverterRustBuffer {
         
         case 2: return .ready
         
-        case 3: return .reconciling
+        case 3: return .retrying
         
-        case 4: return .retrying
+        case 4: return .stale
         
-        case 5: return .stale
-        
-        case 6: return .fatal
+        case 5: return .fatal
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -6169,20 +6166,16 @@ public struct FfiConverterTypeProviderState: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
         
         
-        case .reconciling:
+        case .retrying:
             writeInt(&buf, Int32(3))
         
         
-        case .retrying:
+        case .stale:
             writeInt(&buf, Int32(4))
         
         
-        case .stale:
-            writeInt(&buf, Int32(5))
-        
-        
         case .fatal:
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(5))
         
         }
     }

@@ -129,7 +129,6 @@ pub(crate) fn lifecycle_event_for(state: ProviderState) -> Option<LifecycleEvent
     match state {
         ProviderState::NotReady => None,
         ProviderState::Ready => Some(LifecycleEvent::Ready),
-        ProviderState::Reconciling => Some(LifecycleEvent::Reconciling),
         ProviderState::Retrying => Some(LifecycleEvent::Retrying),
         ProviderState::Stale => Some(LifecycleEvent::Stale),
         ProviderState::Fatal => Some(LifecycleEvent::Fatal),

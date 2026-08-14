@@ -382,4 +382,4 @@ sealed class PollOutcome with _$PollOutcome {
   const factory PollOutcome.dedupedSkipped() = PollOutcome_DedupedSkipped;
 }
 
-enum ProviderState { notReady, ready, reconciling, retrying, stale, fatal }
+enum ProviderState { notReady, ready, retrying, stale, fatal }

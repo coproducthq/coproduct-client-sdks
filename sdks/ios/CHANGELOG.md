@@ -1,5 +1,9 @@
 ## Unreleased
 
+`ProviderState` no longer carries a `reconciling` case. `state` never returned
+it, so the case described a condition a caller could not observe. Reconciliation
+remains observable as a lifecycle event.
+
 Flag observations are now ordered and carry their value from the moment they are
 created: subscribing returns a `FlagObservation` already holding the current
 value, converging to later values in revision order. When the host is still

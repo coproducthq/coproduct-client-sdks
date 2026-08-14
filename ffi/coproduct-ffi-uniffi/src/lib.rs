@@ -246,7 +246,6 @@ impl From<coproduct_core::error::IdentityError> for FfiIdentityError {
 pub enum ProviderState {
     NotReady,
     Ready,
-    Reconciling,
     Retrying,
     Stale,
     Fatal,
@@ -258,7 +257,6 @@ impl From<coproduct_core::state::ProviderState> for ProviderState {
         match value {
             C::NotReady => ProviderState::NotReady,
             C::Ready => ProviderState::Ready,
-            C::Reconciling => ProviderState::Reconciling,
             C::Retrying => ProviderState::Retrying,
             C::Stale => ProviderState::Stale,
             C::Fatal => ProviderState::Fatal,

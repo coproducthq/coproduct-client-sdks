@@ -1,5 +1,9 @@
 ## Unreleased
 
+`ProviderState` no longer carries a `reconciling` value. `state` never returned
+it, so the value described a condition a developer could not observe.
+Reconciliation remains observable as a lifecycle event.
+
 First functional pre-release. The SDK fetches and evaluates real flags on a
 booted device: it polls the Coproduct endpoint, applies automatic device and app
 context, evaluates targeting and identity, and serves values from the synchronous

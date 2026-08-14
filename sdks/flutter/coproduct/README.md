@@ -345,7 +345,6 @@ unavailable. Read it for diagnostics, a debug screen, or logging:
 | `retrying` | A download failed and is being retried |
 | `stale` | Downloads have failed repeatedly. The last flags received are still served |
 | `fatal` | Stopped. The SDK key was rejected or the endpoint refused permanently |
-| `reconciling` | Never returned by `state`, and listed only because it exists in the type |
 
 `state` is a plain getter with no listener, so read it when you need it rather
 than watching it. If what you actually want is to react when flags arrive, do not

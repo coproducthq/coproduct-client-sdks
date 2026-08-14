@@ -41,10 +41,6 @@ fn full_lifecycle_covers_each_documented_arc() {
     assert!(cell.transition(ProviderState::Stale).is_some());
     // Stale -> Ready
     assert!(cell.transition(ProviderState::Ready).is_some());
-    // Ready -> Reconciling (identity change)
-    assert!(cell.transition(ProviderState::Reconciling).is_some());
-    // Reconciling -> Ready
-    assert!(cell.transition(ProviderState::Ready).is_some());
 
     assert_eq!(cell.get(), ProviderState::Ready);
 }

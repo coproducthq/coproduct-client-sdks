@@ -584,11 +584,11 @@ impl CoproductClient {
             return Ok(());
         };
         result?;
-        // Reconciling is fired as a lifecycle event only. The provider state cell
-        // is deliberately not moved to Reconciling here or in the other identity
-        // mutators: a return-to-Ready would clobber a Retrying / Stale a concurrent
-        // poll set, so `state()` never surfaces the reconcile window. See the note
-        // on `ProviderState::Reconciling`
+        // Reconciling is a lifecycle event, not a provider state. The state cell is
+        // deliberately left alone here and in the other identity mutators: a
+        // return-to-Ready afterward would clobber a Retrying / Stale a concurrent
+        // poll set and would fire a spurious Ready, so state() never surfaces the
+        // reconcile window
         self.events.fire(LifecycleEvent::Reconciling).await;
         crate::fanout::fire_transition(&self.observers, revision, &prev, &next);
         self.events.fire(LifecycleEvent::ContextChanged).await;

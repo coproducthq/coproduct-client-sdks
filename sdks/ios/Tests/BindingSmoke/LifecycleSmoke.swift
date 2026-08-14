@@ -12,7 +12,6 @@ func proveLifecycleSurfaceCompiles(client: CoproductClient) async {
     switch state {
     case .notReady: break
     case .ready: break
-    case .reconciling: break
     case .retrying: break
     case .stale: break
     case .fatal: break

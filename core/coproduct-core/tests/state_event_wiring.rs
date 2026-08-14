@@ -49,7 +49,6 @@ async fn state_transition_to_ready_fires_ready_event() {
 async fn each_state_maps_to_its_event() {
     let pairs = [
         (ProviderState::Ready, LifecycleEvent::Ready),
-        (ProviderState::Reconciling, LifecycleEvent::Reconciling),
         (ProviderState::Retrying, LifecycleEvent::Retrying),
         (ProviderState::Stale, LifecycleEvent::Stale),
         (ProviderState::Fatal, LifecycleEvent::Fatal),

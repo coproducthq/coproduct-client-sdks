@@ -332,7 +332,7 @@ Keep lifecycle handlers fast, the same way you keep an observer sink light. Hand
 
 ## Reference: states, events, and codes
 
-`state` is a `ProviderState`: `notReady`, `ready`, `reconciling`, `retrying`, `stale`, `fatal`.
+`state` is a `ProviderState`: `notReady`, `ready`, `retrying`, `stale`, `fatal`.
 
 `addHandler(event:)` and lifecycle handlers use `LifecycleEvent`: `ready`, `configurationChanged`, `contextChanged`, `reconciling`, `retrying`, `stale`, `fatal`.
 

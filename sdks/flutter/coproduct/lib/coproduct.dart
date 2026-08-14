@@ -167,7 +167,7 @@ class CoproductClient {
   /// mutation that should have changed it
   String? get previousAnonymousId => frb.previousAnonymousId(handle: _handle);
 
-  /// The current provider lifecycle state. Never returns ProviderState.reconciling
+  /// The current provider lifecycle state
   ProviderState get state => providerStateFromFrb(frb.state(client: _handle));
 
   /// Observes a boolean flag, returning a [FlagObservation] whose value is

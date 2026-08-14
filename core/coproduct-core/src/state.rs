@@ -4,13 +4,6 @@ use parking_lot::Mutex;
 pub enum ProviderState {
     NotReady,
     Ready,
-    /// Event-only. The identity mutators fire the `Reconciling` lifecycle event
-    /// around a reconcile, but the state cell is deliberately not moved into this
-    /// value, so `state()` never surfaces a reconcile window. Restoring `Ready`
-    /// afterward would blindly overwrite a `Retrying` / `Stale` a poll set during
-    /// the reconcile and would fire a spurious `Ready` event. The variant is
-    /// retained because it crosses the FFI boundary in the platform `ProviderState`
-    Reconciling,
     Retrying,
     Stale,
     Fatal,
