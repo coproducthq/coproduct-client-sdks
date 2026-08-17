@@ -34,7 +34,7 @@ import 'json_value.dart';
 /// default changes, so a rebuilding ancestor does not churn native sessions. An advanced caller who wants to share one observation across
 /// several widgets can hold a [FlagObservation] directly, pass it to
 /// `ValueListenableBuilder`, and dispose it themselves
-class CoproductFlagBuilder {
+final class CoproductFlagBuilder {
   // A namespace of typed entry points, never instantiated. The entry points are
   // static because a Dart constructor cannot specialize the generic widget's
   // type argument from the type of one of its arguments

@@ -1,12 +1,13 @@
 import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/testing.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('resolves the nearest scope rather than the outermost',
       (tester) async {
-    final outer = _FakeClient();
-    final inner = _FakeClient();
+    final outer = CoproductTestHarness().client;
+    final inner = CoproductTestHarness().client;
     late CoproductClient fromOuter;
     late CoproductClient fromInner;
 
@@ -55,8 +56,8 @@ void main() {
 
   testWidgets('notifies dependents only when the client changes',
       (tester) async {
-    final first = _FakeClient();
-    final second = _FakeClient();
+    final first = CoproductTestHarness().client;
+    final second = CoproductTestHarness().client;
     _dependentBuilds = 0;
 
     // The dependent is const, so the framework reuses its element across a
@@ -89,10 +90,4 @@ class _Dependent extends StatelessWidget {
     _dependentBuilds += 1;
     return const SizedBox.shrink();
   }
-}
-
-/// Only identity matters to a scope, so nothing has to be implemented
-class _FakeClient implements CoproductClient {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

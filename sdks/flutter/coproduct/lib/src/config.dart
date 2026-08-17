@@ -15,7 +15,7 @@ import 'errors.dart';
 /// Those mandatory operations are not governed by [startupTimeout], so return
 /// time can exceed it. Polling continues in the background, and shutdown takes
 /// precedence.
-class CoproductConfig {
+final class CoproductConfig {
   const CoproductConfig({
     this.pollInterval = const Duration(seconds: 60),
     this.startupTimeout = const Duration(seconds: 5),

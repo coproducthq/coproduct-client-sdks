@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/src/client_backend.dart';
+import 'package:coproduct/src/coproduct_client.dart';
 import 'package:coproduct/src/coproduct_flag_builder.dart';
 import 'package:coproduct/src/flag_observation.dart';
 import 'package:coproduct/src/json_value.dart';
@@ -197,7 +199,7 @@ void main() {
     // from jsonFlag to the default comparison is the thing being pinned. The
     // fake client reaches it without a native library
     var creates = 0;
-    final client = _FakeClient(() => creates += 1);
+    final client = _FakeBackend(() => creates += 1);
     addTearDown(() {
       for (final controller in client.controllers) {
         controller.close();
@@ -206,7 +208,7 @@ void main() {
     Widget host(Object? defaultValue) => Directionality(
           textDirection: TextDirection.ltr,
           child: CoproductFlagBuilder.jsonFlag(
-            client: client,
+            client: client.client,
             flagKey: 'k',
             defaultValue: defaultValue,
             builder: (context, value, child) => Text('$value'),
@@ -236,7 +238,7 @@ void main() {
     // comparison every parent rebuild would tear down a live native session
     // and register an identical one
     var creates = 0;
-    final client = _FakeClient(() => creates += 1);
+    final client = _FakeBackend(() => creates += 1);
     addTearDown(() {
       for (final controller in client.numberControllers) {
         controller.close();
@@ -245,7 +247,7 @@ void main() {
     Widget host() => Directionality(
           textDirection: TextDirection.ltr,
           child: CoproductFlagBuilder.numberFlag(
-            client: client,
+            client: client.client,
             flagKey: 'k',
             defaultValue: double.nan,
             builder: (context, value, child) => Text('$value'),
@@ -259,10 +261,10 @@ void main() {
   });
 
   testWidgets('omitting client resolves the nearest scope', (tester) async {
-    final scoped = _FakeClient(() {});
+    final scoped = _FakeBackend(() {});
 
     await tester.pumpWidget(_host(
-      scoped,
+      scoped.client,
       CoproductFlagBuilder.stringFlag(
         flagKey: 'greeting',
         defaultValue: 'fallback',
@@ -277,12 +279,12 @@ void main() {
 
   testWidgets('an explicit client works with no scope anywhere',
       (tester) async {
-    final explicit = _FakeClient(() {});
+    final explicit = _FakeBackend(() {});
 
     await tester.pumpWidget(Directionality(
       textDirection: TextDirection.ltr,
       child: CoproductFlagBuilder.stringFlag(
-        client: explicit,
+        client: explicit.client,
         flagKey: 'greeting',
         defaultValue: 'fallback',
         builder: (context, value, child) => Text(value),
@@ -294,13 +296,13 @@ void main() {
 
   testWidgets('an explicit client wins over a surrounding scope',
       (tester) async {
-    final scoped = _FakeClient(() {});
-    final explicit = _FakeClient(() {});
+    final scoped = _FakeBackend(() {});
+    final explicit = _FakeBackend(() {});
 
     await tester.pumpWidget(_host(
-      scoped,
+      scoped.client,
       CoproductFlagBuilder.stringFlag(
-        client: explicit,
+        client: explicit.client,
         flagKey: 'greeting',
         defaultValue: 'fallback',
         builder: (context, value, child) => Text(value),
@@ -313,9 +315,9 @@ void main() {
 
   testWidgets('an explicit client does not depend on the scope',
       (tester) async {
-    final explicit = _FakeClient(() {});
-    final scopedFirst = _FakeClient(() {});
-    final scopedSecond = _FakeClient(() {});
+    final explicit = _FakeBackend(() {});
+    final scopedFirst = _FakeBackend(() {});
+    final scopedSecond = _FakeBackend(() {});
     var builds = 0;
 
     // One widget instance, reused beneath both scopes. updateChild skips an
@@ -324,7 +326,7 @@ void main() {
     // the facade wrongly looked the scope up despite an explicit client, this
     // subtree would rebuild and the count would move
     final flagWidget = CoproductFlagBuilder.stringFlag(
-      client: explicit,
+      client: explicit.client,
       flagKey: 'greeting',
       defaultValue: 'fallback',
       builder: (context, value, child) {
@@ -333,28 +335,28 @@ void main() {
       },
     );
 
-    await tester.pumpWidget(_host(scopedFirst, flagWidget));
+    await tester.pumpWidget(_host(scopedFirst.client, flagWidget));
     expect(builds, 1);
 
-    await tester.pumpWidget(_host(scopedSecond, flagWidget));
+    await tester.pumpWidget(_host(scopedSecond.client, flagWidget));
     expect(builds, 1,
         reason: 'an explicit client registers no scope dependency');
   });
 
   testWidgets('replacing the scoped client re-registers exactly once',
       (tester) async {
-    final first = _FakeClient(() {});
-    final second = _FakeClient(() {});
+    final first = _FakeBackend(() {});
+    final second = _FakeBackend(() {});
     final flagWidget = CoproductFlagBuilder.stringFlag(
       flagKey: 'greeting',
       defaultValue: 'fallback',
       builder: (context, value, child) => Text(value),
     );
 
-    await tester.pumpWidget(_host(first, flagWidget));
+    await tester.pumpWidget(_host(first.client, flagWidget));
     expect(first.registrations, 1);
 
-    await tester.pumpWidget(_host(second, flagWidget));
+    await tester.pumpWidget(_host(second.client, flagWidget));
 
     expect(second.registrations, 1);
     expect(first.cancellations, 1,
@@ -365,10 +367,10 @@ void main() {
 
   testWidgets('a keyed reorder moves observations rather than replacing them',
       (tester) async {
-    final client = _FakeClient(() {});
+    final client = _FakeBackend(() {});
     Widget flag(String flagKey) => CoproductFlagBuilder.stringFlag(
           key: ValueKey<String>(flagKey),
-          client: client,
+          client: client.client,
           flagKey: flagKey,
           defaultValue: 'fallback',
           builder: (context, value, child) => Text(value),
@@ -423,9 +425,9 @@ void main() {
 
   testWidgets('every entry point resolves the scope when client is omitted',
       (tester) async {
-    final scoped = _FakeClient(() {});
+    final scoped = _FakeBackend(() {});
 
-    await tester.pumpWidget(_host(scoped, _column(everyEntryPoint())));
+    await tester.pumpWidget(_host(scoped.client, _column(everyEntryPoint())));
 
     expect(scoped.observedKeys, ['b', 's', 'i', 'n', 'j'],
         reason: 'each entry point must reach the scoped client');
@@ -433,9 +435,9 @@ void main() {
 
   testWidgets('every entry point accepts an explicit client with no scope',
       (tester) async {
-    final explicit = _FakeClient(() {});
+    final explicit = _FakeBackend(() {});
 
-    await tester.pumpWidget(_column(everyEntryPoint(client: explicit)));
+    await tester.pumpWidget(_column(everyEntryPoint(client: explicit.client)));
 
     expect(explicit.observedKeys, ['b', 's', 'i', 'n', 'j']);
   });
@@ -445,35 +447,35 @@ void main() {
     // it rather than on anything it wraps. Constructing does not build, so no
     // observation is registered here
     const key = ValueKey<String>('flag');
-    final client = _FakeClient(() {});
+    final client = _FakeBackend(() {});
     for (final widget in [
       CoproductFlagBuilder.boolFlag(
           key: key,
-          client: client,
+          client: client.client,
           flagKey: 'b',
           defaultValue: false,
           builder: (context, value, child) => const SizedBox.shrink()),
       CoproductFlagBuilder.stringFlag(
           key: key,
-          client: client,
+          client: client.client,
           flagKey: 's',
           defaultValue: 'd',
           builder: (context, value, child) => const SizedBox.shrink()),
       CoproductFlagBuilder.intFlag(
           key: key,
-          client: client,
+          client: client.client,
           flagKey: 'i',
           defaultValue: 0,
           builder: (context, value, child) => const SizedBox.shrink()),
       CoproductFlagBuilder.numberFlag(
           key: key,
-          client: client,
+          client: client.client,
           flagKey: 'n',
           defaultValue: 0,
           builder: (context, value, child) => const SizedBox.shrink()),
       CoproductFlagBuilder.jsonFlag(
           key: key,
-          client: client,
+          client: client.client,
           flagKey: 'j',
           defaultValue: null,
           builder: (context, value, child) => const SizedBox.shrink()),
@@ -534,11 +536,16 @@ void main() {
   });
 }
 
-/// Reaches the public facade without a native library. Implementing the client
-/// interface and routing everything else through noSuchMethod means only the
-/// one method under test has to exist
-class _FakeClient implements CoproductClient {
-  _FakeClient(this.onCreate);
+/// Instrumented value source behind a genuine client, so these tests exercise
+/// the real FlagObservation while registration and cancellation stay countable
+/// here. Routing everything else through noSuchMethod means only the methods
+/// under test have to exist
+class _FakeBackend implements CoproductClientBackend {
+  _FakeBackend(this.onCreate);
+
+  /// A genuine client over this backend, so the widgets under test exercise the
+  /// real observation implementation while the instrumentation stays here
+  late final CoproductClient client = createClientForBackend(this);
 
   final void Function() onCreate;
   final List<StreamController<String?>> controllers = [];
@@ -556,14 +563,13 @@ class _FakeClient implements CoproductClient {
   final List<String> observedKeys = [];
 
   @override
-  FlagObservation<bool> observeBool(String key, bool defaultValue) {
+  ObservationHandle<bool> observeBool(String key) {
     registrations += 1;
     observedKeys.add(key);
     onCreate();
     final controller = StreamController<bool?>();
     boolControllers.add(controller);
-    return boolObservation(
-      defaultValue: defaultValue,
+    return ObservationHandle<bool>(
       seed: null,
       events: controller.stream,
       cancel: () => cancellations += 1,
@@ -571,14 +577,13 @@ class _FakeClient implements CoproductClient {
   }
 
   @override
-  FlagObservation<int> observeInt(String key, int defaultValue) {
+  ObservationHandle<int> observeInt(String key) {
     registrations += 1;
     observedKeys.add(key);
     onCreate();
     final controller = StreamController<int?>();
     intControllers.add(controller);
-    return intObservation(
-      defaultValue: defaultValue,
+    return ObservationHandle<int>(
       seed: null,
       events: controller.stream,
       cancel: () => cancellations += 1,
@@ -586,31 +591,27 @@ class _FakeClient implements CoproductClient {
   }
 
   @override
-  FlagObservation<String> observeString(String key, String defaultValue) {
+  ObservationHandle<String> observeString(String key) {
     registrations += 1;
     observedKeys.add(key);
     onCreate();
     final controller = StreamController<String?>();
     controllers.add(controller);
-    // Seeded with the flag key, so the rendered text says which observation is
-    // on screen and a reorder test can tell them apart
-    return stringObservation(
-      defaultValue: defaultValue,
-      seed: key,
+    return ObservationHandle<String>(
+      seed: key,  // so the rendered text says which observation is on screen,
       events: controller.stream,
       cancel: () => cancellations += 1,
     );
   }
 
   @override
-  FlagObservation<double> observeNumber(String key, double defaultValue) {
+  ObservationHandle<double> observeNumber(String key) {
     registrations += 1;
     observedKeys.add(key);
     onCreate();
     final controller = StreamController<double?>();
     numberControllers.add(controller);
-    return numberObservation(
-      defaultValue: defaultValue,
+    return ObservationHandle<double>(
       seed: null,
       events: controller.stream,
       cancel: () {},
@@ -618,14 +619,13 @@ class _FakeClient implements CoproductClient {
   }
 
   @override
-  FlagObservation<Object?> observeJson(String key, Object? defaultValue) {
+  ObservationHandle<String> observeJson(String key) {
     registrations += 1;
     observedKeys.add(key);
     onCreate();
     final controller = StreamController<String?>();
     controllers.add(controller);
-    return jsonObservation(
-      defaultValue: defaultValue,
+    return ObservationHandle<String>(
       seed: null,
       events: controller.stream,
       cancel: () {},

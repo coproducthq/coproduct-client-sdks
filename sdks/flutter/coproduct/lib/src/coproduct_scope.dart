@@ -29,7 +29,7 @@ import 'package:coproduct/coproduct.dart';
 /// no observation's lifetime. An app using Provider, Riverpod, or BLoC can
 /// carry the client in that instead and pass `client:` explicitly, in which
 /// case no scope is needed
-class CoproductScope extends InheritedWidget {
+final class CoproductScope extends InheritedWidget {
   const CoproductScope({
     super.key,
     required this.client,

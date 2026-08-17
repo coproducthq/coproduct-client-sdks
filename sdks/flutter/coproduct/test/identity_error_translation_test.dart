@@ -1,5 +1,5 @@
 import 'package:coproduct/src/identity_error_translation.dart';
-import 'package:coproduct/src/invalid_targeting_key.dart';
+import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:flutter_test/flutter_test.dart';
 

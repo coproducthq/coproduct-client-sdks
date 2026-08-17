@@ -386,6 +386,26 @@ initialized the SDK with a different key or config. Initialize once, at startup.
 **`identify` throws `InvalidTargetingKey`.** The identifier was empty. Pass your
 account's stable id.
 
+## Testing your widgets
+
+`package:coproduct/testing.dart` gives you a real client backed by values you set
+in the test, with no SDK key, no network, and nothing to mock:
+
+```dart
+final harness = CoproductTestHarness()..setBool('new-checkout', false);
+addTearDown(harness.shutdown);
+
+await tester.pumpWidget(MaterialApp(
+  home: CoproductScope(client: harness.client, child: const CheckoutPage()),
+));
+
+harness.setBool('new-checkout', true);
+await tester.pumpAndSettle();
+```
+
+The harness supplies resolved values rather than evaluating targeting rules: set
+the result your scenario needs. See [doc/testing.md](doc/testing.md).
+
 ## A runnable sample
 
 [`example/`](example/) is a small app you can run. It installs a

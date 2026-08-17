@@ -1,5 +1,21 @@
 ## Unreleased
 
+`package:coproduct/testing.dart` provides `CoproductTestHarness`, a real
+`CoproductClient` backed by values a widget test sets directly, with no SDK key,
+no network, and no native library. It supplies resolved values and does not
+evaluate targeting rules. See `doc/testing.md`.
+
+The SDK-owned classes are now `final`: `CoproductClient`, `Coproduct`,
+`FlagObservation`, `CoproductConfig`, `CoproductFlagBuilder`, `CoproductScope`,
+and `CoproductTestHarness`. `CoproductException` is `abstract final`. Implementing
+them was never supported, and closing them before the stable release is what
+keeps later additions from being breaking changes.
+
+`getJson` now returns a deeply unmodifiable structure, matching `observeJson`,
+so one ownership rule covers every JSON value the SDK hands back. Copy the
+result if you need to mutate it. A default JSON cannot encode never round-trips
+and is still returned exactly as supplied.
+
 `ProviderState` no longer carries a `reconciling` value. `state` never returned
 it, so the value described a condition a developer could not observe.
 Reconciliation remains observable as a lifecycle event.

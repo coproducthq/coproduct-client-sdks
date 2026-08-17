@@ -1,8 +1,14 @@
 import 'rust/api.dart' as frb;
 
 /// The shared marker for exceptions Coproduct throws. Catch a specific subtype
-/// for a known condition, or this interface to handle any Coproduct error
-abstract interface class CoproductException implements Exception {}
+/// for a known condition, or this type to handle any Coproduct error.
+///
+/// Closed with `abstract final` rather than `sealed`: both prevent an outside
+/// implementation, but `sealed` would additionally advertise an exhaustive
+/// subtype set and let a consumer switch without a default, which would make
+/// every future Coproduct exception type source-breaking. Every implementer
+/// lives in this library, as Dart's library-scoped subtype rules require
+abstract final class CoproductException implements Exception {}
 
 /// Thrown when no SDK key was supplied
 final class MissingSdkKey implements CoproductException {
@@ -109,3 +115,19 @@ CoproductException translateInitError(frb.InitError error) => switch (error) {
       frb.InitError_UnsupportedSchemaVersion(:final actual, :final supported) =>
         UnsupportedSchemaVersion(actual: actual, supported: supported),
     };
+
+/// Thrown by `CoproductClient.identify` and `CoproductClient.setContext` when the
+/// identity or targeting key is empty. The key is the identity of the evaluated
+/// context, so an empty key is rejected rather than silently accepted
+final class InvalidTargetingKey implements CoproductException {
+  const InvalidTargetingKey();
+
+  @override
+  bool operator ==(Object other) => other is InvalidTargetingKey;
+
+  @override
+  int get hashCode => (InvalidTargetingKey).hashCode;
+
+  @override
+  String toString() => 'The identity or targeting key cannot be empty.';
+}

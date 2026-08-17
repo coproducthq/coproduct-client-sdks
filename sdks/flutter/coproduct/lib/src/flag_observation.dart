@@ -28,7 +28,8 @@ import 'json_value.dart';
 /// unavailable, because the flag left the snapshot or the SDK key was revoked,
 /// resolves to the default supplied at registration. After shutdown an existing
 /// observation retains its last value and stops updating
-class FlagObservation<T> extends ChangeNotifier implements ValueListenable<T> {
+final class FlagObservation<T> extends ChangeNotifier
+    implements ValueListenable<T> {
   FlagObservation._({
     required Object? seed,
     required Stream<Object?> events,

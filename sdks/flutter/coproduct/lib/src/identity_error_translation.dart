@@ -1,4 +1,4 @@
-import 'invalid_targeting_key.dart';
+import 'errors.dart';
 import 'rust/api.dart' as frb;
 
 /// Runs an identity operation, translating only the generated invalid-key error

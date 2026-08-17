@@ -1,4 +1,3 @@
-import 'package:coproduct/coproduct.dart' show InvalidTargetingKey;
 import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:flutter_test/flutter_test.dart';
