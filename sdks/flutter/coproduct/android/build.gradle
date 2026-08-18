@@ -50,9 +50,3 @@ android {
         minSdkVersion 24
     }
 }
-
-apply from: "../cargokit/gradle/plugin.gradle"
-cargokit {
-    manifestDir = "../../../../ffi/coproduct-ffi-frb"
-    libname = "coproduct_ffi_frb"
-}

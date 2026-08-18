@@ -10,6 +10,11 @@
 set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Rebuild the xcframework from current source first, so a forgotten preparation
+# step can never leave the podspec staging a stale library.
+"$SCAFFOLD_ROOT/scripts/package/flutter-build-native.sh" ios
+
 cd "$SCAFFOLD_ROOT/sdks/flutter/coproduct/example"
 
 flutter pub get
