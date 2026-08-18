@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Proves frb-symbol-check.sh passes on real Mach-O and ELF objects that export
+# the three required symbols, and fails, naming the fault, on the failure
+# modes it exists to catch: an unreadable archive and a missing file. The
+# fixtures are compiled from a few lines of C rather than checked in, so the
+# test is fast and does not need a full Rust release build to run
+set -euo pipefail
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CHECK="$REPO_ROOT/scripts/audit/frb-symbol-check.sh"
+
+if ! command -v clang >/dev/null 2>&1; then
+    echo "frb-symbol-check.test: SKIP, clang not found to build fixtures" >&2
+    exit 1
+fi
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+cat > "$WORK/all_symbols.c" <<'EOF'
+int frb_pde_ffi_dispatcher_primary(void) { return 0; }
+int store_dart_post_cobject(void) { return 0; }
+int frb_get_rust_content_hash(void) { return 0; }
+EOF
+
+cat > "$WORK/missing_one.c" <<'EOF'
+int frb_pde_ffi_dispatcher_primary(void) { return 0; }
+int frb_get_rust_content_hash(void) { return 0; }
+EOF
+
+clang -c "$WORK/all_symbols.c" -o "$WORK/macho_ok.o" -target arm64-apple-ios15.0 2>/dev/null
+clang -c "$WORK/all_symbols.c" -o "$WORK/elf_ok.o" -target aarch64-linux-android24 2>/dev/null
+clang -c "$WORK/missing_one.c" -o "$WORK/macho_missing.o" -target arm64-apple-ios15.0 2>/dev/null
+
+# Baseline: a real, well-formed object of each kind must pass
+if ! OUT="$("$CHECK" macho "$WORK/macho_ok.o")"; then
+    echo "frb-symbol-check.test: FAIL, baseline macho object was rejected" >&2
+    exit 1
+fi
+echo "$OUT" | grep -q "COPRODUCT_FRB_SYMBOL_STATUS pass=true" || {
+    echo "frb-symbol-check.test: FAIL, baseline macho run did not print the status line" >&2
+    exit 1
+}
+
+if ! OUT="$("$CHECK" elf "$WORK/elf_ok.o")"; then
+    echo "frb-symbol-check.test: FAIL, baseline elf object was rejected" >&2
+    exit 1
+fi
+echo "$OUT" | grep -q "COPRODUCT_FRB_SYMBOL_STATUS pass=true" || {
+    echo "frb-symbol-check.test: FAIL, baseline elf run did not print the status line" >&2
+    exit 1
+}
+
+# Mutation: an object missing one of the three required symbols must fail and
+# name that symbol, not just report a generic failure
+if ERR="$("$CHECK" macho "$WORK/macho_missing.o" 2>&1)"; then
+    echo "frb-symbol-check.test: FAIL, an object missing a required symbol was accepted" >&2
+    exit 1
+fi
+echo "$ERR" | grep -q "store_dart_post_cobject" || {
+    echo "frb-symbol-check.test: FAIL, missing-symbol failure did not name store_dart_post_cobject: $ERR" >&2
+    exit 1
+}
+
+# Mutation: a truncated copy of a valid archive must fail as unreadable, not
+# silently report zero symbols as "the symbols are absent"
+head -c 200 "$WORK/macho_ok.o" > "$WORK/truncated.o"
+if ERR="$("$CHECK" macho "$WORK/truncated.o" 2>&1)"; then
+    echo "frb-symbol-check.test: FAIL, a truncated object was accepted" >&2
+    exit 1
+fi
+echo "$ERR" | grep -qi "no symbols readable" || {
+    echo "frb-symbol-check.test: FAIL, truncated-object failure did not name the read failure: $ERR" >&2
+    exit 1
+}
+
+# Mutation: a nonexistent path must fail, naming the missing file
+if ERR="$("$CHECK" macho "$WORK/does-not-exist.o" 2>&1)"; then
+    echo "frb-symbol-check.test: FAIL, a nonexistent path was accepted" >&2
+    exit 1
+fi
+echo "$ERR" | grep -q "missing file" || {
+    echo "frb-symbol-check.test: FAIL, nonexistent-path failure did not say 'missing file': $ERR" >&2
+    exit 1
+}
+
+# Usage errors exit 2, distinct from a verification failure
+set +e
+"$CHECK" >/dev/null 2>&1
+usage_status=$?
+set -e
+if [[ "$usage_status" -ne 2 ]]; then
+    echo "frb-symbol-check.test: FAIL, missing arguments exited $usage_status, expected 2" >&2
+    exit 1
+fi
+
+echo "frb-symbol-check.test: PASS"
