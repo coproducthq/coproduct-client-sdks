@@ -28,14 +28,19 @@ A new Flutter FFI plugin project.
   s.swift_version = '5.0'
 
   s.script_phase = {
-    :name => 'Build Rust library',
-    # First argument is relative path to the `rust` folder, second is name of rust library
-    :script => 'sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../../../ffi/coproduct-ffi-frb coproduct_ffi_frb',
+    :name => 'Stage prebuilt Rust library',
+    :script => 'sh "$PODS_TARGET_SRCROOT/stage_prebuilt.sh"',
     :execution_position => :before_compile,
-    :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
-    # Let XCode know that the static library referenced in -force_load below is
-    # created by this build step.
+    :input_files => [
+      '${PODS_TARGET_SRCROOT}/stage_prebuilt.sh',
+      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
+      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_frb.a',
+    ],
     :output_files => ["${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a"],
+    # Xcode skips a script phase whose outputs it considers current, which would
+    # skip the architecture guard on a cached DerivedData or a platform switch.
+    # Staging one file is cheap, so it always runs.
+    :always_out_of_date => '1',
   }
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
