@@ -9,6 +9,7 @@ SCRIPT="$HERE/stage_prebuilt.sh"
 fail=0
 
 setup() {
+  [ -n "${WORK:-}" ] && rm -rf "$WORK"
   WORK="$(mktemp -d)"
   mkdir -p "$WORK/src/CoproductFFI.xcframework/ios-arm64"
   mkdir -p "$WORK/src/CoproductFFI.xcframework/ios-arm64-simulator"
@@ -56,4 +57,5 @@ expect_fail 'device x86_64' "$rc" 'unsupported ARCHS'
 setup; run watchos 'arm64'; rc=$?
 expect_fail 'unrecognized platform' "$rc" 'unsupported PLATFORM_NAME'
 
+rm -rf "$WORK"
 [ "$fail" -eq 0 ] && echo 'COPRODUCT_FLUTTER_STAGE_PREBUILT_STATUS pass=true' || exit 1

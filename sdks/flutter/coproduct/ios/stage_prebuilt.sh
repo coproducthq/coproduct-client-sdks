@@ -1,17 +1,17 @@
 #!/bin/sh
 # Stages the prebuilt Rust slice that OTHER_LDFLAGS force-loads. The consumer's
-# build performs no compilation, so this replaces cargokit's build_pod.sh.
+# build performs no compilation, so this replaces cargokit's build_pod.sh
 #
 # Selection is fail-closed: only an exact single arm64 ARCHS on a recognized
 # platform stages anything. Everything else is a hard error, because falling
-# through would stage a binary that cannot satisfy the link.
+# through would stage a binary that cannot satisfy the link
 set -eu
 
 XCF="$PODS_TARGET_SRCROOT/CoproductFFI.xcframework"
 DEST="$PODS_CONFIGURATION_BUILD_DIR/coproduct"
 
 # ARCHS is a space-separated list. Compare the whole value, not a substring:
-# a membership test would accept "arm64 x86_64" as an arm64 build.
+# a membership test would accept "arm64 x86_64" as an arm64 build
 case "${ARCHS:-}" in
   arm64) ;;
   *)
