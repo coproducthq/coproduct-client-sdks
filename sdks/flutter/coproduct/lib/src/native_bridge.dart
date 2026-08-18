@@ -46,9 +46,10 @@ abstract interface class NativeBridge<H extends Object> {
 }
 
 /// The production NativeBridge over flutter_rust_bridge. Owns the single-flight
-/// RustLib load and the application cache directory. On iOS and macOS cargokit
-/// force-loads the static library into the app executable, so FRB is pointed at
-/// the process image rather than a non-existent framework bundle.
+/// RustLib load and the application cache directory. On iOS the podspec
+/// force-loads the prebuilt static library into the app executable, and macOS
+/// links its own static library the same way, so FRB is pointed at the process
+/// image rather than a non-existent framework bundle.
 class FrbNativeBridge implements NativeBridge<frb.CoproductClientHandle> {
   bool _libraryReady = false;
 

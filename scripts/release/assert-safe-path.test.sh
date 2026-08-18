@@ -12,15 +12,29 @@ trap 'rm -rf "$WORK"' EXIT
 
 # Baseline: a fresh mktemp -d is accepted and comes back marked
 FRESH="$WORK/fresh-scratch"
-mkdir -p "$FRESH"
+# A path that does not exist yet is the safe case: the guard creates and marks it.
+# Emptiness is deliberately not sufficient, because a mistyped variable can name
+# an empty directory that matters to someone
 if ! OUT="$("$GUARD" "$FRESH")"; then
-    echo "assert-safe-path.test: FAIL, a fresh empty directory was refused: $OUT" >&2
+    echo "assert-safe-path.test: FAIL, a nonexistent path was refused: $OUT" >&2
     exit 1
 fi
 if [[ ! -f "$FRESH/.coproduct-scratch-marker" ]]; then
     echo "assert-safe-path.test: FAIL, accepted directory was not marked" >&2
     exit 1
 fi
+
+# Mutation: an existing unmarked directory is refused even when empty
+PREEXISTING="$(mktemp -d)"
+if OUT="$("$GUARD" "$PREEXISTING" 2>&1)"; then
+    echo "assert-safe-path.test: FAIL, a pre-existing unmarked empty directory was accepted" >&2
+    exit 1
+fi
+case "$OUT" in
+    *"already exists without"*) ;;
+    *) echo "assert-safe-path.test: FAIL, refusal did not name the missing marker: $OUT" >&2; exit 1 ;;
+esac
+rmdir "$PREEXISTING"
 
 # A marked directory is reused on a second call rather than refused
 if ! "$GUARD" "$FRESH" >/dev/null; then

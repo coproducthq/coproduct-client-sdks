@@ -27,6 +27,17 @@ int frb_pde_ffi_dispatcher_primary(void) { return 0; }
 int frb_get_rust_content_hash(void) { return 0; }
 EOF
 
+# A symbol can appear as both an undefined reference and a definition in one Rust
+# archive, so a checker that accepts any occurrence would pass a library that
+# only imports the entrypoint. This fixture defines two and merely references the
+# third
+cat > "$WORK/referenced_only.c" <<'EOF'
+int frb_pde_ffi_dispatcher_primary(void) { return 0; }
+int frb_get_rust_content_hash(void) { return 0; }
+extern int store_dart_post_cobject(void);
+int use_it(void) { return store_dart_post_cobject(); }
+EOF
+
 clang -c "$WORK/all_symbols.c" -o "$WORK/macho_ok.o" -target arm64-apple-ios15.0 2>/dev/null
 clang -c "$WORK/all_symbols.c" -o "$WORK/elf_ok.o" -target aarch64-linux-android24 2>/dev/null
 clang -c "$WORK/missing_one.c" -o "$WORK/macho_missing.o" -target arm64-apple-ios15.0 2>/dev/null
@@ -58,6 +69,18 @@ if ERR="$("$CHECK" macho "$WORK/macho_missing.o" 2>&1)"; then
 fi
 echo "$ERR" | grep -q "store_dart_post_cobject" || {
     echo "frb-symbol-check.test: FAIL, missing-symbol failure did not name store_dart_post_cobject: $ERR" >&2
+    exit 1
+}
+
+# Mutation: a symbol present only as an unresolved reference must be rejected.
+# This is the row that discriminates "defined" from "mentioned"
+clang -c "$WORK/referenced_only.c" -o "$WORK/referenced_only.o"
+if ERR="$("$CHECK" macho "$WORK/referenced_only.o" 2>&1)"; then
+    echo "frb-symbol-check.test: FAIL, an object that only references a required symbol was accepted" >&2
+    exit 1
+fi
+echo "$ERR" | grep -q "store_dart_post_cobject" || {
+    echo "frb-symbol-check.test: FAIL, referenced-only failure did not name store_dart_post_cobject: $ERR" >&2
     exit 1
 }
 

@@ -56,5 +56,5 @@ scripts/release/pubspec.lock
 # Superpowers plugin
 docs/superpowers/
 
-# Subagent-driven execution scratch (ledger, briefs, review packages)
+# Local automation scratch
 .superpowers/

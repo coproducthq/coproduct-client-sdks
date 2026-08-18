@@ -76,13 +76,18 @@ if [[ "$RESOLVED" == "$REPO_ROOT" || "$RESOLVED" == "$REPO_ROOT"/* ]]; then
     exit 1
 fi
 
-if [[ -d "$RESOLVED" ]]; then
-    has_entries=0
-    for entry in "$RESOLVED"/* "$RESOLVED"/.[!.]* "$RESOLVED"/..?*; do
-        [[ -e "$entry" ]] && { has_entries=1; break; }
-    done
-    if [[ "$has_entries" -eq 1 && ! -f "$RESOLVED/$MARKER" ]]; then
-        echo "ERROR: refusing $RESOLVED, it is non-empty and not marked as scratch space this script created." >&2
+# Only two states are safe to hand to a caller that will recursively delete the
+# path: one that does not exist yet, or one this script has already marked.
+# Emptiness is not a safety property, because a mistyped variable can name an
+# empty directory that matters to someone
+if [[ -e "$RESOLVED" ]]; then
+    if [[ ! -d "$RESOLVED" ]]; then
+        echo "ERROR: refusing $RESOLVED, it exists and is not a directory." >&2
+        exit 1
+    fi
+    if [[ ! -f "$RESOLVED/$MARKER" ]]; then
+        echo "ERROR: refusing $RESOLVED, it already exists without $MARKER." >&2
+        echo "  This script only reuses scratch directories it created. Name a path that does not exist yet." >&2
         exit 1
     fi
 fi
