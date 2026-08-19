@@ -54,6 +54,7 @@ Future<void> main(List<String> args) async {
       packages: inputs,
       policy: policy,
       canonicalTemplates: canonicalTemplates,
+      vendoredTexts: _readVendoredTexts(),
     );
 
     if (write) {
@@ -157,4 +158,16 @@ void _writeGenerated({required String pkgDir, required GeneratedNotices generate
   generated.licenseFiles.forEach((name, content) {
     File('${licenseDir.path}/$name').writeAsStringSync(content);
   });
+}
+
+/// Upstream notices for crates that declare a license but package no license
+/// file. They are tracked rather than synthesized so the real copyright line is
+/// reproduced, which is what the licenses require
+Map<String, String> _readVendoredTexts() {
+  final dir = Directory('assets/vendored');
+  if (!dir.existsSync()) return const {};
+  return {
+    for (final f in dir.listSync().whereType<File>())
+      f.uri.pathSegments.last: f.readAsStringSync(),
+  };
 }

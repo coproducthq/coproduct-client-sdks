@@ -36,7 +36,9 @@ class PolicyClarification {
       throw LicenseAuditError(
           'policy clarification is missing license, reason, or textSource');
     }
-    if (textSource != 'auto' && textSource != 'embeddedCanonical') {
+    if (textSource != 'auto' &&
+        textSource != 'embeddedCanonical' &&
+        textSource != 'vendored') {
       throw LicenseAuditError('policy clarification has unknown textSource "$textSource"');
     }
     return PolicyClarification(license: license, reason: reason, textSource: textSource);
@@ -228,6 +230,7 @@ GeneratedNotices buildNotices({
   required List<PackageLicenseInput> packages,
   required LicensePolicy policy,
   required CanonicalLicenseTemplates canonicalTemplates,
+  Map<String, String> vendoredTexts = const {},
 }) {
   final sorted = List<PackageLicenseInput>.from(packages)
     ..sort((a, b) {
@@ -270,7 +273,20 @@ GeneratedNotices buildNotices({
     }
 
     final List<String> destNames;
-    if (clarification?.textSource == 'embeddedCanonical') {
+    if (clarification?.textSource == 'vendored') {
+      // The crate declares a license but packages no notice, so the real
+      // upstream text is tracked here rather than synthesized. Reproducing the
+      // actual copyright line is what the license asks for
+      final destName = '${pkg.key.$1}-${pkg.key.$2}-$elected.txt';
+      final vendored = vendoredTexts[destName];
+      if (vendored == null) {
+        throw LicenseAuditError(
+            'package $label is marked vendored but no tracked notice named '
+            '$destName was supplied');
+      }
+      licenseFiles[destName] = vendored;
+      destNames = [destName];
+    } else if (clarification?.textSource == 'embeddedCanonical') {
       final destName = '${pkg.key.$1}-${pkg.key.$2}-$elected.txt';
       licenseFiles[destName] = canonicalTemplates.render(elected, pkg.key.$1);
       destNames = [destName];
