@@ -75,6 +75,9 @@ void main(List<String> args) {
     exit(2);
   }
   final stage = args.single;
+  // The reference for generated content is the repository package, so resolve
+  // the repository root from this script's location rather than the stage.
+  final repoRoot = File.fromUri(Platform.script).parent.parent.parent.parent.path;
   final issues = <String>[];
 
   // The dry run resolves dependencies and writes .dart_tool, so it runs against
@@ -133,25 +136,31 @@ void main(List<String> args) {
     if (!files.contains(p)) issues.add('missing required native entry: $p');
   }
 
-  // The license texts are generated, so require exactly the set the package
-  // carries rather than a count or a prefix.
-  final noticeDir = Directory('$stage/third_party_licenses');
-  if (!noticeDir.existsSync()) {
-    issues.add('the staged package has no third_party_licenses directory');
+  // The license texts are generated, so the reference is the set the repository
+  // package carries, not the stage's own directory. Comparing the stage against
+  // itself only proves internal consistency: deleting a text from the stage
+  // removes it from both sides and the comparison still agrees.
+  final referenceDir =
+      Directory('$repoRoot/sdks/flutter/coproduct/third_party_licenses');
+  if (!referenceDir.existsSync()) {
+    issues.add('the repository package has no third_party_licenses directory');
   } else {
-    final onDisk = noticeDir
+    final expected = referenceDir
         .listSync()
         .whereType<File>()
         .map((f) => 'third_party_licenses/${f.uri.pathSegments.last}')
         .toSet();
-    final shipped = files.where((f) => f.startsWith('third_party_licenses/')).toSet();
-    for (final missing in onDisk.difference(shipped)) {
-      issues.add('license text not published: $missing');
+    final shipped =
+        files.where((f) => f.startsWith('third_party_licenses/')).toSet();
+    for (final missing in expected.difference(shipped)) {
+      issues.add('generated license text not published: $missing');
     }
-    for (final extra in shipped.difference(onDisk)) {
-      issues.add('published license text is not in the package: $extra');
+    for (final extra in shipped.difference(expected)) {
+      issues.add('published license text was not generated: $extra');
     }
-    if (onDisk.isEmpty) issues.add('third_party_licenses is empty');
+    if (expected.isEmpty) {
+      issues.add('the repository package generated no license texts');
+    }
   }
 
   for (final f in files) {
