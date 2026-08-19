@@ -58,3 +58,6 @@ example/linux/
 example/macos/
 example/windows/
 example/integration_test/
+
+# The staging script self-test is development tooling
+ios/stage_prebuilt.test.sh
