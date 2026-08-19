@@ -1,0 +1,20 @@
+{
+  "allowedLicenses": ["MIT", "Apache-2.0", "Unlicense", "Zlib", "0BSD"],
+  "clarifications": {
+    "allo-isolate@0.1.27": {
+      "license": "Apache-2.0",
+      "reason": "publishes no SPDX license field, only a license_file reference; the bundled LICENSE file was read and is the Apache-2.0 license text",
+      "textSource": "auto"
+    },
+    "dart-sys@4.1.5": {
+      "license": "MIT",
+      "reason": "declares MIT OR Apache-2.0 but the packaged crate ships no license file of any name; the elected term uses this tool's embedded standard MIT license text",
+      "textSource": "embeddedCanonical"
+    },
+    "flutter_rust_bridge@2.12.0": {
+      "license": "MIT",
+      "reason": "declares MIT but the packaged crate ships no license file of any name; the elected term uses this tool's embedded standard MIT license text",
+      "textSource": "embeddedCanonical"
+    }
+  }
+}

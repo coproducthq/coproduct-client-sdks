@@ -1,0 +1,109 @@
+coproduct_ffi_frb v0.0.1 (/Users/nathan/coproduct/coproduct-client-sdks/ffi/coproduct-ffi-frb)
+anyhow v1.0.102
+coproduct-core v0.0.1 (/Users/nathan/coproduct/coproduct-client-sdks/core/coproduct-core)
+http v1.4.2
+bytes v1.11.1
+itoa v1.0.18
+parking_lot v0.12.5
+lock_api v0.4.14
+scopeguard v1.2.0
+parking_lot_core v0.9.12
+cfg-if v1.0.4
+libc v0.2.186
+smallvec v1.15.1
+semver v1.0.28
+serde v1.0.228
+serde_core v1.0.228
+serde_json v1.0.150
+itoa v1.0.18
+memchr v2.8.1
+serde_core v1.0.228
+zmij v1.0.21
+sha2 v0.11.0
+cfg-if v1.0.4
+cpufeatures v0.3.0
+libc v0.2.186
+digest v0.11.3
+block-buffer v0.12.0
+hybrid-array v0.4.12
+typenum v1.20.0
+const-oid v0.10.2
+crypto-common v0.2.2
+hybrid-array v0.4.12 (*)
+thiserror v2.0.18
+time v0.3.49
+deranged v0.5.8
+num-conv v0.2.2
+powerfmt v0.2.0
+time-core v0.1.9
+tracing v0.1.44
+pin-project-lite v0.2.17
+tracing-core v0.1.36
+once_cell v1.21.4
+tracing-subscriber v0.3.23
+sharded-slab v0.1.7
+lazy_static v1.5.0
+thread_local v1.1.9
+cfg-if v1.0.4
+tracing-core v0.1.36 (*)
+uuid v1.23.3
+getrandom v0.4.2
+cfg-if v1.0.4
+libc v0.2.186
+flutter_rust_bridge v2.12.0
+allo-isolate v0.1.27
+anyhow v1.0.102
+atomic v0.5.3
+backtrace v0.3.76
+addr2line v0.25.1
+gimli v0.32.3
+cfg-if v1.0.4
+libc v0.2.186
+miniz_oxide v0.8.9
+adler2 v2.0.1
+object v0.37.3
+memchr v2.8.1
+rustc-demangle v0.1.27
+anyhow v1.0.102
+byteorder v1.5.0
+dart-sys v4.1.5
+futures v0.3.32
+futures-channel v0.3.32
+futures-core v0.3.32
+futures-sink v0.3.32
+futures-core v0.3.32
+futures-executor v0.3.32
+futures-core v0.3.32
+futures-task v0.3.32
+futures-util v0.3.32
+futures-channel v0.3.32 (*)
+futures-core v0.3.32
+futures-io v0.3.32
+futures-sink v0.3.32
+futures-task v0.3.32
+memchr v2.8.1
+pin-project-lite v0.2.17
+slab v0.4.12
+futures-io v0.3.32
+futures-sink v0.3.32
+futures-task v0.3.32
+futures-util v0.3.32 (*)
+lazy_static v1.5.0
+log v0.4.30
+oslog v0.2.0
+dashmap v5.5.3
+cfg-if v1.0.4
+hashbrown v0.14.5
+lock_api v0.4.14 (*)
+once_cell v1.21.4
+parking_lot_core v0.9.12 (*)
+log v0.4.30
+portable-atomic v1.13.1
+threadpool v1.8.1
+num_cpus v1.17.0
+libc v0.2.186
+tokio v1.52.3
+pin-project-lite v0.2.17
+parking_lot v0.12.5 (*)
+serde_json v1.0.150 (*)
+thiserror v2.0.18
