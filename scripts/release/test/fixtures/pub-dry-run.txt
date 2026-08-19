@@ -1,0 +1,436 @@
+Resolving dependencies...
+Downloading packages...
++ _fe_analyzer_shared 96.0.0 (105.0.0 available)
++ analyzer 10.2.0 (14.1.0 available)
++ args 2.7.0
++ async 2.13.1
++ boolean_selector 2.1.2
++ build 4.0.7 (4.0.10 available)
++ build_cli_annotations 2.1.1
++ build_config 1.3.2
++ build_daemon 4.1.5
++ build_runner 2.15.1 (2.16.0 available)
++ built_collection 5.1.1
++ built_value 8.12.7
++ characters 1.4.1
++ checked_yaml 2.0.4
++ clock 1.1.2
++ code_assets 1.2.1 (2.0.0 available)
++ collection 1.19.1
++ convert 3.1.2
++ crypto 3.0.7
++ dart_style 3.1.7 (3.1.12 available)
++ device_info_plus 13.2.0
++ device_info_plus_platform_interface 8.1.0
++ equatable 2.1.0
++ fake_async 1.3.3
++ ffi 2.2.0
++ ffi_leak_tracker 0.1.2
++ file 7.0.1
++ fixnum 1.1.1
++ flutter 0.0.0 from sdk flutter
++ flutter_driver 0.0.0 from sdk flutter
++ flutter_lints 6.0.0
++ flutter_rust_bridge 2.12.0
++ flutter_secure_storage 10.3.1 (11.0.0 available)
++ flutter_secure_storage_darwin 0.3.2 (0.4.0 available)
++ flutter_secure_storage_linux 3.0.2
++ flutter_secure_storage_platform_interface 2.0.3
++ flutter_secure_storage_web 2.1.1
++ flutter_secure_storage_windows 4.2.2
++ flutter_test 0.0.0 from sdk flutter
++ flutter_timezone 5.1.0
++ flutter_web_plugins 0.0.0 from sdk flutter
++ freezed 3.2.5
++ freezed_annotation 3.1.0
++ fuchsia_remote_debug_protocol 0.0.0 from sdk flutter
++ glob 2.1.3
++ graphs 2.3.2
++ hooks 2.0.2 (2.2.0 available)
++ http 1.6.0
++ http_multi_server 3.2.2
++ http_parser 4.1.2
++ integration_test 0.0.0 from sdk flutter
++ io 1.0.5
++ jni 1.0.3
++ jni_flutter 1.0.2
++ jni_util 1.0.0
++ json_annotation 4.12.0
++ leak_tracker 11.0.2
++ leak_tracker_flutter_testing 3.0.10
++ leak_tracker_testing 3.0.2
++ lints 6.1.0
++ logging 1.3.0
++ matcher 0.12.19 (0.12.20 available)
++ material_color_utilities 0.13.0 (0.13.1 available)
++ meta 1.18.0 (1.19.0 available)
++ mime 2.0.0
++ objective_c 9.5.0
++ package_config 2.2.0 (3.0.0 available)
++ package_info_plus 10.2.1
++ package_info_plus_platform_interface 4.1.0
++ path 1.9.1
++ path_provider 2.1.6
++ path_provider_android 2.3.1
++ path_provider_foundation 2.6.0
++ path_provider_linux 2.2.2
++ path_provider_platform_interface 2.1.3
++ path_provider_windows 2.3.0
++ platform 3.1.6
++ plugin_platform_interface 2.1.8
++ pool 1.5.2
++ process 5.0.5
++ pub_semver 2.2.0
++ pubspec_parse 1.5.0
++ record_use 0.6.0 (1.1.1 available)
++ shelf 1.4.2
++ shelf_web_socket 3.0.0
++ sky_engine 0.0.0 from sdk flutter
++ source_gen 4.2.4 (4.3.0 available)
++ source_span 1.10.2
++ stack_trace 1.12.1
++ stream_channel 2.1.4
++ stream_transform 2.1.1
++ string_scanner 1.4.1
++ sync_http 0.3.1
++ term_glyph 1.2.2
++ test_api 0.7.11 (0.7.13 available)
++ typed_data 1.4.0
++ vector_math 2.2.0 (2.4.2 available)
++ vm_service 15.3.0
++ watcher 1.2.1
++ web 1.1.1
++ web_socket 1.0.1
++ web_socket_channel 3.0.3
++ webdriver 3.1.0
++ win32 6.4.0
++ win32_registry 3.0.3
++ xdg_directories 1.1.0
++ yaml 3.1.3
+Changed 107 dependencies!
+17 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Publishing coproduct 1.0.0 to https://pub.dev:
+├── CHANGELOG.md (2 KB)
+├── LICENSE (11 KB)
+├── NOTICE-THIRD-PARTY.md (8 KB)
+├── PROVENANCE.json (1 KB)
+├── README.md (17 KB)
+├── analysis_options.yaml (<1 KB)
+├── android
+│   ├── build.gradle (1 KB)
+│   ├── settings.gradle (<1 KB)
+│   └── src
+│       └── main
+│           ├── AndroidManifest.xml (<1 KB)
+│           └── jniLibs
+│               ├── arm64-v8a
+│               │   └── libcoproduct_ffi_frb.so (1 MB)
+│               ├── armeabi-v7a
+│               │   └── libcoproduct_ffi_frb.so (708 KB)
+│               └── x86_64
+│                   └── libcoproduct_ffi_frb.so (1 MB)
+├── cargokit
+│   ├── LICENSE (1 KB)
+│   ├── README (<1 KB)
+│   ├── build_pod.sh (1 KB)
+│   ├── build_tool
+│   │   ├── README.md (<1 KB)
+│   │   ├── analysis_options.yaml (1 KB)
+│   │   ├── bin
+│   │   │   └── build_tool.dart (<1 KB)
+│   │   ├── lib
+│   │   │   ├── build_tool.dart (<1 KB)
+│   │   │   └── src
+│   │   │       ├── android_environment.dart (5 KB)
+│   │   │       ├── artifacts_provider.dart (8 KB)
+│   │   │       ├── build_cmake.dart (1 KB)
+│   │   │       ├── build_gradle.dart (1 KB)
+│   │   │       ├── build_pod.dart (2 KB)
+│   │   │       ├── build_tool.dart (7 KB)
+│   │   │       ├── builder.dart (5 KB)
+│   │   │       ├── cargo.dart (1 KB)
+│   │   │       ├── crate_hash.dart (3 KB)
+│   │   │       ├── environment.dart (2 KB)
+│   │   │       ├── logging.dart (1 KB)
+│   │   │       ├── options.dart (9 KB)
+│   │   │       ├── precompile_binaries.dart (6 KB)
+│   │   │       ├── rustup.dart (3 KB)
+│   │   │       ├── target.dart (3 KB)
+│   │   │       ├── util.dart (4 KB)
+│   │   │       └── verify_binaries.dart (2 KB)
+│   │   ├── pubspec.lock (12 KB)
+│   │   └── pubspec.yaml (<1 KB)
+│   ├── cmake
+│   │   ├── cargokit.cmake (4 KB)
+│   │   └── resolve_symlinks.ps1 (<1 KB)
+│   ├── gradle
+│   │   └── plugin.gradle (7 KB)
+│   ├── run_build_tool.cmd (2 KB)
+│   └── run_build_tool.sh (2 KB)
+├── doc
+│   ├── state_management_recipes.md (9 KB)
+│   └── testing.md (4 KB)
+├── example
+│   ├── README.md (2 KB)
+│   ├── analysis_options.yaml (1 KB)
+│   ├── android
+│   │   ├── app
+│   │   │   ├── build.gradle.kts (1 KB)
+│   │   │   └── src
+│   │   │       ├── debug
+│   │   │       │   └── AndroidManifest.xml (<1 KB)
+│   │   │       ├── main
+│   │   │       │   ├── AndroidManifest.xml (2 KB)
+│   │   │       │   ├── kotlin
+│   │   │       │   │   └── app
+│   │   │       │   │       └── coproduct
+│   │   │       │   │           └── demo
+│   │   │       │   │               └── flutter
+│   │   │       │   │                   └── MainActivity.kt (<1 KB)
+│   │   │       │   └── res
+│   │   │       │       ├── drawable
+│   │   │       │       │   └── launch_background.xml (<1 KB)
+│   │   │       │       ├── drawable-v21
+│   │   │       │       │   └── launch_background.xml (<1 KB)
+│   │   │       │       ├── mipmap-hdpi
+│   │   │       │       │   └── ic_launcher.png (<1 KB)
+│   │   │       │       ├── mipmap-mdpi
+│   │   │       │       │   └── ic_launcher.png (<1 KB)
+│   │   │       │       ├── mipmap-xhdpi
+│   │   │       │       │   └── ic_launcher.png (<1 KB)
+│   │   │       │       ├── mipmap-xxhdpi
+│   │   │       │       │   └── ic_launcher.png (1 KB)
+│   │   │       │       ├── mipmap-xxxhdpi
+│   │   │       │       │   └── ic_launcher.png (1 KB)
+│   │   │       │       ├── values
+│   │   │       │       │   └── styles.xml (<1 KB)
+│   │   │       │       └── values-night
+│   │   │       │           └── styles.xml (<1 KB)
+│   │   │       └── profile
+│   │   │           └── AndroidManifest.xml (<1 KB)
+│   │   ├── build.gradle.kts (<1 KB)
+│   │   ├── gradle
+│   │   │   └── wrapper
+│   │   │       └── gradle-wrapper.properties (<1 KB)
+│   │   ├── gradle.properties (<1 KB)
+│   │   └── settings.gradle.kts (<1 KB)
+│   ├── assets
+│   │   └── bucketing_vectors.json (<1 KB)
+│   ├── integration_test
+│   │   └── plugin_integration_test.dart (5 KB)
+│   ├── ios
+│   │   ├── Flutter
+│   │   │   ├── AppFrameworkInfo.plist (<1 KB)
+│   │   │   ├── Debug.xcconfig (<1 KB)
+│   │   │   └── Release.xcconfig (<1 KB)
+│   │   ├── Podfile (1 KB)
+│   │   ├── Podfile.lock (<1 KB)
+│   │   ├── Runner
+│   │   │   ├── AppDelegate.swift (<1 KB)
+│   │   │   ├── Assets.xcassets
+│   │   │   │   ├── AppIcon.appiconset
+│   │   │   │   │   ├── Contents.json (2 KB)
+│   │   │   │   │   ├── Icon-App-1024x1024@1x.png (10 KB)
+│   │   │   │   │   ├── Icon-App-20x20@1x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-20x20@2x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-20x20@3x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-29x29@1x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-29x29@2x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-29x29@3x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-40x40@1x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-40x40@2x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-40x40@3x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-60x60@2x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-60x60@3x.png (1 KB)
+│   │   │   │   │   ├── Icon-App-76x76@1x.png (<1 KB)
+│   │   │   │   │   ├── Icon-App-76x76@2x.png (1 KB)
+│   │   │   │   │   └── Icon-App-83.5x83.5@2x.png (1 KB)
+│   │   │   │   └── LaunchImage.imageset
+│   │   │   │       ├── Contents.json (<1 KB)
+│   │   │   │       ├── LaunchImage.png (<1 KB)
+│   │   │   │       ├── LaunchImage@2x.png (<1 KB)
+│   │   │   │       ├── LaunchImage@3x.png (<1 KB)
+│   │   │   │       └── README.md (<1 KB)
+│   │   │   ├── Base.lproj
+│   │   │   │   ├── LaunchScreen.storyboard (2 KB)
+│   │   │   │   └── Main.storyboard (1 KB)
+│   │   │   ├── Info.plist (2 KB)
+│   │   │   ├── Runner-Bridging-Header.h (<1 KB)
+│   │   │   └── SceneDelegate.swift (<1 KB)
+│   │   ├── Runner.xcodeproj
+│   │   │   ├── project.pbxproj (32 KB)
+│   │   │   ├── project.xcworkspace
+│   │   │   │   ├── contents.xcworkspacedata (<1 KB)
+│   │   │   │   └── xcshareddata
+│   │   │   │       ├── IDEWorkspaceChecks.plist (<1 KB)
+│   │   │   │       └── WorkspaceSettings.xcsettings (<1 KB)
+│   │   │   └── xcshareddata
+│   │   │       └── xcschemes
+│   │   │           └── Runner.xcscheme (4 KB)
+│   │   ├── Runner.xcworkspace
+│   │   │   ├── contents.xcworkspacedata (<1 KB)
+│   │   │   └── xcshareddata
+│   │   │       ├── IDEWorkspaceChecks.plist (<1 KB)
+│   │   │       └── WorkspaceSettings.xcsettings (<1 KB)
+│   │   └── RunnerTests
+│   │       └── RunnerTests.swift (<1 KB)
+│   ├── lib
+│   │   └── main.dart (7 KB)
+│   └── pubspec.yaml (3 KB)
+├── flutter_rust_bridge.yaml (<1 KB)
+├── ios
+│   ├── Classes
+│   │   └── dummy_file.c (<1 KB)
+│   ├── CoproductFFI.xcframework
+│   │   ├── Info.plist (1 KB)
+│   │   ├── ios-arm64
+│   │   │   └── libcoproduct_ffi_frb.a (30 MB)
+│   │   └── ios-arm64-simulator
+│   │       └── libcoproduct_ffi_frb.a (30 MB)
+│   ├── coproduct.podspec (2 KB)
+│   ├── stage_prebuilt.sh (1 KB)
+│   └── stage_prebuilt.test.sh (2 KB)
+├── lib
+│   ├── coproduct.dart (<1 KB)
+│   ├── src
+│   │   ├── attribute_value.dart (4 KB)
+│   │   ├── cancellation.dart (<1 KB)
+│   │   ├── client_backend.dart (2 KB)
+│   │   ├── config.dart (3 KB)
+│   │   ├── coproduct_client.dart (12 KB)
+│   │   ├── coproduct_flag_builder.dart (8 KB)
+│   │   ├── coproduct_scope.dart (2 KB)
+│   │   ├── errors.dart (5 KB)
+│   │   ├── flag_observation.dart (7 KB)
+│   │   ├── foreground.dart (<1 KB)
+│   │   ├── frb_backend.dart (4 KB)
+│   │   ├── host.dart (9 KB)
+│   │   ├── http_transport.dart (4 KB)
+│   │   ├── identity_error_translation.dart (<1 KB)
+│   │   ├── init_identity.dart (1 KB)
+│   │   ├── json_value.dart (3 KB)
+│   │   ├── manager.dart (5 KB)
+│   │   ├── metadata_collector.dart (4 KB)
+│   │   ├── native_bridge.dart (3 KB)
+│   │   ├── platform_metadata.dart (1 KB)
+│   │   ├── provider_state.dart (<1 KB)
+│   │   ├── readiness.dart (1 KB)
+│   │   ├── runtime.dart (2 KB)
+│   │   ├── runtime_builder.dart (3 KB)
+│   │   ├── rust
+│   │   │   ├── api.dart (13 KB)
+│   │   │   ├── api.freezed.dart (41 KB)
+│   │   │   ├── frb_generated.dart (115 KB)
+│   │   │   ├── frb_generated.io.dart (34 KB)
+│   │   │   └── frb_generated.web.dart (28 KB)
+│   │   ├── scheduler.dart (4 KB)
+│   │   ├── sdk_version.dart (<1 KB)
+│   │   ├── secure_identity_store.dart (2 KB)
+│   │   ├── serial_queue.dart (<1 KB)
+│   │   └── testing
+│   │       ├── harness.dart (4 KB)
+│   │       └── in_memory_backend.dart (12 KB)
+│   └── testing.dart (<1 KB)
+├── linux
+│   └── CMakeLists.txt (<1 KB)
+├── macos
+│   ├── Classes
+│   │   └── dummy_file.c (<1 KB)
+│   └── coproduct.podspec (1 KB)
+├── pubspec.yaml (2 KB)
+├── third_party_licenses
+│   ├── addr2line-0.25.1-LICENSE-MIT (1 KB)
+│   ├── adler2-2.0.1-LICENSE-MIT (<1 KB)
+│   ├── aho-corasick-1.1.4-LICENSE-MIT (1 KB)
+│   ├── allo-isolate-0.1.27-LICENSE (11 KB)
+│   ├── android_log-sys-0.3.2-LICENSE-MIT (1 KB)
+│   ├── android_logger-0.15.1-LICENSE-MIT (1 KB)
+│   ├── anyhow-1.0.102-LICENSE-MIT (<1 KB)
+│   ├── atomic-0.5.3-LICENSE-MIT (1 KB)
+│   ├── backtrace-0.3.76-LICENSE-MIT (1 KB)
+│   ├── block-buffer-0.12.0-LICENSE-MIT (1 KB)
+│   ├── byteorder-1.5.0-LICENSE-MIT (1 KB)
+│   ├── bytes-1.11.1-LICENSE (1 KB)
+│   ├── cfg-if-1.0.4-LICENSE-MIT (1 KB)
+│   ├── const-oid-0.10.2-LICENSE-MIT (1 KB)
+│   ├── cpufeatures-0.3.0-LICENSE-MIT (1 KB)
+│   ├── crypto-common-0.2.2-LICENSE-MIT (1 KB)
+│   ├── dart-sys-4.1.5-MIT.txt (1 KB)
+│   ├── dashmap-5.5.3-LICENSE (1 KB)
+│   ├── deranged-0.5.8-LICENSE-MIT (1 KB)
+│   ├── digest-0.11.3-LICENSE-MIT (1 KB)
+│   ├── env_filter-0.1.4-LICENSE-MIT (1 KB)
+│   ├── flutter_rust_bridge-2.12.0-MIT.txt (1 KB)
+│   ├── futures-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-channel-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-core-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-executor-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-io-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-sink-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-task-0.3.32-LICENSE-MIT (1 KB)
+│   ├── futures-util-0.3.32-LICENSE-MIT (1 KB)
+│   ├── getrandom-0.4.2-LICENSE-MIT (1 KB)
+│   ├── gimli-0.32.3-LICENSE-MIT (1 KB)
+│   ├── hashbrown-0.14.5-LICENSE-MIT (1 KB)
+│   ├── http-1.4.2-LICENSE-MIT (1 KB)
+│   ├── hybrid-array-0.4.12-LICENSE-MIT (1 KB)
+│   ├── itoa-1.0.18-LICENSE-MIT (<1 KB)
+│   ├── lazy_static-1.5.0-LICENSE-MIT (1 KB)
+│   ├── libc-0.2.186-LICENSE-MIT (1 KB)
+│   ├── lock_api-0.4.14-LICENSE-MIT (1 KB)
+│   ├── log-0.4.30-LICENSE-MIT (1 KB)
+│   ├── memchr-2.8.1-LICENSE-MIT (1 KB)
+│   ├── miniz_oxide-0.8.9-LICENSE-MIT.md (1 KB)
+│   ├── num-conv-0.2.2-LICENSE-MIT (1 KB)
+│   ├── num_cpus-1.17.0-LICENSE-MIT (1 KB)
+│   ├── object-0.37.3-LICENSE-MIT (1 KB)
+│   ├── once_cell-1.21.4-LICENSE-MIT (<1 KB)
+│   ├── oslog-0.2.0-LICENSE (1 KB)
+│   ├── parking_lot-0.12.5-LICENSE-MIT (1 KB)
+│   ├── parking_lot_core-0.9.12-LICENSE-MIT (1 KB)
+│   ├── pin-project-lite-0.2.17-LICENSE-MIT (<1 KB)
+│   ├── portable-atomic-1.13.1-LICENSE-MIT (<1 KB)
+│   ├── powerfmt-0.2.0-LICENSE-MIT (1 KB)
+│   ├── regex-1.12.3-LICENSE-MIT (1 KB)
+│   ├── regex-automata-0.4.14-LICENSE-MIT (1 KB)
+│   ├── regex-syntax-0.8.10-LICENSE-MIT (1 KB)
+│   ├── rustc-demangle-0.1.27-LICENSE-MIT (1 KB)
+│   ├── scopeguard-1.2.0-LICENSE-MIT (1 KB)
+│   ├── semver-1.0.28-LICENSE-MIT (<1 KB)
+│   ├── serde-1.0.228-LICENSE-MIT (<1 KB)
+│   ├── serde_core-1.0.228-LICENSE-MIT (<1 KB)
+│   ├── serde_json-1.0.150-LICENSE-MIT (<1 KB)
+│   ├── sha2-0.11.0-LICENSE-MIT (1 KB)
+│   ├── sharded-slab-0.1.7-LICENSE (1 KB)
+│   ├── slab-0.4.12-LICENSE (1 KB)
+│   ├── smallvec-1.15.1-LICENSE-MIT (1 KB)
+│   ├── thiserror-2.0.18-LICENSE-MIT (<1 KB)
+│   ├── thread_local-1.1.9-LICENSE-MIT (1 KB)
+│   ├── threadpool-1.8.1-LICENSE-MIT (1 KB)
+│   ├── time-0.3.49-LICENSE-MIT (1 KB)
+│   ├── time-core-0.1.9-LICENSE-MIT (1 KB)
+│   ├── tokio-1.52.3-LICENSE (1 KB)
+│   ├── tracing-0.1.44-LICENSE (1 KB)
+│   ├── tracing-core-0.1.36-LICENSE (1 KB)
+│   ├── tracing-subscriber-0.3.23-LICENSE (1 KB)
+│   ├── typenum-1.20.0-LICENSE-MIT (1 KB)
+│   ├── uuid-1.23.3-LICENSE-MIT (1 KB)
+│   └── zmij-1.0.21-LICENSE-MIT (<1 KB)
+└── windows
+    └── CMakeLists.txt (<1 KB)
+
+Total compressed archive size: 21 MB.
+Validating package...
+Package validation found the following potential issue:
+* Your dependency on "flutter_rust_bridge" should allow more than one version. For example:
+  
+  dependencies:
+    flutter_rust_bridge: ^2.12.0
+  
+  Constraints that are too tight will make it difficult for people to use your package
+  along with other packages that also depend on "flutter_rust_bridge".
+The server may enforce additional checks.
+
+Package has 1 warning.
+Failed to update packages.
