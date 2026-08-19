@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.0 - 2026-08-19
 
 `package:coproduct/testing.dart` provides `CoproductTestHarness`, a real
 `CoproductClient` backed by values a widget test sets directly, with no SDK key,

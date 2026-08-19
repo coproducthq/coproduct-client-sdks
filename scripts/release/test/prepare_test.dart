@@ -63,13 +63,17 @@ void main() {
 
   group('promoteReadmeInstall', () {
     const before = '''
-> The SDK is not yet published to pub.dev. Once it is released, add it to your
-> `pubspec.yaml` (the published version is set at release):
+> The SDK is not yet published to pub.dev. Until it is, clone this repository
+> and point a path dependency at the `sdks/flutter/coproduct` directory inside
+> your checkout:
 
 ```yaml
 dependencies:
-  coproduct: <released-version>
+  coproduct:
+    path: /absolute/or/relative/path/to/coproduct-client-sdks/sdks/flutter/coproduct
 ```
+
+After release, this becomes an ordinary version dependency.
 ''';
     const after = '''
 Add it to your `pubspec.yaml`:
@@ -119,12 +123,13 @@ dependencies:
   });
 
   group('auditIdentity', () {
-    test('passes when pubspec, sdk constant, and readme all agree', () {
+    test('passes when every version-bearing file agrees', () {
       expect(
           auditIdentity(
               pubspec: 'version: 0.1.0\n',
               sdkVersion: "const _coproductSdkVersion = '0.1.0';\n",
               readme: 'coproduct: ^0.1.0\n',
+              podspec: "  s.version          = '0.1.0'\n",
               version: '0.1.0'),
           isEmpty);
     });
@@ -134,8 +139,61 @@ dependencies:
               pubspec: 'version: 0.1.0-dev\n',
               sdkVersion: "const _coproductSdkVersion = '0.1.0';\n",
               readme: 'coproduct: <released-version>\n',
+              podspec: "  s.version          = '0.1.0'\n",
               version: '0.1.0'),
           hasLength(2));
+    });
+  });
+
+  group('promoteReadmeInstall against the real install block', () {
+    const realBlock = """## Installation
+
+> The SDK is not yet published to pub.dev. Until it is, clone this repository
+> and point a path dependency at the `sdks/flutter/coproduct` directory inside
+> your checkout:
+
+```yaml
+dependencies:
+  coproduct:
+    path: /absolute/or/relative/path/to/coproduct-client-sdks/sdks/flutter/coproduct
+```
+
+After release, this becomes an ordinary version dependency.
+
+## Quickstart
+""";
+
+    test('replaces the whole clone-and-path block with a version dependency', () {
+      final out = promoteReadmeInstall(realBlock, '1.0.0');
+      expect(out, contains('coproduct: ^1.0.0'));
+      expect(out, isNot(contains('not yet published')));
+      expect(out, isNot(contains('path: /absolute')));
+      expect(out, isNot(contains('becomes an ordinary version dependency')));
+      expect(out, contains('## Quickstart'));
+    });
+
+    test('is idempotent', () {
+      final once = promoteReadmeInstall(realBlock, '1.0.0');
+      expect(promoteReadmeInstall(once, '1.0.0'), equals(once));
+    });
+  });
+
+  group('bumpPodspecVersion', () {
+    test('promotes the placeholder version', () {
+      const before = "  s.version          = '0.0.1'\n";
+      expect(bumpPodspecVersion(before, '1.0.0'),
+          equals("  s.version          = '1.0.0'\n"));
+    });
+
+    test('is idempotent on an already-prepared podspec', () {
+      const done = "  s.version          = '1.0.0'\n";
+      expect(bumpPodspecVersion(done, '1.0.0'), equals(done));
+    });
+
+    test('throws when the version is neither the placeholder nor the target', () {
+      const drifted = "  s.version          = '0.9.9'\n";
+      expect(() => bumpPodspecVersion(drifted, '1.0.0'),
+          throwsA(isA<ReleasePrepError>()));
     });
   });
 
@@ -149,21 +207,30 @@ dependencies:
           .writeAsStringSync('name: coproduct\nversion: 0.1.0-dev\n');
       File('${dir.path}/lib/src/sdk_version.dart')
           .writeAsStringSync("const _coproductSdkVersion = '0.1.0-dev';\n");
+      // Mirrors the shipped README's install block, so a drift between the two
+      // fails here rather than at release time
       File('${dir.path}/README.md').writeAsStringSync('''
-> The SDK is not yet published to pub.dev. Once it is released, add it to your
-> `pubspec.yaml` (the published version is set at release):
+> The SDK is not yet published to pub.dev. Until it is, clone this repository
+> and point a path dependency at the `sdks/flutter/coproduct` directory inside
+> your checkout:
 
 ```yaml
 dependencies:
-  coproduct: <released-version>
+  coproduct:
+    path: /absolute/or/relative/path/to/coproduct-client-sdks/sdks/flutter/coproduct
 ```
+
+After release, this becomes an ordinary version dependency.
 ''');
       File('${dir.path}/CHANGELOG.md').writeAsStringSync('## Unreleased\n\nbody\n');
+      Directory('${dir.path}/ios').createSync(recursive: true);
+      File('${dir.path}/ios/coproduct.podspec')
+          .writeAsStringSync("  s.version          = '0.0.1'\n");
     });
 
     tearDown(() => dir.deleteSync(recursive: true));
 
-    test('prepares all four files and the audit is clean', () {
+    test('prepares all five files and the audit is clean', () {
       prepareRelease(pkgDir: dir.path, version: '0.1.0', date: '2026-08-04');
       expect(File('${dir.path}/pubspec.yaml').readAsStringSync(),
           contains('version: 0.1.0\n'));
@@ -173,6 +240,8 @@ dependencies:
           contains('coproduct: ^0.1.0'));
       expect(File('${dir.path}/CHANGELOG.md').readAsStringSync(),
           startsWith('## 0.1.0 - 2026-08-04'));
+      expect(File('${dir.path}/ios/coproduct.podspec').readAsStringSync(),
+          contains("s.version          = '0.1.0'"));
     });
 
     test('is idempotent when run twice with the same arguments', () {
@@ -195,7 +264,8 @@ dependencies:
     });
 
     test('a write failure rolls the whole tree back to originals', () {
-      const names = ['pubspec.yaml', 'lib/src/sdk_version.dart', 'README.md', 'CHANGELOG.md'];
+      const names = ['pubspec.yaml', 'lib/src/sdk_version.dart', 'README.md',
+                     'CHANGELOG.md', 'ios/coproduct.podspec'];
       final before = {
         for (final f in names) f: File('${dir.path}/$f').readAsStringSync()
       };

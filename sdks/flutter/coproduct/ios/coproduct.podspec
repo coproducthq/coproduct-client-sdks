@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'coproduct'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter FFI plugin project.'
+  s.version          = '1.0.0'
+  s.summary          = 'Feature flags and experimentation for Flutter.'
   s.description      = <<-DESC
-A new Flutter FFI plugin project.
+Flutter SDK for Coproduct, a feature flag and experimentation platform.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://coproduct.app'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Coproduct' => 'nathan@coproduct.app' }
   s.module_name      = 'coproduct'
 
   # This will ensure the source files in Classes/ are included in the native

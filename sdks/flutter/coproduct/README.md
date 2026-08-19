@@ -70,17 +70,12 @@ environment of your SDK key before looking anywhere else.
 
 ## Installation
 
-> The SDK is not yet published to pub.dev. Until it is, clone this repository
-> and point a path dependency at the `sdks/flutter/coproduct` directory inside
-> your checkout:
+Add it to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  coproduct:
-    path: /absolute/or/relative/path/to/coproduct-client-sdks/sdks/flutter/coproduct
+  coproduct: ^1.0.0
 ```
-
-After release, this becomes an ordinary version dependency.
 
 ## Quickstart
 

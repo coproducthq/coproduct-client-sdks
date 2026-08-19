@@ -53,9 +53,21 @@ String bumpSdkVersion(String content, String version) {
   throw ReleasePrepError('sdk version constant is neither 0.1.0-dev nor $version');
 }
 
+String bumpPodspecVersion(String content, String version) {
+  const placeholder = "s.version          = '0.0.1'";
+  final done = "s.version          = '$version'";
+  if (content.contains(placeholder)) {
+    return content.replaceFirst(placeholder, done);
+  }
+  if (content.contains(done)) return content; // idempotent
+  throw ReleasePrepError('podspec version is neither 0.0.1 nor $version');
+}
+
 String promoteReadmeInstall(String content, String version) {
+  // Spans the unpublished notice, the path-dependency block, and the trailing
+  // sentence that only makes sense before release
   final placeholder = RegExp(
-      r'> The SDK is not yet published to pub\.dev\..*?coproduct: <released-version>\n```\n',
+      r'> The SDK is not yet published to pub\.dev\..*?```\n\nAfter release, this becomes an ordinary version dependency\.\n',
       dotAll: true);
   final replacement =
       'Add it to your `pubspec.yaml`:\n\n```yaml\ndependencies:\n  coproduct: ^$version\n```\n';
@@ -85,6 +97,7 @@ List<String> auditIdentity({
   required String pubspec,
   required String sdkVersion,
   required String readme,
+  required String podspec,
   required String version,
 }) {
   final issues = <String>[];
@@ -98,10 +111,14 @@ List<String> auditIdentity({
   if (!readme.contains('coproduct: ^$version')) {
     issues.add('readme install does not reference ^$version');
   }
+  // The podspec version is externally visible in a consumer's Podfile.lock
+  if (!podspec.contains("s.version          = '$version'")) {
+    issues.add('podspec version is not $version');
+  }
   return issues;
 }
 
-/// Transforms the four coordinated release files under [pkgDir] from the dev
+/// Transforms the five coordinated release files under [pkgDir] from the dev
 /// state to [version]/[date], validating inputs and every file's pre-state before
 /// writing anything, rolling back on a write failure, and running the identity
 /// audit afterward. Idempotent on an already-prepared tree. Throws
@@ -120,6 +137,7 @@ void prepareRelease({
   final sdkPath = '$pkgDir/lib/src/sdk_version.dart';
   final readmePath = '$pkgDir/README.md';
   final changelogPath = '$pkgDir/CHANGELOG.md';
+  final podspecPath = '$pkgDir/ios/coproduct.podspec';
 
   final transforms = <String, String>{
     pubspecPath: bumpPubspecVersion(File(pubspecPath).readAsStringSync(), version),
@@ -127,6 +145,7 @@ void prepareRelease({
     readmePath: promoteReadmeInstall(File(readmePath).readAsStringSync(), version),
     changelogPath:
         promoteChangelog(File(changelogPath).readAsStringSync(), version, date),
+    podspecPath: bumpPodspecVersion(File(podspecPath).readAsStringSync(), version),
   };
   // The map builder above reads every file and runs every transform, so a drift
   // or bad input throws here before any write
@@ -163,6 +182,7 @@ void prepareRelease({
     pubspec: File(pubspecPath).readAsStringSync(),
     sdkVersion: File(sdkPath).readAsStringSync(),
     readme: File(readmePath).readAsStringSync(),
+    podspec: File(podspecPath).readAsStringSync(),
     version: version,
   );
   if (issues.isNotEmpty) {
