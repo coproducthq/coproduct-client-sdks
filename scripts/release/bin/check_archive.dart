@@ -1,0 +1,198 @@
+// Verify the staged package would publish exactly the intended files, carry only
+// the one expected warning, and stay within the size thresholds.
+//
+// Membership is checked in both directions. A one-directional check is what let
+// an entire example application ship unnoticed in an earlier measurement, so a
+// file that is not on the allowlist fails the release just as a missing required
+// file does.
+import 'dart:io';
+
+import '../lib/pub_file_list.dart';
+
+const _maxCompressedMb = 35;
+const _maxUncompressedMb = 115;
+
+/// Files that must be present.
+const _required = <String>[
+  'CHANGELOG.md',
+  'LICENSE',
+  'NOTICE-THIRD-PARTY.md',
+  'PROVENANCE.json',
+  'README.md',
+  'analysis_options.yaml',
+  'pubspec.yaml',
+  'doc/state_management_recipes.md',
+  'doc/testing.md',
+  'lib/coproduct.dart',
+  'lib/testing.dart',
+  'example/README.md',
+  'example/analysis_options.yaml',
+  'example/assets/bucketing_vectors.json',
+  'example/lib/main.dart',
+  'example/pubspec.yaml',
+];
+
+/// Native artifacts and the platform files beside them, enumerated exactly. A
+/// broad `ios/` or `android/` prefix would silently permit an extra slice, an
+/// unexpected ABI, or a stale binary.
+const _platformExact = <String>[
+  'ios/Classes/dummy_file.c',
+  'ios/CoproductFFI.xcframework/Info.plist',
+  'ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
+  'ios/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_frb.a',
+  'ios/coproduct.podspec',
+  'ios/stage_prebuilt.sh',
+  'android/build.gradle',
+  'android/settings.gradle',
+  'android/src/main/AndroidManifest.xml',
+  'android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_frb.so',
+  'android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_frb.so',
+  'android/src/main/jniLibs/x86_64/libcoproduct_ffi_frb.so',
+];
+
+/// Roots whose contents are governed entirely by [_platformExact].
+const _exactRoots = <String>['ios/', 'android/'];
+
+/// Prefixes whose contents are permitted without enumeration.
+const _allowedPrefixes = <String>['lib/', 'doc/', 'example/lib/', 'example/assets/'];
+
+/// Nothing matching these may ship.
+const _forbidden = <String>[
+  'cargokit/',
+  'flutter_rust_bridge.yaml',
+  'linux/',
+  'macos/',
+  'windows/',
+  'test/',
+  'example/ios/',
+  'example/android/',
+  'example/integration_test/',
+];
+
+void main(List<String> args) {
+  if (args.length != 1) {
+    stderr.writeln('usage: check_archive.dart <stage-dir>');
+    exit(2);
+  }
+  final stage = args.single;
+  final issues = <String>[];
+
+  // The dry run resolves dependencies and writes .dart_tool, so it runs against
+  // a throwaway copy: the canonical stage must not change between sealing and
+  // publication.
+  final probe = Directory.systemTemp.createTempSync('coproduct-archive-probe');
+  final probeStage = '${probe.path}/stage';
+  final copy = Process.runSync('cp', ['-R', stage, probeStage]);
+  if (copy.exitCode != 0) {
+    stderr.writeln('could not copy the stage: ${copy.stderr}');
+    exit(1);
+  }
+
+  final dry = Process.runSync('flutter', ['pub', 'publish', '--dry-run'],
+      workingDirectory: probeStage);
+  final output = '${dry.stdout}\n${dry.stderr}';
+  probe.deleteSync(recursive: true);
+
+  // Match the one expected warning precisely rather than by substring: a
+  // different flutter_rust_bridge complaint would slip past a looser test.
+  final expectedPin = RegExp(
+      r'Your dependency on "flutter_rust_bridge" should allow more than one version');
+  final warnings = RegExp(r'^\* (.+)$', multiLine: true)
+      .allMatches(output)
+      .map((m) => m.group(1)!)
+      .toList();
+  final pinWarnings = warnings.where(expectedPin.hasMatch).toList();
+  if (pinWarnings.length != 1) {
+    issues.add(
+        'expected exactly one flutter_rust_bridge pin warning, found ${pinWarnings.length}');
+  }
+  for (final w in warnings.where((w) => !expectedPin.hasMatch(w))) {
+    issues.add('unexpected warning: $w');
+  }
+  if (output.contains('Package validation found the following error')) {
+    issues.add('the dry run reported an error');
+  }
+  // The dry run exits nonzero while any warning stands, so a zero exit means the
+  // pin warning is gone and the constraint was widened.
+  if (dry.exitCode == 0) {
+    issues.add('the dry run exited zero, so the expected pin warning is absent');
+  }
+
+  final List<String> files;
+  try {
+    files = parsePubTranscript(output);
+  } on FormatException catch (e) {
+    stderr.writeln('could not read the dry-run file list: ${e.message}');
+    exit(1);
+  }
+
+  for (final r in _required) {
+    if (!files.contains(r)) issues.add('missing required entry: $r');
+  }
+  for (final p in _platformExact) {
+    if (!files.contains(p)) issues.add('missing required native entry: $p');
+  }
+
+  // The license texts are generated, so require exactly the set the package
+  // carries rather than a count or a prefix.
+  final noticeDir = Directory('$stage/third_party_licenses');
+  if (!noticeDir.existsSync()) {
+    issues.add('the staged package has no third_party_licenses directory');
+  } else {
+    final onDisk = noticeDir
+        .listSync()
+        .whereType<File>()
+        .map((f) => 'third_party_licenses/${f.uri.pathSegments.last}')
+        .toSet();
+    final shipped = files.where((f) => f.startsWith('third_party_licenses/')).toSet();
+    for (final missing in onDisk.difference(shipped)) {
+      issues.add('license text not published: $missing');
+    }
+    for (final extra in shipped.difference(onDisk)) {
+      issues.add('published license text is not in the package: $extra');
+    }
+    if (onDisk.isEmpty) issues.add('third_party_licenses is empty');
+  }
+
+  for (final f in files) {
+    if (_forbidden.any((p) => f == p || f.startsWith(p))) {
+      issues.add('forbidden entry shipped: $f');
+      continue;
+    }
+    if (f.startsWith('third_party_licenses/')) continue;
+    if (_exactRoots.any(f.startsWith)) {
+      if (!_platformExact.contains(f)) {
+        issues.add('unexpected entry under a native root: $f');
+      }
+      continue;
+    }
+    final permitted = _required.contains(f) || _allowedPrefixes.any(f.startsWith);
+    if (!permitted) issues.add('entry not on the allowlist: $f');
+  }
+
+  final compressedMb = parseCompressedMb(output);
+  stdout.writeln(
+      'compressed archive: ${compressedMb.toStringAsFixed(1)} MB (max $_maxCompressedMb)');
+  if (compressedMb > _maxCompressedMb) {
+    issues.add('compressed archive $compressedMb MB exceeds $_maxCompressedMb MB');
+  }
+
+  final du = Process.runSync('du', ['-sm', stage]);
+  final uncompressedMb =
+      int.parse((du.stdout as String).trim().split(RegExp(r'\s+')).first);
+  stdout.writeln(
+      'uncompressed stage: $uncompressedMb MB (max $_maxUncompressedMb)');
+  if (uncompressedMb > _maxUncompressedMb) {
+    issues.add('uncompressed stage $uncompressedMb MB exceeds $_maxUncompressedMb MB');
+  }
+
+  stdout.writeln('published files: ${files.length}');
+
+  if (issues.isNotEmpty) {
+    for (final i in issues) {
+      stderr.writeln('  $i');
+    }
+    exit(1);
+  }
+  stdout.writeln('COPRODUCT_FLUTTER_ARCHIVE_STATUS pass=true');
+}
