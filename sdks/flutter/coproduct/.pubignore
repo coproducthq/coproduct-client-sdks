@@ -37,3 +37,24 @@ Pods/
 # The SDK's own unit tests and integration-test infrastructure are development-only
 test/
 test_driver/
+
+# The vendored build hook is gone: binaries ship prebuilt
+cargokit/
+
+# Codegen configuration a consumer never runs
+flutter_rust_bridge.yaml
+
+# pubspec.yaml declares android and ios only
+linux/
+macos/
+windows/
+
+# Keep the example's Dart sources, asset, README, and analysis options so
+# pub.dev can render the Example tab, and drop its platform scaffolds and
+# integration harness
+example/android/
+example/ios/
+example/linux/
+example/macos/
+example/windows/
+example/integration_test/
