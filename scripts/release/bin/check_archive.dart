@@ -179,6 +179,30 @@ void main(List<String> args) {
     if (!permitted) issues.add('entry not on the allowlist: $f');
   }
 
+  // The last gate re-derives what the first one proved. Membership shows a path
+  // exists; it cannot distinguish a real library from a stale one or from a text
+  // file of the same name, so the shipped binaries are re-verified here.
+  final stagedNatives = <String>[
+    for (final p in _platformExact)
+      if (p.endsWith('.a') || p.endsWith('.so')) '$stage/$p'
+  ];
+  final machO = stagedNatives.where((p) => p.endsWith('.a')).toList();
+  final elf = stagedNatives.where((p) => p.endsWith('.so')).toList();
+  final checker = '$repoRoot/scripts/audit/frb-symbol-check.sh';
+  for (final group in [
+    (mode: 'macho', files: machO),
+    (mode: 'elf', files: elf),
+  ]) {
+    if (group.files.isEmpty) continue;
+    final r = Process.runSync(checker, [group.mode, ...group.files]);
+    if (r.exitCode != 0) {
+      issues.add('staged ${group.mode} binaries failed symbol verification');
+      for (final line in (r.stderr as String).trim().split('\n')) {
+        if (line.trim().isNotEmpty) issues.add('  $line');
+      }
+    }
+  }
+
   final compressedMb = parseCompressedMb(output);
   stdout.writeln(
       'compressed archive: ${compressedMb.toStringAsFixed(1)} MB (max $_maxCompressedMb)');

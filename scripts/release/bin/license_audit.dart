@@ -54,7 +54,7 @@ Future<void> main(List<String> args) async {
       packages: inputs,
       policy: policy,
       canonicalTemplates: canonicalTemplates,
-      vendoredTexts: _readVendoredTexts(),
+      vendoredTexts: _readVendoredTexts(releaseDir),
     );
 
     if (write) {
@@ -163,8 +163,10 @@ void _writeGenerated({required String pkgDir, required GeneratedNotices generate
 /// Upstream notices for crates that declare a license but package no license
 /// file. They are tracked rather than synthesized so the real copyright line is
 /// reproduced, which is what the licenses require
-Map<String, String> _readVendoredTexts() {
-  final dir = Directory('assets/vendored');
+Map<String, String> _readVendoredTexts(Directory releaseDir) {
+  // Resolved from the script's own location like every other input, so the
+  // audit behaves the same regardless of the working directory it runs from
+  final dir = Directory('${releaseDir.path}/assets/vendored');
   if (!dir.existsSync()) return const {};
   return {
     for (final f in dir.listSync().whereType<File>())

@@ -16,6 +16,17 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+# The staged package records the commit it was built from, so the build must
+# start from one too. Without this, binaries compiled from uncommitted source
+# reach the stage under a commit that never contained them
+dirty="$(git -C "$REPO_ROOT" status --porcelain)"
+if [[ -n "$dirty" ]]; then
+    echo "ERROR: the repository is dirty, so the built binaries would not match any commit." >&2
+    printf '%s\n' "$dirty" >&2
+    exit 1
+fi
+BUILD_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+
 PINNED_RUST=1.95.0
 PINNED_NDK=27.1.12297006
 PINNED_CARGO_NDK=4.1.2
@@ -124,4 +135,23 @@ done < <(find "$COPRODUCT_RELEASE_OUT/jniLibs" \
 [[ "${#elf_libs[@]}" -eq 3 ]] || fail "expected three Android libraries, found ${#elf_libs[@]}"
 "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" elf "${elf_libs[@]}"
 
+# The stamp binds these artifacts to the commit and content that produced them.
+# Staging re-checks it, so a stale or tampered file in the output directory
+# cannot ride into the package on path membership alone
+{
+    printf '{\n'
+    printf '  "commit": "%s",\n' "$BUILD_COMMIT"
+    printf '  "artifacts": {\n'
+    first=1
+    while IFS= read -r artifact; do
+        rel="${artifact#"$COPRODUCT_RELEASE_OUT/"}"
+        [[ "$first" -eq 1 ]] || printf ',\n'
+        first=0
+        printf '    "%s": "%s"' "$rel" "$(shasum -a 256 "$artifact" | awk '{print $1}')"
+    done < <( (find "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" -name '*.a' -type f
+               find "$COPRODUCT_RELEASE_OUT/jniLibs" -name '*.so' -type f) | sort )
+    printf '\n  }\n}\n'
+} > "$COPRODUCT_RELEASE_OUT/BUILD-STAMP.json"
+
+echo "stamped $BUILD_COMMIT"
 echo "COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS pass=true"

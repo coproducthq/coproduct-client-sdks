@@ -77,11 +77,21 @@ List<String> parsePubFileList(String treeOutput) {
 
 /// The compressed archive size in megabytes, as the dry run reports it.
 double parseCompressedMb(String transcript) {
-  final m = RegExp(r'Total compressed archive size: ([\d.]+) MB')
+  // pub scales the unit, so a small package reports KB and an MB-only pattern
+  // would throw on output that is perfectly valid
+  final m = RegExp(r'Total compressed archive size: <?([\d.]+) ?([KMG])B')
       .firstMatch(transcript);
   if (m == null) {
     throw const FormatException(
-        'dry-run output has no compressed archive size line');
+        'dry-run output has no recognizable compressed archive size line');
   }
-  return double.parse(m.group(1)!);
+  final value = double.parse(m.group(1)!);
+  switch (m.group(2)!) {
+    case 'K':
+      return value / 1024;
+    case 'M':
+      return value;
+    default:
+      return value * 1024;
+  }
 }

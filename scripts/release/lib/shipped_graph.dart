@@ -55,7 +55,20 @@ ParsedTreeEntry? parseCargoTreeEntry(String line) {
   final name = match.group(1)!;
   final version = match.group(2)!;
   final suffix = match.group(3);
-  final isWorkspaceLocal = suffix != null && suffix != '*';
+  // Only an absolute filesystem path marks a workspace-local crate. Treating
+  // every other suffix as local would drop a git or proc-macro dependency from
+  // the audit entirely while still reporting success, so anything unrecognized
+  // fails loudly instead.
+  var isWorkspaceLocal = false;
+  if (suffix != null && suffix != '*') {
+    if (suffix.startsWith('/')) {
+      isWorkspaceLocal = true;
+    } else {
+      throw ShippedGraphError(
+          'unrecognized cargo tree suffix "($suffix)" for $name v$version, so it '
+          'cannot be classified as shipped or workspace-local');
+    }
+  }
   return ParsedTreeEntry((name, version), isWorkspaceLocal: isWorkspaceLocal);
 }
 

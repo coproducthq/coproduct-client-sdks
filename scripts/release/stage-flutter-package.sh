@@ -30,6 +30,35 @@ COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 [[ -d "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" ]] \
     || fail "no CoproductFFI.xcframework under $COPRODUCT_RELEASE_OUT, run build-flutter-binaries.sh first"
 
+# The build stamp binds the artifacts to the commit and content that produced
+# them. Path membership alone cannot tell a real library from a stale one or a
+# text file of the same name, so every hash is re-checked before it is copied
+STAMP="$COPRODUCT_RELEASE_OUT/BUILD-STAMP.json"
+[[ -f "$STAMP" ]] || fail "no BUILD-STAMP.json under $COPRODUCT_RELEASE_OUT, rerun build-flutter-binaries.sh"
+
+STAMP_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$STAMP")"
+[[ "$STAMP_COMMIT" == "$COMMIT" ]] \
+    || fail "the binaries were built at $STAMP_COMMIT but HEAD is $COMMIT, so rebuild before staging"
+
+python3 - "$STAMP" "$COPRODUCT_RELEASE_OUT" <<'VERIFY' || fail "a built artifact does not match the build stamp"
+import hashlib, json, pathlib, sys
+stamp = json.load(open(sys.argv[1]))
+out = pathlib.Path(sys.argv[2])
+bad = []
+for rel, want in stamp["artifacts"].items():
+    f = out / rel
+    if not f.is_file():
+        bad.append(f"missing: {rel}")
+        continue
+    got = hashlib.sha256(f.read_bytes()).hexdigest()
+    if got != want:
+        bad.append(f"content changed since the build: {rel}")
+for line in bad:
+    print(f"  {line}", file=sys.stderr)
+sys.exit(1 if bad else 0)
+VERIFY
+echo "build stamp verified: $STAMP_COMMIT"
+
 # The guard marks the directory it approves, so mark the stage's parent instead:
 # a marker inside the stage would be offered to pub as a publishable file
 "$REPO_ROOT/scripts/release/assert-safe-path.sh" "$(dirname "$COPRODUCT_RELEASE_STAGE")" >/dev/null

@@ -15,6 +15,33 @@ ProcessResult _fixtureRunner(String executable, List<String> args) {
 }
 
 void main() {
+  group('parseCargoTreeEntry classification', () {
+    test('an absolute path marks a workspace-local crate', () {
+      final e = parseCargoTreeEntry('coproduct-core v0.0.1 (/repo/core/coproduct-core)');
+      expect(e!.isWorkspaceLocal, isTrue);
+    });
+
+    test('a bare registry entry is a shipped dependency', () {
+      expect(parseCargoTreeEntry('anyhow v1.0.102')!.isWorkspaceLocal, isFalse);
+    });
+
+    test('the dedupe marker is a shipped dependency', () {
+      expect(parseCargoTreeEntry('anyhow v1.0.102 (*)')!.isWorkspaceLocal, isFalse);
+    });
+
+    test('a git suffix throws rather than vanishing from the audit', () {
+      expect(
+          () => parseCargoTreeEntry(
+              'foo v1.0.0 (https://github.com/a/b?tag=v1#abc123)'),
+          throwsA(isA<ShippedGraphError>()));
+    });
+
+    test('a proc-macro suffix throws rather than vanishing from the audit', () {
+      expect(() => parseCargoTreeEntry('foo v1.0.0 (proc-macro)'),
+          throwsA(isA<ShippedGraphError>()));
+    });
+  });
+
   group('parseCargoTreeEntry', () {
     test('parses a plain registry package line', () {
       final entry = parseCargoTreeEntry('anyhow v1.0.102');
