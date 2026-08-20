@@ -20,11 +20,13 @@ case "${ARCHS:-}" in
         if [ "$a" = "x86_64" ]; then
           echo "error: Coproduct requires an Apple Silicon Mac for iOS simulator development." >&2
           echo "note: the SDK ships an arm64 simulator slice only; see the README." >&2
+          echo "note: PLATFORM_NAME=${PLATFORM_NAME:-} ARCHS=${ARCHS:-}" >&2
           exit 1
         fi
       done
     fi
     echo "error: coproduct: unsupported ARCHS '${ARCHS:-}' (expected exactly 'arm64')" >&2
+    echo "note: PLATFORM_NAME=${PLATFORM_NAME:-}" >&2
     exit 1
     ;;
 esac

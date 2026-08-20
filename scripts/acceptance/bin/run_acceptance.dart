@@ -32,7 +32,7 @@ Future<void> main(List<String> args) async {
   }
   try {
     requireAcceptanceDevice(
-        jsonDecode(devicesRaw.stdout as String) as List, platform, deviceId);
+        decodeDeviceList(devicesRaw.stdout as String), platform, deviceId);
   } on AcceptanceDeviceError catch (e) {
     stderr.writeln(e.message);
     exit(2);
@@ -73,4 +73,27 @@ Future<void> main(List<String> args) async {
         'COPRODUCT_FLUTTER_ACCEPTANCE_${platform.toUpperCase()}_STATUS pass=true');
   }
   exit(code);
+}
+
+/// Decodes `flutter devices --machine` output.
+///
+/// The tool prints notices before the JSON in some environments, most reliably
+/// on a fresh HOME where the analytics notice appears, so the array is located
+/// rather than assumed to start at the first character.
+List<dynamic> decodeDeviceList(String stdout) {
+  // The tool prints its analytics notice after the array in a minimal
+  // environment, so the array is bounded at both ends rather than assumed to run
+  // to the end of the output. Both brackets sit at column zero on their own line.
+  final lines = stdout.split('\n');
+  final start = lines.indexWhere((l) => l.startsWith('['));
+  if (start < 0) {
+    throw const FormatException(
+        'flutter devices --machine printed no JSON array');
+  }
+  final end = lines.indexWhere((l) => l.startsWith(']'), start);
+  if (end < 0) {
+    throw const FormatException(
+        'flutter devices --machine printed an unterminated JSON array');
+  }
+  return jsonDecode(lines.sublist(start, end + 1).join('\n')) as List<dynamic>;
 }

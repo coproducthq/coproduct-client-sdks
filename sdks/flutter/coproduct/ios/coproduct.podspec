@@ -43,7 +43,14 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    # The SDK ships an arm64 simulator slice only. Excluding x86_64 makes Xcode
+    # request just the architecture we provide, rather than asking for a
+    # universal simulator build and failing to link the half that is absent
+    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 x86_64',
     'OTHER_LDFLAGS' => '-force_load ${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a',
   }
+
+  # The consuming app target must exclude it as well, or it would link a
+  # simulator architecture the pod does not provide
+  s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 x86_64' }
 end
