@@ -15,7 +15,10 @@ set -euo pipefail
 : "${ANDROID_NDK_HOME:?must be set; example: \$HOME/Library/Android/sdk/ndk/27.1.12297006}"
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$SCAFFOLD_ROOT/consumer-tests/flutter"
+# Release gates build the disposable consumer that resolves the SDK from the
+# extracted archive; local runs default to the in-repo consumer
+CONSUMER_DIR="${COPRODUCT_CONSUMER_DIR:-$SCAFFOLD_ROOT/consumer-tests/flutter}"
+cd "$CONSUMER_DIR"
 
 flutter pub get
 flutter build apk --release

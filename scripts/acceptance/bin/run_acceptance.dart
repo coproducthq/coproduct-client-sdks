@@ -18,7 +18,10 @@ Future<void> main(List<String> args) async {
   final platform = args[0];
   final deviceId = args[1];
 
-  final consumerDir = Directory('../../consumer-tests/flutter').absolute.path;
+  // Release gates point this at a disposable consumer that resolves the SDK
+  // from the extracted archive; the default keeps the in-repo consumer
+  final consumerDir = Platform.environment['COPRODUCT_CONSUMER_DIR'] ??
+      Directory('../../consumer-tests/flutter').absolute.path;
   final pubspec = File('$consumerDir/pubspec.yaml').readAsStringSync();
   final pin = parsePinnedVersion(pubspec);
 
