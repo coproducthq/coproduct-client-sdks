@@ -47,6 +47,16 @@ for version in "$PRIMARY" "$FLOOR"; do
     done
 done
 
+# The toolchain loop ends on the floor version, so rebuild on the primary one
+# before inspecting artifacts or running acceptance. Inspecting a build left by a
+# different toolchain would report on something the release does not ship
+clean_between_toolchains
+for platform in ios android; do
+    run "rebuild $platform on Flutter $PRIMARY for inspection" \
+        "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+        "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
+done
+
 # Symbols in the artifacts that ship, not in the libraries they came from
 APP="$(find "$COPRODUCT_CONSUMER_DIR/build/ios" -name 'Runner.app' -type d 2>/dev/null | head -1)"
 FRAMEWORK="$APP/Frameworks/coproduct.framework/coproduct"

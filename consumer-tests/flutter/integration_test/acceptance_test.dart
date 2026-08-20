@@ -124,7 +124,13 @@ void main() {
         () async =>
             client.getString('fetch-control', 'default-before') == 'fetched',
         because: 'the released poll delivers the snapshot');
-    expect(client.state, ProviderState.ready);
+    // The core swaps the snapshot before it publishes Ready, deliberately, so a
+    // getter never reports Ready against the prior snapshot. Persisting the
+    // snapshot and the ETag runs inside that window, so a fresh value becomes
+    // observable slightly before the state moves. Await the state rather than
+    // assuming it lands atomically with the value
+    await _waitUntil(() async => client.state == ProviderState.ready,
+        because: 'the provider publishes Ready just after the snapshot swap');
 
     // The scheduler drops a foreground request while a poll is still in flight,
     // so the release above must have fully settled before the resume. Reaching
