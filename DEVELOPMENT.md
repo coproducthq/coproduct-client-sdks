@@ -66,18 +66,23 @@ rebuild after any further commit.
 |---|---|
 | Everything in the table above | automated |
 | Reviewing and committing the release version changes | human |
-| `scripts/release/verify-seal.sh`, in the same shell, immediately before publishing | human, and required |
-| The first `dart pub publish` | human, because Dart cannot publish a new package directly to a verified publisher |
+| `scripts/release/publish-flutter.sh` | human, and the only supported way to publish |
 | Transferring the package to the publisher | human, and it cannot be undone |
 | Pushing the release tag after pub.dev accepts | human |
 
-**Verify the seal immediately before publishing.** The pipeline seals the stage
-and re-checks it, but publishing happens later as a separate human action
-against an ordinary scratch directory that nothing protects. Run
-`scripts/release/verify-seal.sh` in the same shell as `dart pub publish`, with
-`COPRODUCT_RELEASE_STAGE` and `COPRODUCT_RELEASE_OUT` still set. It re-seals the
-stage, diffs it against `seal.txt`, and names the commit the binaries were built
-from. A pub.dev release cannot be withdrawn, so this gap is worth one command.
+**Publish only through `scripts/release/publish-flutter.sh`.** Never run
+`dart pub publish` yourself. Every gate validates the staging directory, but the
+obvious place to run the publish from is the source package directory — and that
+directory publishes cleanly. Its native binaries are gitignored build output, so
+pub omits them and offers a ~91 KB archive with no `CoproductFFI.xcframework`
+and no `jniLibs`, carrying only the same single warning the real release
+carries. pub.dev accepts it, every consumer fails at load, and it cannot be
+withdrawn.
+
+The wrapper re-verifies the seal, changes into the staged package, and publishes
+that. It stays interactive, so pub still prompts for confirmation and for
+authentication on a first publication. Run it with `COPRODUCT_RELEASE_STAGE` and
+`COPRODUCT_RELEASE_OUT` still set from the pipeline run.
 
 ### Moving this to CI
 

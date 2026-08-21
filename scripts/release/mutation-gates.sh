@@ -104,6 +104,23 @@ baseline 'wrong-architecture slot' check_archive_on "$COPRODUCT_RELEASE_STAGE" \
         check_archive_on "$W"
 rm -rf "$(dirname "$W")"
 
+echo "mutation: the published testing library is an empty barrel"
+# Valid Dart that drops the CoproductTestHarness export. The file count, every
+# hash, the seal, the symbol checks and acceptance all stay green, because
+# nothing else imports package:coproduct/testing.dart
+: "${COPRODUCT_CONSUMER_DIR:?must be the disposable consumer directory}"
+TB="$COPRODUCT_FLUTTER_ARCHIVE_DIR/lib/testing.dart"
+TB_BAK="$(mktemp)"; cp "$TB" "$TB_BAK"
+testing_library_gate() {
+    ( cd "$COPRODUCT_CONSUMER_DIR" && flutter test --no-pub test/testing_library_test.dart )
+}
+if baseline 'published testing library is usable' testing_library_gate; then
+    printf 'library;\n' > "$TB"
+    mutated 'testing library gutted to an empty barrel' 'CoproductTestHarness' \
+        testing_library_gate
+fi
+cp "$TB_BAK" "$TB"; rm -f "$TB_BAK"
+
 echo "mutation: the staged podspec loses always_out_of_date"
 podspec_guard_set() { # archive dir
     ( cd "$1/ios" && pod ipc spec coproduct.podspec ) 2>/dev/null | python3 -c "

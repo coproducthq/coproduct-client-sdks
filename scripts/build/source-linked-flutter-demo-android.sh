@@ -38,14 +38,19 @@ fi
 EXTRACT_DIR="$(mktemp -d)"
 trap 'rm -rf "$EXTRACT_DIR"' EXIT
 
+# Extracted under its own ABI directory, not flattened: the symbol checker
+# verifies each library against the architecture its path claims, so a flat
+# layout would strip the claim and be rejected
 SO_PATHS=()
 for abi in arm64-v8a armeabi-v7a x86_64; do
     lib="lib/$abi/libcoproduct_ffi_frb.so"
-    if ! unzip -p "$APK" "$lib" > "$EXTRACT_DIR/$abi.so" 2>/dev/null || [[ ! -s "$EXTRACT_DIR/$abi.so" ]]; then
+    mkdir -p "$EXTRACT_DIR/$abi"
+    dest="$EXTRACT_DIR/$abi/libcoproduct_ffi_frb.so"
+    if ! unzip -p "$APK" "$lib" > "$dest" 2>/dev/null || [[ ! -s "$dest" ]]; then
         echo "ERROR: APK is missing $lib. The library was not packaged for $abi." >&2
         exit 1
     fi
-    SO_PATHS+=("$EXTRACT_DIR/$abi.so")
+    SO_PATHS+=("$dest")
 done
 
 "$SCAFFOLD_ROOT/scripts/audit/frb-symbol-check.sh" elf "${SO_PATHS[@]}"

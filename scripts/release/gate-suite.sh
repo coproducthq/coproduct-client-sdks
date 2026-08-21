@@ -57,6 +57,19 @@ for platform in ios android; do
         "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
 done
 
+# The published testing library, imported from the installed package. Every
+# other gate reaches the SDK through package:coproduct/coproduct.dart, so
+# lib/testing.dart would otherwise ship entirely unexercised. Pure Dart over an
+# in-memory backend, so it needs no device
+# flutter test resolves packages from its working directory, so this runs
+# inside the consumer rather than pointing at the file from elsewhere
+testing_library_gate() {
+    ( cd "$COPRODUCT_CONSUMER_DIR" \
+        && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+            flutter test --no-pub test/testing_library_test.dart )
+}
+run 'testing library from the installed package' testing_library_gate
+
 # Symbols in the artifacts that ship, not in the libraries they came from
 APP="$(find "$COPRODUCT_CONSUMER_DIR/build/ios" -name 'Runner.app' -type d 2>/dev/null | head -1)"
 FRAMEWORK="$APP/Frameworks/coproduct.framework/coproduct"

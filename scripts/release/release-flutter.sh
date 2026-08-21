@@ -94,4 +94,4 @@ echo "seal unchanged"
 
 echo
 echo "COPRODUCT_FLUTTER_RELEASE_STATUS pass=true"
-echo "next: publish manually from $COPRODUCT_RELEASE_STAGE, then verify and tag"
+echo "next: scripts/release/publish-flutter.sh   (never bare dart pub publish)"
