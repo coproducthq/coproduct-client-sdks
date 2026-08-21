@@ -46,8 +46,12 @@ expect_fail 'x86_64 simulator guard' "$rc" 'Apple Silicon Mac for iOS simulator 
 setup; run iphonesimulator 'arm64 x86_64'; rc=$?
 expect_fail 'mixed arm64+x86_64 simulator' "$rc" 'Apple Silicon Mac for iOS simulator development'
 
+# With EXCLUDED_ARCHS in the podspec, Xcode subtracts x86_64 before this phase
+# runs, so an Intel Mac reaches the guard with an empty ARCHS rather than one
+# naming x86_64. That path must produce the actionable message, not the generic
+# configuration error
 setup; run iphonesimulator ''; rc=$?
-expect_fail 'simulator empty ARCHS' "$rc" 'unsupported ARCHS'
+expect_fail 'simulator empty ARCHS is the Intel case' "$rc" 'Apple Silicon Mac for iOS simulator development'
 setup; run iphonesimulator 'arm64 unexpected'; rc=$?
 expect_fail 'simulator extra token' "$rc" 'unsupported ARCHS'
 setup; run iphoneos ''; rc=$?

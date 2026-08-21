@@ -157,7 +157,12 @@ final class CoproductClient {
   /// mutation that should have changed it
   String? get previousAnonymousId => _backend.previousAnonymousId;
 
-  /// The current provider lifecycle state
+  /// The current provider lifecycle state.
+  ///
+  /// A freshly polled value can become readable a moment before this reports
+  /// [ProviderState.ready]: the snapshot is swapped first so a getter never
+  /// serves a stale value while this says ready. Observe the flag you care
+  /// about rather than waiting on this
   ProviderState get state => _backend.state;
 
   /// Observes a boolean flag, returning a [FlagObservation] whose value is

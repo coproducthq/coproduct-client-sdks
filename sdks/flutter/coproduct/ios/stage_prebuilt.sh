@@ -16,6 +16,16 @@ case "${ARCHS:-}" in
   arm64) ;;
   *)
     if [ "${PLATFORM_NAME:-}" = "iphonesimulator" ]; then
+      # An empty ARCHS on the simulator means Xcode subtracted every architecture
+      # the build asked for. arm64 is never excluded, so this is an x86_64-only
+      # request from an Intel Mac, and it reaches here rather than the loop below
+      # because the exclusion is applied before this phase runs
+      if [ -z "${ARCHS:-}" ]; then
+        echo "error: Coproduct requires an Apple Silicon Mac for iOS simulator development." >&2
+        echo "note: the SDK ships an arm64 simulator slice only; see the README." >&2
+        echo "note: PLATFORM_NAME=${PLATFORM_NAME:-} ARCHS is empty after EXCLUDED_ARCHS" >&2
+        exit 1
+      fi
       for a in ${ARCHS:-}; do
         if [ "$a" = "x86_64" ]; then
           echo "error: Coproduct requires an Apple Silicon Mac for iOS simulator development." >&2
