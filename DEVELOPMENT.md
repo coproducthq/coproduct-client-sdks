@@ -2,100 +2,6 @@
 
 This file documents the build prerequisites, per-surface build commands, and local disk hygiene for working on the Coproduct client SDKs.
 
-## Flutter release runbook
-
-The Flutter SDK ships prebuilt native libraries inside the pub.dev package, so an
-integrating developer needs no Rust toolchain. Producing that package is what
-this runbook covers.
-
-### Prerequisites
-
-| | |
-|---|---|
-| `llvm-tools` for the pinned toolchain | `rustup component add llvm-tools --toolchain 1.95.0` — without it the symbol gate has no tool |
-| `cargo-ndk` 4.1.2 | Android cross-compilation needs the NDK linker |
-| Android NDK 27.1.12297006 | asserted from its own `source.properties`, not the directory name |
-| Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
-| A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
-
-### Ordered stages
-
-Run everything through one entry point:
-
-```bash
-COPRODUCT_RELEASE_OUT=/tmp/coproduct-release \
-COPRODUCT_RELEASE_STAGE=/tmp/cpstage/stage \
-COPRODUCT_FLUTTER_ARCHIVE_DIR=/tmp/cparchive/archive \
-COPRODUCT_CONSUMER_DIR=/tmp/cpconsumer/app \
-COPRODUCT_ACCEPTANCE_IOS_DEVICE="$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')" \
-COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')" \
-  scripts/release/measure-release.sh
-```
-
-Every variable the pipeline needs appears there, so a missing one fails at its
-guard rather than part-way through a long run.
-
-**Name directories that do not exist yet.** The scripts create their own scratch
-space and mark it, and they refuse a directory they did not create, because
-staging deletes and rewrites the path it is given. Pre-creating these with
-`mkdir -p` is refused, not accepted.
-
-| Stage | Script | Status line |
-|---|---|---|
-| Codegen pin, clean checkout, zero diff | `release-flutter.sh` | — |
-| Version coherence across pubspec, SDK constant, README, podspec | `bin/check_identity.dart` | `COPRODUCT_FLUTTER_IDENTITY_STATUS` |
-| License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
-| Build five architectures | `build-flutter-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
-| Stage the package | `stage-flutter-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
-| Seal the publishable set | `seal-flutter-package.sh` | — |
-| Archive membership and size | `bin/check_archive.dart` | `COPRODUCT_FLUTTER_ARCHIVE_STATUS` |
-| Extract the archive | `extract-archive.sh` | `COPRODUCT_FLUTTER_EXTRACT_STATUS` |
-| Consumer from the archive | `consumer-from-archive.sh` | `COPRODUCT_FLUTTER_CONSUMER_FROM_ARCHIVE_STATUS` |
-| Both platforms, both toolchains | `gate-suite.sh` | `COPRODUCT_FLUTTER_GATE_SUITE_STATUS` |
-| Prove the gates fail | `mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
-| Re-verify the seal | `release-flutter.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
-
-**The pipeline builds from one identified commit.** Staging refuses a dirty tree,
-and it refuses binaries whose build stamp names a different commit than `HEAD`.
-Both mean the same thing in practice: commit first, then run the pipeline, and
-rebuild after any further commit.
-
-### Automated and human steps
-
-| Step | Who |
-|---|---|
-| Everything in the table above | automated |
-| Reviewing and committing the release version changes | human |
-| `scripts/release/publish-flutter.sh` | human, and the only supported way to publish |
-| Transferring the package to the publisher | human, and it cannot be undone |
-| Pushing the release tag after pub.dev accepts | human |
-
-**Publish only through `scripts/release/publish-flutter.sh`.** Never run
-`dart pub publish` yourself. Every gate validates the staging directory, but the
-obvious place to run the publish from is the source package directory — and that
-directory publishes cleanly. Its native binaries are gitignored build output, so
-pub omits them and offers a ~91 KB archive with no `CoproductFFI.xcframework`
-and no `jniLibs`, carrying only the same single warning the real release
-carries. pub.dev accepts it, every consumer fails at load, and it cannot be
-withdrawn.
-
-The wrapper re-verifies the seal, changes into the staged package, and publishes
-that. It stays interactive, so pub still prompts for confirmation and for
-authentication on a first publication. Run it with `COPRODUCT_RELEASE_STAGE` and
-`COPRODUCT_RELEASE_OUT` still set from the pipeline run.
-
-### Moving this to CI
-
-- **The no-Rust gate needs a runner that never had a Rust toolchain**, or the
-  deliberately constructed fresh `HOME` and sanitized `PATH` the gate builds.
-- **iOS acceptance needs an arm64 macOS runner** for the simulator.
-- **Android acceptance needs a Linux runner.** GitHub documents Android hardware
-  acceleration on its Linux runners and states nested virtualization is
-  unsupported on macOS runners, so one macOS runner cannot reliably host both.
-- **The job boots its own devices.** Both acceptance scripts consume an
-  already-booted device id and neither boot nor provision one.
-
-
 ## Prerequisites
 
 | Tool | Version | Source |
@@ -262,93 +168,151 @@ On a development branch these stay at an explicit dev value (for example
 `coproduct-ios/0.0.1-dev`), and the README install is phrased as a post-release
 instruction, not a copy-pasteable command for an unpublished tag.
 
-### Flutter release preparation and publication
+### Flutter
 
-FVM is maintainer-only release infrastructure; adopters never need it. All
-floor-verification and release commands run through
+The Flutter SDK ships prebuilt native libraries inside the pub.dev package, so an
+integrating developer needs no Rust toolchain. Producing that package is what
+this section covers. Scripts live under `scripts/release/flutter/`; see its
+README for the layout.
+
+#### Prerequisites
+
+| | |
+|---|---|
+| `llvm-tools` for the pinned toolchain | `rustup component add llvm-tools --toolchain 1.95.0` — without it the symbol gate has no tool |
+| `cargo-ndk` 4.1.2 | Android cross-compilation needs the NDK linker |
+| Android NDK 27.1.12297006 | asserted from its own `source.properties`, not the directory name |
+| Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
+| A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
+
+#### Preparing the version
+
+`prepare_release.dart` moves the pubspec version, the SDK version constant and
+its derived `User-Agent`, the README install example, and the CHANGELOG to the
+release version as coordinated writes, then audits that all four agree. Add an
+`## Unreleased` heading to the CHANGELOG as you develop; the command promotes it
+and refuses to run without it.
+
+```bash
+cd scripts/release/flutter && dart pub get
+dart run bin/prepare_release.dart --version 1.0.1 --date 2026-08-21
+```
+
+On a write failure it rolls back. If a restore write itself fails, it names the
+files it could not restore and says the rollback was incomplete — reset those
+with `git checkout` before retrying. Review and commit the result; the pipeline
+builds from a committed tree.
+
+#### Running the pipeline
+
+One entry point, with every variable it needs:
+
+```bash
+COPRODUCT_RELEASE_OUT=/tmp/cprel/out \
+COPRODUCT_RELEASE_STAGE=/tmp/cprel/stage/pkg \
+COPRODUCT_FLUTTER_ARCHIVE_DIR=/tmp/cprel/archive \
+COPRODUCT_CONSUMER_DIR=/tmp/cprel/consumer \
+COPRODUCT_ACCEPTANCE_IOS_DEVICE="$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')" \
+COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')" \
+  scripts/release/flutter/measure.sh
+```
+
+A missing variable fails at its guard rather than part-way through a long run.
+
+**Name directories that do not exist yet.** The scripts create and mark their own
+scratch space, and refuse a directory they did not create, because staging
+deletes and rewrites the path it is given. Pre-creating them with `mkdir -p` is
+refused.
+
+**The pipeline builds from one identified commit.** Staging refuses a dirty tree,
+and refuses binaries whose build stamp names a commit other than `HEAD`. Commit
+first, then run; rebuild after any further commit.
+
+| Stage | Script | Status line |
+|---|---|---|
+| Codegen pin, clean checkout, zero diff | `release.sh` | — |
+| Version coherence across all four files | `bin/check_identity.dart` | `COPRODUCT_FLUTTER_IDENTITY_STATUS` |
+| License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
+| Build five architectures | `stages/build-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
+| Stage the package | `stages/stage-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
+| Seal the publishable set | `stages/seal-package.sh` | — |
+| Archive membership and size | `bin/check_archive.dart` | `COPRODUCT_FLUTTER_ARCHIVE_STATUS` |
+| Extract the archive | `stages/extract-archive.sh` | `COPRODUCT_FLUTTER_EXTRACT_STATUS` |
+| Consumer from the archive | `stages/consumer-from-archive.sh` | `COPRODUCT_FLUTTER_CONSUMER_FROM_ARCHIVE_STATUS` |
+| Both platforms, both toolchains | `gates/gate-suite.sh` | `COPRODUCT_FLUTTER_GATE_SUITE_STATUS` |
+| Prove the gates fail | `gates/mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
+| Re-verify the seal | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
+
+#### Publishing
+
+**Publish only through `scripts/release/flutter/publish.sh`. Never run
+`dart pub publish` yourself.** Every gate validates the staging directory, but
+the obvious place to run a publish from is the source package directory — and it
+publishes cleanly. The native binaries there are gitignored build output, so pub
+omits them and offers a ~91 KB archive with no `CoproductFFI.xcframework` and no
+`jniLibs`, carrying only the same single warning the real release carries.
+pub.dev accepts it, every consumer fails at load, and it cannot be withdrawn.
+
+The wrapper re-verifies the seal, changes into the staged package, and publishes
+that. It stays interactive, so pub still prompts for confirmation and for
+authentication. Run it with `COPRODUCT_RELEASE_STAGE` and `COPRODUCT_RELEASE_OUT`
+still set from the pipeline run.
+
+| Step | Who |
+|---|---|
+| Every stage in the table above | automated |
+| Reviewing and committing the version changes | human |
+| `scripts/release/flutter/publish.sh` | human, and the only supported way to publish |
+| Transferring the package to the verified publisher | human, and it cannot be undone |
+| Pushing the release tag after pub.dev accepts | human |
+
+Dart cannot publish a new package directly to a verified publisher, which is why
+the first publication and the transfer are both manual.
+
+#### Toolchains and the compatibility floor
+
+FVM is maintainer-only; adopters never need it. Release and floor-verification
+commands run through
 `scripts/build/with-fvm-toolchain.sh <flutter-version> -- <command>`, which pins
-the exact Flutter/Dart onto `PATH` for every nested process, verifies both resolve
-inside the selected SDK, and purges the native config that would otherwise pin a
+the exact Flutter/Dart onto `PATH` for every nested process, verifies both
+resolve inside the selected SDK, and purges the native config that would pin a
 global SDK. It never runs `fvm use`, so it does not mutate the repository.
 
-The compatibility floor is a tested matrix, never a claim from dependency metadata
-alone. Before lowering the published `environment` constraints, the FVM
-minimum-floor matrix (resolution, analyze, test, the publish dry-run gate,
-artifact-linked iOS and Android builds, and both device acceptance gates) must
-pass on the candidate toolchain, and the same matrix must pass on the primary
-toolchain. Run each stage in this order from a clean checkout, all through the
-launcher.
+The floor is a tested matrix, never a claim from dependency metadata. Before
+lowering the published `environment` constraints, the full matrix must pass on
+both the candidate and the primary toolchain. `gates/gate-suite.sh` runs it.
 
-Clean the artifact consumer's generated build state before switching toolchains,
-then resolve and rebuild. Flutter versions ship different `Flutter.framework`
-headers, so an artifact-linked iOS build that reuses output from another version
-fails with a stale precompiled header:
+Clean the artifact consumer's build state before switching toolchains. Flutter
+versions ship different `Flutter.framework` headers, so a build reusing output
+from another version fails with:
 
 ```
 Swift Compiler Error (Xcode): File '.../Flutter.framework/Headers/FlutterPlugin.h'
 has been modified since the precompiled header ... was built
 ```
 
-That signature means the precompiled state is stale, which after a toolchain
-switch is usually because the build directory was produced by a different
-Flutter. It is not by itself evidence that the SDK is incompatible with the
-toolchain under test, and reading it that way sends you hunting a bug that does
-not exist, or worse, raising the published floor to make a stale artifact go
-away. Clean and retry first. A recurrence from a clean build is a real failure
-and should be investigated as one.
+That means the precompiled state is stale, which after a toolchain switch is
+almost always the build directory, not an incompatibility. Reading it the other
+way sends you hunting a bug that does not exist, or raising the published floor
+to make a stale artifact go away. Clean and retry first; a recurrence from a
+clean build is a real failure.
 
-The clean runs through the launcher like every other command here, so it uses the
-toolchain under test rather than whatever Flutter happens to be on `PATH`, and so
-it works on a machine that has no global Flutter at all. Run it as part of the
-sequence below rather than on its own: a bare clean leaves the consumer with no
-package resolution, which shows up as unresolved imports in an editor until
-something resolves it again.
+`flutter pub publish --dry-run` exits nonzero on the expected
+flutter_rust_bridge pin warning; the gate accepts that and fails only on errors
+or unexpected warnings. `pubspec.lock` is not committed, so record the resolved
+dependency and native toolchain versions as release evidence.
 
-```
-scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd consumer-tests/flutter && flutter clean'
-scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd sdks/flutter/coproduct && flutter pub get && flutter analyze && flutter test'
-scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c 'cd sdks/flutter/coproduct/example && flutter pub get && flutter analyze'
-scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-consumer-test-ios.sh
-scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-consumer-test-android.sh
-COPRODUCT_ACCEPTANCE_IOS_DEVICE=<sim> scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-acceptance-ios.sh
-COPRODUCT_ACCEPTANCE_ANDROID_DEVICE=<emu> scripts/build/with-fvm-toolchain.sh <flutter-version> -- scripts/build/artifact-linked-flutter-acceptance-android.sh
-```
+#### Moving this to CI
 
-`flutter analyze` is reproducible from a clean checkout because the package
-`analysis_options.yaml` excludes the vendored `cargokit/` tree, whose nested build
-tool is a separate package the SDK's `pub get` does not resolve. Do not remove that
-exclude, or a fresh analyze reports unresolved-import errors inside
-`cargokit/build_tool` that have nothing to do with the SDK. `flutter pub publish --dry-run` exits nonzero on the two expected
-warnings (the exact flutter_rust_bridge pin and, before release preparation, the
-Unreleased changelog); the gate accepts those and fails only on errors or
-unexpected warnings. Record the resolved dependency versions and native toolchain
-versions as the release evidence; `pubspec.lock` is not committed, so the resolved
-set is otherwise not reproducible from the tree.
+- **The no-Rust gate needs a runner that never had a Rust toolchain**, or the
+  deliberately constructed fresh `HOME` and sanitized `PATH` the gate builds.
+- **iOS acceptance needs an arm64 macOS runner** for the simulator.
+- **Android acceptance needs a Linux runner.** GitHub documents Android hardware
+  acceleration on its Linux runners and states nested virtualization is
+  unsupported on macOS runners, so one macOS runner cannot reliably host both.
+- **The job boots its own devices.** Both acceptance scripts consume an
+  already-booted device id and neither boot nor provision one.
 
-Publishing `0.1.0` (run by a human with pub.dev credentials):
-
-1. Start from a clean, reviewed `main`.
-2. Select the verified toolchains through `scripts/build/with-fvm-toolchain.sh`.
-3. Run the release-preparation command through the launcher, resolving its Dart
-   package first so a clean checkout works (the tool's `.dart_tool/` is gitignored):
-   `scripts/build/with-fvm-toolchain.sh <flutter-version> -- bash -c '(cd scripts/release && dart pub get) && dart run scripts/release/bin/prepare_release.dart --version 0.1.0 --date <today>'`.
-   It validates the version and date, then flips the pubspec version, the SDK
-   version constant and derived `User-Agent`, the README install example, and the
-   CHANGELOG from `0.1.0-dev` to the release as coordinated writes, and runs an
-   identity audit afterward. On a write failure it makes a best-effort rollback,
-   restoring each original file. If a restore write itself fails (a full or
-   read-only disk), the command names the files it could not restore in its error
-   and states that the rollback was incomplete, so reset those files with
-   `git checkout` before retrying. The command resolves the Flutter package from
-   its own script location, so it works regardless of the working directory.
-4. Run the minimum-toolchain and primary-toolchain matrices, the acceptance gates,
-   and the publish dry-run gate against the prepared tree.
-5. Commit the exact prepared tree locally.
-6. `flutter pub publish` that exact tree.
-7. Only after pub.dev succeeds, create and push the git tag and release commit.
-
-The checked-in tree stays at `0.1.0-dev`; the prepared tree exists only during a
-publish.
 
 ## Recovering local disk space
 
@@ -370,4 +334,4 @@ Every gitignored directory is a regenerable cache or build output. None of these
 
 Worst-case full-cold rebuild after deleting all 25+ GB is roughly 15-25 minutes assuming dependency downloads succeed.
 
-**Do not delete tracked lockfiles** (`Cargo.lock`, `Podfile.lock`, `yarn.lock`, `package-lock.json`, `Gemfile.lock`, and the vendored `cargokit/build_tool/pubspec.lock`). They pin exact dependency versions for reproducible builds. The first-party Dart `pubspec.lock` files (the SDK package, its example, `consumer-tests`, and the `scripts/*` tool packages) are regenerable and gitignored, so deleting them is harmless; `flutter pub get` or `dart pub get` recreates them.
+**Do not delete tracked lockfiles** (`Cargo.lock`, `Podfile.lock`, `yarn.lock`, `package-lock.json`, `Gemfile.lock`). They pin exact dependency versions for reproducible builds. The first-party Dart `pubspec.lock` files (the SDK package, its example, `consumer-tests`, and the `scripts/*` tool packages) are regenerable and gitignored, so deleting them is harmless; `flutter pub get` or `dart pub get` recreates them.
