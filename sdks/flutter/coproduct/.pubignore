@@ -39,7 +39,6 @@ test/
 test_driver/
 
 # The vendored build hook is gone: binaries ship prebuilt
-cargokit/
 
 # Codegen configuration a consumer never runs
 flutter_rust_bridge.yaml
