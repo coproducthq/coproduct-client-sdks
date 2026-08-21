@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 # non-empty unmarked directory and refuse it
 find "$COPRODUCT_FLUTTER_ARCHIVE_DIR" -mindepth 1 ! -name '.coproduct-scratch-marker' -delete
 
-cd "$REPO_ROOT/scripts/release"
+cd "$REPO_ROOT/scripts/release/flutter"
 count=0
 while IFS= read -r rel; do
     mkdir -p "$COPRODUCT_FLUTTER_ARCHIVE_DIR/$(dirname "$rel")"

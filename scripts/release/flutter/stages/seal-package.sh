@@ -10,7 +10,7 @@ set -euo pipefail
 : "${COPRODUCT_RELEASE_STAGE:?must be the staging directory}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-cd "$REPO_ROOT/scripts/release"
+cd "$REPO_ROOT/scripts/release/flutter"
 dart run bin/list_publishable.dart "$COPRODUCT_RELEASE_STAGE" | sort | while IFS= read -r rel; do
     file="$COPRODUCT_RELEASE_STAGE/$rel"
     printf '%s  %s  %s  %s\n' \

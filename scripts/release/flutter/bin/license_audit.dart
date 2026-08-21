@@ -11,12 +11,12 @@ import 'package:coproduct_release/shipped_graph.dart';
 // ships, and generates NOTICE-THIRD-PARTY.md plus third_party_licenses/ from
 // the result. Without --write, verifies the committed output still matches a
 // fresh audit byte for byte and fails naming any drift. Run from
-// scripts/release.
+// scripts/release/flutter.
 Future<void> main(List<String> args) async {
   final write = args.contains('--write');
 
   final scriptDir = File.fromUri(Platform.script).parent;
-  final releaseDir = scriptDir.parent; // bin -> scripts/release
+  final releaseDir = scriptDir.parent; // bin -> scripts/release/flutter
   final repoRoot = releaseDir.parent.parent.parent.path; // scripts/release/flutter -> release -> scripts -> repo root
   final pkgDir = '$repoRoot/sdks/flutter/coproduct';
   final manifestPath = '$repoRoot/ffi/coproduct-ffi-frb/Cargo.toml';

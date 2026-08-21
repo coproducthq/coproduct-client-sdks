@@ -47,7 +47,7 @@ mutated() { # label, expected-text, command...
     fi
 }
 
-check_archive() { ( cd "$REPO_ROOT/scripts/release" && dart run bin/check_archive.dart "$1" ); }
+check_archive() { ( cd "$REPO_ROOT/scripts/release/flutter" && dart run bin/check_archive.dart "$1" ); }
 
 echo "mutation: an Android ABI is missing from the archive"
 W="$(scratch)"; cp -R "$COPRODUCT_RELEASE_STAGE" "$W"
@@ -97,7 +97,7 @@ W="$(scratch)"; mkdir -p "$W"; cp -R "$COPRODUCT_RELEASE_STAGE/." "$W/"
 cp "$W/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_frb.so" \
    "$W/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_frb.so"
 check_archive_on() { # stage dir
-    ( cd "$REPO_ROOT/scripts/release" && dart run bin/check_archive.dart "$1" )
+    ( cd "$REPO_ROOT/scripts/release/flutter" && dart run bin/check_archive.dart "$1" )
 }
 baseline 'wrong-architecture slot' check_archive_on "$COPRODUCT_RELEASE_STAGE" \
     && mutated 'arm64 library in the armeabi-v7a slot' 'its directory claims armeabi-v7a' \
