@@ -7,6 +7,7 @@
 set -uo pipefail
 
 : "${COPRODUCT_RELEASE_STAGE:?must be the staging directory}"
+: "${COPRODUCT_RELEASE_OUT:?must be the release output directory holding seal.txt}"
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
 : "${COPRODUCT_ACCEPTANCE_IOS_DEVICE:?must be a booted iOS simulator device id}"
 
@@ -173,6 +174,42 @@ else
     fi
 fi
 rm -rf "$(dirname "$W")"
+
+echo "mutation: the package version disagrees with itself"
+# The podspec version is the costly one to get wrong: it is externally visible
+# in every consumer's Podfile.lock and cannot be withdrawn. Mutated in a copy of
+# the package, never in the repository, so a failure here cannot leave the tree
+# dirty for the next stage
+W="$(scratch)"; mkdir -p "$W/sdks/flutter"
+cp -R "$REPO_ROOT/sdks/flutter/coproduct" "$W/sdks/flutter/coproduct"
+check_identity_on() { # fake repo root
+    ( cd "$REPO_ROOT/scripts/release/flutter" && dart run bin/check_identity.dart "$1" )
+}
+if baseline 'package version is coherent' check_identity_on "$W"; then
+    sed -i '' "s/s.version          = '1.0.0'/s.version          = '0.9.9'/" \
+        "$W/sdks/flutter/coproduct/ios/coproduct.podspec"
+    mutated 'podspec version drifts from the pubspec' 'podspec version is not' \
+        check_identity_on "$W"
+fi
+rm -rf "$(dirname "$W")"
+
+echo "mutation: the staged package changes after it was sealed"
+# The window between the pipeline sealing the stage and a human publishing it.
+# verify-seal.sh is the only thing that looks at it, so it needs its own proof
+if [[ -f "$COPRODUCT_RELEASE_OUT/seal.txt" ]]; then
+    SEAL_SUBJECT="$COPRODUCT_RELEASE_STAGE/CHANGELOG.md"
+    SEAL_BAK="$(mktemp)"; cp "$SEAL_SUBJECT" "$SEAL_BAK"
+    if baseline 'stage matches its seal' "$REPO_ROOT/scripts/release/flutter/verify-seal.sh"; then
+        printf '\n' >> "$SEAL_SUBJECT"
+        mutated 'a byte changes after sealing' 'no longer matches its seal' \
+            "$REPO_ROOT/scripts/release/flutter/verify-seal.sh"
+    fi
+    cp "$SEAL_BAK" "$SEAL_SUBJECT"; rm -f "$SEAL_BAK"
+else
+    printf '  FAIL no seal.txt at %s, cannot prove the seal check bites\n' \
+        "$COPRODUCT_RELEASE_OUT"
+    fail=1
+fi
 
 echo "check: the staging script selection matrix"
 if bash "$REPO_ROOT/sdks/flutter/coproduct/ios/stage_prebuilt.test.sh" >/dev/null 2>&1; then
