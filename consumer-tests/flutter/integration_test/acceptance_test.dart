@@ -82,7 +82,7 @@ void main() {
     expect(key, isNotEmpty,
         reason: 'runner must pass COPRODUCT_SDK_KEY_CONTROL');
 
-    _http = HttpClient();
+    _http = HttpClient()..connectionTimeout = _fixtureTimeout;
     addTearDown(() => _http.close(force: true));
     // Leave the fixture clean for whatever runs next in this file, whether or
     // not this test reaches its own release
@@ -161,7 +161,7 @@ void main() {
     expect(key, isNotEmpty,
         reason: 'runner must pass COPRODUCT_SDK_KEY_REACTIVE');
 
-    _http = HttpClient();
+    _http = HttpClient()..connectionTimeout = _fixtureTimeout;
     addTearDown(() => _http.close(force: true));
     addTearDown(() async {
       expect(await _post('$endpoint/control/reset'), 200,
@@ -410,22 +410,37 @@ Future<int> _setSnapshot(String endpoint, {required List<String> omitFlags}) =>
 // flaky device failure
 late HttpClient _http;
 
-Future<int> _post(String url, {String? body}) async {
-  final req = await _http.postUrl(Uri.parse(url));
-  if (body != null) {
-    req.headers.contentType = ContentType.json;
-    req.write(body);
-  }
-  final res = await req.close();
-  await res.drain<void>();
-  return res.statusCode;
-}
+/// Every fixture call is bounded. The polling helpers above have deadlines, but
+/// they are only as bounded as the request inside them, and Dart's HttpClient
+/// applies no timeout of its own: a fixture that accepts a connection and then
+/// never answers hangs the request, and with it the test, until the harness
+/// gives up minutes later with nothing to point at. That is worse than a
+/// failure, because a release gate that hangs teaches its reader that red means
+/// "run it again".
+const _fixtureTimeout = Duration(seconds: 10);
 
-Future<Map<String, Object?>> _fixtureState(String endpoint) async {
-  final req = await _http.getUrl(Uri.parse('$endpoint/control/state'));
-  final res = await req.close();
-  return jsonDecode(await utf8.decodeStream(res)) as Map<String, Object?>;
-}
+Future<T> _bounded<T>(Future<T> Function() call, String what) =>
+    call().timeout(_fixtureTimeout,
+        onTimeout: () => throw TimeoutException(
+            'the fixture did not answer $what within $_fixtureTimeout'));
+
+Future<int> _post(String url, {String? body}) => _bounded(() async {
+      final req = await _http.postUrl(Uri.parse(url));
+      if (body != null) {
+        req.headers.contentType = ContentType.json;
+        req.write(body);
+      }
+      final res = await req.close();
+      await res.drain<void>();
+      return res.statusCode;
+    }, 'POST $url');
+
+Future<Map<String, Object?>> _fixtureState(String endpoint) =>
+    _bounded(() async {
+      final req = await _http.getUrl(Uri.parse('$endpoint/control/state'));
+      final res = await req.close();
+      return jsonDecode(await utf8.decodeStream(res)) as Map<String, Object?>;
+    }, 'GET $endpoint/control/state');
 
 Future<int> _servedPolls(String endpoint) async =>
     (await _fixtureState(endpoint))['servedPolls']! as int;
