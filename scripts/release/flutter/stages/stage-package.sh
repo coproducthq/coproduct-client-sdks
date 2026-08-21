@@ -11,7 +11,7 @@ set -euo pipefail
 : "${COPRODUCT_RELEASE_OUT:?must be the directory holding the built release artifacts}"
 : "${COPRODUCT_RELEASE_STAGE:?must be the staging directory to create}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 PKG_REL="sdks/flutter/coproduct"
 PKG="$REPO_ROOT/$PKG_REL"
 

@@ -17,7 +17,7 @@ Future<void> main(List<String> args) async {
 
   final scriptDir = File.fromUri(Platform.script).parent;
   final releaseDir = scriptDir.parent; // bin -> scripts/release
-  final repoRoot = releaseDir.parent.parent.path; // scripts/release -> scripts -> repo root
+  final repoRoot = releaseDir.parent.parent.parent.path; // scripts/release/flutter -> release -> scripts -> repo root
   final pkgDir = '$repoRoot/sdks/flutter/coproduct';
   final manifestPath = '$repoRoot/ffi/coproduct-ffi-frb/Cargo.toml';
 

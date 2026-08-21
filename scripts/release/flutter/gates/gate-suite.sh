@@ -13,7 +13,7 @@ set -uo pipefail
 : "${COPRODUCT_ACCEPTANCE_IOS_DEVICE:?must be a booted iOS simulator device id}"
 : "${COPRODUCT_ACCEPTANCE_ANDROID_DEVICE:?must be a booted Android emulator id}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 PRIMARY=3.44.0
 FLOOR=3.38.1
 fail=0
@@ -108,7 +108,7 @@ done
 # Both platforms with no Rust reachable, each on a consumer of its own
 for platform in ios android; do
     run "$platform with no Rust toolchain" \
-        "$REPO_ROOT/scripts/release/no-rust-gate.sh" "$platform"
+        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" "$platform"
 done
 
 [[ "$fail" -eq 0 ]] || exit 1

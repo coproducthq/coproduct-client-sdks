@@ -120,7 +120,8 @@ void main() {
 
   group('real toolchain integration', () {
     test('computeShippedGraph against the live repo matches the committed fixture union', () {
-      final repoRoot = Directory.current.parent.parent.path;
+      // Tests run from scripts/release/flutter, so the repo root is three up
+      final repoRoot = Directory.current.parent.parent.parent.path;
       final manifestPath = '$repoRoot/ffi/coproduct-ffi-frb/Cargo.toml';
       if (Process.runSync('cargo', ['--version']).exitCode != 0) {
         markTestSkipped('cargo not available');

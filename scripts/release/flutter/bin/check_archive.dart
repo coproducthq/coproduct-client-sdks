@@ -82,7 +82,7 @@ void main(List<String> args) {
   final stage = args.single;
   // The reference for generated content is the repository package, so resolve
   // the repository root from this script's location rather than the stage.
-  final repoRoot = File.fromUri(Platform.script).parent.parent.parent.parent.path;
+  final repoRoot = File.fromUri(Platform.script).parent.parent.parent.parent.parent.path;
   final issues = <String>[];
 
   // The dry run resolves dependencies and writes .dart_tool, so it runs against

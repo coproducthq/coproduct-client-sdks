@@ -10,7 +10,7 @@ set -euo pipefail
 : "${COPRODUCT_RELEASE_STAGE:?must be the staging directory}"
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extraction directory to create}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 "$REPO_ROOT/scripts/release/assert-safe-path.sh" "$COPRODUCT_FLUTTER_ARCHIVE_DIR" >/dev/null
 
 # Clear previous contents but keep the guard's marker, or a rerun would find a

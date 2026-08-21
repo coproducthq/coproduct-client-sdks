@@ -10,7 +10,7 @@ set -uo pipefail
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
 : "${COPRODUCT_ACCEPTANCE_IOS_DEVICE:?must be a booted iOS simulator device id}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fail=0
 
 scratch() { # -> a disposable directory the safe-path guard will accept
@@ -81,7 +81,7 @@ W="$(scratch)"; cp -R "$COPRODUCT_RELEASE_OUT" "$W"
 printf 'not a library' > "$W/jniLibs/arm64-v8a/libcoproduct_ffi_frb.so"
 stage_from() {
     COPRODUCT_RELEASE_OUT="$1" COPRODUCT_RELEASE_STAGE="$2" \
-        "$REPO_ROOT/scripts/release/stage-flutter-package.sh"
+        "$REPO_ROOT/scripts/release/flutter/stages/stage-package.sh"
 }
 mutated 'tampered binary' 'content changed since the build' \
     stage_from "$W" "$(dirname "$W")/stage"
@@ -152,7 +152,7 @@ acceptance_with_consumer() { # consumer dir
 }
 build_consumer_for() { # archive dir, consumer dir
     COPRODUCT_FLUTTER_ARCHIVE_DIR="$1" COPRODUCT_CONSUMER_DIR="$2" \
-        "$REPO_ROOT/scripts/release/consumer-from-archive.sh"
+        "$REPO_ROOT/scripts/release/flutter/stages/consumer-from-archive.sh"
 }
 accept_from_archive() { # archive dir, consumer dir
     build_consumer_for "$1" "$2" >/dev/null 2>&1 && acceptance_with_consumer "$2"

@@ -18,11 +18,11 @@ set -euo pipefail
 : "${COPRODUCT_RELEASE_STAGE:?must be the staging directory the pipeline produced}"
 : "${COPRODUCT_RELEASE_OUT:?must be the release output directory holding seal.txt}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 # The seal check is not advisory. If the stage drifted since the pipeline
 # sealed it, there is nothing here worth publishing
-"$REPO_ROOT/scripts/release/verify-seal.sh"
+"$REPO_ROOT/scripts/release/flutter/verify-seal.sh"
 
 echo
 echo "About to publish from: $COPRODUCT_RELEASE_STAGE"

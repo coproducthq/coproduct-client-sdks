@@ -10,7 +10,7 @@ set -euo pipefail
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
 : "${COPRODUCT_CONSUMER_DIR:?must be the disposable consumer directory to create}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 "$REPO_ROOT/scripts/release/assert-safe-path.sh" "$COPRODUCT_CONSUMER_DIR" >/dev/null
 
 find "$COPRODUCT_CONSUMER_DIR" -mindepth 1 ! -name '.coproduct-scratch-marker' -delete

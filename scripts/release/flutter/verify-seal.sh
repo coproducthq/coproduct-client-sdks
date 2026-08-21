@@ -12,7 +12,7 @@ set -euo pipefail
 : "${COPRODUCT_RELEASE_STAGE:?must be the staging directory the pipeline produced}"
 : "${COPRODUCT_RELEASE_OUT:?must be the release output directory holding seal.txt}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SEAL="$COPRODUCT_RELEASE_OUT/seal.txt"
 
 if [[ ! -f "$SEAL" ]]; then
@@ -22,7 +22,7 @@ fi
 
 FRESH="$(mktemp)"
 trap 'rm -f "$FRESH"' EXIT
-"$REPO_ROOT/scripts/release/seal-flutter-package.sh" > "$FRESH"
+"$REPO_ROOT/scripts/release/flutter/stages/seal-package.sh" > "$FRESH"
 
 if ! diff -q "$SEAL" "$FRESH" >/dev/null; then
     echo "ERROR: the staging directory no longer matches its seal. Do not publish." >&2

@@ -18,7 +18,7 @@ Future<void> main(List<String> args) async {
   // Resolve the package dir from this script's own location so the command works
   // from any working directory: bin -> release -> scripts -> repo root
   final scriptDir = File.fromUri(Platform.script).parent;
-  final repoRoot = scriptDir.parent.parent.parent.path;
+  final repoRoot = scriptDir.parent.parent.parent.parent.path;
   try {
     prepareRelease(
         pkgDir: '$repoRoot/sdks/flutter/coproduct', version: version, date: date);

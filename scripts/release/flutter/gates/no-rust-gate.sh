@@ -20,7 +20,7 @@ case "$PLATFORM" in
 esac
 
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 FRESH_HOME="$(mktemp -d "${TMPDIR:-/tmp}/coproduct-nohome.XXXXXX")"
 FRESH_PUB_CACHE="$(mktemp -d "${TMPDIR:-/tmp}/coproduct-nopub.XXXXXX")"
@@ -55,7 +55,7 @@ done
 # A consumer that has never been resolved or built on this machine
 COPRODUCT_FLUTTER_ARCHIVE_DIR="$COPRODUCT_FLUTTER_ARCHIVE_DIR" \
 COPRODUCT_CONSUMER_DIR="$FRESH_CONSUMER" \
-    "$REPO_ROOT/scripts/release/consumer-from-archive.sh" >/dev/null
+    "$REPO_ROOT/scripts/release/flutter/stages/consumer-from-archive.sh" >/dev/null
 echo "  fresh consumer resolves to the archive"
 
 DEVICE_VAR="COPRODUCT_ACCEPTANCE_$(printf '%s' "$PLATFORM" | tr '[:lower:]' '[:upper:]')_DEVICE"

@@ -13,7 +13,7 @@ set -euo pipefail
 : "${COPRODUCT_RELEASE_OUT:?must be a directory to receive the release artifacts}"
 : "${ANDROID_NDK_HOME:?must be the Android NDK path}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$REPO_ROOT"
 
 # The staged package records the commit it was built from, so the build must

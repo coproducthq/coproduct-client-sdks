@@ -10,9 +10,10 @@ import 'dart:io';
 import '../lib/prepare.dart';
 
 void main(List<String> args) {
+  // Run from scripts/release/flutter, so the repo root is three levels up
   final repoRoot = args.isNotEmpty
       ? args.first
-      : Directory.current.parent.parent.path;
+      : Directory.current.parent.parent.parent.path;
   final pkgDir = '$repoRoot/sdks/flutter/coproduct';
 
   final pubspecPath = '$pkgDir/pubspec.yaml';

@@ -6,11 +6,11 @@
 # the pipeline's own status would report success whenever grep found its lines
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOG="${COPRODUCT_RELEASE_LOG:-${TMPDIR:-/tmp}/coproduct-release.log}"
 
 set +e
-"$REPO_ROOT/scripts/release/release-flutter.sh" 2>&1 | tee "$LOG"
+"$REPO_ROOT/scripts/release/flutter/release.sh" 2>&1 | tee "$LOG"
 status="${PIPESTATUS[0]}"
 set -e
 

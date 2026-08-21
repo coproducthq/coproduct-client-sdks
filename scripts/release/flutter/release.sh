@@ -14,7 +14,7 @@ set -euo pipefail
 : "${COPRODUCT_ACCEPTANCE_ANDROID_DEVICE:?must be a booted Android emulator id}"
 : "${ANDROID_NDK_HOME:?must be the Android NDK path}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
 step() { echo; echo "=== $* ==="; }
@@ -51,40 +51,40 @@ fi
 step "version coherence"
 # Checked here rather than trusted from the version bump: nothing between the
 # bump and the publish re-reads these four files
-( cd scripts/release && dart run bin/check_identity.dart )
+( cd scripts/release/flutter && dart run bin/check_identity.dart )
 
 step "license audit"
-( cd scripts/release && dart run bin/license_audit.dart )
+( cd scripts/release/flutter && dart run bin/license_audit.dart )
 
 step "build the distribution binaries"
-scripts/release/build-flutter-binaries.sh
+scripts/release/flutter/stages/build-binaries.sh
 
 step "stage the package"
-scripts/release/stage-flutter-package.sh
+scripts/release/flutter/stages/stage-package.sh
 
 step "seal the publishable file set"
-scripts/release/seal-flutter-package.sh > "$COPRODUCT_RELEASE_OUT/seal.txt"
+scripts/release/flutter/stages/seal-package.sh > "$COPRODUCT_RELEASE_OUT/seal.txt"
 echo "sealed $(wc -l < "$COPRODUCT_RELEASE_OUT/seal.txt" | tr -d ' ') files"
 
 step "archive membership, warnings, and size"
-( cd scripts/release && dart run bin/check_archive.dart "$COPRODUCT_RELEASE_STAGE" )
+( cd scripts/release/flutter && dart run bin/check_archive.dart "$COPRODUCT_RELEASE_STAGE" )
 
 step "extract the archive"
-scripts/release/extract-archive.sh
+scripts/release/flutter/stages/extract-archive.sh
 
 step "build the disposable consumer from the archive"
-scripts/release/consumer-from-archive.sh
+scripts/release/flutter/stages/consumer-from-archive.sh
 
 step "the full gate matrix"
-scripts/release/gate-suite.sh
+scripts/release/flutter/gates/gate-suite.sh
 
 step "prove the gates fail on broken subjects"
-scripts/release/mutation-gates.sh
+scripts/release/flutter/gates/mutation-gates.sh
 
 step "re-verify the seal"
 # The canonical stage must be byte-identical to what was sealed. Gates run
 # against copies precisely so this holds
-scripts/release/seal-flutter-package.sh > "$COPRODUCT_RELEASE_OUT/seal-recheck.txt"
+scripts/release/flutter/stages/seal-package.sh > "$COPRODUCT_RELEASE_OUT/seal-recheck.txt"
 if ! diff -q "$COPRODUCT_RELEASE_OUT/seal.txt" "$COPRODUCT_RELEASE_OUT/seal-recheck.txt" >/dev/null; then
     echo "ERROR: the staged package changed after it was sealed" >&2
     diff "$COPRODUCT_RELEASE_OUT/seal.txt" "$COPRODUCT_RELEASE_OUT/seal-recheck.txt" >&2 || true
@@ -94,4 +94,4 @@ echo "seal unchanged"
 
 echo
 echo "COPRODUCT_FLUTTER_RELEASE_STATUS pass=true"
-echo "next: scripts/release/publish-flutter.sh   (never bare dart pub publish)"
+echo "next: scripts/release/flutter/publish.sh   (never bare dart pub publish)"
