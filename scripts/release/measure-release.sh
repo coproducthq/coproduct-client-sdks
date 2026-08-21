@@ -21,5 +21,5 @@ fi
 
 echo
 echo "measured:"
-grep -E 'compressed archive|uncompressed stage|published files' "$LOG" | sed 's/^/  /'
+grep -E '^(compressed archive|uncompressed stage|published files):' "$LOG" | sed 's/^/  /'
 echo "COPRODUCT_FLUTTER_MEASURE_STATUS pass=true"

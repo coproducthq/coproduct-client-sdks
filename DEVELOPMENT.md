@@ -35,9 +35,14 @@ COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')" \
 Every variable the pipeline needs appears there, so a missing one fails at its
 guard rather than part-way through a long run.
 
+**Name directories that do not exist yet.** The scripts create their own scratch
+space and mark it, and they refuse a directory they did not create, because
+staging deletes and rewrites the path it is given. Pre-creating these with
+`mkdir -p` is refused, not accepted.
+
 | Stage | Script | Status line |
 |---|---|---|
-| Codegen pin and zero diff | `release-flutter.sh` | — |
+| Codegen pin, clean checkout, zero diff | `release-flutter.sh` | — |
 | License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
 | Build five architectures | `build-flutter-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
 | Stage the package | `stage-flutter-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
