@@ -43,6 +43,7 @@ staging deletes and rewrites the path it is given. Pre-creating these with
 | Stage | Script | Status line |
 |---|---|---|
 | Codegen pin, clean checkout, zero diff | `release-flutter.sh` | — |
+| Version coherence across pubspec, SDK constant, README, podspec | `bin/check_identity.dart` | `COPRODUCT_FLUTTER_IDENTITY_STATUS` |
 | License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
 | Build five architectures | `build-flutter-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
 | Stage the package | `stage-flutter-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
@@ -65,9 +66,18 @@ rebuild after any further commit.
 |---|---|
 | Everything in the table above | automated |
 | Reviewing and committing the release version changes | human |
+| `scripts/release/verify-seal.sh`, in the same shell, immediately before publishing | human, and required |
 | The first `dart pub publish` | human, because Dart cannot publish a new package directly to a verified publisher |
 | Transferring the package to the publisher | human, and it cannot be undone |
 | Pushing the release tag after pub.dev accepts | human |
+
+**Verify the seal immediately before publishing.** The pipeline seals the stage
+and re-checks it, but publishing happens later as a separate human action
+against an ordinary scratch directory that nothing protects. Run
+`scripts/release/verify-seal.sh` in the same shell as `dart pub publish`, with
+`COPRODUCT_RELEASE_STAGE` and `COPRODUCT_RELEASE_OUT` still set. It re-seals the
+stage, diffs it against `seal.txt`, and names the commit the binaries were built
+from. A pub.dev release cannot be withdrawn, so this gap is worth one command.
 
 ### Moving this to CI
 
