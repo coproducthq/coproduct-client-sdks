@@ -48,6 +48,11 @@ if [[ -n "$(git status --porcelain)" ]]; then
     exit 1
 fi
 
+step "version coherence"
+# Checked here rather than trusted from the version bump: nothing between the
+# bump and the publish re-reads these four files
+( cd scripts/release && dart run bin/check_identity.dart )
+
 step "license audit"
 ( cd scripts/release && dart run bin/license_audit.dart )
 

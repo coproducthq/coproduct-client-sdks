@@ -5,9 +5,14 @@
 // an entire example application ship unnoticed in an earlier measurement, so a
 // file that is not on the allowlist fails the release just as a missing required
 // file does.
+import 'dart:convert';
 import 'dart:io';
 
 import '../lib/pub_file_list.dart';
+
+/// The exact number of files pub publishes. See the assertion below for why a
+/// count earns its keep next to the membership allowlist.
+const _expectedFileCount = 140;
 
 const _maxCompressedMb = 35;
 const _maxUncompressedMb = 115;
@@ -182,6 +187,54 @@ void main(List<String> args) {
   // The last gate re-derives what the first one proved. Membership shows a path
   // exists; it cannot distinguish a real library from a stale one or from a text
   // file of the same name, so the shipped binaries are re-verified here.
+  //
+  // Staging hashes the build output. This re-hashes the staged copies, closing
+  // the window between the copy and the archive, and it is bidirectional: a
+  // staged binary the stamp does not describe is as much a defect as a stamped
+  // one that changed.
+  final stampPath = '${Platform.environment['COPRODUCT_RELEASE_OUT']}/BUILD-STAMP.json';
+  final stampFile = File(stampPath);
+  if (!stampFile.existsSync()) {
+    issues.add('no BUILD-STAMP.json at $stampPath, so the staged binaries '
+        'cannot be tied to a build');
+  } else {
+    final stamp = jsonDecode(stampFile.readAsStringSync()) as Map<String, dynamic>;
+    final artifacts = (stamp['artifacts'] as Map<String, dynamic>).cast<String, String>();
+    final stagedNativeRels = _platformExact
+        .where((p) => p.endsWith('.a') || p.endsWith('.so'))
+        .toList();
+    final covered = <String>{};
+    for (final entry in artifacts.entries) {
+      final matches =
+          stagedNativeRels.where((rel) => rel.endsWith(entry.key)).toList();
+      if (matches.length != 1) {
+        issues.add('build stamp names ${entry.key}, which matches '
+            '${matches.length} staged files (expected exactly 1)');
+        continue;
+      }
+      covered.add(matches.single);
+      final f = File('$stage/${matches.single}');
+      if (!f.existsSync()) {
+        issues.add('stamped artifact missing from the stage: ${matches.single}');
+        continue;
+      }
+      final h = Process.runSync('shasum', ['-a', '256', f.path]);
+      if (h.exitCode != 0) {
+        issues.add('could not hash ${matches.single}');
+        continue;
+      }
+      final got = (h.stdout as String).trim().split(RegExp(r'\s+')).first;
+      if (got != entry.value) {
+        issues.add('content changed since the build: ${matches.single}');
+      }
+    }
+    for (final rel in stagedNativeRels) {
+      if (!covered.contains(rel)) {
+        issues.add('staged binary is not described by the build stamp: $rel');
+      }
+    }
+  }
+
   final stagedNatives = <String>[
     for (final p in _platformExact)
       if (p.endsWith('.a') || p.endsWith('.so')) '$stage/$p'
@@ -219,7 +272,18 @@ void main(List<String> args) {
     issues.add('uncompressed stage $uncompressedMb MB exceeds $_maxUncompressedMb MB');
   }
 
-  stdout.writeln('published files: ${files.length}');
+  // Asserted, not just reported. Every downstream gate is built from this same
+  // parse of pub's human-readable output, so a file silently dropped by the
+  // parser is absent from the extraction, the seal, and the membership check at
+  // once while still riding in pub's real tarball. A count is the one check that
+  // does not share that derivation. Update it deliberately when the published
+  // set changes.
+  stdout.writeln('published files: ${files.length} (expected $_expectedFileCount)');
+  if (files.length != _expectedFileCount) {
+    issues.add('published file count is ${files.length}, expected '
+        '$_expectedFileCount. If this change is intended, update '
+        '_expectedFileCount; if not, a file was added or silently dropped.');
+  }
 
   if (issues.isNotEmpty) {
     for (final i in issues) {

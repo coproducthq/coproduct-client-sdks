@@ -87,6 +87,23 @@ mutated 'tampered binary' 'content changed since the build' \
     stage_from "$W" "$(dirname "$W")/stage"
 rm -rf "$(dirname "$W")"
 
+echo "mutation: a real library sits in the wrong architecture slot"
+# The tampered-binary mutation above substitutes a text file, which any symbol
+# read rejects. This substitutes a genuine, correctly-signed library that
+# exports every required symbol and differs only in machine type. Path
+# membership, symbol reads, the seal, and acceptance on an arm64 emulator all
+# pass it; only the architecture assertion and the stamp hash catch it
+W="$(scratch)"; mkdir -p "$W"; cp -R "$COPRODUCT_RELEASE_STAGE/." "$W/"
+cp "$W/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_frb.so" \
+   "$W/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_frb.so"
+check_archive_on() { # stage dir
+    ( cd "$REPO_ROOT/scripts/release" && dart run bin/check_archive.dart "$1" )
+}
+baseline 'wrong-architecture slot' check_archive_on "$COPRODUCT_RELEASE_STAGE" \
+    && mutated 'arm64 library in the armeabi-v7a slot' 'its directory claims armeabi-v7a' \
+        check_archive_on "$W"
+rm -rf "$(dirname "$W")"
+
 echo "mutation: the staged podspec loses always_out_of_date"
 podspec_guard_set() { # archive dir
     ( cd "$1/ios" && pod ipc spec coproduct.podspec ) 2>/dev/null | python3 -c "
