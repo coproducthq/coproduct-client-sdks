@@ -2,6 +2,80 @@
 
 This file documents the build prerequisites, per-surface build commands, and local disk hygiene for working on the Coproduct client SDKs.
 
+## Flutter release runbook
+
+The Flutter SDK ships prebuilt native libraries inside the pub.dev package, so an
+integrating developer needs no Rust toolchain. Producing that package is what
+this runbook covers.
+
+### Prerequisites
+
+| | |
+|---|---|
+| `llvm-tools` for the pinned toolchain | `rustup component add llvm-tools --toolchain 1.95.0` — without it the symbol gate has no tool |
+| `cargo-ndk` 4.1.2 | Android cross-compilation needs the NDK linker |
+| Android NDK 27.1.12297006 | asserted from its own `source.properties`, not the directory name |
+| Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
+| A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
+
+### Ordered stages
+
+Run everything through one entry point:
+
+```bash
+COPRODUCT_RELEASE_OUT=/tmp/coproduct-release \
+COPRODUCT_RELEASE_STAGE=/tmp/cpstage/stage \
+COPRODUCT_FLUTTER_ARCHIVE_DIR=/tmp/cparchive/archive \
+COPRODUCT_CONSUMER_DIR=/tmp/cpconsumer/app \
+COPRODUCT_ACCEPTANCE_IOS_DEVICE="$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')" \
+COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')" \
+  scripts/release/measure-release.sh
+```
+
+Every variable the pipeline needs appears there, so a missing one fails at its
+guard rather than part-way through a long run.
+
+| Stage | Script | Status line |
+|---|---|---|
+| Codegen pin and zero diff | `release-flutter.sh` | — |
+| License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
+| Build five architectures | `build-flutter-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
+| Stage the package | `stage-flutter-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
+| Seal the publishable set | `seal-flutter-package.sh` | — |
+| Archive membership and size | `bin/check_archive.dart` | `COPRODUCT_FLUTTER_ARCHIVE_STATUS` |
+| Extract the archive | `extract-archive.sh` | `COPRODUCT_FLUTTER_EXTRACT_STATUS` |
+| Consumer from the archive | `consumer-from-archive.sh` | `COPRODUCT_FLUTTER_CONSUMER_FROM_ARCHIVE_STATUS` |
+| Both platforms, both toolchains | `gate-suite.sh` | `COPRODUCT_FLUTTER_GATE_SUITE_STATUS` |
+| Prove the gates fail | `mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
+| Re-verify the seal | `release-flutter.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
+
+**The pipeline builds from one identified commit.** Staging refuses a dirty tree,
+and it refuses binaries whose build stamp names a different commit than `HEAD`.
+Both mean the same thing in practice: commit first, then run the pipeline, and
+rebuild after any further commit.
+
+### Automated and human steps
+
+| Step | Who |
+|---|---|
+| Everything in the table above | automated |
+| Reviewing and committing the release version changes | human |
+| The first `dart pub publish` | human, because Dart cannot publish a new package directly to a verified publisher |
+| Transferring the package to the publisher | human, and it cannot be undone |
+| Pushing the release tag after pub.dev accepts | human |
+
+### Moving this to CI
+
+- **The no-Rust gate needs a runner that never had a Rust toolchain**, or the
+  deliberately constructed fresh `HOME` and sanitized `PATH` the gate builds.
+- **iOS acceptance needs an arm64 macOS runner** for the simulator.
+- **Android acceptance needs a Linux runner.** GitHub documents Android hardware
+  acceleration on its Linux runners and states nested virtualization is
+  unsupported on macOS runners, so one macOS runner cannot reliably host both.
+- **The job boots its own devices.** Both acceptance scripts consume an
+  already-booted device id and neither boot nor provision one.
+
+
 ## Prerequisites
 
 | Tool | Version | Source |
