@@ -39,8 +39,14 @@ void main() {
     test('is idempotent on the already-prepared version', () {
       expect(bumpPubspecVersion('version: 0.1.0\n', '0.1.0'), 'version: 0.1.0\n');
     });
-    test('throws on an unrelated version', () {
-      expect(() => bumpPubspecVersion('version: 9.9.9\n', '0.1.0'),
+    test('bumps from an already-released version', () {
+      // The case every release after the first one hits
+      expect(bumpPubspecVersion('version: 1.0.0\n', '1.0.1'),
+          'version: 1.0.1\n');
+    });
+
+    test('throws when there is no version line to bump', () {
+      expect(() => bumpPubspecVersion('name: coproduct\n', '1.0.1'),
           throwsA(isA<ReleasePrepError>()));
     });
   });
@@ -55,8 +61,13 @@ void main() {
       expect(bumpSdkVersion("const _coproductSdkVersion = '0.1.0';\n", '0.1.0'),
           "const _coproductSdkVersion = '0.1.0';\n");
     });
-    test('throws on drift', () {
-      expect(() => bumpSdkVersion("const _coproductSdkVersion = '9.9.9';\n", '0.1.0'),
+    test('bumps from an already-released version', () {
+      expect(bumpSdkVersion("const _coproductSdkVersion = '1.0.0';\n", '1.0.1'),
+          "const _coproductSdkVersion = '1.0.1';\n");
+    });
+
+    test('throws when the constant is absent', () {
+      expect(() => bumpSdkVersion('const other = 1;\n', '1.0.1'),
           throwsA(isA<ReleasePrepError>()));
     });
   });
@@ -190,9 +201,16 @@ After release, this becomes an ordinary version dependency.
       expect(bumpPodspecVersion(done, '1.0.0'), equals(done));
     });
 
-    test('throws when the version is neither the placeholder nor the target', () {
-      const drifted = "  s.version          = '0.9.9'\n";
-      expect(() => bumpPodspecVersion(drifted, '1.0.0'),
+    test('bumps from an already-released version, preserving alignment', () {
+      // The identity audit matches this line verbatim, so the original spacing
+      // must survive the rewrite
+      const released = "  s.version          = '1.0.0'\n";
+      expect(bumpPodspecVersion(released, '1.0.1'),
+          "  s.version          = '1.0.1'\n");
+    });
+
+    test('throws when there is no s.version line', () {
+      expect(() => bumpPodspecVersion("  s.summary = 'x'\n", '1.0.1'),
           throwsA(isA<ReleasePrepError>()));
     });
   });

@@ -33,34 +33,45 @@ void validateDate(String date) {
   }
 }
 
+// Each bump replaces whatever version the file currently names, rather than
+// only a fixed placeholder. The placeholders were right for the first release
+// and wrong for every one after it: once 1.0.0 shipped, a tree at 1.0.0 matched
+// no placeholder and the whole preparation threw. Publishing a dev value stays
+// impossible because validateVersion rejects any target that is not a plain
+// X.Y.Z, and an unparseable file still throws rather than being rewritten.
+
 String bumpPubspecVersion(String content, String version) {
-  final dev = RegExp(r'^version: 0\.1\.0-dev$', multiLine: true);
-  if (dev.hasMatch(content)) {
-    return content.replaceFirst(dev, 'version: $version');
+  final current = RegExp(r'^version: (\S+)$', multiLine: true);
+  final match = current.firstMatch(content);
+  if (match == null) {
+    throw ReleasePrepError('pubspec has no version line');
   }
-  if (RegExp('^version: ${RegExp.escape(version)}\$', multiLine: true)
-      .hasMatch(content)) {
-    return content; // idempotent
-  }
-  throw ReleasePrepError('pubspec version is neither 0.1.0-dev nor $version');
+  if (match.group(1) == version) return content; // idempotent
+  return content.replaceFirst(current, 'version: $version');
 }
 
 String bumpSdkVersion(String content, String version) {
-  const dev = "const _coproductSdkVersion = '0.1.0-dev';";
-  final done = "const _coproductSdkVersion = '$version';";
-  if (content.contains(dev)) return content.replaceFirst(dev, done);
-  if (content.contains(done)) return content; // idempotent
-  throw ReleasePrepError('sdk version constant is neither 0.1.0-dev nor $version');
+  final current = RegExp(r"const _coproductSdkVersion = '([^']+)';");
+  final match = current.firstMatch(content);
+  if (match == null) {
+    throw ReleasePrepError('no _coproductSdkVersion constant found');
+  }
+  if (match.group(1) == version) return content; // idempotent
+  return content.replaceFirst(
+      current, "const _coproductSdkVersion = '$version';");
 }
 
 String bumpPodspecVersion(String content, String version) {
-  const placeholder = "s.version          = '0.0.1'";
-  final done = "s.version          = '$version'";
-  if (content.contains(placeholder)) {
-    return content.replaceFirst(placeholder, done);
+  final current = RegExp(r"s\.version( +)= '([^']+)'");
+  final match = current.firstMatch(content);
+  if (match == null) {
+    throw ReleasePrepError('podspec has no s.version line');
   }
-  if (content.contains(done)) return content; // idempotent
-  throw ReleasePrepError('podspec version is neither 0.0.1 nor $version');
+  if (match.group(2) == version) return content; // idempotent
+  // The original spacing is preserved: the identity audit matches the podspec
+  // line verbatim, so re-aligning it here would fail that audit
+  return content.replaceFirst(
+      current, "s.version${match.group(1)}= '$version'");
 }
 
 String promoteReadmeInstall(String content, String version) {
@@ -75,7 +86,13 @@ String promoteReadmeInstall(String content, String version) {
     return content.replaceFirst(placeholder, replacement);
   }
   if (content.contains('coproduct: ^$version')) return content; // idempotent
-  throw ReleasePrepError('readme install placeholder block not found');
+  // After the first release the placeholder block is long gone and the README
+  // carries an ordinary version dependency, so bump that instead
+  final published = RegExp(r'coproduct: \^(\S+)');
+  if (published.hasMatch(content)) {
+    return content.replaceFirst(published, 'coproduct: ^$version');
+  }
+  throw ReleasePrepError('readme names no coproduct install version');
 }
 
 String promoteChangelog(String content, String version, String date) {
