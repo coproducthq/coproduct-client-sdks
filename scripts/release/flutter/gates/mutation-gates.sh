@@ -186,9 +186,34 @@ check_identity_on() { # fake repo root
     ( cd "$REPO_ROOT/scripts/release/flutter" && dart run bin/check_identity.dart "$1" )
 }
 if baseline 'package version is coherent' check_identity_on "$W"; then
-    sed -i '' "s/s.version          = '1.0.0'/s.version          = '0.9.9'/" \
+    # Derived, not literal: a hardcoded version stops matching at the next
+    # release, and a sed that matches nothing leaves the subject unmutated, so
+    # the gate correctly passes and this suite reports it as a gate failure
+    V="$(awk '/^version:/ {print $2; exit}' "$W/sdks/flutter/coproduct/pubspec.yaml")"
+    sed -i '' "s/s.version\( *\)= '$V'/s.version\1= '0.0.9-mutated'/" \
         "$W/sdks/flutter/coproduct/ios/coproduct.podspec"
     mutated 'podspec version drifts from the pubspec' 'podspec version is not' \
+        check_identity_on "$W"
+fi
+rm -rf "$(dirname "$W")"
+
+echo "mutation: the version is coherent but not publishable"
+# Coherence and publishability are different properties. A tree sitting at a
+# dev value on every one of the four files is coherent, and the repository's
+# own convention puts it there during development. Nothing downstream reads a
+# version, so this gate is the only thing standing between that tree and an
+# irreversible publish
+W="$(scratch)"; mkdir -p "$W/sdks/flutter"
+cp -R "$REPO_ROOT/sdks/flutter/coproduct" "$W/sdks/flutter/coproduct"
+if baseline 'release version is publishable' check_identity_on "$W"; then
+    P="$W/sdks/flutter/coproduct"
+    V="$(awk '/^version:/ {print $2; exit}' "$P/pubspec.yaml")"
+    sed -i '' "s/^version: $V\$/version: $V-dev/" "$P/pubspec.yaml"
+    sed -i '' "s/_coproductSdkVersion = '$V'/_coproductSdkVersion = '$V-dev'/" \
+        "$P/lib/src/sdk_version.dart"
+    sed -i '' "s/coproduct: ^$V/coproduct: ^$V-dev/" "$P/README.md"
+    sed -i '' "s/s.version\( *\)= '$V'/s.version\1= '$V-dev'/" "$P/ios/coproduct.podspec"
+    mutated 'every file agrees on a dev version' 'not publishable' \
         check_identity_on "$W"
 fi
 rm -rf "$(dirname "$W")"
@@ -212,10 +237,14 @@ else
 fi
 
 echo "check: the staging script selection matrix"
-if bash "$REPO_ROOT/sdks/flutter/coproduct/ios/stage_prebuilt.test.sh" >/dev/null 2>&1; then
+# Captured, not discarded: every other failure in this file shows why, and a
+# bare FAIL here would send the reader back to run the test by hand
+if MATRIX_OUT="$(bash "$REPO_ROOT/sdks/flutter/coproduct/ios/stage_prebuilt.test.sh" 2>&1)"; then
     printf '  ok   selection matrix\n'
 else
-    printf '  FAIL selection matrix\n'; fail=1
+    printf '  FAIL selection matrix\n'
+    printf '%s' "$MATRIX_OUT" | tail -6 | sed 's/^/       /'
+    fail=1
 fi
 
 [[ "$fail" -eq 0 ]] || exit 1

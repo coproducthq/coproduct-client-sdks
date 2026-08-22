@@ -1,10 +1,10 @@
 # consumer-tests/flutter
 
-Fresh Flutter app installing `coproduct` as a `path:` dependency on the real SDK at `sdks/flutter/coproduct`, not as a workspace member. Exists to catch issues only visible at install/build time (cargokit + Gradle compatibility, FRB plugin loader, podspec quirks) that `sdks/flutter/coproduct/example/` cannot surface because it source-links the SDK.
+Fresh Flutter app installing `coproduct` as a `path:` dependency on the real SDK at `sdks/flutter/coproduct`, not as a workspace member. Exists to catch issues only visible at install/build time (prebuilt-binary packaging, Gradle compatibility, FRB plugin loader, podspec quirks) that `sdks/flutter/coproduct/example/` cannot surface because it source-links the SDK.
 
 ## Toolchain
 
-Modern default Flutter stable. Android: **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20**, validated as the bleeding-edge consumer scenario. iOS: Xcode 26+. Rust toolchain must be on `PATH` for cargokit to compile the FRB crate (precompiled-binary distribution is a separate follow-up).
+Modern default Flutter stable. Android: **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20**, validated as the bleeding-edge consumer scenario. iOS: Xcode 26+. **No Rust toolchain is required**: the SDK ships prebuilt libraries, which is what the release pipeline's no-Rust gates verify against this app.
 
 ## Run
 
@@ -18,9 +18,9 @@ flutter run -d <udid> --dart-define=COPRODUCT_SDK_KEY=<key>
 
 ## What this proves
 
-- The cargokit Gradle-9 ProcessBuilder patch carried in `sdks/flutter/coproduct/cargokit/` resolves [FRB issue #3007](https://github.com/fzyzcjy/flutter_rust_bridge/issues/3007) on a fresh consumer.
+- A consumer with no Rust toolchain builds and runs against the packaged SDK, on both platforms.
 - A consumer with modern transitives (`androidx.fragment:fragment:1.7.1` etc.) builds against the SDK's `compileSdkVersion 36`.
-- Apple's `ExternalLibrary.process(iKnowHowToUseIt: true)` loader works in a non-workspace consumer where cargokit force-loads the static `.a` into the host app.
+- Apple's `ExternalLibrary.process(iKnowHowToUseIt: true)` loader works in a non-workspace consumer where the podspec force-loads the prebuilt static `.a` into the host app.
 
 ## Verifying green
 

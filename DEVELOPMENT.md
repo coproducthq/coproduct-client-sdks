@@ -235,7 +235,9 @@ rather than part-way through a long run.
 
 **3. Prepare the version.** `prepare_release.dart` moves the pubspec version,
 the SDK version constant and its derived `User-Agent`, the README install
-example, and the CHANGELOG together, then audits that all four agree. Add an
+example, the podspec version, and the CHANGELOG together, then audits that they
+agree. The podspec is the costly one to get wrong: it is externally visible in
+every consumer's `Podfile.lock` and cannot be withdrawn. Add an
 `## Unreleased` heading to the CHANGELOG as you develop; this promotes it and
 refuses to run without it.
 

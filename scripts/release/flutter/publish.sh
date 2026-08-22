@@ -31,4 +31,9 @@ echo "native binaries."
 echo
 
 cd "$COPRODUCT_RELEASE_STAGE"
-exec dart pub publish "$@"
+# flutter pub, not dart pub: every gate measures the file set with
+# `flutter pub publish --dry-run`, so publishing through the same implementation
+# keeps the thing that ships identical to the thing that was measured. A
+# standalone Dart SDK also cannot resolve this package's `sdk: flutter`
+# dependencies
+exec flutter pub publish "$@"

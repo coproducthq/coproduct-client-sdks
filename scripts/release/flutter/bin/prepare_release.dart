@@ -16,7 +16,7 @@ Future<void> main(List<String> args) async {
     exit(2);
   }
   // Resolve the package dir from this script's own location so the command works
-  // from any working directory: bin -> release -> scripts -> repo root
+  // from any working directory: bin -> flutter -> release -> scripts -> repo root
   final scriptDir = File.fromUri(Platform.script).parent;
   final repoRoot = scriptDir.parent.parent.parent.parent.path;
   try {

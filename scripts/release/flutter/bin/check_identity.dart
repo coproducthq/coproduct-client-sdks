@@ -30,6 +30,21 @@ void main(List<String> args) {
   }
   final version = match.group(1)!;
 
+  // Coherence is not enough. Four files agreeing on 1.0.1-dev is coherent and
+  // unpublishable, and this gate is the only thing between that tree and
+  // pub.dev: nothing downstream reads a version at all, since the seal and the
+  // build stamp are content-only and pub itself accepts prereleases. The
+  // repository's own convention is to sit at a dev value on a development
+  // branch, so this is the normal state of the tree, not a hypothetical one.
+  try {
+    validateVersion(version);
+  } on ReleasePrepError catch (e) {
+    stderr.writeln('ERROR: $pubspecPath names $version, which is not '
+        'publishable.');
+    stderr.writeln('  ${e.message}');
+    exit(1);
+  }
+
   final issues = auditIdentity(
     pubspec: pubspec,
     sdkVersion: File('$pkgDir/lib/src/sdk_version.dart').readAsStringSync(),

@@ -44,7 +44,7 @@ flutter/
 
 | Script | Checks |
 |---|---|
-| `bin/check_identity.dart` | The pubspec, SDK constant, README and podspec all name the same version |
+| `bin/check_identity.dart` | The pubspec, SDK constant, README and podspec all name the same version, *and* that version is a publishable release semver rather than a dev value |
 | `bin/license_audit.dart` | Third-party notices match a fresh audit of the shipped dependency graph, and nothing copyleft ships |
 | `bin/check_archive.dart` | Archive membership both ways, size limits, exact file count, and every staged binary re-verified against the build stamp |
 | `gates/gate-suite.sh` | Both platforms on both Flutter toolchains, symbols in the shipped artifacts, device acceptance, the testing library, and both no-Rust gates |
@@ -55,7 +55,7 @@ flutter/
 
 A gate that passes on a broken subject is worse than no gate: it reports
 confidence it has not earned. `gates/mutation-gates.sh` breaks the package in
-eight specific ways and requires each gate to fail *and name the mutation*, with
+eleven specific ways and requires each gate to fail *and name the mutation*, with
 a green baseline established first so that a gate already red for an unrelated
 reason cannot masquerade as a catch.
 
