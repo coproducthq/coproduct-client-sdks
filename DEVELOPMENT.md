@@ -185,48 +185,84 @@ README for the layout.
 | Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
 | A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
 
-#### Preparing the version
+#### The release, end to end
 
-`prepare_release.dart` moves the pubspec version, the SDK version constant and
-its derived `User-Agent`, the README install example, and the CHANGELOG to the
-release version as coordinated writes, then audits that all four agree. Add an
-`## Unreleased` heading to the CHANGELOG as you develop; the command promotes it
-and refuses to run without it.
+Every command below runs in **one shell**, in this order. The environment is set
+once and every later step depends on it, so do not start a new terminal
+part-way through.
+
+**1. Set the environment.** Name scratch paths that do not exist yet: the
+scripts create and mark their own space and refuse a directory they did not
+create, because staging deletes and rewrites the path it is given. Reusing paths
+from a previous run is fine — they carry the marker.
 
 ```bash
-cd scripts/release/flutter && dart pub get
-dart run bin/prepare_release.dart --version 1.0.1 --date 2026-08-21
+export COPRODUCT_RELEASE_ROOT="${TMPDIR:-/tmp}/coproduct-release"
+export COPRODUCT_RELEASE_OUT="$COPRODUCT_RELEASE_ROOT/out"
+export COPRODUCT_RELEASE_STAGE="$COPRODUCT_RELEASE_ROOT/stage/pkg"
+export COPRODUCT_FLUTTER_ARCHIVE_DIR="$COPRODUCT_RELEASE_ROOT/archive"
+export COPRODUCT_CONSUMER_DIR="$COPRODUCT_RELEASE_ROOT/consumer"
+export COPRODUCT_RELEASE_LOG="$COPRODUCT_RELEASE_ROOT.log"
+export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/27.1.12297006"
 ```
 
-On a write failure it rolls back. If a restore write itself fails, it names the
+**2. Boot one iOS simulator and one Android emulator.** The gates consume an
+already-booted device and neither boot nor provision one.
+
+```bash
+# Boot the first available iPhone simulator, if none is booted already
+xcrun simctl list devices booted | grep -q Booted || xcrun simctl boot "$(
+  xcrun simctl list devices available | awk -F'[()]' '/iPhone/{print $2; exit}')"
+
+# Start the first AVD, if no emulator is attached already
+adb devices | awk 'NR==2' | grep -q emulator || \
+  "$HOME/Library/Android/sdk/emulator/emulator" \
+    -avd "$("$HOME/Library/Android/sdk/emulator/emulator" -list-avds | head -1)" \
+    -no-snapshot-load >/dev/null 2>&1 &
+
+# Both must print a value before continuing
+export COPRODUCT_ACCEPTANCE_IOS_DEVICE="$(
+  xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')"
+export COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')"
+echo "ios=$COPRODUCT_ACCEPTANCE_IOS_DEVICE android=$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE"
+```
+
+The emulator takes a minute to appear in `adb devices`; re-run the two `export`
+lines until both print a value.
+
+Both must be non-empty before continuing. A missing one fails at its guard
+rather than part-way through a long run.
+
+**3. Prepare the version.** `prepare_release.dart` moves the pubspec version,
+the SDK version constant and its derived `User-Agent`, the README install
+example, and the CHANGELOG together, then audits that all four agree. Add an
+`## Unreleased` heading to the CHANGELOG as you develop; this promotes it and
+refuses to run without it.
+
+```bash
+(cd scripts/release/flutter && dart pub get \
+  && dart run bin/prepare_release.dart --version 1.0.1 --date "$(date +%F)")
+```
+
+On a write failure it rolls back. If a restore write itself fails it names the
 files it could not restore and says the rollback was incomplete — reset those
-with `git checkout` before retrying. Review and commit the result; the pipeline
-builds from a committed tree.
+with `git checkout` before retrying.
 
-#### Running the pipeline
+**4. Review and commit.** The pipeline builds from one identified commit:
+staging refuses a dirty tree, and refuses binaries whose build stamp names a
+commit other than `HEAD`. Commit first, then run; rebuild after any further
+commit.
 
-One entry point, with every variable it needs:
+**5. Run the pipeline.** Expect roughly 20-30 minutes on a healthy machine, most
+of it the gate matrix building both platforms on two Flutter toolchains.
 
 ```bash
-COPRODUCT_RELEASE_OUT=/tmp/cprel/out \
-COPRODUCT_RELEASE_STAGE=/tmp/cprel/stage/pkg \
-COPRODUCT_FLUTTER_ARCHIVE_DIR=/tmp/cprel/archive \
-COPRODUCT_CONSUMER_DIR=/tmp/cprel/consumer \
-COPRODUCT_ACCEPTANCE_IOS_DEVICE="$(xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')" \
-COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')" \
-  scripts/release/flutter/measure.sh
+scripts/release/flutter/measure.sh
 ```
 
-A missing variable fails at its guard rather than part-way through a long run.
-
-**Name directories that do not exist yet.** The scripts create and mark their own
-scratch space, and refuse a directory they did not create, because staging
-deletes and rewrites the path it is given. Pre-creating them with `mkdir -p` is
-refused.
-
-**The pipeline builds from one identified commit.** Staging refuses a dirty tree,
-and refuses binaries whose build stamp names a commit other than `HEAD`. Commit
-first, then run; rebuild after any further commit.
+It stops at the first failure and prints the full log to `$COPRODUCT_RELEASE_LOG`.
+Each stage emits a status line, so `grep 'STATUS pass=' "$COPRODUCT_RELEASE_LOG"`
+shows how far it got.
 
 | Stage | Script | Status line |
 |---|---|---|
@@ -243,31 +279,56 @@ first, then run; rebuild after any further commit.
 | Prove the gates fail | `gates/mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
 | Re-verify the seal | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
 
-#### Publishing
+**6. Publish.** Only through the wrapper, in the same shell:
 
-**Publish only through `scripts/release/flutter/publish.sh`. Never run
-`dart pub publish` yourself.** Every gate validates the staging directory, but
-the obvious place to run a publish from is the source package directory — and it
-publishes cleanly. The native binaries there are gitignored build output, so pub
-omits them and offers a ~91 KB archive with no `CoproductFFI.xcframework` and no
-`jniLibs`, carrying only the same single warning the real release carries.
-pub.dev accepts it, every consumer fails at load, and it cannot be withdrawn.
+```bash
+scripts/release/flutter/publish.sh
+```
+
+**Never run `dart pub publish` yourself.** Every gate validates the staging
+directory, but the obvious place to run a publish from is the source package
+directory — and it publishes cleanly. The native binaries there are gitignored
+build output, so pub omits them and offers a ~91 KB archive with no
+`CoproductFFI.xcframework` and no `jniLibs`, carrying only the same single
+warning the real release carries. pub.dev accepts it, every consumer fails at
+load, and it cannot be withdrawn.
 
 The wrapper re-verifies the seal, changes into the staged package, and publishes
 that. It stays interactive, so pub still prompts for confirmation and for
-authentication. Run it with `COPRODUCT_RELEASE_STAGE` and `COPRODUCT_RELEASE_OUT`
-still set from the pipeline run.
+authentication.
+
+**7. Tag, only after pub.dev accepts.**
+
+```bash
+git tag -a "flutter-v1.0.1" -m "Flutter SDK 1.0.1" && git push origin "flutter-v1.0.1"
+```
+
+#### Who does what
 
 | Step | Who |
 |---|---|
-| Every stage in the table above | automated |
-| Reviewing and committing the version changes | human |
-| `scripts/release/flutter/publish.sh` | human, and the only supported way to publish |
+| 1, 2, 5 — environment, devices, the pipeline | automated once started |
+| 3, 4 — preparing and committing the version | human |
+| 6 — `publish.sh` | human, and the only supported way to publish |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
-| Pushing the release tag after pub.dev accepts | human |
+| 7 — the tag | human |
 
 Dart cannot publish a new package directly to a verified publisher, which is why
 the first publication and the transfer are both manual.
+
+#### When a gate fails
+
+The gates are built so a failure names its own cause; read the status line that
+is missing rather than the last line of output. Two failures are procedural
+rather than defects, and both are common:
+
+- **"the release must start from a clean checkout"** or **"the binaries were
+  built at X but HEAD is Y"** — commit your changes, then rerun. The pipeline
+  describes exactly one commit and refuses to describe two.
+- **A gate that is slow or hangs** — check the machine before the code:
+  `uptime`, `sysctl vm.swapusage`, and whether a build that once took seconds now
+  takes minutes. A cold Gradle cache and a thrashing machine both look like a
+  hung gate, and neither is a defect in the package.
 
 #### Toolchains and the compatibility floor
 
