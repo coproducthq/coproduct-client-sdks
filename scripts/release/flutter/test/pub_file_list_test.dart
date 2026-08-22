@@ -108,4 +108,33 @@ Package has 1 warning.''';
       expect(parseCompressedMb(transcript), greaterThan(0));
     });
   });
+
+  group('a file pub prints without a size', () {
+    // The parser cannot tell such a line from a directory, and the old
+    // behaviour was to drop the file and push it as a directory, shifting
+    // every following depth. Every downstream gate derives from this same
+    // parse, so all of them would have agreed with each other and disagreed
+    // with the tarball pub actually uploads.
+    test('is rejected rather than silently dropped', () {
+      const tree = '''
+├── lib
+│   ├── coproduct.dart (2 KB)
+├── LICENSE
+''';
+      expect(
+        () => parsePubFileList(tree),
+        throwsA(isA<FormatException>().having((e) => e.message, 'message',
+            allOf(contains('LICENSE'), contains('no published files')))),
+      );
+    });
+
+    test('a genuine directory with children still parses', () {
+      const tree = '''
+├── lib
+│   ├── coproduct.dart (2 KB)
+├── LICENSE (1 KB)
+''';
+      expect(parsePubFileList(tree), ['lib/coproduct.dart', 'LICENSE']);
+    });
+  });
 }

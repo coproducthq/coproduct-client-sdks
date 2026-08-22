@@ -54,6 +54,25 @@ List<String> parsePubTranscript(String transcript) =>
 List<String> parsePubFileList(String treeOutput) {
   final paths = <String>[];
   final stack = <String>[];
+  // A line is read as a directory only because it carries no size suffix, the
+  // only signal pub's tree gives. If pub ever prints a file without one, that
+  // file is silently dropped from the list AND pushed as a directory, shifting
+  // every following depth. Nothing downstream would notice: the extraction,
+  // the seal and the membership check all derive from this same parse, so they
+  // would agree with each other and disagree with the tarball.
+  //
+  // pub lists published files, so a directory always has at least one
+  // descendant. One that contributed none is a misparse, and this turns that
+  // silent drop into a loud failure.
+  final childCounts = <int>[];
+  void popDirectory() {
+    final name = stack.removeLast();
+    if (childCounts.removeLast() == 0) {
+      throw FormatException(
+          'directory "$name" contains no published files, so it is most likely '
+          'a file whose size pub did not print');
+    }
+  }
   for (final raw in treeOutput.split('\n')) {
     final line = raw.trimRight();
     if (line.isEmpty) continue;
@@ -64,13 +83,20 @@ List<String> parsePubFileList(String treeOutput) {
     final depth = m.namedGroup('indent')!.length ~/ 4;
     final name = m.namedGroup('name')!;
     while (stack.length > depth) {
-      stack.removeLast();
+      popDirectory();
     }
     if (_sizeSuffix.hasMatch(line)) {
       paths.add([...stack, name].join('/'));
+      for (var i = 0; i < childCounts.length; i++) {
+        childCounts[i]++;
+      }
     } else {
       stack.add(name);
+      childCounts.add(0);
     }
+  }
+  while (stack.isNotEmpty) {
+    popDirectory();
   }
   return paths;
 }
