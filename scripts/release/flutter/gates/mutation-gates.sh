@@ -122,6 +122,25 @@ if baseline 'published testing library is usable' testing_library_gate; then
 fi
 cp "$TB_BAK" "$TB"; rm -f "$TB_BAK"
 
+echo "mutation: the provenance record disagrees with the build"
+# PROVENANCE.json is generated from the stage, so it agrees with itself by
+# construction, and the seal hashes whatever bytes it finds. Nothing else reads
+# it. A record naming a different commit ships a working package with a lying
+# audit trail, which is the one artifact whose entire purpose is to be true
+W="$(scratch)"; mkdir -p "$W"; cp -R "$COPRODUCT_RELEASE_STAGE/." "$W/"
+if baseline 'provenance agrees with the build' check_archive_on "$COPRODUCT_RELEASE_STAGE"; then
+    python3 - "$W/PROVENANCE.json" <<'EOF'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d["commit"] = "0000000000000000000000000000000000000000"
+json.dump(d, open(p, "w"), indent=2)
+EOF
+    mutated 'provenance names a different commit' 'provenance names commit' \
+        check_archive_on "$W"
+fi
+rm -rf "$(dirname "$W")"
+
 echo "mutation: the staged podspec loses always_out_of_date"
 podspec_guard_set() { # archive dir
     ( cd "$1/ios" && pod ipc spec coproduct.podspec ) 2>/dev/null | python3 -c "

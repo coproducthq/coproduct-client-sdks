@@ -28,13 +28,13 @@ dirty="$(git -C "$REPO_ROOT" status --porcelain)"
 COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 
 [[ -d "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" ]] \
-    || fail "no CoproductFFI.xcframework under $COPRODUCT_RELEASE_OUT, run stages/build-binaries.sh first"
+    || fail "no CoproductFFI.xcframework under $COPRODUCT_RELEASE_OUT, run scripts/release/flutter/stages/build-binaries.sh first"
 
 # The build stamp binds the artifacts to the commit and content that produced
 # them. Path membership alone cannot tell a real library from a stale one or a
 # text file of the same name, so every hash is re-checked before it is copied
 STAMP="$COPRODUCT_RELEASE_OUT/BUILD-STAMP.json"
-[[ -f "$STAMP" ]] || fail "no BUILD-STAMP.json under $COPRODUCT_RELEASE_OUT, rerun stages/build-binaries.sh"
+[[ -f "$STAMP" ]] || fail "no BUILD-STAMP.json under $COPRODUCT_RELEASE_OUT, rerun scripts/release/flutter/stages/build-binaries.sh"
 
 STAMP_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit"])' "$STAMP")"
 [[ "$STAMP_COMMIT" == "$COMMIT" ]] \

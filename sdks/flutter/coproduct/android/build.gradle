@@ -1,4 +1,6 @@
-// The Android Gradle Plugin builds the native code with the Android NDK.
+// This module compiles no native code. The SDK ships prebuilt libraries, and
+// the Android Gradle Plugin packages whatever is in src/main/jniLibs/<abi>/
+// into the consuming app. There is deliberately no build hook here.
 
 group 'com.flutter_rust_bridge.coproduct'
 version '1.0'

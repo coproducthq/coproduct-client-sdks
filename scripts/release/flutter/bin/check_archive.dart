@@ -235,6 +235,60 @@ void main(List<String> args) {
     }
   }
 
+  // PROVENANCE.json is the record an auditor reads to learn what produced an
+  // installed artifact, and until now the only thing checked about it was that
+  // it existed. It is generated from the stage, so it agrees with itself by
+  // construction, and the seal hashes whatever bytes it finds. A file claiming
+  // a different commit or version passed every gate: the binaries are verified
+  // independently, so the package works while its audit record lies.
+  if (stampFile.existsSync()) {
+    final provFile = File('$stage/PROVENANCE.json');
+    if (!provFile.existsSync()) {
+      issues.add('no PROVENANCE.json in the stage');
+    } else {
+      final prov =
+          jsonDecode(provFile.readAsStringSync()) as Map<String, dynamic>;
+      final stamp =
+          jsonDecode(stampFile.readAsStringSync()) as Map<String, dynamic>;
+
+      final pubspec = File('$stage/pubspec.yaml').readAsStringSync();
+      final pubspecVersion = RegExp(r'^version: (\S+)$', multiLine: true)
+          .firstMatch(pubspec)
+          ?.group(1);
+      if (prov['version'] != pubspecVersion) {
+        issues.add('provenance names version ${prov['version']}, but the '
+            'staged pubspec names $pubspecVersion');
+      }
+      if (prov['commit'] != stamp['commit']) {
+        issues.add('provenance names commit ${prov['commit']}, but the build '
+            'stamp names ${stamp['commit']}');
+      }
+
+      // The binary hashes have a real reference: the stamp, which staging
+      // already verified against the built files
+      final provBins =
+          (prov['binaries'] as Map<String, dynamic>).cast<String, String>();
+      final stampBins =
+          (stamp['artifacts'] as Map<String, dynamic>).cast<String, String>();
+      if (provBins.length != stampBins.length) {
+        issues.add('provenance lists ${provBins.length} binaries, the build '
+            'stamp lists ${stampBins.length}');
+      }
+      for (final entry in provBins.entries) {
+        final match = stampBins.entries
+            .where((s) => entry.key.endsWith(s.key))
+            .toList();
+        if (match.length != 1) {
+          issues.add('provenance names a binary the build stamp does not '
+              'describe: ${entry.key}');
+        } else if (match.single.value != entry.value) {
+          issues.add('provenance hash for ${entry.key} disagrees with the '
+              'build stamp');
+        }
+      }
+    }
+  }
+
   final stagedNatives = <String>[
     for (final p in _platformExact)
       if (p.endsWith('.a') || p.endsWith('.so')) '$stage/$p'

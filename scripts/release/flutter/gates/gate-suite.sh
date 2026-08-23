@@ -70,6 +70,16 @@ testing_library_gate() {
 }
 run 'testing library from the installed package' testing_library_gate
 
+# The published surface, imported only through the public barrels. A dropped
+# export analyzes clean and passes the SDK's own tests, several of which import
+# src/ directly and never see the barrel
+public_surface_gate() {
+    ( cd "$COPRODUCT_CONSUMER_DIR" \
+        && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+            flutter test --no-pub test/public_surface_test.dart )
+}
+run 'public surface from the installed package' public_surface_gate
+
 # Symbols in the artifacts that ship, not in the libraries they came from
 APP="$(find "$COPRODUCT_CONSUMER_DIR/build/ios" -name 'Runner.app' -type d 2>/dev/null | head -1)"
 FRAMEWORK="$APP/Frameworks/coproduct.framework/coproduct"

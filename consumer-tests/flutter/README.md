@@ -4,7 +4,20 @@ Fresh Flutter app installing `coproduct` as a `path:` dependency on the real SDK
 
 ## Toolchain
 
-Modern default Flutter stable. Android: **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20**, validated as the bleeding-edge consumer scenario. iOS: Xcode 26+. **No Rust toolchain is required**: the SDK ships prebuilt libraries, which is what the release pipeline's no-Rust gates verify against this app.
+Modern default Flutter stable. Android: **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20**, validated as the bleeding-edge consumer scenario. iOS: Xcode 26+.
+
+**The no-Rust guarantee is about the published package, not this checkout.** The
+release pipeline copies this app, repoints it at the extracted archive, and
+proves it builds with no Rust toolchain reachable. Run directly from a clean
+checkout, the `path:` dependency resolves to `sdks/flutter/coproduct`, whose
+native libraries are gitignored build output and absent until a maintainer
+builds them:
+
+```sh
+scripts/package/flutter-build-native.sh all
+```
+
+The source-linked demo scripts run that for you; `flutter run` here does not.
 
 ## Run
 

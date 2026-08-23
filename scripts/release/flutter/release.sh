@@ -15,6 +15,10 @@ set -euo pipefail
 : "${ANDROID_NDK_HOME:?must be the Android NDK path}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
+# The toolchain the SDK's own tests run under. gate-suite.sh owns the matrix;
+# this is the primary of that pair, asserted equal by preflight.test.sh
+PINNED_FLUTTER=3.44.0
 cd "$REPO_ROOT"
 
 step() { echo; echo "=== $* ==="; }
@@ -47,6 +51,25 @@ if [[ -n "$(git status --porcelain)" ]]; then
     git status --porcelain >&2
     exit 1
 fi
+
+step "the SDK's own analyze and tests"
+# The pipeline verified everything about the package except whether the code in
+# it still works. Every other gate is about packaging: which files ship, which
+# architectures, which versions, whether the binaries match the build. A Dart
+# behavioural regression passed all of them, because the archive consumers and
+# the acceptance suite only exercise valid configurations and never enter a
+# guard clause. Deleting the minimum-poll-interval guard shipped clean.
+( cd sdks/flutter/coproduct \
+    && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PINNED_FLUTTER" -- \
+        bash -c 'flutter pub get >/dev/null && flutter analyze && flutter test' )
+echo "COPRODUCT_FLUTTER_SDK_TESTS_STATUS pass=true"
+
+step "the release tooling's own tests"
+# Several guarantees this pipeline now depends on live only in these tests: the
+# target lists agreeing, the pub-tree parser rejecting a silent drop, the
+# version bump moving from an already-released version
+( cd scripts/release/flutter && dart test )
+echo "COPRODUCT_RELEASE_TOOLING_TESTS_STATUS pass=true"
 
 step "version coherence"
 # Checked here rather than trusted from the version bump: nothing between the

@@ -46,25 +46,50 @@ same "flutter floor"   "$(pinned "$PRE" PINNED_FLUTTER_FLOOR)"   "$(pinned "$SUI
 CODEGEN_IN_RELEASE="$(grep -oE '"2\.[0-9]+\.[0-9]+"' "$RELEASE" | head -1 | tr -d '"')"
 same "frb codegen" "$(pinned "$PRE" PINNED_CODEGEN)" "$CODEGEN_IN_RELEASE" release.sh
 
-# A preflight that cannot fail is not a check. Hide rustup and require it to
-# name rust as the problem
+# A preflight that cannot fail is not a check, and one broken precondition
+# proves nothing about the others. Each check is broken on its own terms:
+# PATH-resolved tools by emptying PATH, the NDK by unsetting the variable it
+# reads, the Flutter SDKs by pointing HOME at an empty directory.
+#
+# The assertion is anchored to the report line rather than matching a bare
+# substring. "rust" alone also appears in the frb codegen remedy
+# (`cargo install flutter_rust_bridge_codegen`), so a substring match kept
+# reporting success after the rust check itself was deleted: the test passed
+# while checking nothing it claimed to.
 STUB="$(mktemp -d)"
+EMPTY_HOME="$(mktemp -d)"
 for t in git python3 dart adb awk find head tr sed grep uname; do
     real="$(command -v "$t" 2>/dev/null)" && ln -sf "$real" "$STUB/$t"
 done
-# bash by absolute path: the stub PATH deliberately has almost nothing on it
-OUT="$(PATH="$STUB" /bin/bash "$PRE" 2>&1)"
-rc=$?
-rm -rf "$STUB"
-if [[ "$rc" -eq 0 ]]; then
-    printf '  FAIL preflight passed with no toolchain on PATH\n'
-    fail=1
-elif ! printf '%s' "$OUT" | grep -q "rust"; then
-    printf '  FAIL preflight failed without naming rust: %s\n' "$OUT"
-    fail=1
-else
-    printf '  ok   preflight fails and names the missing toolchain\n'
+
+expect_reported_missing() { # label, output
+    if printf '%s' "$2" | grep -qE "^  FAIL +$1"; then
+        printf '  ok   preflight reports %s as missing\n' "$1"
+    else
+        printf '  FAIL preflight did not report %s as missing\n' "$1"
+        fail=1
+    fi
+}
+
+# 1. Tools resolved through PATH
+OUT_PATH="$(PATH="$STUB" /bin/bash "$PRE" 2>&1)"
+if [[ $? -eq 0 ]]; then
+    printf '  FAIL preflight passed with no toolchain on PATH\n'; fail=1; OUT_PATH=""
 fi
+for want in rust "llvm-tools" cargo-ndk xcode "frb codegen"; do
+    expect_reported_missing "$want" "$OUT_PATH"
+done
+
+# 2. The NDK is found through ANDROID_NDK_HOME, not PATH
+OUT_NDK="$(env -u ANDROID_NDK_HOME /bin/bash "$PRE" 2>&1)"
+expect_reported_missing "android ndk" "$OUT_NDK"
+
+# 3. The Flutter SDKs are found under $HOME/fvm/versions
+OUT_FVM="$(HOME="$EMPTY_HOME" /bin/bash "$PRE" 2>&1)"
+expect_reported_missing "flutter 3.44.0" "$OUT_FVM"
+expect_reported_missing "flutter 3.38.1" "$OUT_FVM"
+
+rm -rf "$STUB" "$EMPTY_HOME"
 
 [[ "$fail" -eq 0 ]] || { echo "preflight.test: FAIL" >&2; exit 1; }
 echo "preflight.test: PASS"
