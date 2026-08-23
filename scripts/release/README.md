@@ -14,11 +14,20 @@ Full runbook, prerequisites, and the publish procedure: the **Flutter** section
 of [`DEVELOPMENT.md`](../../DEVELOPMENT.md). This file maps the pipeline to the
 files that implement it.
 
-Run everything through `flutter/measure.sh`. It wraps `flutter/release.sh`,
-which runs the stages in order and stops at the first failure.
+Start with `flutter/preflight.sh`, which checks every pinned toolchain in a
+second rather than letting a missing one surface part-way through a half-hour
+run. Then run everything through `flutter/measure.sh`, which wraps
+`flutter/release.sh` and runs the stages in order, stopping at the first
+failure.
+
+`preflight.sh` restates the pinned versions rather than sourcing them, because
+the scripts that own them run work as a side effect and cannot be sourced.
+`preflight.test.sh` asserts the two agree, so they cannot drift apart in
+silence.
 
 ```
 flutter/
+├── preflight.sh      checks every pinned toolchain before anything is built
 ├── release.sh        orchestrator: runs every stage in order
 ├── measure.sh        wraps release.sh and reports the archive sizes
 ├── publish.sh        the only supported way to publish

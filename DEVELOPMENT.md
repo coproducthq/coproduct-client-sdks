@@ -184,12 +184,25 @@ README for the layout.
 | Android NDK 27.1.12297006 | asserted from its own `source.properties`, not the directory name |
 | Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
 | A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
+| A pub.dev account with rights to publish `coproduct` | needed only at step 6, but it is the step where a first-time publisher discovers they lack them |
 
 #### The release, end to end
 
 Every command below runs in **one shell**, in this order. The environment is set
 once and every later step depends on it, so do not start a new terminal
 part-way through.
+
+**0. Check the toolchains.** Every version the release pins, in one second,
+rather than discovering a missing one part-way through a half-hour run:
+
+```bash
+scripts/release/flutter/preflight.sh
+```
+
+Each failure names the command that fixes it. `llvm-tools` is the one worth
+front-loading: it is a separate `rustup` component and the first thing that
+needs it is the symbol check, which runs only after every architecture has
+finished compiling.
 
 **1. Set the environment.** Name scratch paths that do not exist yet: the
 scripts create and mark their own space and refuse a directory they did not
@@ -299,6 +312,15 @@ The wrapper re-verifies the seal, changes into the staged package, and publishes
 that. It stays interactive, so pub still prompts for confirmation and for
 authentication.
 
+**Authentication.** If you have never published from this machine, pub opens a
+browser for a Google sign-in and stores the result in
+`~/Library/Application Support/dart/pub-credentials.json`; `preflight.sh`
+reports whether that file exists. Signing in is not the same as being allowed
+to publish this package: for a first publication the package name must be
+available on pub.dev, and for later ones your account must be an uploader.
+Confirm both before starting a run, because neither is visible until the moment
+you publish.
+
 **7. Tag, only after pub.dev accepts.**
 
 ```bash
@@ -365,7 +387,14 @@ flutter_rust_bridge pin warning; the gate accepts that and fails only on errors
 or unexpected warnings. `pubspec.lock` is not committed, so record the resolved
 dependency and native toolchain versions as release evidence.
 
-#### Moving this to CI
+#### What CI would require
+
+This pipeline is built to run on one developer's machine. Nothing about it is
+hostile to CI, but it is not a workflow file away either, and the list below is
+the honest scope. **Local, gated release was this work's goal; CI was never in
+it.**
+
+Constraints that are already true, and that any design has to accept:
 
 - **The no-Rust gate needs a runner that never had a Rust toolchain**, or the
   deliberately constructed fresh `HOME` and sanitized `PATH` the gate builds.
@@ -373,9 +402,29 @@ dependency and native toolchain versions as release evidence.
 - **Android acceptance needs a Linux runner.** GitHub documents Android hardware
   acceleration on its Linux runners and states nested virtualization is
   unsupported on macOS runners, so one macOS runner cannot reliably host both.
-- **The job boots its own devices.** Both acceptance scripts consume an
-  already-booted device id and neither boot nor provision one.
 
+Prerequisites that do not exist yet, and would have to be built:
+
+- **Splitting the pipeline across runners.** `release.sh` runs every stage in
+  one process and shares the staging directory by path. Putting iOS on macOS and
+  Android on Linux means decomposing it into jobs that pass the staged package
+  and its build stamp between them as artifacts, and re-verifying the stamp on
+  arrival. That is a structural change, not configuration.
+- **Portability for the Linux half.** `stages/seal-package.sh` uses BSD
+  `stat -f` and `gates/mutation-gates.sh` uses BSD `sed -i ''`. Both fail on a
+  GNU userland, so the seal — which establishes what the package *is* — does not
+  currently run on Linux at all.
+- **Non-interactive publishing.** `publish.sh` ends in `flutter pub publish`,
+  which prompts. Nothing in the repository reads a pub token or handles
+  credentials as a secret.
+- **Device provisioning.** Both acceptance scripts consume an already-booted
+  device id and neither boot nor provision one. The runbook's boot commands are
+  written for a human at a terminal, not as workflow steps.
+
+Two properties are worth preserving in any CI design, because they are what the
+gates are for. The pipeline must still build from exactly one identified commit,
+and the mutation gates must still run — a CI job that skips them proves the
+package was built, not that anything would have caught it if it were wrong.
 
 ## Recovering local disk space
 
