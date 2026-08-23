@@ -275,6 +275,13 @@ of it the gate matrix building both platforms on two Flutter toolchains.
 scripts/release/flutter/measure.sh
 ```
 
+`COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES` overrides the acceptance budget, which
+spans the Gradle build as well as the device run. The default is 8. The no-Rust
+gate builds with an empty Gradle cache every time, so if a cold build on a
+healthy machine turns out not to fit, raise the override, record what the build
+actually took, and change the default from that measurement rather than from a
+guess.
+
 It stops at the first failure and prints the full log to `$COPRODUCT_RELEASE_LOG`.
 Each stage emits a status line, so `grep 'STATUS pass=' "$COPRODUCT_RELEASE_LOG"`
 shows how far it got.

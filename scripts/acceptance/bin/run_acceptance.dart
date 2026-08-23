@@ -64,7 +64,19 @@ Future<void> main(List<String> args) async {
     ],
     testWorkingDirectory: consumerDir,
     readinessTimeout: const Duration(seconds: 15),
-    overallTimeout: const Duration(minutes: 8),
+    // Spans the build as well as the run, because `flutter test` does both
+    // under one clock. The no-Rust gate uses a fresh HOME, so its Gradle cache
+    // is empty every run and its build is always cold.
+    //
+    // The default stays at 8 deliberately. Every long build measured so far
+    // (968s, 1070s, 2065s) came from a machine with 24.5 of 25.6 GB of swap
+    // consumed, where the same build took 12s healthy. Those numbers say
+    // nothing about a cold build on a healthy machine, and setting a gate's
+    // tolerance from them would retire the timeout as a signal. Override it,
+    // measure a healthy cold run, then change this from evidence.
+    overallTimeout: Duration(
+        minutes: int.parse(
+            Platform.environment['COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES'] ?? '8')),
     log: stderr.writeln,
   );
 
