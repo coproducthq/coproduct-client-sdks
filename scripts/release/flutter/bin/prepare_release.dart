@@ -4,7 +4,8 @@ import 'package:coproduct_release/prepare.dart';
 
 // dart run bin/prepare_release.dart --version 0.1.0 --date 2026-08-04
 // Run from the repo root. Transforms the four coordinated release files of the
-// Flutter package from 0.1.0-dev to the release version as coordinated writes,
+// Flutter package from whatever version it currently names to the release
+// version as coordinated writes,
 // with input validation, best-effort rollback on write failure, idempotence, and
 // an identity audit
 Future<void> main(List<String> args) async {
