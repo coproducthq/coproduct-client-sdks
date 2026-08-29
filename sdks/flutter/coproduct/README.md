@@ -94,7 +94,12 @@ dependencies:
 ## Quickstart
 
 Start the SDK once, before your app runs, and put the client where your widgets
-can find it. This is a complete `main`:
+can find it. This is a complete `main`.
+
+Replace the placeholder key before running it. `initialize` throws a
+`CoproductException` for a malformed key or an invalid configuration, so a
+copied-and-unedited placeholder fails immediately rather than silently serving
+defaults.
 
 ```dart
 import 'package:coproduct/coproduct.dart';
@@ -415,21 +420,30 @@ await tester.pumpAndSettle();
 The harness supplies resolved values rather than evaluating targeting rules: set
 the result your scenario needs. See [doc/testing.md](doc/testing.md).
 
-## A runnable sample
+## A complete example
 
-[`example/`](example/) is a small app you can run. It installs a
-`CoproductScope`, reads a flag through `CoproductFlagBuilder` with no `client`
-argument, and puts a getter read beside it so you can watch the difference: the
-observation follows changes, the getter does not.
+[`example/lib/main.dart`](example/lib/main.dart) is a complete, working
+integration to read. It installs a `CoproductScope`, reads a flag through
+`CoproductFlagBuilder` with no `client` argument, and puts a getter read beside
+it so you can watch the difference: the observation follows changes, the getter
+does not.
 
 It starts up differently from the Quickstart above, rendering its shell first
 and initializing afterward, which keeps the first frame immediate. Both shapes
-are fine; the example's README explains the trade.
+are fine.
+
+The copy published on pub.dev is source to read and browse under the Example
+tab. To run it, clone the repository, where the example ships with its iOS and
+Android projects:
+
+```sh
+flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
+```
 
 ## Building from source
 
-See the repo-root [DEVELOPMENT.md](../../../DEVELOPMENT.md) for prerequisites and per-platform build commands.
+See [DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md) in the repository for prerequisites and per-platform build commands.
 
 ## License
 
-Apache License 2.0. See [LICENSE](../../../LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).

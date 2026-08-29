@@ -106,12 +106,22 @@ yarn example android --no-packager --active-arch-only
 yarn example ios --no-packager
 ```
 
-Flutter demo:
+Flutter demo. The example source-links the SDK, whose native libraries are
+gitignored build output and absent from a clean checkout, so build them first:
 
 ```bash
+scripts/package/flutter-build-native.sh all
 cd sdks/flutter/coproduct/example
 flutter pub get
-flutter run -d <device_id>
+flutter run -d <device_id> --dart-define=COPRODUCT_SDK_KEY=<key>
+```
+
+The source-linked demo scripts do the native build for you and are the
+supported path:
+
+```bash
+scripts/build/source-linked-flutter-demo-ios.sh
+scripts/build/source-linked-flutter-demo-android.sh
 ```
 
 ### Artifact-linked
@@ -142,13 +152,21 @@ yarn install
 yarn android  # or yarn ios
 ```
 
-Flutter consumer-test:
+Flutter consumer-test. **Run through the scripts, not by hand.** The checked-in
+`consumer-tests/flutter` resolves `coproduct` through an in-repository `path:`
+dependency, so running it directly tests the source tree and not a packaged
+release — the opposite of what artifact-linked means. What makes it
+artifact-linked is `stages/consumer-from-archive.sh`, which copies the app to a
+disposable directory and repoints it at the extracted archive with a
+`pubspec_overrides.yaml`.
 
 ```bash
-cd consumer-tests/flutter
-flutter pub get
-flutter run -d <device_id>
+scripts/build/artifact-linked-flutter-consumer-test-ios.sh
+scripts/build/artifact-linked-flutter-consumer-test-android.sh
 ```
+
+The release pipeline runs both, against the extracted package rather than the
+checkout.
 
 ## Releasing
 
@@ -254,19 +272,49 @@ every consumer's `Podfile.lock` and cannot be withdrawn. Add an
 `## Unreleased` heading to the CHANGELOG as you develop; this promotes it and
 refuses to run without it.
 
+Set the version once and use it for both preparation and the tag, so the two
+cannot drift apart:
+
 ```bash
+export COPRODUCT_RELEASE_VERSION=1.0.0
+export COPRODUCT_RELEASE_DATE="$(date +%F)"
+
 (cd scripts/release/flutter && dart pub get \
-  && dart run bin/prepare_release.dart --version 1.0.1 --date "$(date +%F)")
+  && dart run bin/prepare_release.dart \
+       --version "$COPRODUCT_RELEASE_VERSION" \
+       --date "$COPRODUCT_RELEASE_DATE")
 ```
+
+Use the date you intend to publish on, not necessarily today.
+
+**If the CHANGELOG already carries a dated heading** for a version that was
+prepared but never published, this refuses to run: it accepts only
+`## Unreleased` or the exact heading it would write. Reset the first line to
+`## Unreleased` and rerun, which is also what puts the real publication date on
+a release that slipped.
 
 On a write failure it rolls back. If a restore write itself fails it names the
 files it could not restore and says the rollback was incomplete — reset those
 with `git checkout` before retrying.
 
-**4. Review and commit.** The pipeline builds from one identified commit:
+A dated heading is also what the archive gate expects. Left at `## Unreleased`,
+pub emits a second warning and the gate fails, because it allows exactly one.
+
+**4. Review, commit, and push.** The pipeline builds from one identified commit:
 staging refuses a dirty tree, and refuses binaries whose build stamp names a
 commit other than `HEAD`. Commit first, then run; rebuild after any further
 commit.
+
+```bash
+git push origin HEAD
+```
+
+**Push before publishing, not after.** A published version is immutable, and its
+`PROVENANCE.json` names the commit it was built from. If that commit exists only
+on the machine that published it, the record points at nothing anyone else can
+fetch, and a lost laptop or a discarded branch makes a shipped release
+unreproducible. Everything else in this pipeline exists to keep the artifact
+traceable; this is the step that keeps the thing it traces to alive.
 
 **5. Run the pipeline.** Expect roughly 20-30 minutes on a healthy machine, most
 of it the gate matrix building both platforms on two Flutter toolchains.
@@ -331,7 +379,9 @@ you publish.
 **7. Tag, only after pub.dev accepts.**
 
 ```bash
-git tag -a "flutter-v1.0.1" -m "Flutter SDK 1.0.1" && git push origin "flutter-v1.0.1"
+git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
+  -m "Flutter SDK $COPRODUCT_RELEASE_VERSION" \
+  && git push origin "flutter-v$COPRODUCT_RELEASE_VERSION"
 ```
 
 #### Who does what

@@ -1,5 +1,11 @@
 ## 1.0.0 - 2026-08-19
 
+First stable release. The SDK fetches and evaluates real flags on a booted
+device: it polls the Coproduct endpoint, applies automatic device and app
+context, evaluates targeting and identity, and serves values from the
+synchronous getters. Initialization waits for automatic metadata collection and
+first-poll readiness against one `startupTimeout` convergence budget.
+
 The SDK now ships prebuilt native libraries inside the package, so building an
 app that depends on it no longer requires a Rust toolchain. Earlier versions
 compiled the evaluation core during the consuming build.
@@ -28,12 +34,6 @@ and is still returned exactly as supplied.
 it, so the value described a condition a developer could not observe.
 Reconciliation remains observable as a lifecycle event.
 
-First functional pre-release. The SDK fetches and evaluates real flags on a
-booted device: it polls the Coproduct endpoint, applies automatic device and app
-context, evaluates targeting and identity, and serves values from the synchronous
-getters. Initialization waits for automatic metadata collection and first-poll
-readiness against one `startupTimeout` convergence budget.
-
 Flags can now be observed as well as read. `observeBool`, `observeString`,
 `observeInt`, `observeNumber`, and `observeJson` return a `FlagObservation`, a
 `ValueListenable` seeded synchronously with the value its matching getter would
@@ -42,8 +42,8 @@ notifies only when the value actually changes, resolves to the caller's default
 whenever the flag is unavailable, and is ended with `dispose()`.
 `CoproductFlagBuilder` builds a widget from a flag and owns that lifecycle for
 you. `CoproductScope` carries the client down the widget tree, so a builder can
-omit `client` and resolve it from the context instead. This pre-release does not
-include a multi-flag API or the detail getters.
+omit `client` and resolve it from the context instead. Multi-flag reads and the
+detail getters are planned for a later release.
 
 ## 0.0.1
 

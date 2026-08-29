@@ -3,6 +3,11 @@
 `package:coproduct/testing.dart` gives you a real `CoproductClient` backed by
 values you set in the test. No SDK key, no network, no native library.
 
+Save this as `test/checkout_page_test.dart` and run it with `flutter test`.
+`CheckoutPage`, `OldCheckout`, and `NewCheckout` are widgets from your own app,
+not SDK types: substitute the screen your flag controls and the two outcomes it
+chooses between.
+
 ```dart
 import 'package:coproduct/coproduct.dart';
 import 'package:coproduct/testing.dart';

@@ -18,8 +18,17 @@ Then, from a checkout of this package:
 
 ```sh
 flutter pub get
-flutter run
+flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 ```
 
-Replace the placeholder SDK key in `lib/main.dart` with a key from your
-Coproduct project. See the package README for the full API.
+The key is read with `String.fromEnvironment`, so pass it with `--dart-define`
+rather than editing the source. Without it the app runs against a placeholder
+and every flag serves its caller default.
+
+This example initializes after `runApp` rather than before it, so the first
+frame renders immediately and the shell is visible while the SDK starts. The
+package README's Quickstart does the opposite, awaiting `initialize` before
+`runApp`, which keeps the first frame authoritative. Both are supported; choose
+by whether you would rather show the shell sooner or avoid a frame of defaults.
+
+See the package README for the full API.
