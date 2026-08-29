@@ -268,7 +268,8 @@ rather than part-way through a long run.
 the SDK version constant and its derived `User-Agent`, the README install
 example, the podspec version, and the CHANGELOG together, then audits that they
 agree. The podspec is the costly one to get wrong: it is externally visible in
-every consumer's `Podfile.lock` and cannot be withdrawn. Add an
+every consumer's `Podfile.lock`, where a published version can never be
+replaced. Add an
 `## Unreleased` heading to the CHANGELOG as you develop; this promotes it and
 refuses to run without it.
 
@@ -361,7 +362,7 @@ directory — and it publishes cleanly. The native binaries there are gitignored
 build output, so pub omits them and offers a ~91 KB archive with no
 `CoproductFFI.xcframework` and no `jniLibs`, carrying only the same single
 warning the real release carries. pub.dev accepts it, every consumer fails at
-load, and it cannot be withdrawn.
+load. A published version can never be replaced. Within seven days it may be retracted to prevent new resolutions, but retraction does not delete it and existing lockfiles can continue using it.
 
 The wrapper re-verifies the seal, changes into the staged package, and publishes
 that. It stays interactive, so pub still prompts for confirmation and for

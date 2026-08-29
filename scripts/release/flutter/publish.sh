@@ -7,7 +7,9 @@
 # binaries are gitignored build output, so pub omits them and offers a ~91 KB
 # archive with no xcframework and no jniLibs, carrying only the same warning the
 # real release carries. It is accepted by pub.dev and unusable by every
-# consumer, and it cannot be withdrawn.
+# consumer. A published version can never be replaced; within seven days it may
+# be retracted to stop new resolutions, but retraction is not deletion and
+# existing lockfiles keep using it.
 #
 # So the publish is wrapped rather than documented. This script re-verifies the
 # seal, changes into the staged package, and publishes that. It stays

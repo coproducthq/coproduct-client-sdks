@@ -13,26 +13,9 @@ the person using your app. That is how one flag serves `true` to the segment you
 choose and `false` to everyone else, or serves a different limit to trial
 accounts than to paid ones.
 
-Attributes come from two places:
-
-- **The SDK fills in six automatically**, with no code from you: `platform`,
-  `os_version`, `app_version`, `app_build`, `locale`, and `timezone`. So you can
-  target Android only, or a locale, or roll a feature out to builds at or above
-  a version, straight away.
-- **You supply the rest**, through [`identify`](#identity). These are whatever
-  your product needs a rule to match on, such as `plan`, `region`, or
-  `signup_date`. Their names are yours, and they have to match the names your
-  targeting rules use.
-
-The two sets are kept apart, so supplying your own attributes never disturbs the
-automatic ones.
-
-**Flags are evaluated on the device, not on a server.** The SDK downloads your
-flag definitions and their targeting rules once, then works out which value
-applies using attributes you set locally with `identify`. Reading a flag is a
-synchronous in-memory lookup: it makes no network request, so it never blocks a
-build and never fails because the network is down. The attributes you set stay
-on the device unless you send them somewhere yourself.
+How that evaluation works, and which attributes you get for free, is in
+[How evaluation works](#how-evaluation-works) below — after you have a flag
+working.
 
 ## Compatibility
 
@@ -174,6 +157,29 @@ Coproduct does not change your running app straight away, because the SDK checks
 for updates on a timer. See
 [Seeing a flag change while you develop](#seeing-a-flag-change-while-you-develop)
 for the quickest way to force it.
+
+## How evaluation works
+
+**Flags are evaluated on the device, not on a server.** The SDK downloads your
+flag definitions and their targeting rules once, then works out which value
+applies using attributes you set locally with `identify`. Reading a flag is a
+synchronous in-memory lookup: it makes no network request, so it never blocks a
+build and never fails because the network is down. The attributes you set stay
+on the device unless you send them somewhere yourself.
+
+Attributes come from two places:
+
+- **The SDK fills in six automatically**, with no code from you: `platform`,
+  `os_version`, `app_version`, `app_build`, `locale`, and `timezone`. So you can
+  target Android only, or a locale, or roll a feature out to builds at or above
+  a version, straight away.
+- **You supply the rest**, through [`identify`](#identity). These are whatever
+  your product needs a rule to match on, such as `plan`, `region`, or
+  `signup_date`. Their names are yours, and they have to match the names your
+  targeting rules use.
+
+The two sets are kept apart, so supplying your own attributes never disturbs the
+automatic ones.
 
 ## Reading flags
 
@@ -434,9 +440,15 @@ are fine.
 
 The copy published on pub.dev is source to read and browse under the Example
 tab. To run it, clone the repository, where the example ships with its iOS and
-Android projects:
+Android projects. The SDK's native libraries are build output, so build them
+before the first run:
 
 ```sh
+git clone https://github.com/coproducthq/coproduct-client-sdks.git
+cd coproduct-client-sdks
+scripts/package/flutter-build-native.sh all
+cd sdks/flutter/coproduct/example
+flutter pub get
 flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 ```
 

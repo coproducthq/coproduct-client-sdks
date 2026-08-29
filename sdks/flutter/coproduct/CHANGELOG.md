@@ -1,4 +1,4 @@
-## 1.0.0 - 2026-08-19
+## Unreleased
 
 First stable release. The SDK fetches and evaluates real flags on a booted
 device: it polls the Coproduct endpoint, applies automatic device and app
