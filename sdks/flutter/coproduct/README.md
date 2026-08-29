@@ -38,8 +38,19 @@ value:
   flag, like `new-checkout`. The examples below use a boolean flag with that
   key, so create one to follow along, or substitute a key you already have.
 
-You create both in Coproduct, whose primary interface is the Coproduct MCP app,
-so you can issue a mobile SDK key and create a flag from there.
+Create both at [coproduct.app](https://coproduct.app):
+
+1. Sign in and open the project you want the app to read flags from, or create
+   one.
+2. Issue a **mobile** SDK key for that project. Mobile keys are the only kind
+   this SDK accepts; a server key is rejected at `initialize` with
+   `InvalidKeyType`.
+3. Create a boolean flag with the key `new-checkout`, or substitute a flag key
+   you already have in the examples below.
+
+If your team drives Coproduct through the Coproduct MCP app, you can ask it to
+issue the key and create the flag instead. Either path produces the same two
+values.
 
 **Every read is safe.** Whatever happens, you get back a usable value: if the
 key does not exist, or names a flag of a different type, or nothing has
