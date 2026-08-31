@@ -64,7 +64,7 @@ flutter/
 
 A gate that passes on a broken subject is worse than no gate: it reports
 confidence it has not earned. `gates/mutation-gates.sh` breaks the package in
-eleven specific ways and requires each gate to fail *and name the mutation*, with
+twelve specific ways and requires each gate to fail *and name the mutation*, with
 a green baseline established first so that a gate already red for an unrelated
 reason cannot masquerade as a catch.
 

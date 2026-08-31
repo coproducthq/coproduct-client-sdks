@@ -337,6 +337,13 @@ Maintainer inner loop. Removing cargokit removed the maintainer's build path as 
 
 **Rebuild native artifacts after any change to the Rust source, the FRB surface, or the generated bindings.** A stale library surfaces at runtime as an FRB content-hash mismatch at `initialize`, not as a link error, and symbol verification will not catch it because the entrypoint names are unchanged.
 
+The Flutter package ships exactly three Android ABIs: `arm64-v8a`,
+`armeabi-v7a`, and `x86_64`. It must not ship 32-bit `x86`. Both are enforced,
+not merely conventional: `stages/build-binaries.sh` fails the release if an
+`x86` jniLib appears, and `gates/gate-suite.sh` requires exactly three Android
+libraries in the packaged APK. Adding a fourth ABI for emulator parity breaks
+the release.
+
 iOS simulator builds require an Apple Silicon Mac. The package ships an arm64 simulator slice only and excludes `x86_64` from the simulator builds of apps that depend on it.
 
 ## iOS Notes

@@ -18,13 +18,20 @@ PRIMARY=3.44.0
 FLOOR=3.38.1
 fail=0
 
+# One log per step. A single shared path meant each step erased the previous
+# one's output, so a failure twelve steps in left five lines of tail and no
+# build log to diagnose it from
+step_log_for() { printf '/tmp/gate-suite-%s.log' "$(printf '%s' "$1" | tr -c 'a-zA-Z0-9' '-')"; }
+
 run() { # label, command...
     local label="$1"; shift
-    if "$@" >/tmp/gate-suite-step.log 2>&1; then
+    local STEP_LOG; STEP_LOG="$(step_log_for "$label")"
+    if "$@" >"$STEP_LOG" 2>&1; then
         printf '  ok   %s\n' "$label"
     else
         printf '  FAIL %s\n' "$label"
-        tail -5 /tmp/gate-suite-step.log | sed 's/^/       /'
+        tail -5 "$STEP_LOG" | sed 's/^/       /'
+        printf '       full log: %s\n' "$STEP_LOG"
         fail=1
     fi
 }

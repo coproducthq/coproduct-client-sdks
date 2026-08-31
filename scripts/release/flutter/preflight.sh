@@ -110,7 +110,21 @@ for v in "$PINNED_FLUTTER_PRIMARY" "$PINNED_FLUTTER_FLOOR"; do
     fi
 done
 
-for tool in git python3 dart adb; do
+# Gated by the Android consumer-test script, which the gate matrix does not
+# reach until five architectures have been built
+for var in ANDROID_HOME JAVA_HOME; do
+    eval "val=\${$var:-}"
+    if [[ -n "$val" && -d "$val" ]]; then
+        report ok "$var" "$val"
+    elif [[ -n "$val" ]]; then
+        report FAIL "$var" "set but not a directory: $val" "point $var at a real install"
+    else
+        report FAIL "$var" "unset" \
+            "export $var (ANDROID_HOME is the SDK root, JAVA_HOME a JDK 17 install)"
+    fi
+done
+
+for tool in git python3 dart adb flutter fvm; do
     if command -v "$tool" >/dev/null 2>&1; then
         report ok "$tool" "present"
     else

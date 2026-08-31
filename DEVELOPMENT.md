@@ -12,7 +12,7 @@ This file documents the build prerequisites, per-surface build commands, and loc
 | Flutter | latest stable | https://flutter.dev/docs/get-started/install |
 | Android SDK | API 36.1 | Android Studio |
 | Android NDK | 27.1.12297006 | Android Studio SDK Manager |
-| Xcode | 16.0+ | Mac App Store |
+| Xcode | 16.0+ to build; exactly 26.5 to cut a release | Mac App Store |
 | CocoaPods | 1.x | `brew install cocoapods` |
 
 Required environment variables for Android builds:
@@ -73,6 +73,41 @@ The iOS scripts depend on these packaging scripts that can also be run on their 
 - `./scripts/package/ios-build-xcframework.sh` — builds `CoproductFFI.xcframework` from Rust source: the three iOS triples, regenerated Swift bindings and C header, a lipo of the two simulator slices, then `xcodebuild -create-xcframework`. Run it whenever the Rust FFI surface changes so any SwiftPM consumer links against an xcframework that matches the live symbols. `source-linked-ios-demo.sh` runs it automatically.
 - `./scripts/package/ios-spm-binary.sh` — archives the existing `CoproductFFI.xcframework` into a SwiftPM zip plus checksum under `build/ios-spm/`. It does not build the xcframework, so build it first.
 - `./scripts/package/ios-spm-fixture.sh` — packages the full SwiftPM fixture (zip + checksum) that the iOS consumer-test consumes via `file:`. Invokes the binary script internally.
+
+## Changing the SDK
+
+### Rust core or the Flutter FFI surface
+
+Editing `core/coproduct-core` or `ffi/coproduct-ffi-frb/src/api.rs` is not
+enough on its own. The Dart bindings under
+`sdks/flutter/coproduct/lib/src/rust/` are generated, and a stale copy does not
+fail to link: it surfaces at runtime as an FRB content-hash mismatch inside
+`Coproduct.initialize`, far from the edit that caused it.
+
+Regenerate, format, then rebuild the native libraries:
+
+```bash
+cd sdks/flutter/coproduct        # the only directory holding flutter_rust_bridge.yaml
+flutter_rust_bridge_codegen generate
+cd - && cargo fmt --all          # codegen output is not rustfmt-clean on its own
+scripts/package/flutter-build-native.sh all
+```
+
+`flutter-build-native.sh` compiles the native libraries. It does **not**
+regenerate bindings, and neither do the source-linked demo scripts, so the
+codegen step is yours to remember after any change to the FFI surface.
+
+### What to run before you push
+
+```bash
+cargo test --workspace                                    # the Rust core and both FFI crates
+(cd sdks/flutter/coproduct && flutter analyze && flutter test)
+(cd scripts/release/flutter && dart test)                 # the release tooling
+(cd scripts/acceptance && dart test)                      # the device-acceptance harness
+```
+
+The release pipeline runs the first three and fails on any of them. It does not
+run the fourth, so that one is on you.
 
 ## Manual build commands
 
@@ -235,7 +270,13 @@ export COPRODUCT_FLUTTER_ARCHIVE_DIR="$COPRODUCT_RELEASE_ROOT/archive"
 export COPRODUCT_CONSUMER_DIR="$COPRODUCT_RELEASE_ROOT/consumer"
 export COPRODUCT_RELEASE_LOG="$COPRODUCT_RELEASE_ROOT.log"
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/27.1.12297006"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
 ```
+
+`ANDROID_HOME` and `JAVA_HOME` are gated by the Android consumer-test script,
+which the gate matrix reaches about twenty minutes into a run, after five
+architectures have already been built.
 
 **2. Boot one iOS simulator and one Android emulator.** The gates consume an
 already-booted device and neither boot nor provision one.
@@ -331,6 +372,12 @@ healthy machine turns out not to fit, raise the override, record what the build
 actually took, and change the default from that measurement rather than from a
 guess.
 
+**It changes your working tree and your DerivedData.** The run regenerates the
+FRB bindings and runs `cargo fmt --all` in place, then aborts if that moved
+anything — leaving you with modified tracked files to `git checkout .` before
+retrying. It also deletes `~/Library/Developer/Xcode/DerivedData/Runner-*`,
+which is every Flutter app's DerivedData on the machine, not only this one.
+
 It stops at the first failure and prints the full log to `$COPRODUCT_RELEASE_LOG`.
 Each stage emits a status line, so `grep 'STATUS pass=' "$COPRODUCT_RELEASE_LOG"`
 shows how far it got.
@@ -338,6 +385,8 @@ shows how far it got.
 | Stage | Script | Status line |
 |---|---|---|
 | Codegen pin, clean checkout, zero diff | `release.sh` | — |
+| The SDK's own analyze and tests | `release.sh` | `COPRODUCT_FLUTTER_SDK_TESTS_STATUS` |
+| The release tooling's own tests | `release.sh` | `COPRODUCT_RELEASE_TOOLING_TESTS_STATUS` |
 | Version coherence across all four files | `bin/check_identity.dart` | `COPRODUCT_FLUTTER_IDENTITY_STATUS` |
 | License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
 | Build five architectures | `stages/build-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
@@ -401,7 +450,9 @@ the first publication and the transfer are both manual.
 #### When a gate fails
 
 The gates are built so a failure names its own cause; read the status line that
-is missing rather than the last line of output. Two failures are procedural
+is missing rather than the last line of output. A failing gate-matrix step
+prints its last five lines and the path to its full log, one file per step under
+`/tmp/gate-suite-*.log`. Two failures are procedural
 rather than defects, and both are common:
 
 - **"the release must start from a clean checkout"** or **"the binaries were
