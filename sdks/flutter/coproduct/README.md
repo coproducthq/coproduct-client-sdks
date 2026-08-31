@@ -4,8 +4,8 @@ Flutter SDK for [Coproduct](https://coproduct.app), a feature flag and
 experimentation platform.
 
 **This release covers feature flags:** delivery, targeting, identity, reactive
-reads, and a testing library. Experiment tracking — recording which variant each
-user saw — arrives in a following release.
+reads, and a testing library. Experiment tracking, recording which variant each
+user saw, arrives in a following release.
 
 A **feature flag** is a value you control from Coproduct rather than from your
 app's code: a switch that turns a feature on or off, or a piece of
@@ -18,7 +18,7 @@ choose and `false` to everyone else, or serves a different limit to trial
 accounts than to paid ones.
 
 How that evaluation works, and which attributes you get for free, is in
-[How evaluation works](#how-evaluation-works) below — after you have a flag
+[How evaluation works](#how-evaluation-works) below, after you have a flag
 working.
 
 ## Compatibility
@@ -92,10 +92,10 @@ dependencies:
 Set the platform minimums before your first build, or `pod install` refuses the
 pod and the Android build fails:
 
-- **iOS** — in `ios/Podfile`, set `platform :ios, '15.0'` at the top. A new
+- **iOS.** In `ios/Podfile`, set `platform :ios, '15.0'` at the top. A new
   Flutter app ships that line commented out, so uncomment it. Set the iOS
   Deployment Target to 15.0 in Xcode too, then run `pod install`.
-- **Android** — in `android/app/build.gradle.kts`, set `minSdk = 24`.
+- **Android.** In `android/app/build.gradle.kts`, set `minSdk = 24`.
 
 ## Quickstart
 

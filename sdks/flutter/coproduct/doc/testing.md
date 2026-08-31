@@ -95,7 +95,7 @@ await tester.pumpAndSettle();
 
 A single `pump()` is not enough. Delivery is asynchronous, matching production,
 and the test binding checks whether a frame is already scheduled *before* it
-flushes microtasks — so a value set by the test arrives after that check and is
+flushes microtasks, so a value set by the test arrives after that check and is
 drawn only by the following pump.
 
 If the widget under test contains a continuous animation that prevents settling,
