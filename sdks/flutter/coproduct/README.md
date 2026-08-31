@@ -405,6 +405,16 @@ getters serve their defaults and existing observations keep their last value and
 stop updating. It is safe to call more than once, and a later `initialize`
 starts fresh.
 
+A later `initialize` returns a **new** client. If you keep the client in a
+Provider, a Riverpod container, or a BLoC, replace it there too: the old
+instance stays callable and silently serves defaults forever. Most apps only
+need `shutdown` at final teardown, so this rarely comes up.
+
+Use the client on the isolate that created it. It holds a handle to the native
+evaluation core, so do not pass a `CoproductClient` or a `FlagObservation`
+through a `SendPort` to a worker isolate. Read flags on the main isolate and
+send the resulting values instead.
+
 ## Troubleshooting
 
 **A flag always returns the default I passed.** Work through these in order:
