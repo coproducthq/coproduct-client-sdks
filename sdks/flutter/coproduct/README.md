@@ -3,6 +3,10 @@
 Flutter SDK for [Coproduct](https://coproduct.app), a feature flag and
 experimentation platform.
 
+**This release covers feature flags:** delivery, targeting, identity, reactive
+reads, and a testing library. Experiment tracking — recording which variant each
+user saw — arrives in a following release.
+
 A **feature flag** is a value you control from Coproduct rather than from your
 app's code: a switch that turns a feature on or off, or a piece of
 configuration you can change without shipping a release.

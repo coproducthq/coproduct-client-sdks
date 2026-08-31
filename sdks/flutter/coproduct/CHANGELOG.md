@@ -41,8 +41,9 @@ notifies only when the value actually changes, resolves to the caller's default
 whenever the flag is unavailable, and is ended with `dispose()`.
 `CoproductFlagBuilder` builds a widget from a flag and owns that lifecycle for
 you. `CoproductScope` carries the client down the widget tree, so a builder can
-omit `client` and resolve it from the context instead. Multi-flag reads and the
-detail getters are planned for a later release.
+omit `client` and resolve it from the context instead. Multi-flag reads, the detail
+getters, and experiment tracking are planned for a later release: this version
+delivers and evaluates flags, and does not yet record which variant a user saw.
 
 ## 0.0.1
 
