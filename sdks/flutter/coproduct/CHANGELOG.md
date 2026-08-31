@@ -32,7 +32,6 @@ and is still returned exactly as supplied.
 
 `ProviderState` no longer carries a `reconciling` value. `state` never returned
 it, so the value described a condition a developer could not observe.
-Reconciliation remains observable as a lifecycle event.
 
 Flags can now be observed as well as read. `observeBool`, `observeString`,
 `observeInt`, `observeNumber`, and `observeJson` return a `FlagObservation`, a
