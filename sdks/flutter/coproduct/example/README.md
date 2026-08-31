@@ -3,18 +3,24 @@
 A small app showing how to initialize the SDK, read a flag, and observe changes
 as values update.
 
-This example source-links the SDK, so it needs the native libraries built
-first. They are gitignored build output and absent from a clean checkout:
+**Reading this on pub.dev?** Copy `lib/main.dart` into an app that depends on
+`coproduct` from pub.dev and run it with the `--dart-define` below. That path
+uses the published prebuilt binaries and needs no Rust toolchain.
+
+**Working in a clone of the repository?** This example source-links the SDK and
+compiles the Rust core, so it needs Rust, Xcode, and the Android NDK. Build the
+native libraries first — they are gitignored build output, absent from a clean
+checkout:
 
 ```sh
 scripts/package/flutter-build-native.sh all
 ```
 
-Or use the source-linked demo scripts, which run that step for you:
+The source-linked demo scripts run that step for you:
 `scripts/build/source-linked-flutter-demo-ios.sh` and
-`...-android.sh`.
+`scripts/build/source-linked-flutter-demo-android.sh`.
 
-Then, from a checkout of this package:
+Then, from this directory:
 
 ```sh
 flutter pub get

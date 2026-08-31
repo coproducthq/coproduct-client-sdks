@@ -25,7 +25,7 @@ working.
 | Dart | >= 3.10.0 |
 | iOS deployment target | 15.0+ |
 | Android minSdk | 24 |
-| Gradle (Android side) | 9.x |
+| Gradle (Android side) | 8.x or later |
 
 ## Before you start
 
@@ -84,6 +84,14 @@ Add it to your `pubspec.yaml`:
 dependencies:
   coproduct: ^1.0.0
 ```
+
+Set the platform minimums before your first build, or `pod install` refuses the
+pod and the Android build fails:
+
+- **iOS** — in `ios/Podfile`, set `platform :ios, '15.0'` at the top. A new
+  Flutter app ships that line commented out, so uncomment it. Set the iOS
+  Deployment Target to 15.0 in Xcode too, then run `pod install`.
+- **Android** — in `android/app/build.gradle.kts`, set `minSdk = 24`.
 
 ## Quickstart
 
@@ -194,7 +202,10 @@ automatic ones.
 
 ## Reading flags
 
-Five getters, one per flag type. Each takes the flag key and the value to serve
+Five getters over four flag types. `getBool`, `getString`, `getNumber`, and
+`getJson` map one to one; `getInt` reads a **number** flag and truncates toward
+zero, so create a number flag when your code calls `getInt`. Each takes the flag
+key and the value to serve
 when the flag cannot be resolved. Reach the client from a widget with
 `CoproductScope.of(context)`, or keep the one `initialize` returned:
 
@@ -449,19 +460,19 @@ It starts up differently from the Quickstart above, rendering its shell first
 and initializing afterward, which keeps the first frame immediate. Both shapes
 are fine.
 
-The copy published on pub.dev is source to read and browse under the Example
-tab. To run it, clone the repository, where the example ships with its iOS and
-Android projects. The SDK's native libraries are build output, so build them
-before the first run:
+The copy published on pub.dev is source to read under the Example tab. To run
+it, paste `example/lib/main.dart` into a new app that depends on `coproduct`
+from pub.dev. That uses the prebuilt binaries, so it needs no Rust toolchain,
+and it reads the key from the environment:
 
 ```sh
-git clone https://github.com/coproducthq/coproduct-client-sdks.git
-cd coproduct-client-sdks
-scripts/package/flutter-build-native.sh all
-cd sdks/flutter/coproduct/example
-flutter pub get
 flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 ```
+
+Building the example from a clone of this repository is a different thing: it
+source-links the SDK and compiles the Rust core from source, so it additionally
+needs Rust, Xcode, and the Android NDK. That is a maintainer workflow, described
+in [DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md).
 
 ## Building from source
 
