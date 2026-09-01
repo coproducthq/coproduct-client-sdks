@@ -255,23 +255,23 @@ final class InMemoryBackend implements CoproductClientBackend {
   }
 
   @override
-  bool getBool(String key, bool defaultValue) =>
+  bool getBool(String key, {required bool defaultValue}) =>
       _shutdown ? defaultValue : projectBool(_flags[key]) ?? defaultValue;
 
   @override
-  String getString(String key, String defaultValue) =>
+  String getString(String key, {required String defaultValue}) =>
       _shutdown ? defaultValue : projectString(_flags[key]) ?? defaultValue;
 
   @override
-  int getInt(String key, int defaultValue) =>
+  int getInt(String key, {required int defaultValue}) =>
       _shutdown ? defaultValue : projectInt(_flags[key]) ?? defaultValue;
 
   @override
-  double getNumber(String key, double defaultValue) =>
+  double getNumber(String key, {required double defaultValue}) =>
       _shutdown ? defaultValue : projectNumber(_flags[key]) ?? defaultValue;
 
   @override
-  String getJson(String key, String defaultValueJson) =>
+  String getJson(String key, {required String defaultValueJson}) =>
       _shutdown ? defaultValueJson : projectJson(_flags[key]) ?? defaultValueJson;
 
   ObservationHandle<T> _observe<T>(

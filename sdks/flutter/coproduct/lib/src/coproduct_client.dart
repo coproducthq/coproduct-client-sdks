@@ -46,23 +46,24 @@ final class CoproductClient {
   final CoproductClientBackend _backend;
   final SerialQueue _identityQueue = SerialQueue();
 
-  bool getBool(String key, bool defaultValue) =>
-      _backend.getBool(key, defaultValue);
+  bool getBool(String key, {required bool defaultValue}) =>
+      _backend.getBool(key, defaultValue: defaultValue);
 
   /// Reads a string flag, returning [defaultValue] if the flag is missing, the
   /// wrong type, or the SDK is not ready
-  String getString(String key, String defaultValue) =>
-      _backend.getString(key, defaultValue);
+  String getString(String key, {required String defaultValue}) =>
+      _backend.getString(key, defaultValue: defaultValue);
 
   /// Reads an integer flag, returning [defaultValue] if the flag is missing, the
   /// wrong type, or the SDK is not ready. Integers travel as the numeric flag
   /// type, so a fractional value is truncated toward zero
-  int getInt(String key, int defaultValue) => _backend.getInt(key, defaultValue);
+  int getInt(String key, {required int defaultValue}) =>
+      _backend.getInt(key, defaultValue: defaultValue);
 
   /// Reads a numeric flag, returning [defaultValue] if the flag is missing, the
   /// wrong type, or the SDK is not ready
-  double getNumber(String key, double defaultValue) =>
-      _backend.getNumber(key, defaultValue);
+  double getNumber(String key, {required double defaultValue}) =>
+      _backend.getNumber(key, defaultValue: defaultValue);
 
   /// Reads a JSON flag as a native Dart value (map, list, scalar, or null).
   ///
@@ -76,14 +77,15 @@ final class CoproductClient {
   /// unchanged instead of throwing, matching the "reads do not throw" contract.
   /// A default JSON cannot encode never round-trips, so it comes back exactly as
   /// supplied and is the one result that is not unmodifiable
-  Object? getJson(String key, Object? defaultValue) {
+  Object? getJson(String key, {required Object? defaultValue}) {
     final String defaultValueJson;
     try {
       defaultValueJson = jsonEncode(defaultValue);
     } catch (_) {
       return defaultValue;
     }
-    final resultJson = _backend.getJson(key, defaultValueJson);
+    final resultJson =
+        _backend.getJson(key, defaultValueJson: defaultValueJson);
     try {
       return unmodifiableJson(jsonDecode(resultJson));
     } catch (_) {
@@ -173,7 +175,7 @@ final class CoproductClient {
   /// the flag is unavailable. The caller owns it: call
   /// [FlagObservation.dispose] when the owner goes away, or let
   /// [CoproductFlagBuilder] own one for you
-  FlagObservation<bool> observeBool(String key, bool defaultValue) {
+  FlagObservation<bool> observeBool(String key, {required bool defaultValue}) {
     final handle = _backend.observeBool(key);
     return boolObservation(
       defaultValue: defaultValue,
@@ -185,7 +187,8 @@ final class CoproductClient {
 
   /// Observes a string flag. See [observeBool] for ownership and update
   /// semantics
-  FlagObservation<String> observeString(String key, String defaultValue) {
+  FlagObservation<String> observeString(String key,
+      {required String defaultValue}) {
     final handle = _backend.observeString(key);
     return stringObservation(
       defaultValue: defaultValue,
@@ -199,7 +202,7 @@ final class CoproductClient {
   /// fractional value is truncated toward zero and a value outside the integer
   /// range is unavailable, matching [getInt]. See [observeBool] for ownership
   /// and update semantics
-  FlagObservation<int> observeInt(String key, int defaultValue) {
+  FlagObservation<int> observeInt(String key, {required int defaultValue}) {
     final handle = _backend.observeInt(key);
     return intObservation(
       defaultValue: defaultValue,
@@ -211,7 +214,8 @@ final class CoproductClient {
 
   /// Observes a numeric flag. See [observeBool] for ownership and update
   /// semantics
-  FlagObservation<double> observeNumber(String key, double defaultValue) {
+  FlagObservation<double> observeNumber(String key,
+      {required double defaultValue}) {
     final handle = _backend.observeNumber(key);
     return numberObservation(
       defaultValue: defaultValue,
@@ -233,7 +237,8 @@ final class CoproductClient {
   /// it matches [getJson]. One that is not encodable is served back exactly as
   /// supplied rather than throwing. See [observeBool] for ownership and update
   /// semantics
-  FlagObservation<Object?> observeJson(String key, Object? defaultValue) {
+  FlagObservation<Object?> observeJson(String key,
+      {required Object? defaultValue}) {
     final handle = _backend.observeJson(key);
     return jsonObservation(
       defaultValue: defaultValue,

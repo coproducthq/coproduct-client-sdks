@@ -61,11 +61,11 @@ class _MyAppState extends State<MyApp> {
     developer.log(
       'COPRODUCT_FLUTTER_DEMO_STATUS '
       'ready=$ready '
-      'getBool=${c.getBool(_boolFlag, false)} '
-      'getString=${c.getString(_stringFlag, 'default')} '
-      'getInt=${c.getInt(_intFlag, 0)} '
-      'getNumber=${c.getNumber(_numberFlag, 0)} '
-      'getJson=${c.getJson(_jsonFlag, const <String, Object?>{})}',
+      'getBool=${c.getBool(_boolFlag, defaultValue: false)} '
+      'getString=${c.getString(_stringFlag, defaultValue: 'default')} '
+      'getInt=${c.getInt(_intFlag, defaultValue: 0)} '
+      'getNumber=${c.getNumber(_numberFlag, defaultValue: 0)} '
+      'getJson=${c.getJson(_jsonFlag, defaultValue: const <String, Object?>{})}',
       name: 'coproduct',
     );
   }
@@ -153,14 +153,14 @@ class _FlagDemo extends StatelessWidget {
           // builders above do. That is the difference between the two surfaces
           const Text('Read at build (one-shot)',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          Text('getBool: ${CoproductScope.of(context).getBool(_boolFlag, false)}'),
+          Text('getBool: ${CoproductScope.of(context).getBool(_boolFlag, defaultValue: false)}'),
           Text('getString: '
-              '${CoproductScope.of(context).getString(_stringFlag, 'default')}'),
-          Text('getInt: ${CoproductScope.of(context).getInt(_intFlag, 0)}'),
+              '${CoproductScope.of(context).getString(_stringFlag, defaultValue: 'default')}'),
+          Text('getInt: ${CoproductScope.of(context).getInt(_intFlag, defaultValue: 0)}'),
           Text('getNumber: '
-              '${CoproductScope.of(context).getNumber(_numberFlag, 0)}'),
+              '${CoproductScope.of(context).getNumber(_numberFlag, defaultValue: 0)}'),
           Text('getJson: '
-              '${CoproductScope.of(context).getJson(_jsonFlag, const <String, Object?>{})}'),
+              '${CoproductScope.of(context).getJson(_jsonFlag, defaultValue: const <String, Object?>{})}'),
           const SizedBox(height: 16),
 
           // Identity mutations re-evaluate the loaded snapshot locally and

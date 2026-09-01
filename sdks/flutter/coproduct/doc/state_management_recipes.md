@@ -69,7 +69,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void initState() {
     super.initState();
-    _newCheckout = widget.client.observeBool('new-checkout', false);
+    _newCheckout = widget.client.observeBool('new-checkout', defaultValue: false);
   }
 
   @override
@@ -159,7 +159,7 @@ exposes your `CoproductClient`:
 ```dart
 ListenableProvider<FlagObservation<bool>>(
   create: (context) =>
-      context.read<CoproductClient>().observeBool('new-checkout', false),
+      context.read<CoproductClient>().observeBool('new-checkout', defaultValue: false),
   dispose: (_, observation) => observation.dispose(),
   child: Consumer<FlagObservation<bool>>(
     builder: (context, observation, child) =>
@@ -188,7 +188,7 @@ which is what you want for a screen:
 final newCheckoutProvider =
     Provider.autoDispose<FlagObservation<bool>>((ref) {
   final observation =
-      ref.watch(clientProvider).observeBool('new-checkout', false);
+      ref.watch(clientProvider).observeBool('new-checkout', defaultValue: false);
   ref.onDispose(observation.dispose);
   return observation;
 });
@@ -230,7 +230,7 @@ class CheckoutCubit extends Cubit<bool> {
   // Created once by the factory and handed to the private constructor, so the
   // initial state can read the current value without observing twice
   factory CheckoutCubit(CoproductClient client) =>
-      CheckoutCubit._(client.observeBool('new-checkout', false));
+      CheckoutCubit._(client.observeBool('new-checkout', defaultValue: false));
 
   CheckoutCubit._(FlagObservation<bool> observation)
       : _newCheckout = observation,

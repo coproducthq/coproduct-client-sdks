@@ -44,11 +44,11 @@ void main() {
       final flagKey = row['key'] as String;
       final def = row['callerDefault'];
       return switch (row['getter'] as String) {
-        'boolean' => client.getBool(flagKey, def as bool),
-        'string' => client.getString(flagKey, def as String),
-        'integer' => client.getInt(flagKey, def as int),
-        'number' => client.getNumber(flagKey, (def as num).toDouble()),
-        'json' => client.getJson(flagKey, def),
+        'boolean' => client.getBool(flagKey, defaultValue: def as bool),
+        'string' => client.getString(flagKey, defaultValue: def as String),
+        'integer' => client.getInt(flagKey, defaultValue: def as int),
+        'number' => client.getNumber(flagKey, defaultValue: (def as num).toDouble()),
+        'json' => client.getJson(flagKey, defaultValue: def),
         _ => throw StateError('unknown getter ${row['getter']}'),
       };
     }
@@ -112,7 +112,7 @@ void main() {
     expect(client.state, isNot(ProviderState.ready),
         reason: 'initialize returned on its budget with the poll still held');
     expect(
-        client.getString('fetch-control', 'default-before'), 'default-before',
+        client.getString('fetch-control', defaultValue: 'default-before'), 'default-before',
         reason: 'with no snapshot the getter serves the caller default');
 
     // The fixture acknowledges that the request arrived and is being held
@@ -122,7 +122,7 @@ void main() {
     expect(await _release(endpoint), 200);
     await _waitUntil(
         () async =>
-            client.getString('fetch-control', 'default-before') == 'fetched',
+            client.getString('fetch-control', defaultValue: 'default-before') == 'fetched',
         because: 'the released poll delivers the snapshot');
     // The core swaps the snapshot before it publishes Ready, deliberately, so a
     // getter never reports Ready against the prior snapshot. Persisting the
@@ -146,7 +146,7 @@ void main() {
         because: 'the seam drives a second poll');
     await _waitUntil(
         () async =>
-            client.getString('fetch-control', 'default-after') ==
+            client.getString('fetch-control', defaultValue: 'default-after') ==
             'default-after',
         because: 'a flag that left the snapshot serves the caller default');
   }, timeout: const Timeout(Duration(minutes: 2)));
@@ -182,11 +182,11 @@ void main() {
     // every transition below is a real change rather than a coincidence
     const stringDefault = 'reactive-default';
     const jsonDefault = {'reactive': 'default'};
-    final boolFlag = client.observeBool('identity-bool', true);
-    final stringFlag = client.observeString('identity-string', stringDefault);
-    final intFlag = client.observeInt('identity-int', -7);
-    final numberFlag = client.observeNumber('identity-number', -2.5);
-    final jsonFlag = client.observeJson('identity-json', jsonDefault);
+    final boolFlag = client.observeBool('identity-bool', defaultValue: true);
+    final stringFlag = client.observeString('identity-string', defaultValue: stringDefault);
+    final intFlag = client.observeInt('identity-int', defaultValue: -7);
+    final numberFlag = client.observeNumber('identity-number', defaultValue: -2.5);
+    final jsonFlag = client.observeJson('identity-json', defaultValue: jsonDefault);
     final observations = [boolFlag, stringFlag, intFlag, numberFlag, jsonFlag];
     addTearDown(() {
       for (final observation in observations) {
@@ -285,8 +285,8 @@ void main() {
     // the native cancel, the core's own tests prove that cancel removes the
     // subscription, and this proves the two are wired together on a device
     // while fanout is demonstrably still running
-    final live = client.observeString('identity-string', stringDefault);
-    final disposed = client.observeString('identity-string', stringDefault);
+    final live = client.observeString('identity-string', defaultValue: stringDefault);
+    final disposed = client.observeString('identity-string', defaultValue: stringDefault);
     addTearDown(live.dispose);
     expect(live.value, 'identity-string-matched');
     expect(disposed.value, 'identity-string-matched');
@@ -325,7 +325,7 @@ void main() {
     // no Dart code can run inside the sink write that hands a value over
     final errors = <Object>[];
     String? readFromInsideNotification;
-    final reentrant = client.observeBool('identity-bool', true);
+    final reentrant = client.observeBool('identity-bool', defaultValue: true);
     addTearDown(reentrant.dispose);
     expect(reentrant.value, isTrue, reason: 'the pro plan is still identified');
 
@@ -335,7 +335,7 @@ void main() {
       if (seen.length != 1) return;
       // A synchronous re-entry first, which a developer might well write
       readFromInsideNotification =
-          client.getString('identity-string', stringDefault);
+          client.getString('identity-string', defaultValue: stringDefault);
       // Then an asynchronous one, which must complete and deliver in turn
       unawaited(client.identify(
         userId: 'reentrant-user',

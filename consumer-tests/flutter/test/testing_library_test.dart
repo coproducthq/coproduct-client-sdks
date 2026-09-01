@@ -20,18 +20,18 @@ void main() {
     // of the harness is that widget tests exercise the production type
     final CoproductClient client = harness.client;
 
-    expect(client.getBool('missing-flag', false), isFalse,
+    expect(client.getBool('missing-flag', defaultValue: false), isFalse,
         reason: 'an unset flag resolves to the default');
 
     harness.setBool('billing-v2', true);
-    expect(client.getBool('billing-v2', false), isTrue,
+    expect(client.getBool('billing-v2', defaultValue: false), isTrue,
         reason: 'setBool is visible through the production client');
 
     harness.setString('tier', 'pro');
-    expect(client.getString('tier', 'free'), 'pro');
+    expect(client.getString('tier', defaultValue: 'free'), 'pro');
 
     harness.removeFlag('billing-v2');
-    expect(client.getBool('billing-v2', false), isFalse,
+    expect(client.getBool('billing-v2', defaultValue: false), isFalse,
         reason: 'a removed flag reverts to the default');
   });
 
@@ -39,7 +39,7 @@ void main() {
     final harness = CoproductTestHarness();
     addTearDown(harness.shutdown);
 
-    final observation = harness.client.observeBool('dark-mode', false);
+    final observation = harness.client.observeBool('dark-mode', defaultValue: false);
     addTearDown(observation.dispose);
 
     expect(observation.value, isFalse, reason: 'seeds synchronously');

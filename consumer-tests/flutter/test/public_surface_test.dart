@@ -60,7 +60,7 @@ void main() {
 
     final CoproductClient client = harness.client;
     harness.setBool('surface-check', true);
-    expect(client.getBool('surface-check', false), isTrue);
+    expect(client.getBool('surface-check', defaultValue: false), isTrue);
 
     expect(ProviderState.values, contains(ProviderState.ready));
     expect(const InvalidConfig('field', 'reason'), isA<CoproductException>());

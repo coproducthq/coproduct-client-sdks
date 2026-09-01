@@ -216,11 +216,11 @@ when the flag cannot be resolved. Reach the client from a widget with
 ```dart
 final client = CoproductScope.of(context);
 
-client.getBool('new-checkout', false);
-client.getString('greeting', 'Hello');
-client.getInt('max-items', 10);
-client.getNumber('rollout-ratio', 0.0);
-client.getJson('checkout-config', const {'maxItems': 10});
+client.getBool('new-checkout', defaultValue: false);
+client.getString('greeting', defaultValue: 'Hello');
+client.getInt('max-items', defaultValue: 10);
+client.getNumber('rollout-ratio', defaultValue: 0.0);
+client.getJson('checkout-config', defaultValue: const {'maxItems': 10});
 ```
 
 Reads never throw. Your default is served whenever the flag is missing, the SDK
@@ -242,7 +242,7 @@ one above: `boolFlag`, `stringFlag`, `intFlag`, `numberFlag`, and `jsonFlag`.
 When you want the value outside a builder, observe it directly:
 
 ```dart
-final greeting = client.observeString('greeting', 'Hello');
+final greeting = client.observeString('greeting', defaultValue: 'Hello');
 
 greeting.value;                  // the current value, available immediately
 greeting.addListener(_onChange); // called whenever it changes
