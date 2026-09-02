@@ -47,7 +47,8 @@ final class CacheKeyIsolationTests: XCTestCase {
     }
 
     func testSwitchingKeysDoesNotServeThePreviousKeysCache() async throws {
-        // Key A loads env-a and persists it on shutdown
+        // Key A loads env-a and the poll inside initialize persists it. Shutdown
+        // leaves that cache in place
         try await Coproduct.initialize(
             sdkKey: Self.keyA,
             config: CoproductConfig(startupTimeout: 2, transport: EnvATransport(), secureStore: TestSecureStore())
