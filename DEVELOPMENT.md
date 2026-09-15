@@ -74,6 +74,57 @@ The iOS scripts depend on these packaging scripts that can also be run on their 
 - `./scripts/package/ios-spm-binary.sh` — archives the existing `CoproductFFI.xcframework` into a SwiftPM zip plus checksum under `build/ios-spm/`. It does not build the xcframework, so build it first.
 - `./scripts/package/ios-spm-fixture.sh` — packages the full SwiftPM fixture (zip + checksum) that the iOS consumer-test consumes via `file:`. Invokes the binary script internally.
 
+## Building your own app against the Flutter SDK
+
+The package README tells adopters to depend on `coproduct: ^1.0.0` from pub.dev.
+Until that version is published, and whenever you want an app that is not the
+example or the consumer test, depend on the working copy instead. This is the
+path for a demo, a spike, or evaluating the SDK before it ships.
+
+```bash
+flutter create my_demo
+cd my_demo
+```
+
+Point the dependency at the checkout, using an absolute path or one relative to
+your app:
+
+```yaml
+dependencies:
+  coproduct:
+    path: /path/to/coproduct-client-sdks/sdks/flutter/coproduct
+```
+
+**Build the native libraries first.** A `path:` dependency source-links the SDK,
+whose libraries are gitignored build output and absent from a clean checkout.
+Without them the app compiles and then fails at `initialize`:
+
+```bash
+scripts/package/flutter-build-native.sh all
+```
+
+Rerun it after any change to the Rust core or the FRB surface. A stale library
+surfaces as an FRB content-hash mismatch at `initialize`, not as a link error.
+
+**Set the platform minimums**, which a new Flutter app does not have. In
+`ios/Podfile` uncomment and set `platform :ios, '15.0'`, then `pod install`. In
+`android/app/build.gradle.kts` set `minSdk = 24`. Skipping either means
+`pod install` refuses the pod or the Android build fails.
+
+Then use the SDK exactly as the package README describes. You need a mobile SDK
+key and a flag from [coproduct.app](https://coproduct.app); the key is read
+however your app chooses, and `--dart-define` keeps it out of source:
+
+```bash
+flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
+```
+
+Two things to know before demonstrating live. The poll interval defaults to 60
+seconds with a 30 second floor, and there is no public refresh, so a flag
+changed in Coproduct takes up to a minute to appear. Backgrounding and
+foregrounding the app forces a poll, which is the fastest way to show a change
+on demand. And iOS simulator builds require an Apple Silicon Mac.
+
 ## Changing the SDK
 
 ### Rust core or the Flutter FFI surface
