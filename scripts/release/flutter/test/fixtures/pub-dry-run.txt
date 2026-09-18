@@ -286,7 +286,7 @@ Publishing coproduct 1.0.0 to https://pub.dev:
 │   │   ├── Info.plist (1 KB)
 │   │   ├── ios-arm64
 │   │   │   └── libcoproduct_ffi_frb.a (30 MB)
-│   │   └── ios-arm64-simulator
+│   │   └── ios-arm64_x86_64-simulator
 │   │       └── libcoproduct_ffi_frb.a (30 MB)
 │   ├── coproduct.podspec (2 KB)
 │   ├── stage_prebuilt.sh (1 KB)

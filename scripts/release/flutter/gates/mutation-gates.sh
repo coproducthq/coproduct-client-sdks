@@ -61,10 +61,23 @@ rm -rf "$(dirname "$W")"
 echo "mutation: an unexpected native slice appears"
 W="$(scratch)"; cp -R "$COPRODUCT_RELEASE_STAGE" "$W"
 if baseline 'no stray native files' check_archive "$W"; then
-    mkdir -p "$W/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator"
+    mkdir -p "$W/ios/CoproductFFI.xcframework/ios-arm64-simulator"
     cp "$W/ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a" \
-       "$W/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/"
+       "$W/ios/CoproductFFI.xcframework/ios-arm64-simulator/"
     mutated 'unexpected slice added' 'unexpected entry under a native root' check_archive "$W"
+fi
+rm -rf "$(dirname "$W")"
+
+echo "mutation: the universal simulator slice loses an architecture"
+W="$(scratch)"; cp -R "$COPRODUCT_RELEASE_STAGE" "$W"
+sim_slice="$W/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a"
+symbol_check() { "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" macho "$1"; }
+if baseline 'simulator slice is universal' symbol_check "$sim_slice"; then
+    # A thinned slice still links for the architecture it kept, so every other
+    # gate stays green while the package silently stops supporting the other one
+    lipo -thin arm64 "$sim_slice" -output "$sim_slice.thin"
+    mv "$sim_slice.thin" "$sim_slice"
+    mutated 'x86_64 removed from the slice' 'its slice directory claims' symbol_check "$sim_slice"
 fi
 rm -rf "$(dirname "$W")"
 

@@ -44,7 +44,7 @@ const _platformExact = <String>[
   'ios/Classes/dummy_file.c',
   'ios/CoproductFFI.xcframework/Info.plist',
   'ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
-  'ios/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_frb.a',
+  'ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a',
   'ios/coproduct.podspec',
   'ios/stage_prebuilt.sh',
   'android/build.gradle',

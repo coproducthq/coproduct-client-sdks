@@ -31,32 +31,58 @@ build_ios() {
     fi
 
     cd "$ROOT"
+    # Match the release build's deployment target. Without it rustc defaults to
+    # iOS 10.0 and emits the legacy LC_VERSION_MIN_IPHONEOS load command, which
+    # names no platform, so the symbol audit cannot tell a device object from a
+    # simulator one. The podspec declares a 15.0 minimum in any case
+    #
+    # The build goes in a directory qualified by that deployment target rather
+    # than the shared target/. Cargo does not fingerprint the variable, so a
+    # directory previously built without it keeps handing back objects carrying
+    # the legacy load command however many times this runs. A dedicated
+    # directory is invalidated once, by existing, and stays incremental after
+    export IPHONEOS_DEPLOYMENT_TARGET=15.0
+    local target_dir="$ROOT/target/flutter-ios-$IPHONEOS_DEPLOYMENT_TARGET"
+    export CARGO_TARGET_DIR="$target_dir"
     cargo build -p coproduct_ffi_frb --target aarch64-apple-ios
     cargo build -p coproduct_ffi_frb --target aarch64-apple-ios-sim
+    cargo build -p coproduct_ffi_frb --target x86_64-apple-ios
 
-    local dev_lib="target/aarch64-apple-ios/debug/libcoproduct_ffi_frb.a"
-    local sim_lib="target/aarch64-apple-ios-sim/debug/libcoproduct_ffi_frb.a"
-    if [[ ! -f "$dev_lib" || ! -f "$sim_lib" ]]; then
-        echo "ERROR: expected both $dev_lib and $sim_lib after the cargo build" >&2
-        exit 1
-    fi
+    local dev_lib="$target_dir/aarch64-apple-ios/debug/libcoproduct_ffi_frb.a"
+    local sim_arm="$target_dir/aarch64-apple-ios-sim/debug/libcoproduct_ffi_frb.a"
+    local sim_x86="$target_dir/x86_64-apple-ios/debug/libcoproduct_ffi_frb.a"
+    for lib in "$dev_lib" "$sim_arm" "$sim_x86"; do
+        if [[ ! -f "$lib" ]]; then
+            echo "ERROR: expected $lib after the cargo build" >&2
+            exit 1
+        fi
+    done
 
     local xcf="$FLUTTER/ios/CoproductFFI.xcframework"
     rm -rf "$xcf"
+    # The simulator architectures are combined before assembly, matching what the
+    # release pipeline ships. A thin simulator slice here would leave the
+    # maintainer loop unable to reproduce a consuming app's simulator build
+    # The basename is the one the slice will carry, so it must be final here
+    local sim_dir sim_fat
+    sim_dir="$(mktemp -d)"
+    sim_fat="$sim_dir/libcoproduct_ffi_frb.a"
+    lipo -create "$sim_arm" "$sim_x86" -output "$sim_fat"
     xcodebuild -create-xcframework \
         -library "$dev_lib" \
-        -library "$sim_lib" \
+        -library "$sim_fat" \
         -output "$xcf"
+    rm -rf "$sim_dir"
 
     # stage_prebuilt.sh selects slices by these exact directory names, which
-    # xcodebuild derives from each library's platform and architecture
+    # xcodebuild derives from each library's platform and architectures
     local dev="$xcf/ios-arm64/libcoproduct_ffi_frb.a"
-    local sim="$xcf/ios-arm64-simulator/libcoproduct_ffi_frb.a"
+    local sim="$xcf/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a"
     if [[ ! -f "$dev" || ! -f "$sim" ]]; then
-        echo "ERROR: expected both xcframework slices ios-arm64 and ios-arm64-simulator after assembly" >&2
+        echo "ERROR: expected both xcframework slices ios-arm64 and ios-arm64_x86_64-simulator after assembly" >&2
         exit 1
     fi
-    echo "built ios xcframework: ios-arm64 and ios-arm64-simulator"
+    echo "built ios xcframework: ios-arm64 and ios-arm64_x86_64-simulator"
 }
 
 build_android() {
