@@ -156,38 +156,111 @@ check_elf_machine() {
     return 0
 }
 
-# Mach-O slices of an xcframework: the device and simulator slices are both
-# arm64, so only the build platform distinguishes them
-check_macho_platform() {
-    local file="$1"
-    local slice
-    slice="$(basename "$(dirname "$file")")"
-    local want
-    case "$slice" in
-        ios-arm64)           want="IOS" ;;
-        ios-arm64-simulator) want="IOSSIMULATOR" ;;
-        *) return 0 ;;  # not an xcframework slice, nothing is claimed by the path
+# The architectures an xcframework slice directory claims. xcodebuild derives
+# these names from the library it was handed, so the directory name is a claim
+# about the bytes inside it and this is where that claim is checked. Prints
+# nothing for a path that is not an xcframework slice
+expected_archs_for_slice() {
+    case "$1" in
+        ios-arm64)                  printf 'arm64' ;;
+        ios-arm64_x86_64-simulator) printf 'arm64 x86_64' ;;
     esac
-    # vtool reads Mach-O objects, not static archives, so extract a member
-    # first. The awk reads the whole listing rather than exiting on the first
-    # match: an early exit closes ar's pipe and pipefail reports the SIGPIPE
-    # as a failure
-    local member workdir got
-    member="$(ar t "$file" | awk '/\.o$/ {if (!seen++) print}')"
-    if [[ -z "$member" ]]; then
-        echo "ERROR: $file: archive has no objects, cannot read its build platform." >&2
+}
+
+# The Mach-O platform an xcframework slice directory claims. The device and
+# simulator slices share the arm64 architecture, so only the build platform
+# distinguishes them
+expected_platform_for_slice() {
+    case "$1" in
+        ios-arm64)                  printf 'IOS' ;;
+        ios-arm64_x86_64-simulator) printf 'IOSSIMULATOR' ;;
+    esac
+}
+
+# Does this file sit inside an xcframework, and therefore make a claim that must
+# be checked? The gate also inspects the linked framework inside a built app,
+# which is not a slice and claims nothing
+is_xcframework_slice() {
+    case "$1" in
+        *.xcframework/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# The architecture set must match what the slice directory name claims, exactly.
+# A slice thinned down to one architecture still links for that architecture, so
+# nothing else in the pipeline notices the other one going missing
+check_macho_archs() { # file, actual-archs...
+    local file="$1"; shift
+    local slice want got
+    slice="$(basename "$(dirname "$file")")"
+    want="$(expected_archs_for_slice "$slice")"
+    if [[ -z "$want" ]]; then
+        if is_xcframework_slice "$file"; then
+            # A silently skipped slice is how a renamed directory ships
+            # unverified. Every slice this package produces is named above
+            echo "ERROR: $file: unrecognized xcframework slice '$slice', cannot verify its architectures or build platform." >&2
+            return 1
+        fi
+        return 0
+    fi
+    got="$(printf '%s\n' "$@" | sort | tr '\n' ' ' | sed 's/ $//')"
+    want="$(printf '%s\n' $want | sort | tr '\n' ' ' | sed 's/ $//')"
+    if [[ "$got" != "$want" ]]; then
+        echo "ERROR: $file: carries [$got] but its slice directory claims [$want]." >&2
         return 1
     fi
+    return 0
+}
+
+# The Mach-O build platform of one architecture within a slice
+check_macho_platform() { # file, arch
+    local file="$1" arch="$2"
+    local slice want
+    slice="$(basename "$(dirname "$file")")"
+    want="$(expected_platform_for_slice "$slice")"
+    [[ -n "$want" ]] || return 0
+
+    # vtool reads Mach-O objects, not archives, and ar cannot read a member of a
+    # fat archive, so thin the requested architecture out first. A thin archive
+    # is copied rather than thinned, because lipo -thin rejects one
+    local workdir thinned member got
     workdir="$(mktemp -d)"
-    ( cd "$workdir" && ar x "$file" "$member" )
+    thinned="$workdir/thin.a"
+    if [[ "$(lipo -archs "$file")" == *' '* ]]; then
+        if ! lipo -thin "$arch" "$file" -output "$thinned" 2>/dev/null; then
+            echo "ERROR: $file: could not thin $arch out of the archive." >&2
+            rm -rf "$workdir"
+            return 1
+        fi
+    else
+        cp "$file" "$thinned"
+    fi
+    # The awk reads the whole listing rather than exiting on the first match: an
+    # early exit closes ar's pipe and pipefail reports the SIGPIPE as a failure
+    member="$(ar t "$thinned" | awk '/\.o$/ {if (!seen++) print}')"
+    if [[ -z "$member" ]]; then
+        echo "ERROR: $file [$arch]: archive has no objects, cannot read its build platform." >&2
+        rm -rf "$workdir"
+        return 1
+    fi
+    ( cd "$workdir" && ar x thin.a "$member" )
     got="$(vtool -show-build "$workdir/$member" 2>/dev/null | awk '/platform/ {print toupper($2); exit}')"
     rm -rf "$workdir"
     if [[ -z "$got" ]]; then
-        echo "ERROR: $file: could not read the Mach-O build platform." >&2
+        # An object built without a deployment target carries the legacy
+        # LC_VERSION_MIN_IPHONEOS command, which names no platform and cannot
+        # distinguish a device build from a simulator build. That is a real
+        # defect in the artifact rather than a gap in this check, so it fails
+        # here instead of being accommodated
+        echo "ERROR: $file [$arch]: no platform in the Mach-O build command." >&2
+        echo "  The object carries no LC_BUILD_VERSION, which means it was built without" >&2
+        echo "  IPHONEOS_DEPLOYMENT_TARGET set. The release build exports it; a local build" >&2
+        echo "  that omits it defaults to iOS 10.0 and emits the legacy load command." >&2
         return 1
     fi
     if [[ "$got" != "$want" ]]; then
-        echo "ERROR: $file: built for $got but its slice directory claims $slice ($want)." >&2
+        echo "ERROR: $file [$arch]: built for $got but its slice directory claims $slice ($want)." >&2
         return 1
     fi
     return 0
@@ -217,8 +290,9 @@ for file in "$@"; do
             FAIL=1
             continue
         fi
-        check_macho_platform "$file" || FAIL=1
+        check_macho_archs "$file" "${archs[@]}" || FAIL=1
         for arch in "${archs[@]}"; do
+            check_macho_platform "$file" "$arch" || FAIL=1
             symbols="$(read_symbols "$file" "$arch")"
             check_slice "$file" "$file [$arch]" "$symbols"
         done
