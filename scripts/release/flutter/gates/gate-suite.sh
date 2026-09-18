@@ -87,15 +87,40 @@ public_surface_gate() {
 }
 run 'public surface from the installed package' public_surface_gate
 
-# Symbols in the artifacts that ship, not in the libraries they came from
-APP="$(find "$COPRODUCT_CONSUMER_DIR/build/ios" -name 'Runner.app' -type d 2>/dev/null | head -1)"
-FRAMEWORK="$APP/Frameworks/coproduct.framework/coproduct"
-if [[ -n "$APP" && -f "$FRAMEWORK" ]]; then
-    run 'iOS symbols in the shipped framework' \
-        "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" macho "$FRAMEWORK"
-else
-    printf '  FAIL no iOS framework found for symbol inspection\n'; fail=1
-fi
+# Symbols in the artifacts that ship, not in the libraries they came from.
+# Flutter writes one app per configuration and SDK, and a release device build
+# leaves a second copy under build/ios/iphoneos, so selecting with head -1
+# inspected whichever path the filesystem happened to return first. Each
+# platform is resolved and checked on its own, and every candidate is checked
+# rather than the first
+check_app_framework() { # label, sdk path fragment, expected architectures
+    local label="$1" sdk="$2" want="$3"
+    local apps=() app fw got
+    while IFS= read -r app; do apps+=("$app"); done \
+        < <(find "$COPRODUCT_CONSUMER_DIR/build/ios" -type d -name 'Runner.app' \
+                -path "*$sdk*" 2>/dev/null | sort)
+    if [[ "${#apps[@]}" -eq 0 ]]; then
+        printf '  FAIL no %s app found for symbol inspection\n' "$label"; fail=1; return
+    fi
+    for app in "${apps[@]}"; do
+        fw="$app/Frameworks/coproduct.framework/coproduct"
+        if [[ ! -f "$fw" ]]; then
+            printf '  FAIL %s: no coproduct framework in %s\n' "$label" "$app"; fail=1; continue
+        fi
+        got="$(lipo -archs "$fw" | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ $//')"
+        if [[ "$got" != "$want" ]]; then
+            printf '  FAIL %s: %s carries [%s], expected [%s]\n' "$label" "$app" "$got" "$want"
+            fail=1; continue
+        fi
+        run "$label symbols in $(basename "$(dirname "$app")")" \
+            "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" macho "$fw"
+    done
+}
+
+# The device slice is arm64 only: the package ships no x86_64 device
+# architecture, so a universal device framework would mean something is wrong
+check_app_framework 'iOS device' 'iphoneos' 'arm64'
+check_app_framework 'iOS simulator' 'iphonesimulator' 'arm64 x86_64'
 
 APK="$(find "$COPRODUCT_CONSUMER_DIR/build/app/outputs" -name '*.apk' 2>/dev/null | head -1)"
 if [[ -n "$APK" ]]; then
