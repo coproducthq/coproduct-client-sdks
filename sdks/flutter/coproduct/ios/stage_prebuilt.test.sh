@@ -12,9 +12,9 @@ setup() {
   [ -n "${WORK:-}" ] && rm -rf "$WORK"
   WORK="$(mktemp -d)"
   mkdir -p "$WORK/src/CoproductFFI.xcframework/ios-arm64"
-  mkdir -p "$WORK/src/CoproductFFI.xcframework/ios-arm64-simulator"
+  mkdir -p "$WORK/src/CoproductFFI.xcframework/ios-arm64_x86_64-simulator"
   printf 'device' > "$WORK/src/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a"
-  printf 'simulator' > "$WORK/src/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_frb.a"
+  printf 'simulator' > "$WORK/src/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a"
   mkdir -p "$WORK/build"
 }
 
@@ -39,25 +39,32 @@ expect_fail() { # label, rc, substring
 
 setup; run iphoneos 'arm64'; expect_staged 'device arm64' 'device'
 setup; run iphonesimulator 'arm64'; expect_staged 'simulator arm64' 'simulator'
+setup; run iphonesimulator 'x86_64'; expect_staged 'simulator x86_64' 'simulator'
 
-setup; run iphonesimulator 'x86_64'; rc=$?
-expect_fail 'x86_64 simulator guard' "$rc" 'Apple Silicon Mac for iOS simulator development'
+# The universal slice carries both, so the configuration Xcode produces by
+# default for a simulator build is now the ordinary case rather than the error
+setup; run iphonesimulator 'arm64 x86_64'; expect_staged 'simulator universal' 'simulator'
+setup; run iphonesimulator 'x86_64 arm64'; expect_staged 'simulator universal reordered' 'simulator'
 
-setup; run iphonesimulator 'arm64 x86_64'; rc=$?
-expect_fail 'mixed arm64+x86_64 simulator' "$rc" 'Apple Silicon Mac for iOS simulator development'
-
-# With EXCLUDED_ARCHS in the podspec, Xcode subtracts x86_64 before this phase
-# runs, so an Intel Mac reaches the guard with an empty ARCHS rather than one
-# naming x86_64. That path must produce the actionable message, not the generic
-# configuration error
-setup; run iphonesimulator ''; rc=$?
-expect_fail 'simulator empty ARCHS is the Intel case' "$rc" 'Apple Silicon Mac for iOS simulator development'
-setup; run iphonesimulator 'arm64 unexpected'; rc=$?
-expect_fail 'simulator extra token' "$rc" 'unsupported ARCHS'
-setup; run iphoneos ''; rc=$?
-expect_fail 'device empty ARCHS' "$rc" 'unsupported ARCHS'
+# The device slice is arm64 only, and the package ships no x86_64 device
+# architecture, so a device build asking for one is still fail-closed
 setup; run iphoneos 'x86_64'; rc=$?
 expect_fail 'device x86_64' "$rc" 'unsupported ARCHS'
+setup; run iphoneos 'arm64 x86_64'; rc=$?
+expect_fail 'device mixed' "$rc" 'unsupported ARCHS'
+
+# An architecture the slice does not carry, on either platform
+setup; run iphonesimulator 'arm64 i386'; rc=$?
+expect_fail 'simulator unknown architecture' "$rc" 'unsupported ARCHS'
+
+# An empty ARCHS means Xcode subtracted everything the build asked for. The
+# package no longer excludes anything, so this is the consuming project's own
+# configuration and the message says so rather than blaming the Mac
+setup; run iphonesimulator ''; rc=$?
+expect_fail 'simulator empty ARCHS' "$rc" 'ARCHS is empty'
+setup; run iphoneos ''; rc=$?
+expect_fail 'device empty ARCHS' "$rc" 'ARCHS is empty'
+
 setup; run watchos 'arm64'; rc=$?
 expect_fail 'unrecognized platform' "$rc" 'unsupported PLATFORM_NAME'
 
