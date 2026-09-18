@@ -14,12 +14,13 @@ class ShippedGraphError implements Exception {
   String toString() => 'ShippedGraphError: $message';
 }
 
-/// The five architectures the Flutter package ships a prebuilt binary for.
-/// `x86_64-apple-ios` and `i686-linux-android` stay out of this list: they
-/// back the native iOS and Android SDKs, not the Flutter package.
+/// The six architectures the Flutter package ships a prebuilt binary for.
+/// `i686-linux-android` stays out of this list: it backs the native Android
+/// SDK, not the Flutter package, which ships no 32-bit x86 ABI.
 const shippedTargets = <String>[
   'aarch64-apple-ios',
   'aarch64-apple-ios-sim',
+  'x86_64-apple-ios',
   'armv7-linux-androideabi',
   'aarch64-linux-android',
   'x86_64-linux-android',

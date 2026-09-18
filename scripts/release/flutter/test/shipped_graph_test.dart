@@ -82,7 +82,7 @@ void main() {
   });
 
   group('computeShippedGraph (against committed fixtures)', () {
-    test('unions all five targets into the known 79-package shipped graph', () {
+    test('unions all six targets into the known 79-package shipped graph', () {
       final graph = computeShippedGraph(
         manifestPath: 'unused-in-fixture-mode',
         runProcess: _fixtureRunner,

@@ -1,0 +1,80 @@
+addr2line v0.25.1
+adler2 v2.0.1
+allo-isolate v0.1.27
+anyhow v1.0.102
+atomic v0.5.3
+backtrace v0.3.76
+block-buffer v0.12.0
+byteorder v1.5.0
+bytes v1.11.1
+cfg-if v1.0.4
+const-oid v0.10.2
+coproduct-core v0.0.1 (/Users/nathan/coproduct/coproduct-client-sdks/core/coproduct-core)
+coproduct_ffi_frb v0.0.1 (/Users/nathan/coproduct/coproduct-client-sdks/ffi/coproduct-ffi-frb)
+cpufeatures v0.3.0
+crypto-common v0.2.2
+dart-sys v4.1.5
+dashmap v5.5.3
+deranged v0.5.8
+digest v0.11.3
+flutter_rust_bridge v2.12.0
+futures v0.3.32
+futures-channel v0.3.32
+futures-channel v0.3.32 (*)
+futures-core v0.3.32
+futures-executor v0.3.32
+futures-io v0.3.32
+futures-sink v0.3.32
+futures-task v0.3.32
+futures-util v0.3.32
+futures-util v0.3.32 (*)
+getrandom v0.4.2
+gimli v0.32.3
+hashbrown v0.14.5
+http v1.4.2
+hybrid-array v0.4.12
+hybrid-array v0.4.12 (*)
+itoa v1.0.18
+lazy_static v1.5.0
+libc v0.2.186
+lock_api v0.4.14
+lock_api v0.4.14 (*)
+log v0.4.30
+memchr v2.8.1
+miniz_oxide v0.8.9
+num-conv v0.2.2
+num_cpus v1.17.0
+object v0.37.3
+once_cell v1.21.4
+oslog v0.2.0
+parking_lot v0.12.5
+parking_lot v0.12.5 (*)
+parking_lot_core v0.9.12
+parking_lot_core v0.9.12 (*)
+pin-project-lite v0.2.17
+portable-atomic v1.13.1
+powerfmt v0.2.0
+rustc-demangle v0.1.27
+scopeguard v1.2.0
+semver v1.0.28
+serde v1.0.228
+serde_core v1.0.228
+serde_json v1.0.150
+serde_json v1.0.150 (*)
+sha2 v0.11.0
+sharded-slab v0.1.7
+slab v0.4.12
+smallvec v1.15.1
+thiserror v2.0.18
+thread_local v1.1.9
+threadpool v1.8.1
+time v0.3.49
+time-core v0.1.9
+tokio v1.52.3
+tracing v0.1.44
+tracing-core v0.1.36
+tracing-core v0.1.36 (*)
+tracing-subscriber v0.3.23
+typenum v1.20.0
+uuid v1.23.3
+zmij v1.0.21

@@ -34,7 +34,7 @@ PINNED_XCODE=26.5
 PINNED_IOS_TARGET=15.0
 PINNED_ANDROID_API=24
 
-APPLE_TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim)
+APPLE_TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios)
 ANDROID_ABIS=(arm64-v8a armeabi-v7a x86_64)
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
@@ -110,11 +110,43 @@ done
     && fail "32-bit x86 was produced but is not a Flutter ABI"
 
 # --- xcframework ---------------------------------------------------------
-# One simulator architecture means no lipo step
+# The two simulator architectures become one fat archive before the xcframework
+# is assembled. xcodebuild rejects two libraries built for the same platform as
+# ambiguous slices, and a universal slice is what lets a consuming app resolve
+# the simulator architectures Xcode asks for without the package constraining
+# them
+# xcodebuild -create-xcframework copies each library into its slice under the
+# basename it was given, so the fat archive must already be named what every
+# downstream consumer expects: the staging script, the podspec force-load, the
+# archive allowlist and the mutation gates all name libcoproduct_ffi_frb.a. It
+# is built in a temporary directory so the name can be exact without colliding
+# with the thin archives
+SIM_DIR="$(mktemp -d)"
+SIM_FAT="$SIM_DIR/libcoproduct_ffi_frb.a"
+lipo -create \
+    "$TARGET_DIR/aarch64-apple-ios-sim/release/libcoproduct_ffi_frb.a" \
+    "$TARGET_DIR/x86_64-apple-ios/release/libcoproduct_ffi_frb.a" \
+    -output "$SIM_FAT"
+sim_archs="$(lipo -archs "$SIM_FAT")"
+[[ "$sim_archs" == "arm64 x86_64" || "$sim_archs" == "x86_64 arm64" ]] \
+    || fail "simulator archive carries '$sim_archs', expected arm64 and x86_64"
+
 xcodebuild -create-xcframework \
     -library "$TARGET_DIR/aarch64-apple-ios/release/libcoproduct_ffi_frb.a" \
-    -library "$TARGET_DIR/aarch64-apple-ios-sim/release/libcoproduct_ffi_frb.a" \
+    -library "$SIM_FAT" \
     -output "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" >/dev/null
+
+# The fat archive was an intermediate. Leaving it anywhere under the release
+# output would put a second copy of both simulator architectures into the
+# staged package
+rm -rf "$SIM_DIR"
+
+# The slice directory names are xcodebuild's, derived from each library's
+# platform and architectures, and stage_prebuilt.sh selects on them verbatim
+for want in ios-arm64 ios-arm64_x86_64-simulator; do
+    [[ -f "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework/$want/libcoproduct_ffi_frb.a" ]] \
+        || fail "xcframework is missing the $want slice"
+done
 
 # --- symbols in every shipped artifact -----------------------------------
 # Collected with a read loop rather than mapfile, which is a bash 4 builtin and
