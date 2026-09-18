@@ -111,7 +111,7 @@ for v in "$PINNED_FLUTTER_PRIMARY" "$PINNED_FLUTTER_FLOOR"; do
 done
 
 # Gated by the Android consumer-test script, which the gate matrix does not
-# reach until five architectures have been built
+# reach until six architectures have been built
 for var in ANDROID_HOME JAVA_HOME; do
     eval "val=\${$var:-}"
     if [[ -n "$val" && -d "$val" ]]; then

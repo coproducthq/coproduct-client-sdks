@@ -10,9 +10,9 @@ The SDK now ships prebuilt native libraries inside the package, so building an
 app that depends on it no longer requires a Rust toolchain. Earlier versions
 compiled the evaluation core during the consuming build.
 
-iOS simulator builds require an Apple Silicon Mac. The package ships an arm64
-simulator slice only and excludes `x86_64` from the simulator builds of apps that
-depend on it. iOS device builds and all Android builds are unaffected.
+iOS simulator builds work on both Apple Silicon and Intel Macs. The package
+ships a universal arm64 and x86_64 simulator slice and constrains no
+architectures in a consuming app.
 
 `package:coproduct/testing.dart` provides `CoproductTestHarness`, a real
 `CoproductClient` backed by values a widget test sets directly, with no SDK key,

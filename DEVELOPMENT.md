@@ -123,7 +123,7 @@ Two things to know before demonstrating live. The poll interval defaults to 60
 seconds with a 30 second floor, and there is no public refresh, so a flag
 changed in Coproduct takes up to a minute to appear. Backgrounding and
 foregrounding the app forces a poll, which is the fastest way to show a change
-on demand. And iOS simulator builds require an Apple Silicon Mac.
+on demand.
 
 ## Changing the SDK
 
@@ -326,7 +326,7 @@ export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
 ```
 
 `ANDROID_HOME` and `JAVA_HOME` are gated by the Android consumer-test script,
-which the gate matrix reaches about twenty minutes into a run, after five
+which the gate matrix reaches about twenty minutes into a run, after six
 architectures have already been built.
 
 **2. Boot one iOS simulator and one Android emulator.** The gates consume an
@@ -440,7 +440,7 @@ shows how far it got.
 | The release tooling's own tests | `release.sh` | `COPRODUCT_RELEASE_TOOLING_TESTS_STATUS` |
 | Version coherence across all four files | `bin/check_identity.dart` | `COPRODUCT_FLUTTER_IDENTITY_STATUS` |
 | License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
-| Build five architectures | `stages/build-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
+| Build six architectures | `stages/build-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
 | Stage the package | `stages/stage-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
 | Seal the publishable set | `stages/seal-package.sh` | — |
 | Archive membership and size | `bin/check_archive.dart` | `COPRODUCT_FLUTTER_ARCHIVE_STATUS` |

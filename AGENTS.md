@@ -344,7 +344,12 @@ not merely conventional: `stages/build-binaries.sh` fails the release if an
 libraries in the packaged APK. Adding a fourth ABI for emulator parity breaks
 the release.
 
-iOS simulator builds require an Apple Silicon Mac. The package ships an arm64 simulator slice only and excludes `x86_64` from the simulator builds of apps that depend on it.
+The iOS simulator slice is universal (`arm64` and `x86_64`), assembled with
+`lipo` before `xcodebuild -create-xcframework`. The pod deliberately sets no
+`EXCLUDED_ARCHS`: a Flutter app's `Debug.xcconfig` includes the generated Pods
+xcconfig before `Generated.xcconfig`, and `Generated.xcconfig` declares
+`EXCLUDED_ARCHS` itself, so a value set by the pod is overridden and a consuming
+app asks for architectures the package must therefore provide.
 
 ## iOS Notes
 

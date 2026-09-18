@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the five Flutter distribution architectures for release and assemble the
+# Build the six Flutter distribution architectures for release and assemble the
 # artifacts the staged package embeds.
 #
 # Every pinned toolchain is asserted rather than recorded, because a release

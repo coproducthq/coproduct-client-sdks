@@ -7,7 +7,7 @@ import 'package:coproduct_release/shipped_graph.dart';
 // dart run bin/license_audit.dart [--write]
 //
 // Audits the redistribution license of every third-party crate that
-// statically links into the five prebuilt binaries the Flutter package
+// statically links into the six prebuilt binaries the Flutter package
 // ships, and generates NOTICE-THIRD-PARTY.md plus third_party_licenses/ from
 // the result. Without --write, verifies the committed output still matches a
 // fresh audit byte for byte and fails naming any drift. Run from

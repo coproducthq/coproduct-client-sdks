@@ -43,7 +43,7 @@ flutter/
 
 | Script | Does |
 |---|---|
-| `stages/build-binaries.sh` | Builds the five shipped architectures from a clean `CARGO_TARGET_DIR`, verifies symbols and the iOS deployment target, and writes `BUILD-STAMP.json` (commit + per-file SHA-256) |
+| `stages/build-binaries.sh` | Builds the six shipped architectures from a clean `CARGO_TARGET_DIR`, verifies symbols and the iOS deployment target, and writes `BUILD-STAMP.json` (commit + per-file SHA-256) |
 | `stages/stage-package.sh` | Copies tracked files plus the built binaries into the staging directory. Refuses a dirty tree, and refuses binaries whose stamp names a commit other than `HEAD` |
 | `stages/seal-package.sh` | Prints one line per publishable file: sha256, size, mode, path. The file list comes from pub's own selection, not a directory walk |
 | `stages/extract-archive.sh` | Extracts what pub would actually upload |

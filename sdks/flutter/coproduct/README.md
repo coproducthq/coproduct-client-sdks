@@ -71,11 +71,8 @@ environment of your SDK key before looking anywhere else.
 The SDK ships prebuilt native libraries, so **no Rust toolchain is required** to
 build an app that depends on it.
 
-**iOS simulator builds require an Apple Silicon Mac.** The package ships an
-arm64 simulator slice only, and it excludes `x86_64` from the simulator builds of
-apps that depend on it. An x86_64 simulator build stops with a message naming
-this requirement rather than failing at link time. iOS device builds and all
-Android builds are unaffected.
+**The iOS simulator slice is universal**, covering both Apple Silicon and Intel
+Macs, and the SDK constrains no architectures in your project.
 
 Supported toolchains are Flutter 3.38.1 and later, with a minimum iOS deployment
 target of 15.0 and a minimum Android SDK of 24.
