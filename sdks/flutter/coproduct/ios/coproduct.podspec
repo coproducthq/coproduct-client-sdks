@@ -32,7 +32,7 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
     :input_files => [
       '${PODS_TARGET_SRCROOT}/stage_prebuilt.sh',
       '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
-      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64-simulator/libcoproduct_ffi_frb.a',
+      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a',
     ],
     :output_files => ["${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a"],
     # Xcode skips a script phase whose outputs it considers current, which would
@@ -40,17 +40,14 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
     # Staging one file is cheap, so it always runs.
     :always_out_of_date => '1',
   }
+  # This pod deliberately constrains no architectures. The simulator slice is
+  # universal, so there is nothing to exclude, and an exclusion set here would
+  # not hold in any case: CocoaPods writes pod xcconfig into
+  # Pods-Runner.<config>.xcconfig, which a Flutter app's Debug.xcconfig includes
+  # before Generated.xcconfig, and Generated.xcconfig declares the same key, so
+  # the later include wins
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    # Flutter.framework does not contain a i386 slice.
-    # The SDK ships an arm64 simulator slice only. Excluding x86_64 makes Xcode
-    # request just the architecture we provide, rather than asking for a
-    # universal simulator build and failing to link the half that is absent
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 x86_64',
     'OTHER_LDFLAGS' => '-force_load ${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a',
   }
-
-  # The consuming app target must exclude it as well, or it would link a
-  # simulator architecture the pod does not provide
-  s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 x86_64' }
 end
