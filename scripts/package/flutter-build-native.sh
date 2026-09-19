@@ -38,12 +38,18 @@ build_ios() {
     #
     # The build goes in a directory qualified by that deployment target rather
     # than the shared target/. Cargo does not fingerprint the variable, so a
-    # directory previously built without it keeps handing back objects carrying
-    # the legacy load command however many times this runs. A dedicated
-    # directory is invalidated once, by existing, and stays incremental after
-    export IPHONEOS_DEPLOYMENT_TARGET=15.0
+    # directory that has ever been built without it keeps handing back objects
+    # carrying the legacy load command however many times this runs. A
+    # directory of its own pays a full rebuild only the first time and is
+    # incremental from then on
+    #
+    # Both are function-scoped rather than exported outright. This script also
+    # runs both targets in one process, and an iOS deployment target and an
+    # iOS-qualified CARGO_TARGET_DIR inherited by the Android build would move
+    # its artifacts and make the combined run differ from an android-only one
+    local -x IPHONEOS_DEPLOYMENT_TARGET=15.0
     local target_dir="$ROOT/target/flutter-ios-$IPHONEOS_DEPLOYMENT_TARGET"
-    export CARGO_TARGET_DIR="$target_dir"
+    local -x CARGO_TARGET_DIR="$target_dir"
     cargo build -p coproduct_ffi_frb --target aarch64-apple-ios
     cargo build -p coproduct_ffi_frb --target aarch64-apple-ios-sim
     cargo build -p coproduct_ffi_frb --target x86_64-apple-ios
