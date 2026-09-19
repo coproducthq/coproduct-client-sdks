@@ -187,7 +187,7 @@ is_xcframework_slice() {
     esac
 }
 
-# The architecture set must match what the slice directory name claims, exactly.
+# The architecture set must match what the slice directory name claims, exactly
 # A slice thinned down to one architecture still links for that architecture, so
 # nothing else in the pipeline notices the other one going missing
 check_macho_archs() { # file, actual-archs...

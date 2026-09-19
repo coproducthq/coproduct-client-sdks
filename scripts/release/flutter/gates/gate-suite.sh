@@ -87,7 +87,7 @@ public_surface_gate() {
 }
 run 'public surface from the installed package' public_surface_gate
 
-# Symbols in the artifacts that ship, not in the libraries they came from.
+# Symbols in the artifacts that ship, not in the libraries they came from
 # Flutter writes one app per configuration and SDK, and a release device build
 # leaves a second copy under build/ios/iphoneos, so selecting with head -1
 # inspected whichever path the filesystem happened to return first. Each
