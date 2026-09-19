@@ -59,11 +59,13 @@ expect_fail 'simulator unknown architecture' "$rc" 'unsupported ARCHS'
 
 # An empty ARCHS means Xcode subtracted everything the build asked for. The
 # package no longer excludes anything, so this is the consuming project's own
-# configuration and the message says so rather than blaming the Mac
+# configuration and the message says so rather than blaming the Mac. The
+# assertion is on that attribution, not on the phrase "ARCHS is empty", which
+# an earlier arm64-only script also emitted while naming the Mac as the cause
 setup; run iphonesimulator ''; rc=$?
-expect_fail 'simulator empty ARCHS' "$rc" 'ARCHS is empty'
+expect_fail 'simulator empty ARCHS' "$rc" 'coproduct constrains no architectures'
 setup; run iphoneos ''; rc=$?
-expect_fail 'device empty ARCHS' "$rc" 'ARCHS is empty'
+expect_fail 'device empty ARCHS' "$rc" 'coproduct constrains no architectures'
 
 setup; run watchos 'arm64'; rc=$?
 expect_fail 'unrecognized platform' "$rc" 'unsupported PLATFORM_NAME'
