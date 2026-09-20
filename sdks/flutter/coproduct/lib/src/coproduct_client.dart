@@ -130,21 +130,31 @@ final class CoproductClient {
     }
   }
 
-  /// Sets the signed-in user that flags are evaluated for.
+  /// Reads [flowId]'s onboarding flow graph from the cached snapshot as a
+  /// native Dart value (deeply unmodifiable, matching [getJson]).
   ///
-  /// [userId] is your stable account id, and a rule on `user_id` matches it.
-  /// [attributes] replaces the attributes you set earlier, so an attribute
-  /// missing from the map is cleared. The keys `user_id` and `targetingKey`
-  /// are reserved and ignored in [attributes]. The automatic attributes are
-  /// never cleared.
-  ///
-  /// With [linkAnonymous] true, the default, this installation's anonymous id
-  /// is captured in [previousAnonymousId] unless one is already stored. With
-  /// it false, [previousAnonymousId] is cleared.
-  ///
-  /// Makes no network request. When the future completes, getters and
-  /// observations reflect the new user. The user id is not saved, so call this
-  /// again on each launch. Throws [InvalidTargetingKey] if [userId] is empty
+  /// Unlike [getJson] this is a direct snapshot lookup with no caller default:
+  /// a null result is a real "not present" case (not-ready, wrong [flowId], or
+  /// malformed cached JSON) that the caller must handle rather than a value to
+  /// paper over
+  Object? getOnboardingFlowGraph(String flowId) {
+    final resultJson = _backend.getOnboardingFlowGraph(flowId);
+    if (resultJson == null) return null;
+    try {
+      return unmodifiableJson(jsonDecode(resultJson));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Identifies the evaluated context by [userId] and replaces its developer
+  /// attributes with [attributes], so an attribute not in the map is cleared.
+  /// [linkAnonymous] (default true) carries the pre-identify anonymous id forward,
+  /// readable via [previousAnonymousId]. Reserved keys `user_id` and `targetingKey`
+  /// in [attributes] are ignored, so set identity through [userId]. Throws
+  /// `InvalidTargetingKey` if [userId] is empty. Awaiting settles the in-memory
+  /// transition, lifecycle notifications, and observer fan-out, and performs no
+  /// persistence
   Future<void> identify({
     required String userId,
     Map<String, AttributeValue> attributes = const {},

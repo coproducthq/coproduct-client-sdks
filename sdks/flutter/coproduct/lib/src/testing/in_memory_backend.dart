@@ -164,6 +164,7 @@ final class InMemoryBackend implements CoproductClientBackend {
   final String anonymousId;
 
   final Map<String, StoredValue> _flags = {};
+  final Map<String, String> _onboardingFlowGraphs = {};
   final List<_Sink> _sinks = [];
 
   ProviderState _state = ProviderState.ready;
@@ -212,6 +213,20 @@ final class InMemoryBackend implements CoproductClientBackend {
 
     for (final sink in targets) {
       sink.deliver(next);
+    }
+  }
+
+  /// Sets or clears (with a null [graphJson]) the onboarding flow graph a test
+  /// wants [flowId] to resolve to, matching how a real snapshot's
+  /// `onboardingFlows` section is looked up by [getOnboardingFlowGraph]
+  void setOnboardingFlowGraph(String flowId, String? graphJson) {
+    if (_shutdown) {
+      throw StateError('This harness has been shut down');
+    }
+    if (graphJson == null) {
+      _onboardingFlowGraphs.remove(flowId);
+    } else {
+      _onboardingFlowGraphs[flowId] = graphJson;
     }
   }
 
@@ -274,6 +289,10 @@ final class InMemoryBackend implements CoproductClientBackend {
   String getJson(String key, {required String defaultValueJson}) => _shutdown
       ? defaultValueJson
       : projectJson(_flags[key]) ?? defaultValueJson;
+
+  @override
+  String? getOnboardingFlowGraph(String flowId) =>
+      _shutdown ? null : _onboardingFlowGraphs[flowId];
 
   ObservationHandle<T> _observe<T>(
     String key,

@@ -24,6 +24,7 @@ fn number_flag(key: &str, n: f64) -> Snapshot {
             experiment: None,
         }],
         segments: vec![],
+        onboarding_flows: vec![],
     }
 }
 

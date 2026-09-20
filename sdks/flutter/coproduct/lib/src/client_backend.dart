@@ -43,6 +43,10 @@ abstract interface class CoproductClientBackend {
   /// Decoding happens above this boundary
   String getJson(String key, {required String defaultValueJson});
 
+  /// Returns the encoded JSON text for [flowId]'s onboarding flow graph in the
+  /// cached snapshot, or null if absent. Decoding happens above this boundary
+  String? getOnboardingFlowGraph(String flowId);
+
   ObservationHandle<bool> observeBool(String key);
   ObservationHandle<String> observeString(String key);
   ObservationHandle<int> observeInt(String key);

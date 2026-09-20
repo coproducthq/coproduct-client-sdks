@@ -24,6 +24,7 @@ fn snapshot_with_bool_flag(key: &str, value: bool) -> Snapshot {
             experiment: None,
         }],
         segments: vec![],
+        onboarding_flows: vec![],
     }
 }
 

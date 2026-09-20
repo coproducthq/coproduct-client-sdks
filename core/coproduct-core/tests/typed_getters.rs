@@ -29,6 +29,7 @@ fn snapshot(flags: Vec<Flag>) -> Snapshot {
         version: 1,
         flags,
         segments: vec![],
+        onboarding_flows: vec![],
     }
 }
 

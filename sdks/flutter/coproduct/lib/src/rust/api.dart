@@ -80,6 +80,14 @@ String getJson({
   defaultValueJson: defaultValueJson,
 );
 
+String? getOnboardingFlowGraph({
+  required CoproductClientHandle client,
+  required String flowId,
+}) => RustLib.instance.api.crateApiGetOnboardingFlowGraph(
+  client: client,
+  flowId: flowId,
+);
+
 Future<void> identify({
   required CoproductClientHandle handle,
   required String userId,

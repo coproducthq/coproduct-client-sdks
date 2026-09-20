@@ -19,6 +19,7 @@ mod test_support {
             version,
             flags: vec![],
             segments: vec![],
+            onboarding_flows: vec![],
         }
         .into()
     }
