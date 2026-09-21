@@ -218,6 +218,13 @@ final class CoproductClient {
     return _identityQueue.add(() => _backend.removeAttributes(snapshot));
   }
 
+  /// Polls the server immediately, ahead of the scheduler's own timer.
+  /// Awaiting settles this poll's outcome (a new snapshot applied, or no
+  /// change) before returning; observers relying on cache alone until then
+  /// haven't yet seen anything new. Safe to call even while a scheduled poll
+  /// is already in flight -- the core dedupes the overlap
+  Future<void> pollNow() => _backend.pollNow();
+
   /// The anonymous id captured when someone signed in, or null.
   ///
   /// Pass it to your own analytics or backend alongside the signed-in id to

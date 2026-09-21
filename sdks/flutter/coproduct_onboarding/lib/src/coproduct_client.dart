@@ -38,4 +38,11 @@ abstract interface class CoproductClient {
 
   /// Segment keys this device currently matches.
   Set<String> get sdkContextSegmentKeys;
+
+  /// Polls the server immediately and waits for that poll to settle, ahead
+  /// of the base SDK's own scheduled cadence. [CoproductOnboardingFlow]'s
+  /// debug "Refresh" control calls this before re-reading [onboardingFlowGraph],
+  /// so a content edit is guaranteed visible on refresh rather than only
+  /// eventually, whenever the next scheduled poll happens to land
+  Future<void> refresh();
 }

@@ -414,4 +414,14 @@ final class InMemoryBackend implements CoproductClientBackend {
 
   @override
   ProviderState get state => _state;
+
+  int pollNowCallCount = 0;
+
+  // No real network to poll -- this double has no separate "cached" vs
+  // "live" state to reconcile, so there's nothing for a poll to do beyond
+  // recording that it happened, for a test to assert on
+  @override
+  Future<void> pollNow() async {
+    pollNowCallCount++;
+  }
 }

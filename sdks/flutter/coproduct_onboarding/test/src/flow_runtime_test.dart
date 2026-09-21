@@ -21,6 +21,13 @@ class FakeCoproductClient implements CoproductClient {
 
   @override
   Set<String> get sdkContextSegmentKeys => {};
+
+  int refreshCallCount = 0;
+
+  @override
+  Future<void> refresh() async {
+    refreshCallCount++;
+  }
 }
 
 void main() {

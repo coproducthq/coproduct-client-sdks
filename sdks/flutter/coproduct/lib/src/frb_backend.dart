@@ -133,6 +133,11 @@ final class FrbBackend implements CoproductClientBackend {
       frb.removeAttributes(handle: handle, names: names);
 
   @override
+  Future<void> pollNow() async {
+    await frb.pollNow(client: handle);
+  }
+
+  @override
   String? get previousAnonymousId => frb.previousAnonymousId(handle: handle);
 
   @override

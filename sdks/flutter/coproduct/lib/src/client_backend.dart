@@ -68,6 +68,11 @@ abstract interface class CoproductClientBackend {
   Future<void> updateAttributes(Map<String, AttributeValue> attributes);
   Future<void> removeAttributes(List<String> names);
 
+  /// Polls immediately, independent of the scheduler's own timer. The core
+  /// dedupes an overlapping in-flight poll (PollOutcome.dedupedSkipped), so
+  /// this is safe to call even while a scheduled poll is already in flight
+  Future<void> pollNow();
+
   String? get previousAnonymousId;
   ProviderState get state;
 }

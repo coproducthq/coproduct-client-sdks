@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'coproduct_client.dart';
+import 'debug_flow_drawer.dart';
 import 'flow_runtime.dart';
 import 'local_progress_store.dart';
 import 'splash_screen_widget.dart';
@@ -52,6 +54,23 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
   void initState() {
     super.initState();
     _boot();
+  }
+
+  /// Rebuilds the shell from whatever the client currently resolves --
+  /// [clearProgress] discards saved progress first (a debug "restart flow"),
+  /// otherwise this forces a fresh server poll before resuming on the same
+  /// screen (a debug "refresh"), so a content edit is guaranteed visible
+  /// immediately rather than only once the base SDK's own background poll
+  /// happens to land
+  Future<void> _rebuild({required bool clearProgress}) async {
+    if (clearProgress) {
+      final flowId = widget.client.resolveStringFlag(widget.flagKey);
+      if (flowId != null) await LocalProgressStore().clear(flowId: flowId);
+    } else {
+      await widget.client.refresh();
+    }
+    if (mounted) setState(() { _ready = false; _controller = null; });
+    await _boot();
   }
 
   Future<void> _boot() async {
@@ -108,9 +127,22 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_ready || _controller == null) {
-      return SplashScreenWidget(splashImageUrl: _splashImageUrl, fallbackAssetPath: widget.fallbackSplashAssetPath);
-    }
-    return WebViewWidget(controller: _controller!);
+    final content = !_ready || _controller == null
+        ? SplashScreenWidget(splashImageUrl: _splashImageUrl, fallbackAssetPath: widget.fallbackSplashAssetPath)
+        : WebViewWidget(controller: _controller!);
+
+    // Debug-only: lets an author see a content edit made through the
+    // coproduct MCP tools without a full app kill/relaunch. kDebugMode means
+    // this (and DebugFlowDrawer entirely) is compiled out of a release build
+    if (!kDebugMode) return content;
+    return Stack(
+      children: [
+        content,
+        DebugFlowDrawer(
+          onRestartFlow: () => _rebuild(clearProgress: true),
+          onRefresh: () => _rebuild(clearProgress: false),
+        ),
+      ],
+    );
   }
 }
