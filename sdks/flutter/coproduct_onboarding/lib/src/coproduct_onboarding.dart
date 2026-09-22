@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -22,6 +24,7 @@ class CoproductOnboardingFlow extends StatefulWidget {
   final PermissionCallback? onRequestPermission;
   final OpenUrlCallback? onOpenUrl;
   final PaywallCallback? onShowPaywall;
+  final NativeOperationCallback? onNativeOperation;
   final String platformScriptJs;
 
   const CoproductOnboardingFlow({
@@ -34,6 +37,7 @@ class CoproductOnboardingFlow extends StatefulWidget {
     this.onRequestPermission,
     this.onOpenUrl,
     this.onShowPaywall,
+    this.onNativeOperation,
   });
 
   /// Loads the platform script bundled as this package's own asset. A host
@@ -102,6 +106,7 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
       onRequestPermission: widget.onRequestPermission,
       onOpenUrl: widget.onOpenUrl,
       onShowPaywall: widget.onShowPaywall,
+      onNativeOperation: widget.onNativeOperation,
     );
 
     final html = runtime.buildShellHtml(
@@ -125,6 +130,17 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
         },
       ))
       ..loadHtmlString(html);
+
+    runtime.attachResolver((requestId, response) async {
+      try {
+        await controller.runJavaScript(
+          "window.__coproductResolveRequest__(${jsonEncode(requestId)}, ${jsonEncode(response)})",
+        );
+      } catch (_) {
+        // The WebView may already be torn down (user navigated away, debug
+        // restart) by the time a slow request resolves -- nothing to do
+      }
+    });
 
     if (!mounted) return;
     setState(() {
