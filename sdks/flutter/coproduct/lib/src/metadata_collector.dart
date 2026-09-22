@@ -166,11 +166,10 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
       throw const CoproductInitializationCancelled();
     }
     // Started but deliberately not awaited: a budget exhausted before collection
-    // begins must not cost every field for the life of the runtime. The futures
-    // are observed rather than dropped, so nothing they carry can surface as an
-    // unhandled asynchronous error
-    unawaited(Future.wait(startProviders())
-        .then<void>((_) {}, onError: (Object _, StackTrace _) {}));
+    // begins must not cost every field for the life of the runtime. Nothing in
+    // the handler chain can throw, so the futures need no error sink of their
+    // own: the late sink is guarded and the diagnostic reporter already is
+    startProviders();
     return Map.unmodifiable(attributes);
   }
 
