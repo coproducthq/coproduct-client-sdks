@@ -15,8 +15,8 @@ the SDKs populate with no code from the developer. iOS implements all ten. The
 Flutter SDK implements seven: `platform`, `os_version`, `app_version`,
 `app_build`, `locale`, `timezone`, and `device_type`.
 
-`device_type` has landed on `feat/flutter-auto-attributes-a`, from the interface
-idiom on iOS and `uiMode` plus `smallestScreenWidthDp` on Android. The
+`device_type` has landed, from the interface idiom on iOS and `uiMode` plus
+`smallestScreenWidthDp` on Android. The
 "no reliable cross-platform classifier" assessment it carried here was wrong:
 neither platform needs the screen-dimension inference that made it look blocked.
 
@@ -32,16 +32,17 @@ The three milestone deferrals are recorded in
 `2026-07-22-flutter-host-runtime-design.md`: "The typed reactive layer, provider
 widget, detail getters, hooks, session attributes, `device_type`, and public
 transport/store injection are out of scope (0.2.0+)." The reactive layer from
-that same list shipped in 0.2.0. These four did not, and 1.0.0 arrived without
-anyone revisiting them.
+that same list shipped in 0.2.0. Of the four that did not, `device_type` has since
+landed; the remaining three arrived at 1.0.0 without anyone revisiting them.
 
-**Why it matters more than a missing feature.** The platform advertises all four
+**Why it matters more than a missing feature.** The platform advertises all ten
 in `KNOWN_STANDARD_ATTRIBUTES` (`packages/snapshot-spec/src/standard-attributes.ts`)
 and the authoring validator suppresses its unknown-attribute warning for
-anything on that list. So an author writes `device_type equals "tablet"` against
-a Flutter app, sees no warning, and publishes. The attribute is absent on the
-device, the condition resolves indeterminate, the rule never matches, and every
-user gets the fallthrough. Nothing on the device or in the dashboard says so.
+anything on that list. So an author writes `network_type not_equals "none"`
+against a Flutter app, sees no warning, and publishes. The attribute is absent on
+the device, the condition resolves indeterminate, the rule never matches, and
+every user gets the fallthrough. Nothing on the device or in the dashboard says
+so.
 
 **What each would take.**
 
@@ -66,9 +67,6 @@ user gets the fallthrough. Nothing on the device or in the dashboard says so.
 - `network_type` needs a connectivity source plus live updates through the
   existing bulk upsert, and carries a documented startup window where it is
   briefly absent.
-- `device_type` is not blocked. See the classification contract referenced in the
-  table above.
-
 **The platform-side counterpart is no longer needed.** The earlier plan was to
 stop the validator silently accepting a rule on an attribute the target SDK does
 not populate, by warning per-SDK or scoping `KNOWN_STANDARD_ATTRIBUTES` to what

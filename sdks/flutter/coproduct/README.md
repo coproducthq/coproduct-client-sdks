@@ -210,6 +210,7 @@ Attributes come from two places:
   foldable is classified from its posture when the SDK starts and is not
   reclassified when it folds, so write rules that tolerate either value if that
   matters to you.
+
   Most of these are ready the moment `initialize` returns. One whose source is
   slow can arrive shortly after instead, and an observation re-emits when it
   does, so prefer `CoproductFlagBuilder` or an observation over a single read

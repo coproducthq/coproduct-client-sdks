@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The complete archive-backed gate matrix: both platforms on both supported
 # Flutter toolchains, symbols verified inside the artifacts that ship, runtime
-# acceptance, and both no-Rust gates.
+# acceptance including a dark-mode pass, the native unit suites, and both
+# no-Rust gates.
 #
 # Every stage consumes the extracted archive rather than the staging directory,
 # because a file the stage holds but pub excludes is still present for anything
@@ -140,12 +141,43 @@ else
     printf '  FAIL no APK found for symbol inspection\n'; fail=1
 fi
 
+# The native unit suites. Neither runs anywhere else, so the Kotlin classifier
+# and the Swift idiom mapping would otherwise execute only by hand and rot. They
+# need no device and no artifact, so they run against the example project
+android_native_unit_gate() {
+    ( cd "$REPO_ROOT/sdks/flutter/coproduct/example/android" \
+        && ./gradlew --quiet :coproduct:testDebugUnitTest )
+}
+run 'Android native unit suite' android_native_unit_gate
+
+ios_native_unit_gate() {
+    ( cd "$REPO_ROOT/sdks/flutter/coproduct/example/ios" \
+        && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
+            -destination "platform=iOS Simulator,id=$COPRODUCT_ACCEPTANCE_IOS_DEVICE" )
+}
+run 'iOS native unit suite' ios_native_unit_gate
+
 # Runtime acceptance on the primary toolchain
 for platform in ios android; do
     run "$platform acceptance on Flutter $PRIMARY" \
         "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
         "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-$platform.sh"
 done
+
+# Android again in dark mode. device_type is read from uiMode masked with
+# UI_MODE_TYPE_MASK, and dropping that mask sends a dark-mode device into the
+# unrecognized-mode arm, which omits the attribute for every dark-mode user. The
+# light-mode run above passes either way, so this is the only thing that covers
+# it. The mode is restored afterwards so the emulator is left as it was found
+android_dark_mode_gate() {
+    adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" shell cmd uimode night yes >/dev/null
+    local code=0
+    "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+        "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-android.sh" || code=$?
+    adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" shell cmd uimode night no >/dev/null
+    return $code
+}
+run "android acceptance in dark mode on Flutter $PRIMARY" android_dark_mode_gate
 
 # Both platforms with no Rust reachable, each on a consumer of its own
 for platform in ios android; do

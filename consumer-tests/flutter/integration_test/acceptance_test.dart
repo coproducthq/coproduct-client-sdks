@@ -92,7 +92,9 @@ void main() {
       try {
         expect(read(row), row['target']);
         return true;
-      } catch (_) {
+      } on TestFailure {
+        // Only a mismatch means "not yet". Anything else is a real failure and
+        // must surface with its own message rather than as a timeout
         return false;
       }
     }
