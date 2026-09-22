@@ -1,5 +1,27 @@
 ## Unreleased
 
+`device_type` is now filled in automatically alongside the six attributes the
+SDK already supplied, so a rule can target phones or tablets with no code from
+you. It is left unset rather than guessed on a device that is neither: on iOS
+that is whatever the system reports as its interface idiom, and on Android it is
+the 600dp width the platform's own layout qualifier uses, with televisions,
+watches, cars, appliances, VR headsets, Chromebooks and Android PCs left unset.
+
+An automatic attribute whose source is slow no longer costs that attribute the
+whole session. The startup timeout still bounds how long `initialize` waits, but
+a value that arrives after it now publishes when it lands, and observers re-emit,
+rather than the attribute staying absent until the app restarts.
+
+`initialize` now rejects a spawned background isolate with
+`CoproductUnsupportedIsolate`, which is about Dart isolates rather than app
+lifecycle: an app running in the background is unaffected, and each
+`FlutterEngine` has its own root isolate.
+
+If the SDK's platform component is not registered in your app, that is now
+reported through your error handler in release builds rather than passing
+silently, because the symptom is otherwise a rule that never matches with
+nothing to explain why.
+
 First stable release. The SDK fetches and evaluates real flags on a booted
 device: it polls the Coproduct endpoint, applies automatic device and app
 context, evaluates targeting and identity, and serves values from the

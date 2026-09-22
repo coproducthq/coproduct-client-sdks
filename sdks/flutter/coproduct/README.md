@@ -77,6 +77,12 @@ Macs, and the SDK constrains no architectures in your project.
 Supported toolchains are Flutter 3.38.1 and later, with a minimum iOS deployment
 target of 15.0 and a minimum Android SDK of 24.
 
+**Initialize from your app's main isolate.** A spawned background isolate cannot
+receive the platform messages the SDK relies on, so `initialize` rejects one with
+`CoproductUnsupportedIsolate`. This is about Dart isolates, not app lifecycle: an
+app running in the background is fine, and each `FlutterEngine` has its own root
+isolate, so multiple engines are supported.
+
 ## Installation
 
 Add it to your `pubspec.yaml`:
@@ -189,10 +195,21 @@ on the device unless you send them somewhere yourself.
 
 Attributes come from two places:
 
-- **The SDK fills in six automatically**, with no code from you: `platform`,
-  `os_version`, `app_version`, `app_build`, `locale`, and `timezone`. So you can
-  target Android only, or a locale, or roll a feature out to builds at or above
-  a version, straight away.
+- **The SDK fills in seven automatically**, with no code from you: `platform`,
+  `os_version`, `app_version`, `app_build`, `locale`, `timezone`, and
+  `device_type`. So you can target Android only, or a locale, or tablets, or
+  roll a feature out to builds at or above a version, straight away.
+
+  `device_type` is `"phone"` or `"tablet"`, and is **left unset rather than
+  guessed** on a device that is neither. On iOS it comes from the interface
+  idiom the system reports, so a Mac, an Apple TV, CarPlay, or Vision device has
+  no value. On Android there is no equivalent property, so Coproduct classifies
+  by the 600dp width Android's own `sw600dp` layout qualifier uses: this is our
+  policy rather than something the OS tells us. Televisions, watches, cars,
+  appliances, VR headsets, Chromebooks and Android PCs are left unset. A
+  foldable is classified from its posture when the SDK starts and is not
+  reclassified when it folds, so write rules that tolerate either value if that
+  matters to you.
 - **You supply the rest**, through [`identify`](#identity). These are whatever
   your product needs a rule to match on, such as `plan`, `region`, or
   `signup_date`. Their names are yours, and they have to match the names your
