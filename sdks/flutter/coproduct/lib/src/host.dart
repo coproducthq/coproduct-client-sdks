@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import 'auto_upsert.dart';
 import 'cancellation.dart';
 import 'config.dart';
 import 'init_identity.dart';
@@ -149,6 +152,20 @@ class CoproductHost<H extends Object, C extends Object> {
       throw const CoproductInitializationCancelled();
     }
     final transport = _createTransport(config.requestTimeout);
+    // Created before collection starts because the late sink closes over it.
+    // Null means the build failed and there is nothing to amend, carried as a
+    // value rather than an error because a completer whose error nobody listens
+    // for becomes an unhandled asynchronous error
+    final batchPublished = Completer<AutoUpsert?>();
+    void publishLate(String field, frb.FrbContextValue value) {
+      batchPublished.future
+          .then((upsert) => upsert?.publish({field: value}));
+    }
+    // Created here rather than inside createRuntime so the client and the
+    // auto-upsert path share one queue, which is what keeps a machine-initiated
+    // write ordered against the identity mutators
+    final identityQueue = SerialQueue();
+    AutoUpsert? candidate;
     // Start metadata collection concurrently with the FRB initialize, bounded by
     // the shared deadline and cancellation, and observe it from creation so an
     // early failure never becomes an unhandled async error before publish
@@ -158,83 +175,98 @@ class CoproductHost<H extends Object, C extends Object> {
       clock: clock,
       cancel: cancel,
       observe: _observeMetadata,
-      // The auto layer cannot be written until a handle exists and the initial
-      // publication has been made, so a straggler is dropped rather than
-      // written out of order
-      onLate: (field, value) {},
+      onLate: publishLate,
     ).then<_MetadataOutcome>(
       _MetadataSuccess.new,
       onError: (Object error, StackTrace stack) =>
           _MetadataFailure(error, stack),
     );
-    // Created here rather than inside createRuntime so the client and the
-    // auto-upsert path share one queue, which is what keeps a machine-initiated
-    // write ordered against the identity mutators
-    final identityQueue = SerialQueue();
-    return buildRuntime<H, _ActiveRuntime<C>>(
-      initHandle: () async {
-        final cacheDir = await _bridge.cacheDirectory();
-        if (!isCurrent()) {
-          throw const CoproductInitializationCancelled();
-        }
-        return _bridge.initialize(
-          sdkKey: sdkKey,
-          userAgent: _userAgent,
-          config: ffiConfigFor(config),
-          cacheDir: cacheDir,
-          transportRequest: transport.request,
-          secureRead: _secureStore.read,
-          secureWrite: _secureStore.write,
-        );
-      },
-      disposeTransport: transport.dispose,
-      shutdownHandle: _bridge.shutdown,
-      publishAttributes: (handle) async {
-        final outcome = await metadata;
-        if (!isCurrent()) {
-          throw const CoproductInitializationCancelled();
-        }
-        if (outcome is _MetadataFailure) {
-          Error.throwWithStackTrace(outcome.error, outcome.stack);
-        }
-        await _bridge.setAutoPopulatedAttributes(
-            handle, (outcome as _MetadataSuccess).attributes);
-        if (!isCurrent()) {
-          throw const CoproductInitializationCancelled();
-        }
-      },
-      createRuntime: (handle) {
-        final client = _createClient(handle, identityQueue);
-        final scheduler = Scheduler(
-          poll: () => _bridge.pollNow(handle),
-          interval: config.pollInterval,
-          pollOnForeground: config.pollOnForeground,
-          onError: _reportError,
-          clock: _schedulerClock,
-        );
-        final disposeForeground = config.pollOnForeground
-            ? _bindForeground(scheduler.onForeground)
-            : null;
-        final runtime = CoproductRuntime(
-          generation: generation,
-          scheduler: scheduler,
-          transport: transport,
-          coreShutdown: () => _bridge.shutdown(handle),
-          disposeForeground: disposeForeground,
-        );
-        return _ActiveRuntime<C>(client, runtime);
-      },
-      startRuntime: (active) => active.runtime.start(),
-      shutdownRuntime: (active) => active.runtime.shutdown(),
-      awaitReady: (handle) => awaitInitialReadiness(
-        state: () => providerStateFromFrb(_bridge.state(handle)),
-        deadline: deadline,
-        clock: clock,
-        cancel: cancel,
-      ),
-      isCurrent: isCurrent,
-      onCleanupError: _reportError,
-    );
+    try {
+      final active = await buildRuntime<H, _ActiveRuntime<C>>(
+        initHandle: () async {
+          final cacheDir = await _bridge.cacheDirectory();
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          return _bridge.initialize(
+            sdkKey: sdkKey,
+            userAgent: _userAgent,
+            config: ffiConfigFor(config),
+            cacheDir: cacheDir,
+            transportRequest: transport.request,
+            secureRead: _secureStore.read,
+            secureWrite: _secureStore.write,
+          );
+        },
+        disposeTransport: transport.dispose,
+        shutdownHandle: _bridge.shutdown,
+        publishAttributes: (handle) async {
+          final outcome = await metadata;
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          if (outcome is _MetadataFailure) {
+            Error.throwWithStackTrace(outcome.error, outcome.stack);
+          }
+          await _bridge.setAutoPopulatedAttributes(
+              handle, (outcome as _MetadataSuccess).attributes);
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          // Held rather than published: readiness runs concurrently with this and
+          // may still fail, which would tear the runtime down around a gate that
+          // was already open
+          candidate = AutoUpsert(
+            queue: identityQueue,
+            isCurrent: isCurrent,
+            send: (attributes) =>
+                _bridge.setAutoPopulatedAttributes(handle, attributes),
+            onError: _reportError,
+          );
+        },
+        createRuntime: (handle) {
+          final client = _createClient(handle, identityQueue);
+          final scheduler = Scheduler(
+            poll: () => _bridge.pollNow(handle),
+            interval: config.pollInterval,
+            pollOnForeground: config.pollOnForeground,
+            onError: _reportError,
+            clock: _schedulerClock,
+          );
+          final disposeForeground = config.pollOnForeground
+              ? _bindForeground(scheduler.onForeground)
+              : null;
+          final runtime = CoproductRuntime(
+            generation: generation,
+            scheduler: scheduler,
+            transport: transport,
+            coreShutdown: () => _bridge.shutdown(handle),
+            disposeForeground: disposeForeground,
+          );
+          return _ActiveRuntime<C>(client, runtime);
+        },
+        startRuntime: (active) => active.runtime.start(),
+        shutdownRuntime: (active) => active.runtime.shutdown(),
+        awaitReady: (handle) => awaitInitialReadiness(
+          state: () => providerStateFromFrb(_bridge.state(handle)),
+          deadline: deadline,
+          clock: clock,
+          cancel: cancel,
+        ),
+        isCurrent: isCurrent,
+        onCleanupError: _reportError,
+      );
+      // Only now is the handle known good: publication succeeded, readiness
+      // resolved, and no supersession intervened. A null candidate means
+      // publication never ran, so there is nothing to amend
+      batchPublished.complete(candidate);
+      return active;
+    } catch (error, stack) {
+      if (!batchPublished.isCompleted) {
+        batchPublished.complete(null);
+      }
+      Error.throwWithStackTrace(error, stack);
+    }
   }
 }
 

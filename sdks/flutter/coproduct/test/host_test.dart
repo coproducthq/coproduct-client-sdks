@@ -99,6 +99,13 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   int? attributesInstalledAtClientCount;
   Map<String, frb.FrbContextValue>? installedAttributes;
 
+  final List<String> orderedCalls = [];
+  final List<Map<String, frb.FrbContextValue>> lateAttributes = [];
+  int setAutoPopulatedCalls = 0;
+  Completer<void>? publishGate; // suspends the initial publication
+  final Completer<void> publishEntered = Completer<void>(); // entry handshake
+  bool stateThrows = false; // makes the injected readiness state closure throw
+
   int pollCalls = 0;
   final Completer<void> firstPoll = Completer<void>();
   int shutdownCalls = 0;
@@ -155,8 +162,17 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   @override
   Future<void> setAutoPopulatedAttributes(
       _FakeHandle handle, Map<String, frb.FrbContextValue> attributes) async {
-    attributesInstalledAtClientCount = clientsCreated;
-    installedAttributes = attributes;
+    setAutoPopulatedCalls++;
+    final isBatch = setAutoPopulatedCalls == 1;
+    if (!publishEntered.isCompleted) publishEntered.complete();
+    if (publishGate != null) await publishGate!.future;
+    orderedCalls.add(isBatch ? 'batch' : 'late');
+    if (isBatch) {
+      attributesInstalledAtClientCount = clientsCreated;
+      installedAttributes = attributes;
+    } else {
+      lateAttributes.add(attributes);
+    }
     if (publishThrows) throw StateError('publish failed');
   }
 
@@ -165,6 +181,7 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 
   @override
   frb.ProviderState state(_FakeHandle handle) {
+    if (stateThrows) throw StateError('state read failed');
     stateReads++;
     if (!stateRead.isCompleted) stateRead.complete();
     return stateValue;
@@ -189,13 +206,13 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 }
 
 /// Metadata providers returning a fixed value per field.
-MetadataProviders _providers() => MetadataProviders(
+MetadataProviders _providers({MetadataProvider? timezone}) => MetadataProviders(
       platform: stringProvider(() async => 'android'),
       osVersion: stringProvider(() async => '14'),
       appVersion: stringProvider(() async => '1.2.3'),
       appBuild: stringProvider(() async => '42'),
       locale: stringProvider(() async => 'en-US'),
-      timezone: stringProvider(() async => 'America/New_York'),
+      timezone: timezone ?? stringProvider(() async => 'America/New_York'),
     );
 
 CoproductHost<_FakeHandle, _FakeClient> _host(
@@ -231,6 +248,141 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
 }
 
 void main() {
+  group('late publication', () {
+    const shortBudget =
+        CoproductConfig(startupTimeout: Duration(milliseconds: 50));
+
+    test('a late provider publishes after the initial batch, in order',
+        () async {
+      final bridge = _FakeBridge();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      await host.initialize(sdkKey: _key, config: shortBudget);
+      expect(bridge.installedAttributes!.containsKey('timezone'), isFalse);
+      expect(bridge.setAutoPopulatedCalls, 1);
+
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      expect(bridge.setAutoPopulatedCalls, 2);
+      expect(bridge.lateAttributes.single['timezone'],
+          const frb.FrbContextValue.string('UTC'));
+      await host.shutdown();
+    });
+
+    test('a late result arriving during the build waits for the initial batch',
+        () async {
+      final bridge = _FakeBridge()..publishGate = Completer<void>();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      final init = host.initialize(sdkKey: _key, config: shortBudget);
+      // Wait for the publication to be in flight rather than pumping and
+      // hoping: on a fast run the value would otherwise join the initial batch
+      await bridge.publishEntered.future;
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+      expect(bridge.orderedCalls, isEmpty, reason: 'nothing published yet');
+
+      bridge.publishGate!.complete();
+      await init;
+      await pumpEventQueue();
+
+      expect(bridge.orderedCalls, ['batch', 'late'],
+          reason: 'a late write must never precede the batch it amends');
+      await host.shutdown();
+    });
+
+    test('a late result arriving before the handle exists still publishes',
+        () async {
+      final bridge = _FakeBridge()..initGate = Completer<void>();
+      // Settles after the deadline but while the native initialize is still
+      // suspended, so it is late and there is no handle to write through yet
+      final host = _host(bridge,
+          providers: _providers(
+              timezone: () => Future<frb.FrbContextValue?>.delayed(
+                  const Duration(milliseconds: 40),
+                  () => const frb.FrbContextValue.string('UTC'))));
+
+      final init = host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(milliseconds: 20)));
+      await bridge.initializeEntered.future;
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      bridge.initGate!.complete();
+      await init;
+      await pumpEventQueue();
+
+      expect(bridge.lateAttributes.single['timezone'],
+          const frb.FrbContextValue.string('UTC'));
+      await host.shutdown();
+    });
+
+    test('a late upsert orders behind identity work on the client queue',
+        () async {
+      final bridge = _FakeBridge();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      final client = await host.initialize(sdkKey: _key, config: shortBudget);
+
+      final release = Completer<void>();
+      final identity = client.identify(() async {
+        await release.future;
+        bridge.orderedCalls.add('identify');
+      });
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      release.complete();
+      await identity;
+      await pumpEventQueue();
+
+      expect(bridge.orderedCalls, ['batch', 'identify', 'late'],
+          reason: 'one shared queue is the point, a second would reorder these');
+      await host.shutdown();
+    });
+
+    test('a late result is dropped when the build fails after publication',
+        () async {
+      // Publication succeeds, then readiness throws because its injected state
+      // closure does. An ordinary build failure does not advance the manager's
+      // generation, so only the gate's placement prevents a write to a handle
+      // whose runtime was torn down
+      final bridge = _FakeBridge()..stateThrows = true;
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      await expectLater(
+          host.initialize(sdkKey: _key, config: shortBudget), throwsA(anything));
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      expect(bridge.lateAttributes, isEmpty);
+    });
+
+    test('a late result is dropped when shutdown supersedes the runtime',
+        () async {
+      final bridge = _FakeBridge();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      await host.initialize(sdkKey: _key, config: shortBudget);
+      await host.shutdown();
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      expect(bridge.lateAttributes, isEmpty);
+    });
+  });
+
   group('isolate support', () {
     test('initialize on a non-root isolate is rejected before any native work',
         () async {
