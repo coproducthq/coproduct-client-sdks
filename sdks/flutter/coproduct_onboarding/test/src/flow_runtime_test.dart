@@ -14,7 +14,7 @@ class FakeCoproductClient implements CoproductClient {
   String? resolveStringFlag(String flagKey) => flags[flagKey];
 
   @override
-  OnboardingFlowGraph? onboardingFlowGraph(String flowId) => flows[flowId];
+  Future<OnboardingFlowGraph?> fetchOnboardingFlow(String flowId) async => flows[flowId];
 
   @override
   Map<String, Object> get sdkContextAttributes => {'platform': 'ios'};
@@ -36,7 +36,6 @@ void main() {
 
   final graph = OnboardingFlowGraph.fromJson({
     'startScreenId': 'welcome',
-    'splashImage': null,
     'screens': [
       {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
     ],

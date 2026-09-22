@@ -7,6 +7,7 @@ import 'coproduct_client.dart';
 import 'debug_flow_drawer.dart';
 import 'flow_runtime.dart';
 import 'local_progress_store.dart';
+import 'models/onboarding_flow_graph.dart';
 import 'splash_screen_widget.dart';
 
 /// Renders and drives one onboarding flow, resolved from [flagKey] via
@@ -48,7 +49,6 @@ class CoproductOnboardingFlow extends StatefulWidget {
 class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
   WebViewController? _controller;
   bool _ready = false;
-  String? _splashImageUrl;
 
   @override
   void initState() {
@@ -77,10 +77,18 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
     final flowId = widget.client.resolveStringFlag(widget.flagKey);
     if (flowId == null) return; // no flow resolved for this device — caller decides the fallback UI
 
-    final graph = widget.client.onboardingFlowGraph(flowId);
+    // Independent of flag resolution above: the flag only ever carried
+    // flowId, this is a live fetch of that flow's content, pinned to
+    // whichever environment this device is in. A failed/unresolvable fetch
+    // leaves _ready false -- same fallback UI as no flow resolved at all,
+    // caller decides what that means
+    final OnboardingFlowGraph? graph;
+    try {
+      graph = await widget.client.fetchOnboardingFlow(flowId);
+    } catch (_) {
+      return;
+    }
     if (graph == null) return;
-
-    if (mounted) setState(() { _splashImageUrl = graph.splashImage; });
 
     final progressStore = LocalProgressStore();
     final progress = await progressStore.load(flowId: flowId);
@@ -128,7 +136,7 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
   @override
   Widget build(BuildContext context) {
     final content = !_ready || _controller == null
-        ? SplashScreenWidget(splashImageUrl: _splashImageUrl, fallbackAssetPath: widget.fallbackSplashAssetPath)
+        ? SplashScreenWidget(fallbackAssetPath: widget.fallbackSplashAssetPath)
         : WebViewWidget(controller: _controller!);
 
     // Debug-only: lets an author see a content edit made through the

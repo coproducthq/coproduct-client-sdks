@@ -6,7 +6,6 @@ void main() {
   test('wraps every screen fragment in a data-screen-id section', () {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'welcome',
-      'splashImage': null,
       'screens': [
         {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
         {'id': 'goal', 'html': '<p>?</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
@@ -33,7 +32,6 @@ void main() {
   test('embeds the injected data blob as inert JSON, escaping </script sequences', () {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'welcome',
-      'splashImage': null,
       'screens': [
         {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
       ],

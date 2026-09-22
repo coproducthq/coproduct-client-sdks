@@ -6,7 +6,6 @@ void main() {
   test('parses a minimal one-screen graph from wire JSON', () {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'welcome',
-      'splashImage': null,
       'screens': [
         {
           'id': 'welcome',
@@ -18,7 +17,6 @@ void main() {
     });
 
     expect(graph.startScreenId, 'welcome');
-    expect(graph.splashImage, isNull);
     expect(graph.screens, hasLength(1));
     expect(graph.screens.first.id, 'welcome');
     expect(graph.screens.first.defaultNext, isA<CompleteTarget>());
@@ -27,7 +25,6 @@ void main() {
   test('parses a transition with an answer condition, keeping it as raw JSON', () {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'goal',
-      'splashImage': null,
       'screens': [
         {
           'id': 'goal',
@@ -51,7 +48,6 @@ void main() {
   test('screenById finds a screen by id and returns null otherwise', () {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'welcome',
-      'splashImage': null,
       'screens': [
         {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
       ],
