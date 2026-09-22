@@ -10,6 +10,7 @@ import 'flag_observation.dart';
 import 'foreground.dart';
 import 'frb_backend.dart';
 import 'host.dart';
+import 'isolate_probe.dart';
 import 'http_transport.dart';
 import 'json_value.dart';
 import 'native_bridge.dart';
@@ -266,6 +267,7 @@ final class Coproduct {
     createClient: (handle) => createClientForBackend(FrbBackend(handle)),
     bindForeground: appLifecycleForegroundBinder,
     reportError: _reportError,
+    isRootIsolate: isRootIsolateNow,
   );
 
   /// Initializes the SDK: validates the config, constructs the client against the

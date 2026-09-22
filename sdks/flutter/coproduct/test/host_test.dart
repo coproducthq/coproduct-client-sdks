@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' show MockClient;
 
+const _key = 'cpk_mob_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
 /// A stand-in for the opaque FRB handle, one per fake initialize.
 class _FakeHandle {
   _FakeHandle(this.id);
@@ -196,6 +198,8 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   http.Client? transportClient,
   _RecordingForeground? foreground,
   Duration Function()? initClock,
+  bool Function()? isRootIsolate,
+  void Function(Object error, StackTrace stack)? reportError,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -213,12 +217,53 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
       return _FakeClient(h);
     },
     bindForeground: foreground?.binder ?? (onForeground) => null,
-    reportError: (e, s) {},
+    reportError: reportError ?? (e, s) {},
+    isRootIsolate: isRootIsolate ?? () => true,
     initClock: initClock,
   );
 }
 
 void main() {
+  group('isolate support', () {
+    test('initialize on a non-root isolate is rejected before any native work',
+        () async {
+      final bridge = _FakeBridge();
+      final host = _host(bridge, isRootIsolate: () => false);
+
+      await expectLater(
+        host.initialize(sdkKey: _key),
+        throwsA(isA<CoproductUnsupportedIsolate>()),
+      );
+
+      expect(bridge.ensureInitializedCalls, 0,
+          reason: 'the gate must precede native library loading');
+      expect(bridge.initializeEntered.isCompleted, isFalse);
+    });
+
+    test('a rejected background isolate produces no host-context diagnostic',
+        () async {
+      final errors = <Object>[];
+      final host = _host(_FakeBridge(),
+          isRootIsolate: () => false, reportError: (e, _) => errors.add(e));
+
+      await expectLater(
+        host.initialize(sdkKey: _key),
+        throwsA(isA<CoproductUnsupportedIsolate>()),
+      );
+
+      // The two failures are distinct and must stay distinct: an unsupported
+      // isolate is a support boundary, an unregistered plugin is a
+      // misconfiguration
+      expect(errors, isEmpty);
+    });
+
+    test('initialize on a root isolate proceeds', () async {
+      final host = _host(_FakeBridge(), isRootIsolate: () => true);
+      await host.initialize(sdkKey: _key);
+      await host.shutdown();
+    });
+  });
+
   test('initialize wires the config, User-Agent, cache dir, and host closures',
       () async {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
@@ -338,6 +383,7 @@ void main() {
     final metadataStarted = Completer<void>();
     final host = CoproductHost<_FakeHandle, _FakeClient>(
       bridge: bridge,
+      isRootIsolate: () => true,
       userAgent: 'coproduct-flutter/test',
       createTransport: (t) {
         transportsCreated++;
@@ -486,6 +532,7 @@ void main() {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
     final host = CoproductHost<_FakeHandle, _FakeClient>(
       bridge: bridge,
+      isRootIsolate: () => true,
       userAgent: 'coproduct-flutter/test',
       createTransport: (t) => HttpTransport(client: transport, requestTimeout: t),
       secureStore: SecureIdentityStore(

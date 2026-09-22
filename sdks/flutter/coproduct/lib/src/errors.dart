@@ -10,6 +10,23 @@ import 'rust/api.dart' as frb;
 /// lives in this library, as Dart's library-scoped subtype rules require
 abstract final class CoproductException implements Exception {}
 
+/// Thrown when initialize is called from a spawned background isolate. The SDK
+/// supports root isolates only: a background isolate can make request and
+/// response plugin calls but cannot receive the unsolicited host messages the
+/// live connectivity subscription needs. Each FlutterEngine has its own root
+/// isolate, so multiple engines are supported
+final class CoproductUnsupportedIsolate implements CoproductException {
+  const CoproductUnsupportedIsolate();
+  @override
+  bool operator ==(Object other) => other is CoproductUnsupportedIsolate;
+  @override
+  int get hashCode => (CoproductUnsupportedIsolate).hashCode;
+  @override
+  String toString() =>
+      'Coproduct.initialize must be called from a root isolate. '
+      'Background isolates are not supported';
+}
+
 /// Thrown when no SDK key was supplied
 final class MissingSdkKey implements CoproductException {
   const MissingSdkKey();

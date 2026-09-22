@@ -66,6 +66,7 @@ class CoproductHost<H extends Object, C extends Object> {
     required C Function(H handle) createClient,
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
+    required bool Function() isRootIsolate,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
   })  : _bridge = bridge, // ignore: prefer_initializing_formals
@@ -76,6 +77,7 @@ class CoproductHost<H extends Object, C extends Object> {
         _createClient = createClient, // ignore: prefer_initializing_formals
         _bindForeground = bindForeground, // ignore: prefer_initializing_formals
         _reportError = reportError,
+        _isRootIsolate = isRootIsolate, // ignore: prefer_initializing_formals
         _initClock = initClock, // ignore: prefer_initializing_formals
         _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
         _manager = CoproductManager<_ActiveRuntime<C>>(
@@ -91,6 +93,7 @@ class CoproductHost<H extends Object, C extends Object> {
   final C Function(H) _createClient;
   final ForegroundBinder _bindForeground;
   final void Function(Object, StackTrace) _reportError;
+  final bool Function() _isRootIsolate;
   final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
@@ -102,6 +105,11 @@ class CoproductHost<H extends Object, C extends Object> {
     required String sdkKey,
     CoproductConfig config = const CoproductConfig(),
   }) async {
+    // Checked before config validation and before any native work, so a
+    // rejected call cannot load the library, open a channel, or count a session
+    if (!_isRootIsolate()) {
+      throw const CoproductUnsupportedIsolate();
+    }
     final validated = validateConfig(config);
     final identity = InitIdentity(sdkKey, validated);
     try {
