@@ -85,11 +85,26 @@ void main() {
     final deadline = DateTime.now().add(autoSettleBudget);
     final pending =
         expected.where((row) => row['kind'] == 'auto').toList();
+    // Settled means "the assertion below would pass", borrowed from the matcher
+    // itself rather than restated, so the wait cannot disagree with the check it
+    // is waiting for when a row is something other than a plain string
+    bool settled(Map<String, dynamic> row) {
+      try {
+        expect(read(row), row['target']);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
     while (pending.isNotEmpty && DateTime.now().isBefore(deadline)) {
-      pending.removeWhere((row) => read(row) == row['target']);
+      pending.removeWhere(settled);
       if (pending.isEmpty) break;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
+    // One more pass after the loop: the deadline can lapse during the last
+    // sleep, which would report a value that arrived inside it as never resolved
+    pending.removeWhere(settled);
     expect(pending.map((row) => row['key']), isEmpty,
         reason: 'auto attributes did not resolve within $autoSettleBudget');
 

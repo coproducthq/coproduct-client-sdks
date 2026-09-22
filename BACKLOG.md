@@ -5,21 +5,25 @@ a release. Newest first within each section.
 
 ## Flutter SDK
 
-### Four auto-populated attributes are advertised but never populated
+### Three auto-populated attributes are advertised but never populated
 
 **Status: open. Considered essential for 1.0.0 by the product owner; see the
 decision note at the end of this entry.**
 
 The `2026-07-08-auto-populated-attributes-design.md` spec defines ten attributes
 the SDKs populate with no code from the developer. iOS implements all ten. The
-Flutter SDK implements six: `platform`, `os_version`, `app_version`,
-`app_build`, `locale`, and `timezone`.
+Flutter SDK implements seven: `platform`, `os_version`, `app_version`,
+`app_build`, `locale`, `timezone`, and `device_type`.
 
-Missing on Flutter:
+`device_type` has landed on `feat/flutter-auto-attributes-a`, from the interface
+idiom on iOS and `uiMode` plus `smallestScreenWidthDp` on Android. The
+"no reliable cross-platform classifier" assessment it carried here was wrong:
+neither platform needs the screen-dimension inference that made it look blocked.
+
+Still missing on Flutter:
 
 | Attribute | iOS source | Why Flutter does not have it |
 |---|---|---|
-| `device_type` | `UIUserInterfaceIdiom` (`DeviceContext.swift`) | Was deferred for a technical reason: no reliable cross-platform classifier. Superseded by `2026-09-21-flutter-auto-populated-attributes-completion-design.md` §3, which states the classification contract. Neither platform requires the screen-dimension inference that made this look blocked: iOS reads the interface idiom, Android reads `uiMode` and `smallestScreenWidthDp` |
 | `network_type` | `NWPathMonitor` (`NetworkMonitor.swift`) | Scoped out of the Flutter 0.1.0 milestone |
 | `first_seen_at` | `UserDefaults` (`SessionStore.swift`) | Scoped out of the Flutter 0.1.0 milestone |
 | `session_count` | `UserDefaults` (`SessionStore.swift`) | Scoped out of the Flutter 0.1.0 milestone |

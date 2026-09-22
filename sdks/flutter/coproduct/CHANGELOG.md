@@ -17,10 +17,10 @@ rather than the attribute staying absent until the app restarts.
 lifecycle: an app running in the background is unaffected, and each
 `FlutterEngine` has its own root isolate.
 
-If the SDK's platform component is not registered in your app, that is now
-reported through your error handler in release builds rather than passing
-silently, because the symptom is otherwise a rule that never matches with
-nothing to explain why.
+If the SDK's platform component is not registered in your app, that is reported
+through `FlutterError.onError` rather than passing silently, in every build
+rather than debug only, because the symptom is otherwise a rule that never
+matches with nothing to explain why.
 
 First stable release. The SDK fetches and evaluates real flags on a booted
 device: it polls the Coproduct endpoint, applies automatic device and app
