@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'auto_upsert.dart';
 import 'cancellation.dart';
 import 'config.dart';
-import 'host_context_channel.dart';
 import 'init_identity.dart';
 import 'manager.dart';
 import 'metadata_collector.dart';

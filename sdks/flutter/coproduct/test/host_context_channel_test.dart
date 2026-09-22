@@ -1,3 +1,4 @@
+import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/host_context_channel.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:coproduct/src/config.dart';
 import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/host.dart';
-import 'package:coproduct/src/host_context_channel.dart';
 import 'package:coproduct/src/http_transport.dart';
 import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
@@ -284,6 +283,24 @@ void main() {
       await host.initialize(sdkKey: _key);
       expect(errors, isEmpty,
           reason: 'an omitted value is a device fact, not a misconfiguration');
+      await host.shutdown();
+    });
+
+    test('a throwing error reporter does not fail an exhausted budget either',
+        () async {
+      // The exhausted-budget path starts its providers without awaiting them, so
+      // a reporter that throws there has no caller to surface through. The
+      // collector's per-field handling is what absorbs it
+      final host = _host(
+        _FakeBridge(),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        reportError: (_, _) => throw StateError('reporter exploded'),
+      );
+      await host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(milliseconds: 1)));
+      await pumpEventQueue();
       await host.shutdown();
     });
 
