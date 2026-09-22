@@ -12,6 +12,7 @@ import 'runtime.dart';
 import 'runtime_builder.dart';
 import 'scheduler.dart';
 import 'secure_identity_store.dart';
+import 'serial_queue.dart';
 import 'errors.dart';
 import 'http_transport.dart';
 import 'rust/api.dart' as frb;
@@ -63,7 +64,7 @@ class CoproductHost<H extends Object, C extends Object> {
     required HttpTransport Function(Duration requestTimeout) createTransport,
     required SecureIdentityStore secureStore,
     required MetadataProviders metadataProviders,
-    required C Function(H handle) createClient,
+    required C Function(H handle, SerialQueue identityQueue) createClient,
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
     required bool Function() isRootIsolate,
@@ -90,7 +91,7 @@ class CoproductHost<H extends Object, C extends Object> {
   final HttpTransport Function(Duration) _createTransport;
   final SecureIdentityStore _secureStore;
   final MetadataProviders _metadataProviders;
-  final C Function(H) _createClient;
+  final C Function(H, SerialQueue) _createClient;
   final ForegroundBinder _bindForeground;
   final void Function(Object, StackTrace) _reportError;
   final bool Function() _isRootIsolate;
@@ -166,6 +167,10 @@ class CoproductHost<H extends Object, C extends Object> {
       onError: (Object error, StackTrace stack) =>
           _MetadataFailure(error, stack),
     );
+    // Created here rather than inside createRuntime so the client and the
+    // auto-upsert path share one queue, which is what keeps a machine-initiated
+    // write ordered against the identity mutators
+    final identityQueue = SerialQueue();
     return buildRuntime<H, _ActiveRuntime<C>>(
       initHandle: () async {
         final cacheDir = await _bridge.cacheDirectory();
@@ -199,7 +204,7 @@ class CoproductHost<H extends Object, C extends Object> {
         }
       },
       createRuntime: (handle) {
-        final client = _createClient(handle);
+        final client = _createClient(handle, identityQueue);
         final scheduler = Scheduler(
           poll: () => _bridge.pollNow(handle),
           interval: config.pollInterval,

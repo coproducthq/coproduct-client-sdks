@@ -7,6 +7,7 @@ import 'package:coproduct/src/http_transport.dart';
 import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
 import 'package:coproduct/src/secure_identity_store.dart';
+import 'package:coproduct/src/serial_queue.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,8 +25,14 @@ class _FakeHandle {
 /// The caller-facing client the host returns in tests, carrying its handle so a
 /// test can assert which handle was wrapped.
 class _FakeClient {
-  _FakeClient(this.handle);
+  _FakeClient(this.handle, this.identityQueue);
   final _FakeHandle handle;
+  final SerialQueue identityQueue;
+
+  /// Stands in for an identity mutator: what matters is that it occupies the
+  /// same queue the auto-upsert path uses, so ordering can be observed
+  Future<void> identify(Future<void> Function() body) =>
+      identityQueue.add(body);
 }
 
 /// An in-memory KeyValueStore so the secure store never touches a platform
@@ -212,9 +219,9 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
         backing: store ?? _MemoryStore(),
         operationTimeout: const Duration(seconds: 1)),
     metadataProviders: providers ?? _providers(),
-    createClient: (h) {
+    createClient: (h, identityQueue) {
       bridge.clientsCreated++;
-      return _FakeClient(h);
+      return _FakeClient(h, identityQueue);
     },
     bindForeground: foreground?.binder ?? (onForeground) => null,
     reportError: reportError ?? (e, s) {},
@@ -404,7 +411,7 @@ void main() {
         locale: stringProvider(() async => 'en-US'),
         timezone: stringProvider(() async => 'America/New_York'),
       ),
-      createClient: (h) => _FakeClient(h),
+      createClient: (h, identityQueue) => _FakeClient(h, identityQueue),
       bindForeground: (onForeground) => null,
       reportError: (e, s) {},
     );
@@ -538,7 +545,7 @@ void main() {
       secureStore: SecureIdentityStore(
           backing: _MemoryStore(), operationTimeout: const Duration(seconds: 1)),
       metadataProviders: _providers(),
-      createClient: (h) => throw StateError('client boom'),
+      createClient: (h, identityQueue) => throw StateError('client boom'),
       bindForeground: foreground.binder,
       reportError: (e, s) {},
     );

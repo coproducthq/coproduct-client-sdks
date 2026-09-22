@@ -27,8 +27,9 @@ import 'serial_queue.dart';
 /// out of the public surface and can change without a breaking release. The
 /// constructor is private so the contract is not part of an exported class's
 /// signature
-CoproductClient createClientForBackend(CoproductClientBackend backend) =>
-    CoproductClient._(backend);
+CoproductClient createClientForBackend(CoproductClientBackend backend,
+        {SerialQueue? identityQueue}) =>
+    CoproductClient._(backend, identityQueue ?? SerialQueue());
 
 /// A live Coproduct client for reading flags and setting the evaluation identity.
 ///
@@ -42,10 +43,13 @@ CoproductClient createClientForBackend(CoproductClientBackend backend) =>
 /// Identified state is not persisted across launches, so call [identify] again
 /// after initialize on each launch. With no snapshot loaded, reads return defaults
 final class CoproductClient {
-  CoproductClient._(this._backend);
+  CoproductClient._(this._backend, this._identityQueue);
 
   final CoproductClientBackend _backend;
-  final SerialQueue _identityQueue = SerialQueue();
+  // Supplied by the host so machine-initiated writes to the automatic layer
+  // order against the identity mutators instead of racing them. A second queue
+  // would reintroduce exactly the interleaving this one exists to prevent
+  final SerialQueue _identityQueue;
 
   bool getBool(String key, {required bool defaultValue}) =>
       _backend.getBool(key, defaultValue: defaultValue);
@@ -264,7 +268,9 @@ final class Coproduct {
     secureStore:
         SecureIdentityStore(operationTimeout: const Duration(seconds: 1)),
     metadataProviders: platformMetadataProviders(),
-    createClient: (handle) => createClientForBackend(FrbBackend(handle)),
+    createClient: (handle, identityQueue) => createClientForBackend(
+        FrbBackend(handle),
+        identityQueue: identityQueue),
     bindForeground: appLifecycleForegroundBinder,
     reportError: _reportError,
     isRootIsolate: isRootIsolateNow,
