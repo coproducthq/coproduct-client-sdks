@@ -54,6 +54,7 @@ flutter:
         pluginClass: CoproductHostContextPlugin
       ios:
         ffiPlugin: true
+        pluginClass: CoproductHostContextPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
