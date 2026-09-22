@@ -105,6 +105,22 @@ const List<FlagSpec> kFlagTable = [
     callerDefault: 'app-build-default',
   ),
   FlagSpec(
+    key: 'auto-device-type',
+    flagType: 'STRING',
+    getter: GetterType.string,
+    kind: FlagKind.auto,
+    attribute: 'device_type',
+    // is_set rather than an equality: the gate runs on a simulator and an
+    // emulator, and a value assertion would encode the runner's hardware
+    operator: 'is_set',
+    values: [],
+    variationTarget: 'device-type-present',
+    variationMiss: 'device-type-missing',
+    getterTarget: 'device-type-present',
+    getterMiss: 'device-type-missing',
+    callerDefault: 'device-type-default',
+  ),
+  FlagSpec(
     key: 'auto-os-version',
     flagType: 'STRING',
     getter: GetterType.string,

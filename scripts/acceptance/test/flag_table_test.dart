@@ -2,13 +2,14 @@ import 'package:coproduct_acceptance/flag_table.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('the table has the twelve expected flags', () {
+  test('the table has the thirteen expected flags', () {
     final keys = kFlagTable.map((f) => f.key).toList();
     expect(keys, [
       'fetch-control',
       'auto-platform',
       'auto-app-version',
       'auto-app-build',
+      'auto-device-type',
       'auto-os-version',
       'auto-locale',
       'auto-timezone',

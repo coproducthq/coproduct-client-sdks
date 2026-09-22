@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:io';
 
 import 'package:coproduct/coproduct.dart';
@@ -7,8 +8,29 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+/// Runs on a spawned isolate, so it must be top level and must return a sendable
+/// value. The key comes from the compile-time define rather than a test closure,
+/// which an isolate cannot capture
+Future<String> _initializeOnSpawnedIsolate() async {
+  const key = String.fromEnvironment('COPRODUCT_SDK_KEY');
+  try {
+    await Coproduct.initialize(sdkKey: key);
+    return 'no error';
+  } on CoproductUnsupportedIsolate {
+    return 'rejected';
+  } catch (error) {
+    return error.runtimeType.toString();
+  }
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // The production seam for the root-isolate rule: a genuinely spawned isolate,
+  // not an injected predicate
+  testWidgets('initialize is rejected on a spawned isolate', (tester) async {
+    expect(await Isolate.run(_initializeOnSpawnedIsolate), 'rejected');
+  });
 
   tearDown(() async {
     await Coproduct.shutdown();
@@ -25,9 +47,9 @@ void main() {
         (jsonDecode(expectedRaw) as List).cast<Map<String, dynamic>>();
     // Fail red if the expected table is degenerate or short, so an empty or
     // truncated table cannot pass green having proven nothing about the flags
-    // Twelve is the flag count locked by the host flag_table_test
-    expect(expected, hasLength(12),
-        reason: 'the runner must pass all twelve flag expectations');
+    // Thirteen is the flag count locked by the host flag_table_test
+    expect(expected, hasLength(13),
+        reason: 'the runner must pass all thirteen flag expectations');
 
     final client = await Coproduct.initialize(
       sdkKey: key,
@@ -52,6 +74,24 @@ void main() {
         _ => throw StateError('unknown getter ${row['getter']}'),
       };
     }
+
+    // Every auto-populated attribute may arrive after initialize: a value that
+    // missed the startup budget publishes late, and the live network value has
+    // no initial value at all. One shared bound rather than one per row, so a
+    // slow device does not multiply the budget. A timeout is a failure and not a
+    // grace period: an attribute that never arrives is the defect this gate
+    // exists to catch
+    const autoSettleBudget = Duration(seconds: 10);
+    final deadline = DateTime.now().add(autoSettleBudget);
+    final pending =
+        expected.where((row) => row['kind'] == 'auto').toList();
+    while (pending.isNotEmpty && DateTime.now().isBefore(deadline)) {
+      pending.removeWhere((row) => read(row) == row['target']);
+      if (pending.isEmpty) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    expect(pending.map((row) => row['key']), isEmpty,
+        reason: 'auto attributes did not resolve within $autoSettleBudget');
 
     // Before identify: the fetch control and every auto flag resolve to their
     // target, and every identity flag falls through to its miss
