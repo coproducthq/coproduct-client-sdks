@@ -155,18 +155,13 @@ class CoproductHost<H extends Object, C extends Object> {
     final transport = _createTransport(config.requestTimeout);
     // An unreachable host-context plugin is an integration defect, not a value
     // the device declined to supply, and left quiet it reproduces exactly the
-    // silent targeting failure the automatic attributes exist to remove.
-    // Reported once per initialization, through the developer's error reporter
-    // rather than behind an assert, and guarded because initialization must
-    // survive its own diagnostics
-    var reportedHostContext = false;
-    void reportHostContextUnavailable() {
-      if (reportedHostContext) return;
-      reportedHostContext = true;
-      try {
+    // silent targeting failure the automatic attributes exist to remove, so it
+    // goes through the developer's error reporter rather than behind an assert.
+    // It reports once per initialization because the provider runs once per
+    // build, and a reporter that throws is absorbed by the collector's per-field
+    // error handling, so neither needs a guard of its own here
+    void reportHostContextUnavailable() =>
         _reportError(const HostContextUnavailable(), StackTrace.current);
-      } catch (_) {}
-    }
     // Created before collection starts because the late sink closes over it.
     // Null means the build failed and there is nothing to amend, carried as a
     // value rather than an error because a completer whose error nobody listens
