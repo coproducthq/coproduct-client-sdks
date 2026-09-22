@@ -42,7 +42,7 @@ class _MyAppState extends State<MyApp> {
           name: 'coproduct', error: error, stackTrace: stack);
       return;
     }
-    final flag = c.getBool('test-flag', false);
+    final flag = c.getBool('test-flag', defaultValue: false);
 
     if (!mounted) return;
     setState(() {

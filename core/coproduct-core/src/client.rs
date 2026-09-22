@@ -466,10 +466,10 @@ impl CoproductClient {
         Self::empty_for_test()
     }
 
-    /// Terminate the client. Latches the shutdown flag, persists the held
-    /// snapshot one final time so a cold start can rehydrate it, and drains the
-    /// observer, lifecycle, hook, and evaluation-event registries so dropped
-    /// handles no longer reference the client. Repeated calls are no-ops
+    /// Terminate the client. Latches the shutdown flag and drains the observer,
+    /// lifecycle, hook, and evaluation-event registries so dropped handles no
+    /// longer reference the client. The on-disk cache is left as the last
+    /// successful poll wrote it. Repeated calls are no-ops
     pub async fn shutdown(self: &Arc<Self>) {
         // Latch and take every entry inside the coordinator gate. A registration
         // is therefore ordered either entirely before shutdown or entirely after
@@ -493,20 +493,6 @@ impl CoproductClient {
         // released
         for entry in ended {
             entry.end();
-        }
-        // Persist the held snapshot one final time in the same envelope shape
-        // the polling 200 handler writes, so a cold start can rehydrate it. The
-        // edge-derived sdkContext is omitted here and refetched on the next poll.
-        // A client with no cache directory has nowhere to persist, so the write
-        // is skipped rather than landing at a relative path
-        if !self.cache_dir.is_empty() {
-            let snap = self.snapshot.lock().clone();
-            if let Some(snap) = snap
-                && let Ok(bytes) =
-                    serde_json::to_vec(&serde_json::json!({ "snapshot": snap.to_wire() }))
-            {
-                let _ = crate::cache::write_snapshot(&self.cache_dir, &self.sdk_key, &bytes);
-            }
         }
         // Drain the remaining registries so dropped handler and hook handles no
         // longer reference the client
@@ -1538,9 +1524,9 @@ impl CoproductClient {
         Self::for_testing(snapshot)
     }
 
-    /// Test-only constructor that holds a snapshot and routes final-persist
-    /// writes to the given cache directory, so lifecycle tests can assert the
-    /// shutdown cache write landed on disk
+    /// Test-only constructor that holds a snapshot and points the client at the
+    /// given cache directory, so lifecycle tests can assert what shutdown does
+    /// and does not write there
     #[doc(hidden)]
     pub async fn test_instance_with_cache_dir_and_snapshot(
         cache_dir: String,

@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'coproduct'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter FFI plugin project.'
+  s.version          = '1.0.0'
+  s.summary          = 'Feature flags and experimentation for Flutter.'
   s.description      = <<-DESC
-A new Flutter FFI plugin project.
+Flutter SDK for Coproduct, a feature flag and experimentation platform.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://coproduct.app'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Coproduct' => 'nathan@coproduct.app' }
   s.module_name      = 'coproduct'
 
   # This will ensure the source files in Classes/ are included in the native
@@ -23,24 +23,31 @@ A new Flutter FFI plugin project.
   s.dependency 'Flutter'
   s.platform = :ios, '15.0'
 
-  # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
 
   s.script_phase = {
-    :name => 'Build Rust library',
-    # First argument is relative path to the `rust` folder, second is name of rust library
-    :script => 'sh "$PODS_TARGET_SRCROOT/../cargokit/build_pod.sh" ../../../../ffi/coproduct-ffi-frb coproduct_ffi_frb',
+    :name => 'Stage prebuilt Rust library',
+    :script => 'sh "$PODS_TARGET_SRCROOT/stage_prebuilt.sh"',
     :execution_position => :before_compile,
-    :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
-    # Let XCode know that the static library referenced in -force_load below is
-    # created by this build step.
+    :input_files => [
+      '${PODS_TARGET_SRCROOT}/stage_prebuilt.sh',
+      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
+      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a',
+    ],
     :output_files => ["${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a"],
+    # Xcode skips a script phase whose outputs it considers current, which would
+    # skip the architecture guard on a cached DerivedData or a platform switch.
+    # Staging one file is cheap, so it always runs.
+    :always_out_of_date => '1',
   }
+  # This pod deliberately constrains no architectures. The simulator slice is
+  # universal, so there is nothing to exclude, and an exclusion set here would
+  # not hold in any case: CocoaPods writes pod xcconfig into
+  # Pods-Runner.<config>.xcconfig, which a Flutter app's Debug.xcconfig includes
+  # before Generated.xcconfig, and Generated.xcconfig declares the same key, so
+  # the later include wins
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    # Flutter.framework does not contain a i386 slice.
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     'OTHER_LDFLAGS' => '-force_load ${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a',
   }
 end

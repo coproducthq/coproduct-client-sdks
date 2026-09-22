@@ -71,11 +71,11 @@ void main() {
       ..setNumber('n', 42.75)
       ..setJson('j', {'a': 1});
 
-    expect(harness.client.getBool('b', false), isTrue);
-    expect(harness.client.getString('s', 'd'), 'x');
-    expect(harness.client.getInt('n', 0), 42);
-    expect(harness.client.getNumber('n', 0), 42.75);
-    expect(harness.client.getJson('j', const <String, Object?>{}), {'a': 1});
+    expect(harness.client.getBool('b', defaultValue: false), isTrue);
+    expect(harness.client.getString('s', defaultValue: 'd'), 'x');
+    expect(harness.client.getInt('n', defaultValue: 0), 42);
+    expect(harness.client.getNumber('n', defaultValue: 0), 42.75);
+    expect(harness.client.getJson('j', defaultValue: const <String, Object?>{}), {'a': 1});
   });
 
   test('replacing a JSON integer with a float updates the public getter', () {
@@ -84,12 +84,12 @@ void main() {
     final harness = CoproductTestHarness()..setJson('k', 1);
     addTearDown(harness.shutdown);
 
-    expect(harness.client.getJson('k', null), isA<int>());
+    expect(harness.client.getJson('k', defaultValue: null), isA<int>());
 
     harness.setJson('k', 1.0);
 
-    expect(harness.client.getJson('k', null), isA<double>());
-    expect(harness.client.getJson('k', null), 1.0);
+    expect(harness.client.getJson('k', defaultValue: null), isA<double>());
+    expect(harness.client.getJson('k', defaultValue: null), 1.0);
   });
 
   test('setNumber rejects a non-finite value', () {
@@ -121,7 +121,7 @@ void main() {
     expect(harness.developerAttributes,
         {'plan': const AttributeValue.string('pro')});
     expect(harness.client.previousAnonymousId, 'test-anonymous-id');
-    expect(harness.client.getBool('k', false), isTrue);
+    expect(harness.client.getBool('k', defaultValue: false), isTrue);
   });
 
   test('developerAttributes is unmodifiable', () async {

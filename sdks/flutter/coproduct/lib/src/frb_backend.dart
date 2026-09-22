@@ -19,23 +19,23 @@ final class FrbBackend implements CoproductClientBackend {
   final frb.CoproductClientHandle handle;
 
   @override
-  bool getBool(String key, bool defaultValue) =>
+  bool getBool(String key, {required bool defaultValue}) =>
       frb.getBool(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  String getString(String key, String defaultValue) =>
+  String getString(String key, {required String defaultValue}) =>
       frb.getString(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  int getInt(String key, int defaultValue) =>
+  int getInt(String key, {required int defaultValue}) =>
       frb.getInt(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  double getNumber(String key, double defaultValue) =>
+  double getNumber(String key, {required double defaultValue}) =>
       frb.getNumber(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  String getJson(String key, String defaultValueJson) => frb.getJson(
+  String getJson(String key, {required String defaultValueJson}) => frb.getJson(
         client: handle,
         key: key,
         defaultValueJson: defaultValueJson,

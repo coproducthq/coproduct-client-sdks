@@ -17,41 +17,41 @@ void main() {
       backend.set('n', const StoredNumber(1.5));
       backend.set('j', StoredJson('{"a":1}'));
 
-      expect(backend.getBool('b', false), isTrue);
-      expect(backend.getString('s', 'd'), 'x');
-      expect(backend.getNumber('n', 0), 1.5);
-      expect(backend.getJson('j', 'null'), '{"a":1}');
+      expect(backend.getBool('b', defaultValue: false), isTrue);
+      expect(backend.getString('s', defaultValue: 'd'), 'x');
+      expect(backend.getNumber('n', defaultValue: 0), 1.5);
+      expect(backend.getJson('j', defaultValueJson: 'null'), '{"a":1}');
     });
 
     test('each typed getter serves the caller default when the flag is absent',
         () {
-      expect(backend.getBool('missing', true), isTrue);
-      expect(backend.getString('missing', 'd'), 'd');
-      expect(backend.getInt('missing', 7), 7);
-      expect(backend.getNumber('missing', 1.5), 1.5);
-      expect(backend.getJson('missing', '"d"'), '"d"');
+      expect(backend.getBool('missing', defaultValue: true), isTrue);
+      expect(backend.getString('missing', defaultValue: 'd'), 'd');
+      expect(backend.getInt('missing', defaultValue: 7), 7);
+      expect(backend.getNumber('missing', defaultValue: 1.5), 1.5);
+      expect(backend.getJson('missing', defaultValueJson: '"d"'), '"d"');
     });
 
     test('a wrong-type read serves the caller default', () {
       backend.set('k', const StoredBool(true));
-      expect(backend.getString('k', 'default'), 'default');
-      expect(backend.getNumber('k', 9), 9);
+      expect(backend.getString('k', defaultValue: 'default'), 'default');
+      expect(backend.getNumber('k', defaultValue: 9), 9);
     });
 
     test('a JSON scalar is not readable by the matching scalar getter', () {
       backend.set('k', StoredJson('true'));
-      expect(backend.getBool('k', false), isFalse);
+      expect(backend.getBool('k', defaultValue: false), isFalse);
     });
 
     test('a scalar is not readable by getJson', () {
       backend.set('k', const StoredBool(true));
-      expect(backend.getJson('k', '"fallback"'), '"fallback"');
+      expect(backend.getJson('k', defaultValueJson: '"fallback"'), '"fallback"');
     });
 
     test('NUMBER serves both integer and number reads', () {
       backend.set('max-items', const StoredNumber(42.75));
-      expect(backend.getInt('max-items', 0), 42);
-      expect(backend.getNumber('max-items', 0), 42.75);
+      expect(backend.getInt('max-items', defaultValue: 0), 42);
+      expect(backend.getNumber('max-items', defaultValue: 0), 42.75);
     });
   });
 
@@ -120,7 +120,7 @@ void main() {
       // an integer from a float, so this is a real change. jsonValuesEqual would
       // call them one value, which is the right rule for notifying an
       // observation and the wrong rule for storage
-      expect(backend.getJson('k', 'null'), '1.0');
+      expect(backend.getJson('k', defaultValueJson: 'null'), '1.0');
       expect(events, ['1.0']);
     });
 
@@ -178,16 +178,16 @@ void main() {
 
       expect(eventsA, [null]);
       expect(eventsB, [null]);
-      expect(backend.getBool('k', false), isFalse);
-      expect(backend.getBool('k', true), isTrue);
+      expect(backend.getBool('k', defaultValue: false), isFalse);
+      expect(backend.getBool('k', defaultValue: true), isTrue);
     });
 
     test('an available JSON null is distinct from removal', () async {
       backend.set('k', StoredJson('null'));
-      expect(backend.getJson('k', '"default"'), 'null');
+      expect(backend.getJson('k', defaultValueJson: '"default"'), 'null');
 
       backend.set('k', null);
-      expect(backend.getJson('k', '"default"'), '"default"');
+      expect(backend.getJson('k', defaultValueJson: '"default"'), '"default"');
     });
 
     test('disposing one observation does not affect another', () async {
@@ -271,8 +271,8 @@ void main() {
     test('getters after shutdown serve the caller default', () async {
       backend.set('k', const StoredBool(true));
       await backend.shutdown();
-      expect(backend.getBool('k', false), isFalse);
-      expect(backend.getJson('k', '"d"'), '"d"');
+      expect(backend.getBool('k', defaultValue: false), isFalse);
+      expect(backend.getJson('k', defaultValueJson: '"d"'), '"d"');
     });
 
     test('registering after shutdown returns a null seed and a closed stream',
@@ -290,34 +290,34 @@ void main() {
   group('integer projection, white box', () {
     test('a non-finite NUMBER projects to unavailable for getInt', () {
       backend.set('k', const StoredNumber(double.nan));
-      expect(backend.getInt('k', 7), 7);
-      expect(backend.getNumber('k', 7), isNaN);
+      expect(backend.getInt('k', defaultValue: 7), 7);
+      expect(backend.getNumber('k', defaultValue: 7), isNaN);
     });
 
     test('an infinite NUMBER projects to unavailable for getInt', () {
       backend.set('k', const StoredNumber(double.infinity));
-      expect(backend.getInt('k', 7), 7);
+      expect(backend.getInt('k', defaultValue: 7), 7);
     });
 
     test('a NUMBER at or above 2^63 projects to unavailable', () {
       backend.set('k', const StoredNumber(9223372036854775808.0));
-      expect(backend.getInt('k', 7), 7);
+      expect(backend.getInt('k', defaultValue: 7), 7);
     });
 
     test('a NUMBER below the signed 64-bit lower bound projects to unavailable',
         () {
       backend.set('k', const StoredNumber(-9223372036854777856.0));
-      expect(backend.getInt('k', 7), 7);
+      expect(backend.getInt('k', defaultValue: 7), 7);
     });
 
     test('the lower bound itself is accepted', () {
       backend.set('k', const StoredNumber(-9223372036854775808.0));
-      expect(backend.getInt('k', 7), -9223372036854775808);
+      expect(backend.getInt('k', defaultValue: 7), -9223372036854775808);
     });
 
     test('truncation is toward zero', () {
       backend.set('k', const StoredNumber(-2.9));
-      expect(backend.getInt('k', 0), -2);
+      expect(backend.getInt('k', defaultValue: 0), -2);
     });
   });
 
@@ -480,7 +480,7 @@ void main() {
       await backend.updateAttributes({'a': const AttributeValue.string('1')});
       await backend.signOut();
 
-      expect(backend.getBool('k', false), isTrue);
+      expect(backend.getBool('k', defaultValue: false), isTrue);
     });
   });
 

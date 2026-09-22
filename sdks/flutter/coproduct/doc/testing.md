@@ -3,6 +3,11 @@
 `package:coproduct/testing.dart` gives you a real `CoproductClient` backed by
 values you set in the test. No SDK key, no network, no native library.
 
+Save this as `test/checkout_page_test.dart` and run it with `flutter test`.
+`CheckoutPage`, `OldCheckout`, and `NewCheckout` are widgets from your own app,
+not SDK types: substitute the screen your flag controls and the two outcomes it
+chooses between.
+
 ```dart
 import 'package:coproduct/coproduct.dart';
 import 'package:coproduct/testing.dart';
@@ -90,7 +95,7 @@ await tester.pumpAndSettle();
 
 A single `pump()` is not enough. Delivery is asynchronous, matching production,
 and the test binding checks whether a frame is already scheduled *before* it
-flushes microtasks — so a value set by the test arrives after that check and is
+flushes microtasks, so a value set by the test arrives after that check and is
 drawn only by the following pump.
 
 If the widget under test contains a continuous animation that prevents settling,

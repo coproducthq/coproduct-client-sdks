@@ -18,7 +18,10 @@ Future<void> main(List<String> args) async {
   final platform = args[0];
   final deviceId = args[1];
 
-  final consumerDir = Directory('../../consumer-tests/flutter').absolute.path;
+  // Release gates point this at a disposable consumer that resolves the SDK
+  // from the extracted archive; the default keeps the in-repo consumer
+  final consumerDir = Platform.environment['COPRODUCT_CONSUMER_DIR'] ??
+      Directory('../../consumer-tests/flutter').absolute.path;
   final pubspec = File('$consumerDir/pubspec.yaml').readAsStringSync();
   final pin = parsePinnedVersion(pubspec);
 
@@ -29,7 +32,7 @@ Future<void> main(List<String> args) async {
   }
   try {
     requireAcceptanceDevice(
-        jsonDecode(devicesRaw.stdout as String) as List, platform, deviceId);
+        decodeDeviceList(devicesRaw.stdout as String), platform, deviceId);
   } on AcceptanceDeviceError catch (e) {
     stderr.writeln(e.message);
     exit(2);
@@ -61,7 +64,19 @@ Future<void> main(List<String> args) async {
     ],
     testWorkingDirectory: consumerDir,
     readinessTimeout: const Duration(seconds: 15),
-    overallTimeout: const Duration(minutes: 8),
+    // Spans the build as well as the run, because `flutter test` does both
+    // under one clock. The no-Rust gate uses a fresh HOME, so its Gradle cache
+    // is empty every run and its build is always cold.
+    //
+    // The default stays at 8 deliberately. Every long build measured so far
+    // (968s, 1070s, 2065s) came from a machine with 24.5 of 25.6 GB of swap
+    // consumed, where the same build took 12s healthy. Those numbers say
+    // nothing about a cold build on a healthy machine, and setting a gate's
+    // tolerance from them would retire the timeout as a signal. Override it,
+    // measure a healthy cold run, then change this from evidence.
+    overallTimeout: Duration(
+        minutes: int.parse(
+            Platform.environment['COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES'] ?? '8')),
     log: stderr.writeln,
   );
 
@@ -70,4 +85,27 @@ Future<void> main(List<String> args) async {
         'COPRODUCT_FLUTTER_ACCEPTANCE_${platform.toUpperCase()}_STATUS pass=true');
   }
   exit(code);
+}
+
+/// Decodes `flutter devices --machine` output.
+///
+/// The tool prints notices before the JSON in some environments, most reliably
+/// on a fresh HOME where the analytics notice appears, so the array is located
+/// rather than assumed to start at the first character.
+List<dynamic> decodeDeviceList(String stdout) {
+  // The tool prints its analytics notice after the array in a minimal
+  // environment, so the array is bounded at both ends rather than assumed to run
+  // to the end of the output. Both brackets sit at column zero on their own line.
+  final lines = stdout.split('\n');
+  final start = lines.indexWhere((l) => l.startsWith('['));
+  if (start < 0) {
+    throw const FormatException(
+        'flutter devices --machine printed no JSON array');
+  }
+  final end = lines.indexWhere((l) => l.startsWith(']'), start);
+  if (end < 0) {
+    throw const FormatException(
+        'flutter devices --machine printed an unterminated JSON array');
+  }
+  return jsonDecode(lines.sublist(start, end + 1).join('\n')) as List<dynamic>;
 }

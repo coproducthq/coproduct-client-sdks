@@ -16,7 +16,7 @@ This repository builds Coproduct's mobile SDKs (iOS, Android, React Native, Flut
 - `tests/` — cross-cutting fixtures (e.g. `bucketing_vectors.json`).
 - `docs/` — design specs and implementation plans (under `docs/superpowers/plans/`).
 
-A bug like the RN 0.82 + Xcode 26 `fmt` consteval failure, or the cargokit Gradle-9 `project.exec` removal, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
+A bug like the RN 0.82 + Xcode 26 `fmt` consteval failure, or a Gradle plugin that a new major version drops, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
 
 ## Building
 
@@ -317,21 +317,39 @@ wrapped public APIs on each platform shield ordinary consumers.
 
 ## Flutter Rust Bridge Notes
 
-The Flutter plugin lives at `sdks/flutter/coproduct` and consumes the single FRB crate at `ffi/coproduct-ffi-frb` (parallel to how `sdks/react-native` consumes `ffi/coproduct-ffi-uniffi`). It does not contain its own Rust crate. Both `flutter_rust_bridge.yaml` and the cargokit config in `android/build.gradle` plus `ios/coproduct.podspec` point at `../../../ffi/coproduct-ffi-frb` by relative path. The demo builds and runs on the iOS simulator and Android emulator.
+The Flutter plugin lives at `sdks/flutter/coproduct` and consumes the single FRB crate at `ffi/coproduct-ffi-frb` (parallel to how `sdks/react-native` consumes `ffi/coproduct-ffi-uniffi`). It does not contain its own Rust crate. `flutter_rust_bridge.yaml` points at `../../../ffi/coproduct-ffi-frb` by relative path. The plugin no longer compiles Rust during a consuming build: it ships prebuilt libraries, and the podspec stages a slice while the Android module packages `src/main/jniLibs`. The demo builds and runs on the iOS simulator and Android emulator.
 
 Load-bearing invariants. Breaking any of these breaks the build or runtime:
 
-- The FRB crate package name is `coproduct_ffi_frb` with underscores, even though the directory is `coproduct-ffi-frb`. cargokit derives the built library filename from the package name verbatim, so a dashed package makes it look for `libcoproduct-ffi-frb.a` while cargo emits underscores. Do not rename it to dashes for symmetry with `coproduct-ffi-uniffi`.
+- The FRB crate package name is `coproduct_ffi_frb` with underscores, even though the directory is `coproduct-ffi-frb`. Cargo derives the built library filename from the package name verbatim, and the release scripts and the podspec both name `libcoproduct_ffi_frb`. Do not rename it to dashes for symmetry with `coproduct-ffi-uniffi`.
 - The exported API lives in `ffi/coproduct-ffi-frb/src/api.rs`, and `lib.rs` is only `mod frb_generated; pub mod api;`. FRB injects `frb_generated.rs` at the crate root, and `rust_input: crate::api` must point at a submodule, never the crate root. Do not move the API back into `lib.rs`.
 - Host callbacks use `anyhow::Result<T>`, not custom error enums. FRB does not support a custom error type as the error of a `DartFnFuture<Result<T, E>>`. The Rust adapters convert `anyhow::Error` into the typed core errors. This is an intentional divergence from the UniFFI crate, which keeps typed errors.
 - Free functions take the client by reference (`&CoproductClientHandle`) and `initialize` / the typed observation registrations (`observe_bool` and its siblings) return bare handles, not `Arc<...>`. Passing the handle by value makes FRB move-and-dispose the Dart handle (`DroppableDisposedException`), and returning `Arc<...>` emits an `Arc`-prefixed Dart type that mismatches the borrowed-parameter type.
 - The plugin is an FFI plugin: `pubspec.yaml` declares `ffiPlugin: true` for android and ios with no `pluginClass`, and there are no Kotlin/Swift plugin classes. FRB loads the native library directly.
-- On iOS and macOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true))`, because cargokit force-loads the static library into the app executable and the default Apple loader looks for a non-existent `<stem>.framework`. Android uses the default loader (`lib<crate>.so`).
+- On iOS and macOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true))`, because the podspec force-loads the prebuilt static library into the app executable and the default Apple loader looks for a non-existent `<stem>.framework`. Android uses the default loader (`lib<crate>.so`).
 - Regenerate bindings with `flutter_rust_bridge_codegen generate` after editing `api.rs`. The codegen binary is pinned to the same version as the `flutter_rust_bridge` crate (`2.12.0`). Codegen rewrites `frb_generated.rs`, `lib/src/rust/*`, and re-injects the `mod frb_generated;` line.
 - Run `cargo fmt --all` after regenerating FRB bindings. `rustfmt.toml` lists `frb_generated.rs` in `ignore`, but `ignore` is a nightly-only feature, so on the stable toolchain rustfmt still formats the file. The committed `frb_generated.rs` must be fmt-formatted or `cargo fmt --all --check` fails the green gate, and the codegen output is not fmt-clean on its own.
 - Avoid FFI parameter names that are Dart reserved words. Do not use `default`; use `default_value`. This matches the UniFFI crate, where `default` is also a Swift keyword.
 
-Android toolchain. cargokit upstream calls `project.exec()`, removed in Gradle 9; the vendored cargokit at `sdks/flutter/coproduct/cargokit/gradle/plugin.gradle` carries a `ProcessBuilder` patch (see [FRB issue #3007](https://github.com/fzyzcjy/flutter_rust_bridge/issues/3007), marked wontfix upstream) so the SDK works on Gradle 9. The patch must be re-applied if the vendored cargokit is updated; the file carries an inline comment marking the patched region. `sdks/flutter/coproduct/example/` and `sdks/react-native/coproduct/example/` share **Gradle 8.14 + JDK 17** from the React Native example template's defaults. The React Native example stays on **AGP 8.12.0**; the Flutter example is on **AGP 8.12.1**, the floor `device_info_plus` and `package_info_plus` require. Native Android source-linked demos use **Gradle 9.4.1 + JDK 17 + AGP 9.2.1** to match Android Studio Panda's generated defaults. `consumer-tests/flutter/` runs on bleeding-edge **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20** to verify the patched cargokit holds for real adopters on modern toolchains. The SDK's `compileSdkVersion` is `36.1` for native Android and `36` for Flutter's current AGP path. cargokit downloads its own NDK if the configured one is absent. Do not enable Swift Package Manager for the plugin: FRB needs the CocoaPods `Classes/` layout, and Flutter only warns about the missing SwiftPM support.
+Android toolchain. Cargokit is gone, along with its Gradle 9 `project.exec` patch: the Android module carries no build hook and the Android Gradle Plugin packages `src/main/jniLibs` directly. The unshipped `linux/`, `macos/` and `windows/` scaffolding that referenced it was deleted with it: those were `flutter create` leftovers pointing at a nonexistent `../rust`, excluded by `.pubignore`, and never declared platforms in `pubspec.yaml`. `sdks/flutter/coproduct/example/` and `sdks/react-native/coproduct/example/` share **Gradle 8.14 + JDK 17** from the React Native example template's defaults. The React Native example stays on **AGP 8.12.0**; the Flutter example is on **AGP 8.12.1**, the floor `device_info_plus` and `package_info_plus` require. Native Android source-linked demos use **Gradle 9.4.1 + JDK 17 + AGP 9.2.1** to match Android Studio Panda's generated defaults. `consumer-tests/flutter/` runs on bleeding-edge **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20** to verify the packaged libraries hold for real adopters on modern toolchains. The SDK's `compileSdkVersion` is `36.1` for native Android and `36` for Flutter's current AGP path. Do not enable Swift Package Manager for the plugin: FRB needs the CocoaPods `Classes/` layout, and Flutter only warns about the missing SwiftPM support.
+
+Maintainer inner loop. Removing cargokit removed the maintainer's build path as well as the integrator's, so `scripts/package/flutter-build-native.sh [ios|android|all]` rebuilds the debug XCFramework and jniLibs from current source. Both source-linked Flutter demo scripts invoke it automatically, because a forgotten preparation step would otherwise package a stale library. Running `flutter run` directly from the example requires it to have run first. Its artifacts are gitignored and are never release inputs: the release pipeline builds its own from a clean commit into an external directory.
+
+**Rebuild native artifacts after any change to the Rust source, the FRB surface, or the generated bindings.** A stale library surfaces at runtime as an FRB content-hash mismatch at `initialize`, not as a link error, and symbol verification will not catch it because the entrypoint names are unchanged.
+
+The Flutter package ships exactly three Android ABIs: `arm64-v8a`,
+`armeabi-v7a`, and `x86_64`. It must not ship 32-bit `x86`. Both are enforced,
+not merely conventional: `stages/build-binaries.sh` fails the release if an
+`x86` jniLib appears, and `gates/gate-suite.sh` requires exactly three Android
+libraries in the packaged APK. Adding a fourth ABI for emulator parity breaks
+the release.
+
+The iOS simulator slice is universal (`arm64` and `x86_64`), assembled with
+`lipo` before `xcodebuild -create-xcframework`. The pod deliberately sets no
+`EXCLUDED_ARCHS`: a Flutter app's `Debug.xcconfig` includes the generated Pods
+xcconfig before `Generated.xcconfig`, and `Generated.xcconfig` declares
+`EXCLUDED_ARCHS` itself, so a value set by the pod is overridden and a consuming
+app asks for architectures the package must therefore provide.
 
 ## iOS Notes
 

@@ -34,14 +34,14 @@ final class ObservationHandle<T> {
 /// This is not exported from any public library. Implementing it outside this
 /// package is unsupported
 abstract interface class CoproductClientBackend {
-  bool getBool(String key, bool defaultValue);
-  String getString(String key, String defaultValue);
-  int getInt(String key, int defaultValue);
-  double getNumber(String key, double defaultValue);
+  bool getBool(String key, {required bool defaultValue});
+  String getString(String key, {required String defaultValue});
+  int getInt(String key, {required int defaultValue});
+  double getNumber(String key, {required double defaultValue});
 
   /// Takes and returns encoded JSON text, matching the generated surface.
   /// Decoding happens above this boundary
-  String getJson(String key, String defaultValueJson);
+  String getJson(String key, {required String defaultValueJson});
 
   ObservationHandle<bool> observeBool(String key);
   ObservationHandle<String> observeString(String key);

@@ -51,7 +51,10 @@ sdks/react-native/coproduct/lib/
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/Flutter/ephemeral/
 scripts/acceptance/pubspec.lock
-scripts/release/pubspec.lock
+scripts/release/flutter/pubspec.lock
 
 # Superpowers plugin
 docs/superpowers/
+
+# Local automation scratch
+.superpowers/

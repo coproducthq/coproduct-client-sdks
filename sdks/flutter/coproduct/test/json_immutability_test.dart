@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('getJson returns a deeply unmodifiable structure', () {
     final client = createClientForBackend(_StubBackend('{"nested":{"x":1},"list":[1]}'));
-    final value = client.getJson('config', const <String, Object?>{}) as Map;
+    final value = client.getJson('config', defaultValue: const <String, Object?>{}) as Map;
 
     expect(() => value['added'] = 1, throwsUnsupportedError);
     expect(() => (value['nested'] as Map)['x'] = 2, throwsUnsupportedError);
@@ -17,7 +17,7 @@ void main() {
     cyclic['self'] = cyclic;
     final client = createClientForBackend(_StubBackend('null'));
 
-    expect(identical(client.getJson('any', cyclic), cyclic), isTrue);
+    expect(identical(client.getJson('any', defaultValue: cyclic), cyclic), isTrue);
   });
 }
 
@@ -26,7 +26,7 @@ final class _StubBackend implements CoproductClientBackend {
   final String json;
 
   @override
-  String getJson(String key, String defaultValueJson) => json;
+  String getJson(String key, {required String defaultValueJson}) => json;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

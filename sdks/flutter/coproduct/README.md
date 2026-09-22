@@ -3,6 +3,10 @@
 Flutter SDK for [Coproduct](https://coproduct.app), a feature flag and
 experimentation platform.
 
+**This release covers feature flags:** delivery, targeting, identity, reactive
+reads, and a testing library. Experiment tracking, recording which variant each
+user saw, arrives in a following release.
+
 A **feature flag** is a value you control from Coproduct rather than from your
 app's code: a switch that turns a feature on or off, or a piece of
 configuration you can change without shipping a release.
@@ -13,26 +17,9 @@ the person using your app. That is how one flag serves `true` to the segment you
 choose and `false` to everyone else, or serves a different limit to trial
 accounts than to paid ones.
 
-Attributes come from two places:
-
-- **The SDK fills in six automatically**, with no code from you: `platform`,
-  `os_version`, `app_version`, `app_build`, `locale`, and `timezone`. So you can
-  target Android only, or a locale, or roll a feature out to builds at or above
-  a version, straight away.
-- **You supply the rest**, through [`identify`](#identity). These are whatever
-  your product needs a rule to match on, such as `plan`, `region`, or
-  `signup_date`. Their names are yours, and they have to match the names your
-  targeting rules use.
-
-The two sets are kept apart, so supplying your own attributes never disturbs the
-automatic ones.
-
-**Flags are evaluated on the device, not on a server.** The SDK downloads your
-flag definitions and their targeting rules once, then works out which value
-applies using attributes you set locally with `identify`. Reading a flag is a
-synchronous in-memory lookup: it makes no network request, so it never blocks a
-build and never fails because the network is down. The attributes you set stay
-on the device unless you send them somewhere yourself.
+How that evaluation works, and which attributes you get for free, is in
+[How evaluation works](#how-evaluation-works) below, after you have a flag
+working.
 
 ## Compatibility
 
@@ -42,7 +29,7 @@ on the device unless you send them somewhere yourself.
 | Dart | >= 3.10.0 |
 | iOS deployment target | 15.0+ |
 | Android minSdk | 24 |
-| Gradle (Android side) | 9.x |
+| Gradle (Android side) | 8.x or later |
 
 ## Before you start
 
@@ -55,8 +42,19 @@ value:
   flag, like `new-checkout`. The examples below use a boolean flag with that
   key, so create one to follow along, or substitute a key you already have.
 
-You create both in Coproduct, whose primary interface is the Coproduct MCP app,
-so you can issue a mobile SDK key and create a flag from there.
+Create both at [coproduct.app](https://coproduct.app):
+
+1. Sign in and open the project you want the app to read flags from, or create
+   one.
+2. Issue a **mobile** SDK key for that project. Mobile keys are the only kind
+   this SDK accepts; a server key is rejected at `initialize` with
+   `InvalidKeyType`.
+3. Create a boolean flag with the key `new-checkout`, or substitute a flag key
+   you already have in the examples below.
+
+If your team drives Coproduct through the Coproduct MCP app, you can ask it to
+issue the key and create the flag instead. Either path produces the same two
+values.
 
 **Every read is safe.** Whatever happens, you get back a usable value: if the
 key does not exist, or names a flag of a different type, or nothing has
@@ -68,24 +66,43 @@ The trade-off is that a wrong key looks exactly like a flag that is switched
 off. If a flag seems stuck on its default, check the spelling and the
 environment of your SDK key before looking anywhere else.
 
+## Requirements
+
+The SDK ships prebuilt native libraries, so **no Rust toolchain is required** to
+build an app that depends on it.
+
+**The iOS simulator slice is universal**, covering both Apple Silicon and Intel
+Macs, and the SDK constrains no architectures in your project.
+
+Supported toolchains are Flutter 3.38.1 and later, with a minimum iOS deployment
+target of 15.0 and a minimum Android SDK of 24.
+
 ## Installation
 
-> The SDK is not yet published to pub.dev. Until it is, clone this repository
-> and point a path dependency at the `sdks/flutter/coproduct` directory inside
-> your checkout:
+Add it to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  coproduct:
-    path: /absolute/or/relative/path/to/coproduct-client-sdks/sdks/flutter/coproduct
+  coproduct: ^1.0.0
 ```
 
-After release, this becomes an ordinary version dependency.
+Set the platform minimums before your first build, or `pod install` refuses the
+pod and the Android build fails:
+
+- **iOS.** In `ios/Podfile`, set `platform :ios, '15.0'` at the top. A new
+  Flutter app ships that line commented out, so uncomment it. Set the iOS
+  Deployment Target to 15.0 in Xcode too, then run `pod install`.
+- **Android.** In `android/app/build.gradle.kts`, set `minSdk = 24`.
 
 ## Quickstart
 
 Start the SDK once, before your app runs, and put the client where your widgets
-can find it. This is a complete `main`:
+can find it. This is a complete `main`.
+
+Replace the placeholder key before running it. `initialize` throws a
+`CoproductException` for a malformed key or an invalid configuration, so a
+copied-and-unedited placeholder fails immediately rather than silently serving
+defaults.
 
 ```dart
 import 'package:coproduct/coproduct.dart';
@@ -161,20 +178,46 @@ for updates on a timer. See
 [Seeing a flag change while you develop](#seeing-a-flag-change-while-you-develop)
 for the quickest way to force it.
 
+## How evaluation works
+
+**Flags are evaluated on the device, not on a server.** The SDK downloads your
+flag definitions and their targeting rules once, then works out which value
+applies using attributes you set locally with `identify`. Reading a flag is a
+synchronous in-memory lookup: it makes no network request, so it never blocks a
+build and never fails because the network is down. The attributes you set stay
+on the device unless you send them somewhere yourself.
+
+Attributes come from two places:
+
+- **The SDK fills in six automatically**, with no code from you: `platform`,
+  `os_version`, `app_version`, `app_build`, `locale`, and `timezone`. So you can
+  target Android only, or a locale, or roll a feature out to builds at or above
+  a version, straight away.
+- **You supply the rest**, through [`identify`](#identity). These are whatever
+  your product needs a rule to match on, such as `plan`, `region`, or
+  `signup_date`. Their names are yours, and they have to match the names your
+  targeting rules use.
+
+The two sets are kept apart, so supplying your own attributes never disturbs the
+automatic ones.
+
 ## Reading flags
 
-Five getters, one per flag type. Each takes the flag key and the value to serve
+Five getters over four flag types. `getBool`, `getString`, `getNumber`, and
+`getJson` map one to one; `getInt` reads a **number** flag and truncates toward
+zero, so create a number flag when your code calls `getInt`. Each takes the flag
+key and the value to serve
 when the flag cannot be resolved. Reach the client from a widget with
 `CoproductScope.of(context)`, or keep the one `initialize` returned:
 
 ```dart
 final client = CoproductScope.of(context);
 
-client.getBool('new-checkout', false);
-client.getString('greeting', 'Hello');
-client.getInt('max-items', 10);
-client.getNumber('rollout-ratio', 0.0);
-client.getJson('checkout-config', const {'maxItems': 10});
+client.getBool('new-checkout', defaultValue: false);
+client.getString('greeting', defaultValue: 'Hello');
+client.getInt('max-items', defaultValue: 10);
+client.getNumber('rollout-ratio', defaultValue: 0.0);
+client.getJson('checkout-config', defaultValue: const {'maxItems': 10});
 ```
 
 Reads never throw. Your default is served whenever the flag is missing, the SDK
@@ -196,7 +239,7 @@ one above: `boolFlag`, `stringFlag`, `intFlag`, `numberFlag`, and `jsonFlag`.
 When you want the value outside a builder, observe it directly:
 
 ```dart
-final greeting = client.observeString('greeting', 'Hello');
+final greeting = client.observeString('greeting', defaultValue: 'Hello');
 
 greeting.value;                  // the current value, available immediately
 greeting.addListener(_onChange); // called whenever it changes
@@ -359,6 +402,16 @@ getters serve their defaults and existing observations keep their last value and
 stop updating. It is safe to call more than once, and a later `initialize`
 starts fresh.
 
+A later `initialize` returns a **new** client. If you keep the client in a
+Provider, a Riverpod container, or a BLoC, replace it there too: the old
+instance stays callable and silently serves defaults forever. Most apps only
+need `shutdown` at final teardown, so this rarely comes up.
+
+Use the client on the isolate that created it. It holds a handle to the native
+evaluation core, so do not pass a `CoproductClient` or a `FlagObservation`
+through a `SendPort` to a worker isolate. Read flags on the main isolate and
+send the resulting values instead.
+
 ## Troubleshooting
 
 **A flag always returns the default I passed.** Work through these in order:
@@ -406,21 +459,36 @@ await tester.pumpAndSettle();
 The harness supplies resolved values rather than evaluating targeting rules: set
 the result your scenario needs. See [doc/testing.md](doc/testing.md).
 
-## A runnable sample
+## A complete example
 
-[`example/`](example/) is a small app you can run. It installs a
-`CoproductScope`, reads a flag through `CoproductFlagBuilder` with no `client`
-argument, and puts a getter read beside it so you can watch the difference: the
-observation follows changes, the getter does not.
+[`example/lib/main.dart`](example/lib/main.dart) is a complete, working
+integration to read. It installs a `CoproductScope`, reads a flag through
+`CoproductFlagBuilder` with no `client` argument, and puts a getter read beside
+it so you can watch the difference: the observation follows changes, the getter
+does not.
 
 It starts up differently from the Quickstart above, rendering its shell first
 and initializing afterward, which keeps the first frame immediate. Both shapes
-are fine; the example's README explains the trade.
+are fine.
+
+The copy published on pub.dev is source to read under the Example tab. To run
+it, paste `example/lib/main.dart` into a new app that depends on `coproduct`
+from pub.dev. That uses the prebuilt binaries, so it needs no Rust toolchain,
+and it reads the key from the environment:
+
+```sh
+flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
+```
+
+Building the example from a clone of this repository is a different thing: it
+source-links the SDK and compiles the Rust core from source, so it additionally
+needs Rust, Xcode, and the Android NDK. That is a maintainer workflow, described
+in [DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md).
 
 ## Building from source
 
-See the repo-root [DEVELOPMENT.md](../../../DEVELOPMENT.md) for prerequisites and per-platform build commands.
+See [DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md) in the repository for prerequisites and per-platform build commands.
 
 ## License
 
-Apache License 2.0. See [LICENSE](../../../LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE).
