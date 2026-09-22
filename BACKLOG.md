@@ -182,3 +182,30 @@ FFI surface, and a package rename moves the generated JSI sources, so this needs
 Do it before React Native publishes. A native namespace is compatibility surface once
 consumers exist, and nothing downstream depends on it today: React Native is still at
 the binding-validation stage.
+
+### Flutter plugins that apply the Kotlin Gradle Plugin will stop building
+
+**Status: open. Gated on the Flutter floor rising to the version that enforces it.**
+
+Every Android build of a consuming app now prints:
+
+> Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+> coproduct, flutter_timezone. Future versions of Flutter will fail to build if
+> your app uses plugins that apply KGP.
+
+The Coproduct plugin joined that list when it gained a Kotlin source set for the
+host-context plugin class. `flutter_timezone` was already on it, so the SDK is not
+the sole cause, but it is now one of them.
+
+The fix Flutter documents is migrating to `com.android.built-in-kotlin`. Two
+reasons not to do it yet, both concrete:
+
+- `consumer-tests/flutter/android/gradle.properties` sets
+  `android.builtInKotlin=false`, and its root build applies
+  `org.jetbrains.kotlin.android` to every `com.android.library` subproject. A
+  migrated module would conflict with the release gate's own project.
+- Built-in Kotlin is not available at the Android Gradle Plugin version the
+  declared Flutter floor generates.
+
+Revisit when the floor rises. The module compiles today at both ends of the
+supported range, AGP 8.11.1 through 9.0.1, so nothing is broken now.

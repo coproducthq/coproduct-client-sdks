@@ -2,14 +2,16 @@ package app.coproduct.flutter
 
 import android.content.res.Configuration
 
-/// Maps an Android device to the phone or tablet vocabulary, or to no value.
-/// The 600dp threshold is the one Android's own sw600dp resource qualifier uses,
-/// but this is Coproduct classification policy rather than a device fact the OS
-/// reports, and it is documented as such.
-///
-/// Every decision lives here rather than in the plugin, so a unit test can reach
-/// all of them: the plugin only extracts the two configuration values and hands
-/// over the feature lookup.
+/**
+ * Maps an Android device to the phone or tablet vocabulary, or to no value.
+ * The 600dp threshold is the one Android's own sw600dp resource qualifier uses,
+ * but this is Coproduct classification policy rather than a device fact the OS
+ * reports, and it is documented as such.
+ *
+ * Every decision lives here rather than in the plugin, so a unit test can reach
+ * all of them: the plugin only extracts the two configuration values and hands
+ * over the feature lookup
+ */
 internal object DeviceClassifier {
     private const val TABLET_MIN_WIDTH_DP = 600
 
@@ -39,6 +41,9 @@ internal object DeviceClassifier {
         if (hasFeature("android.hardware.type.pc") || hasFeature("org.chromium.arc")) {
             return null
         }
+        // The sentinel for this field is SMALLEST_SCREEN_WIDTH_DP_UNDEFINED,
+        // not the SCREENLAYOUT_UNDEFINED that belongs to screenLayout. Both are
+        // zero, so naming the wrong one would work by accident and mislead
         if (smallestScreenWidthDp <= 0) return null
         return if (smallestScreenWidthDp >= TABLET_MIN_WIDTH_DP) "tablet" else "phone"
     }

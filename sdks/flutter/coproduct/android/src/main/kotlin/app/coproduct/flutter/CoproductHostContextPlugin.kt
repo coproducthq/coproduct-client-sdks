@@ -7,13 +7,17 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.StandardMethodCodec
 
-/// Answers host-context questions the Dart side cannot answer correctly on its
-/// own. Deliberately small: it holds no SDK state, performs no upsert, and knows
-/// nothing about the SDK key or the evaluation core. The native library the core
-/// runs in is still loaded directly rather than through this channel.
+/**
+ * Answers host-context questions the Dart side cannot answer correctly on its
+ * own. Deliberately small: it holds no SDK state, performs no upsert, and knows
+ * nothing about the SDK key or the evaluation core. The native library the core
+ * runs in is still loaded directly rather than through this channel
+ */
 class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
-    private var channel: MethodChannel? = null
-    private var context: Context? = null
+    // Written on the platform thread by attach and detach, read on the task
+    // queue by onMethodCall, so the two need a happens-before edge
+    @Volatile private var channel: MethodChannel? = null
+    @Volatile private var context: Context? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -41,8 +45,10 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         }
     }
 
-    /// Pure plumbing: it reads the two configuration values and hands the feature
-    /// lookup over, so every classification decision stays where a test can reach it
+    /**
+     * Pure plumbing: it reads the two configuration values and hands the feature
+     * lookup over, so every classification decision stays where a test can reach it
+     */
     private fun readDeviceType(): String? {
         val appContext = context ?: return null
         val configuration = appContext.resources.configuration

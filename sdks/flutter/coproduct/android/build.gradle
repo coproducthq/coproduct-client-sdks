@@ -2,7 +2,7 @@
 // Android Gradle Plugin packages whatever is in src/main/jniLibs/<abi>/ into the
 // consuming app, and there is deliberately no build hook for it. It does compile
 // the host-context plugin class, which answers questions the Dart side cannot
-// answer correctly on its own.
+// answer correctly on its own
 
 group 'app.coproduct.flutter'
 version '1.0'
@@ -14,9 +14,11 @@ buildscript {
     }
 
     dependencies {
-        // Matches the floor device_info_plus and package_info_plus require, so
-        // this module never becomes the reason a consuming build needs a newer
-        // Android Gradle Plugin than the rest of the dependency set already does.
+        // This scope is what lets the module apply kotlin-android on a consumer
+        // whose Flutter version does not apply it for them. Gradle resolves
+        // buildscript scopes parent-first, so a consuming build uses its own
+        // Android Gradle Plugin and Kotlin plugin rather than these, which is why
+        // this module cannot force a consumer onto a newer toolchain
         classpath 'com.android.tools.build:gradle:8.12.1'
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
     }
@@ -50,7 +52,7 @@ android {
     ndkVersion android.ndkVersion
 
     // Java 17 is what the Kotlin toolchain and the plus plugins already require
-    // of a consuming project, so the module matches rather than lagging.
+    // of a consuming project, so the module matches rather than lagging
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -63,12 +65,8 @@ android {
     defaultConfig {
         minSdkVersion 24
     }
+}
 
-    dependencies {
-        testImplementation 'junit:junit:4.13.2'
-    }
-
-    testOptions {
-        unitTests.returnDefaultValues = true
-    }
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
 }
