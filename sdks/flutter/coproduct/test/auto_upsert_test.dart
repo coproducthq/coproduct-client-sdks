@@ -76,6 +76,43 @@ void main() {
     expect(later, isTrue);
   });
 
+  test('a caller map mutated after publish does not change what is sent', () async {
+    Map<String, frb.FrbContextValue>? sent;
+    final queue = SerialQueue();
+    final release = Completer<void>();
+    final blocker = queue.add(() => release.future);
+    final upsert = AutoUpsert(
+      queue: queue,
+      isCurrent: () => true,
+      send: (attributes) async => sent = attributes,
+      onError: (_, _) {},
+    );
+
+    final attributes = <String, frb.FrbContextValue>{'device_type': _phone};
+    upsert.publish(attributes);
+    attributes['device_type'] = const frb.FrbContextValue.string('tablet');
+    attributes['network_type'] = const frb.FrbContextValue.string('wifi');
+
+    release.complete();
+    await blocker;
+    await queue.add(() async {});
+
+    expect(sent, {'device_type': _phone});
+  });
+
+  test('a throwing error reporter does not escape', () async {
+    final queue = SerialQueue();
+    AutoUpsert(
+      queue: queue,
+      isCurrent: () => true,
+      send: (attributes) async => throw StateError('boom'),
+      onError: (_, _) => throw StateError('reporter exploded'),
+    ).publish({'device_type': _phone});
+
+    await queue.add(() async {});
+    await pumpEventQueue();
+  });
+
   test('an empty attribute map enqueues nothing', () async {
     var sent = 0;
     final queue = SerialQueue();

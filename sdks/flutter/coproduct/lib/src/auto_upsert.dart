@@ -27,15 +27,23 @@ class AutoUpsert {
   /// callback or a settled provider, neither of which has anywhere to return an
   /// error to, so a failure is reported rather than thrown
   void publish(Map<String, frb.FrbContextValue> attributes) {
-    if (attributes.isEmpty) return;
+    // Snapshot before enqueueing, matching the identity mutators on this same
+    // queue: the operation runs arbitrarily later, and a caller that reuses its
+    // map would otherwise change what was already published
+    final snapshot = Map<String, frb.FrbContextValue>.unmodifiable(attributes);
+    if (snapshot.isEmpty) return;
     unawaited(_queue.add(() async {
       // Checked here rather than in publish: this operation can wait behind a
       // slow identify while the runtime is torn down, and a check at enqueue
       // time would pass and then apply to a replacement runtime
       if (!_isCurrent()) return;
-      await _send(attributes);
+      await _send(snapshot);
     }).catchError((Object error, StackTrace stack) {
-      _onError(error, stack);
+      try {
+        _onError(error, stack);
+      } catch (_) {
+        // A reporter that itself throws must not escape as a second error
+      }
     }));
   }
 }

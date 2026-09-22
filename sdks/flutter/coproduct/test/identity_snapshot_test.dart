@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:coproduct/coproduct.dart';
 import 'package:coproduct/src/client_backend.dart';
 import 'package:coproduct/src/coproduct_client.dart';
+import 'package:coproduct/src/serial_queue.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -92,6 +93,29 @@ void main() {
 
     expect(backend.updatedAttributes,
         {'plan': const AttributeValue.string('pro')});
+  });
+  test('a client built with a supplied queue waits behind work already on it',
+      () async {
+    // The shared queue is what orders a machine-initiated write against the
+    // identity mutators. A client that quietly made its own would reintroduce
+    // exactly the interleaving the single queue exists to prevent
+    var signedOut = false;
+    final queue = SerialQueue();
+    final client =
+        createClientForBackend(_CapturingBackend(), identityQueue: queue);
+
+    final release = Completer<void>();
+    final blocker = queue.add(() => release.future);
+    unawaited(client.signOut().then((_) => signedOut = true));
+    await pumpEventQueue();
+
+    expect(signedOut, isFalse,
+        reason: 'the client must wait behind work already on the shared queue');
+
+    release.complete();
+    await blocker;
+    await queue.add(() async {});
+    expect(signedOut, isTrue);
   });
 }
 
