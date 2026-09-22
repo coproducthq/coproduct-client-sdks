@@ -50,6 +50,8 @@ flutter:
     platforms:
       android:
         ffiPlugin: true
+        package: app.coproduct.flutter
+        pluginClass: CoproductHostContextPlugin
       ios:
         ffiPlugin: true
 

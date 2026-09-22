@@ -1,8 +1,10 @@
-// This module compiles no native code. The SDK ships prebuilt libraries, and
-// the Android Gradle Plugin packages whatever is in src/main/jniLibs/<abi>/
-// into the consuming app. There is deliberately no build hook here.
+// This module ships prebuilt native libraries and compiles no native code: the
+// Android Gradle Plugin packages whatever is in src/main/jniLibs/<abi>/ into the
+// consuming app, and there is deliberately no build hook for it. It does compile
+// the host-context plugin class, which answers questions the Dart side cannot
+// answer correctly on its own.
 
-group 'com.flutter_rust_bridge.coproduct'
+group 'app.coproduct.flutter'
 version '1.0'
 
 buildscript {
@@ -12,8 +14,11 @@ buildscript {
     }
 
     dependencies {
-        // The Android Gradle Plugin knows how to build native code with the NDK.
-        classpath 'com.android.tools.build:gradle:7.3.0'
+        // Matches the floor device_info_plus and package_info_plus require, so
+        // this module never becomes the reason a consuming build needs a newer
+        // Android Gradle Plugin than the rest of the dependency set already does.
+        classpath 'com.android.tools.build:gradle:8.12.1'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
     }
 }
 
@@ -25,10 +30,11 @@ rootProject.allprojects {
 }
 
 apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     if (project.android.hasProperty("namespace")) {
-        namespace 'com.flutter_rust_bridge.coproduct'
+        namespace 'app.coproduct.flutter'
     }
 
     // compileSdkVersion is the API level the plugin compiles against, not a
@@ -43,12 +49,26 @@ android {
     // (e.g. ndkVersion "23.1.7779620")
     ndkVersion android.ndkVersion
 
+    // Java 17 is what the Kotlin toolchain and the plus plugins already require
+    // of a consuming project, so the module matches rather than lagging.
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
     }
 
     defaultConfig {
         minSdkVersion 24
+    }
+
+    dependencies {
+        testImplementation 'junit:junit:4.13.2'
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
     }
 }
