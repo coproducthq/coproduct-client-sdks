@@ -141,3 +141,44 @@ Ordered by cost against value. None is breaking; all can ship after 1.0.0.
   marked `deferred, revise before implementing`.
 - **Experiment tracking.** No evaluation listener, so no exposure recording.
   1.0.0 is scoped to flags and the README and CHANGELOG say so.
+
+## Cross-platform
+
+### The React Native SDK namespaces itself `com.coproduct`
+
+**Status: open. Cheap now, breaking after React Native publishes.**
+
+Every other surface uses `app.coproduct.*`: the Android SDK's namespace and Kotlin
+package are `app.coproduct`, and iOS namespaces every runtime identifier the same
+way (`app.coproduct.firstSeenAt`, `app.coproduct.sdk`, the `app.coproduct.host-timer`
+and `app.coproduct.network-monitor` queue labels, the `app.coproduct.defaultInstanceReady`
+notification). The demo and consumer-test apps follow `app.coproduct.<role>.<framework>`.
+
+React Native alone uses `com.coproduct`. It is a `create-react-native-library`
+template default rather than a decision, the same way the Flutter plugin carried
+`com.flutter_rust_bridge.coproduct` from its own scaffold.
+
+Beyond consistency, `app.coproduct` is the correct reverse-DNS for the domain this
+project actually owns, `coproduct.app`. `com.coproduct` asserts `coproduct.com`.
+
+The change is six string sites plus one directory move:
+
+```
+package.json                       "javaPackageName": "com.coproduct"
+android/build.gradle:54            namespace "com.coproduct"
+android/build.gradle:142           codegenJavaPackageName = "com.coproduct"
+android/src/main/java/com/coproduct/CoproductModule.kt
+android/src/main/java/com/coproduct/CoproductPackage.kt
+android/src/main/AndroidManifest.xml
+```
+
+Two of those are `codegenJavaPackageName`, so the generated sources follow rather
+than needing hand edits. Move the source directory to `android/src/main/java/app/coproduct/`.
+
+**Verify with a native build, not a typecheck.** The React Native ABI changes with the
+FFI surface, and a package rename moves the generated JSI sources, so this needs
+`scripts/build/source-linked-rn-demo-android.sh` rather than a TypeScript compile.
+
+Do it before React Native publishes. A native namespace is compatibility surface once
+consumers exist, and nothing downstream depends on it today: React Native is still at
+the binding-validation stage.
