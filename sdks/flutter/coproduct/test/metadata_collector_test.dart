@@ -22,16 +22,16 @@ Future<Map<String, frb.FrbContextValue>> _collect(
 
 void main() {
   MetadataProviders providers({
-    Future<String?> Function()? timezone,
-    Future<String?> Function()? osVersion,
+    MetadataProvider? timezone,
+    MetadataProvider? osVersion,
   }) =>
       MetadataProviders(
-        platform: () async => 'android',
-        osVersion: osVersion ?? () async => '14',
-        appVersion: () async => '2.3.1',
-        appBuild: () async => '412',
-        locale: () async => 'en-US',
-        timezone: timezone ?? () async => 'America/New_York',
+        platform: stringProvider(() async => 'android'),
+        osVersion: osVersion ?? stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '2.3.1'),
+        appBuild: stringProvider(() async => '412'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: timezone ?? stringProvider(() async => 'America/New_York'),
       );
 
   test('collects every available attribute before the deadline', () {
@@ -74,7 +74,8 @@ void main() {
       _collect(
         providers(
             osVersion: () =>
-                Future.delayed(const Duration(milliseconds: 40), () => '14')),
+                Future.delayed(const Duration(milliseconds: 40),
+                    () => const frb.FrbContextValue.string('14'))),
         deadline: const Duration(milliseconds: 50),
         clock: () => async.elapsed,
       ).then((r) => attrs = r);
@@ -93,7 +94,8 @@ void main() {
       _collect(
         providers(
             osVersion: () =>
-                Future.delayed(const Duration(milliseconds: 50), () => '14')),
+                Future.delayed(const Duration(milliseconds: 50),
+                    () => const frb.FrbContextValue.string('14'))),
         deadline: const Duration(milliseconds: 50),
         clock: () => async.elapsed,
       ).then((r) => attrs = r);
@@ -105,7 +107,7 @@ void main() {
 
   test('a provider still pending at the deadline is omitted, not awaited', () {
     fakeAsync((async) {
-      final never = Completer<String?>();
+      final never = Completer<frb.FrbContextValue?>();
       Map<String, frb.FrbContextValue>? attrs;
       _collect(
         providers(osVersion: () => never.future),
@@ -121,7 +123,7 @@ void main() {
 
   test('a value completing after the seal is rejected', () {
     fakeAsync((async) {
-      final late = Completer<String?>();
+      final late = Completer<frb.FrbContextValue?>();
       Map<String, frb.FrbContextValue>? attrs;
       _collect(
         providers(osVersion: () => late.future),
@@ -130,7 +132,7 @@ void main() {
       ).then((r) => attrs = r);
       async.elapse(const Duration(milliseconds: 50));
       async.flushMicrotasks();
-      late.complete('14'); // arrives after the seal
+      late.complete(const frb.FrbContextValue.string('14')); // arrives after the seal
       async.flushMicrotasks();
       expect(attrs!.containsKey('os_version'), isFalse);
     });
@@ -138,7 +140,7 @@ void main() {
 
   test('a provider erroring after the seal is swallowed', () {
     fakeAsync((async) {
-      final late = Completer<String?>();
+      final late = Completer<frb.FrbContextValue?>();
       _collect(
         providers(osVersion: () => late.future),
         deadline: const Duration(milliseconds: 50),
@@ -173,7 +175,7 @@ void main() {
       final cancel = CancellationSignal();
       Object? error;
       _collect(
-        providers(osVersion: () => Completer<String?>().future),
+        providers(osVersion: () => Completer<frb.FrbContextValue?>().future),
         deadline: const Duration(milliseconds: 50),
         clock: () => async.elapsed,
         cancel: cancel,
@@ -190,9 +192,9 @@ void main() {
   test('no budget returns empty without invoking any provider', () {
     fakeAsync((async) {
       var invocations = 0;
-      Future<String?> counted() async {
+      Future<frb.FrbContextValue?> counted() async {
         invocations++;
-        return 'x';
+        return const frb.FrbContextValue.string('x');
       }
 
       Map<String, frb.FrbContextValue>? attrs;
@@ -213,6 +215,28 @@ void main() {
       expect(attrs, isEmpty);
       expect(invocations, 0);
     });
+  });
+
+  test('a provider may return a non-string attribute value', () async {
+    final attributes = await _collect(
+      providers(timezone: () async => const frb.FrbContextValue.number(7)),
+    );
+    expect(attributes['timezone'], const frb.FrbContextValue.number(7));
+  });
+
+  test('stringProvider omits an empty string', () async {
+    final provider = stringProvider(() async => '');
+    expect(await provider(), isNull);
+  });
+
+  test('stringProvider omits a null string', () async {
+    final provider = stringProvider(() async => null);
+    expect(await provider(), isNull);
+  });
+
+  test('stringProvider wraps a non-empty string', () async {
+    final provider = stringProvider(() async => 'UTC');
+    expect(await provider(), const frb.FrbContextValue.string('UTC'));
   });
 
   test('no budget still throws when the observer cancels during sealing', () {
@@ -237,12 +261,12 @@ void main() {
       final omissions = <String, bool>{};
       _collect(
         MetadataProviders(
-          platform: () async => 'android',
-          osVersion: () => Completer<String?>().future, // wedged
-          appVersion: () async => '',
-          appBuild: () async => '42',
-          locale: () async => 'en-US',
-          timezone: () async => 'America/New_York',
+          platform: stringProvider(() async => 'android'),
+          osVersion: () => Completer<frb.FrbContextValue?>().future, // wedged
+          appVersion: stringProvider(() async => ''),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
         ),
         deadline: const Duration(milliseconds: 50),
         clock: () => async.elapsed,

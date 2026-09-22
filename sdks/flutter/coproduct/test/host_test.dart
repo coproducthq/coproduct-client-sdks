@@ -183,12 +183,12 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 
 /// Metadata providers returning a fixed value per field.
 MetadataProviders _providers() => MetadataProviders(
-      platform: () async => 'android',
-      osVersion: () async => '14',
-      appVersion: () async => '1.2.3',
-      appBuild: () async => '42',
-      locale: () async => 'en-US',
-      timezone: () async => 'America/New_York',
+      platform: stringProvider(() async => 'android'),
+      osVersion: stringProvider(() async => '14'),
+      appVersion: stringProvider(() async => '1.2.3'),
+      appBuild: stringProvider(() async => '42'),
+      locale: stringProvider(() async => 'en-US'),
+      timezone: stringProvider(() async => 'America/New_York'),
     );
 
 CoproductHost<_FakeHandle, _FakeClient> _host(
@@ -323,13 +323,13 @@ void main() {
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
 
@@ -356,13 +356,13 @@ void main() {
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
 
@@ -396,13 +396,13 @@ void main() {
       metadataProviders: MetadataProviders(
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
       createClient: (h) => _FakeClient(h),
       bindForeground: (onForeground) => null,
@@ -614,12 +614,12 @@ void main() {
         initClock: () => async.elapsed,
         // platform never settles, so metadata rides the deadline
         providers: MetadataProviders(
-          platform: () => Completer<String?>().future,
-          osVersion: () async => '14',
-          appVersion: () async => '1.2.3',
-          appBuild: () async => '42',
-          locale: () async => 'en-US',
-          timezone: () async => 'America/New_York',
+          platform: () => Completer<frb.FrbContextValue?>().future,
+          osVersion: stringProvider(() async => '14'),
+          appVersion: stringProvider(() async => '1.2.3'),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
         ),
       );
       host
@@ -692,17 +692,17 @@ void main() {
 
   test('a shutdown during metadata collection throws with no unhandled error',
       () async {
-    final gate = Completer<String?>();
+    final gate = Completer<frb.FrbContextValue?>();
     final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
     final host = _host(
       bridge,
       providers: MetadataProviders(
         platform: () => gate.future,
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
     final pending = host.initialize(
@@ -730,12 +730,12 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
-        platform: () => Completer<String?>().future, // wedged
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        platform: () => Completer<frb.FrbContextValue?>().future, // wedged
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
     final pending = host.initialize(
@@ -813,13 +813,13 @@ void main() {
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
 

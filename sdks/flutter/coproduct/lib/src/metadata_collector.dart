@@ -4,8 +4,19 @@ import 'cancellation.dart';
 import 'errors.dart';
 import 'rust/api.dart' as frb;
 
-/// Produces one static attribute value, or null if it cannot be collected
-typedef MetadataProvider = Future<String?> Function();
+/// Produces one static attribute value, or null if it cannot be collected.
+/// Typed rather than string-shaped because some attributes are numbers and must
+/// not round-trip through a lossy string
+typedef MetadataProvider = Future<frb.FrbContextValue?> Function();
+
+/// Wraps a string-valued source, treating empty as absent. Empty is omission
+/// rather than a value: the core would otherwise store a blank attribute that
+/// satisfies is_set while matching nothing
+MetadataProvider stringProvider(Future<String?> Function() read) => () async {
+      final value = await read();
+      if (value == null || value.isEmpty) return null;
+      return frb.FrbContextValue.string(value);
+    };
 
 /// Reports one provider's outcome for internal diagnostics: how long it ran and
 /// whether its field was omitted (it timed out, threw, or returned null or
@@ -16,8 +27,7 @@ typedef MetadataObserver = void Function(String field, Duration elapsed,
 
 /// The injectable providers for each static attribute. Real implementations wrap
 /// package_info_plus, device_info_plus, flutter_timezone, and dart:io
-/// Tests substitute fakes. device_type is deliberately absent, no reliable
-/// cross-platform classifier exists
+/// Tests substitute fakes
 class MetadataProviders {
   const MetadataProviders({
     required this.platform,
@@ -107,10 +117,10 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
   fields.forEach((field, provider) {
     final sw = Stopwatch()..start();
     stopwatches[field] = sw;
-    pending.add(Future<String?>.sync(provider).then((value) {
+    pending.add(Future<frb.FrbContextValue?>.sync(provider).then((value) {
       sw.stop();
-      if (!sealed && value != null && value.isNotEmpty) {
-        attributes[field] = frb.FrbContextValue.string(value);
+      if (!sealed && value != null) {
+        attributes[field] = value;
         report(field, sw.elapsed, omitted: false);
       } else {
         report(field, sw.elapsed, omitted: true);
