@@ -4,14 +4,18 @@ import 'cancellation.dart';
 import 'errors.dart';
 import 'rust/api.dart' as frb;
 
-/// Produces one static attribute value, or null if it cannot be collected.
-/// Typed rather than string-shaped because some attributes are numbers and must
-/// not round-trip through a lossy string
+/// Produces one static attribute value, or null if it cannot be collected. Null
+/// is the only omission signal the collector understands, so a provider that
+/// wants an absent field returns null rather than an empty value. Typed rather
+/// than string-shaped because some attributes are numbers and must not
+/// round-trip through a lossy string
 typedef MetadataProvider = Future<frb.FrbContextValue?> Function();
 
-/// Wraps a string-valued source, treating empty as absent. Empty is omission
-/// rather than a value: the core would otherwise store a blank attribute that
-/// satisfies is_set while matching nothing
+/// Wraps a string-valued source, converting null or empty to the collector's
+/// null omission signal. Empty is omission rather than a value: the core would
+/// otherwise store a blank attribute that satisfies is_set while matching
+/// nothing. A provider that is not string-valued is responsible for its own
+/// emptiness rule, because only the string case has one
 MetadataProvider stringProvider(Future<String?> Function() read) => () async {
       final value = await read();
       if (value == null || value.isEmpty) return null;
@@ -19,9 +23,9 @@ MetadataProvider stringProvider(Future<String?> Function() read) => () async {
     };
 
 /// Reports one provider's outcome for internal diagnostics: how long it ran and
-/// whether its field was omitted (it timed out, threw, or returned null or
-/// empty). Wired to surface omissions so the shared startup budget can be tuned
-/// on real measurements rather than guesses
+/// whether its field was omitted (it timed out, threw, or returned null). Wired
+/// to surface omissions so the shared startup budget can be tuned on real
+/// measurements rather than guesses
 typedef MetadataObserver = void Function(String field, Duration elapsed,
     {required bool omitted});
 
@@ -49,7 +53,9 @@ class MetadataProviders {
 /// Collects the static device and app attributes, best-effort and fail-closed
 /// per field, bounded by an absolute [deadline] on the shared [clock] rather
 /// than a fixed per-provider timeout. A provider that has not settled by the
-/// deadline, throws, or returns null or empty omits only its field. The
+/// deadline, throws, or returns null omits only its field. Emptiness is not the
+/// collector's concern: a string-valued source converts empty to null through
+/// [stringProvider] before the collector sees it. The
 /// providers run concurrently, so the budget is shared, not multiplied per
 /// field. This never throws for a provider failure, only for cancellation via
 /// [cancel]. Values are raw, the core normalizes them
