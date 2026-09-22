@@ -157,6 +157,7 @@ class CoproductHost<H extends Object, C extends Object> {
       clock: clock,
       cancel: cancel,
       observe: _observeMetadata,
+      onLate: (field, value) {},
     ).then<_MetadataOutcome>(
       _MetadataSuccess.new,
       onError: (Object error, StackTrace stack) =>
@@ -229,14 +230,16 @@ class CoproductHost<H extends Object, C extends Object> {
   }
 }
 
-/// Surfaces a dropped automatic attribute so the shared startup budget can be
-/// tuned on real device measurements. Confined to debug builds by the assert, so
-/// it carries no cost and no log noise in a release build
+/// Surfaces an automatic attribute that was not ready when initialize returned,
+/// so the shared startup budget can be tuned on real device measurements. This
+/// is not a permanent absence: a provider settling later publishes through the
+/// late path. Confined to debug builds by the assert, so it carries no cost and
+/// no log noise in a release build
 void _observeMetadata(String field, Duration elapsed, {required bool omitted}) {
   if (!omitted) return;
   assert(() {
-    debugPrint('coproduct: automatic attribute "$field" omitted after '
-        '${elapsed.inMilliseconds}ms');
+    debugPrint('coproduct: automatic attribute "$field" was not available when '
+        'initialize returned, after ${elapsed.inMilliseconds}ms');
     return true;
   }());
 }

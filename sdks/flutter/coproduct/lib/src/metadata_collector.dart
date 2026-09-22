@@ -64,6 +64,7 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
   required Duration deadline,
   required Duration Function() clock,
   required CancellationSignal cancel,
+  required void Function(String field, frb.FrbContextValue value) onLate,
   MetadataObserver? observe,
 }) async {
   final fields = <String, MetadataProvider>{
@@ -100,42 +101,58 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
     if (!sealed$.isCompleted) sealed$.complete();
   }
 
-  // Cancellation and an exhausted budget are decided synchronously before any
-  // provider is invoked, so no new platform-channel work starts once the budget
-  // is gone
+  // Invoke providers and attach handlers using Future.sync so a provider that
+  // throws synchronously fails only its field. Declared once and shared by both
+  // the budgeted and exhausted paths so their late routing cannot drift apart
+  List<Future<void>> startProviders() {
+    final started = <Future<void>>[];
+    fields.forEach((field, provider) {
+      final sw = Stopwatch()..start();
+      stopwatches[field] = sw;
+      started.add(Future<frb.FrbContextValue?>.sync(provider).then((value) {
+        sw.stop();
+        if (value == null) {
+          report(field, sw.elapsed, omitted: true);
+          return;
+        }
+        if (!sealed) {
+          attributes[field] = value;
+          report(field, sw.elapsed, omitted: false);
+          return;
+        }
+        // The seal already reported this field as absent from the batch, so
+        // routing it here publishes the value without a second report, which
+        // would break the one-report-per-field invariant the observer rests on
+        onLate(field, value);
+      }, onError: (Object _, StackTrace _) {
+        sw.stop();
+        report(field, sw.elapsed, omitted: true);
+      }));
+    });
+    return started;
+  }
+
   if (cancel.isCancelled) {
     throw const CoproductInitializationCancelled();
   }
   final remaining = deadline - clock();
   if (remaining <= Duration.zero) {
+    // Sealed before any provider is attached, so every result routes late. A
+    // zero-duration timer would not do: microtasks drain before timer callbacks,
+    // so an immediately settling provider would land in a batch already gone
     seal();
     // seal invokes the observer synchronously, which may cancel, so recheck
     // before returning so cancellation still takes precedence
     if (cancel.isCancelled) {
       throw const CoproductInitializationCancelled();
     }
+    // Started but deliberately not awaited: a budget exhausted before collection
+    // begins must not cost every field for the life of the runtime
+    startProviders();
     return Map.unmodifiable(attributes);
   }
 
-  // Invoke providers and attach handlers before arming the deadline timer, using
-  // Future.sync so a provider that throws synchronously fails only its field
-  final pending = <Future<void>>[];
-  fields.forEach((field, provider) {
-    final sw = Stopwatch()..start();
-    stopwatches[field] = sw;
-    pending.add(Future<frb.FrbContextValue?>.sync(provider).then((value) {
-      sw.stop();
-      if (!sealed && value != null) {
-        attributes[field] = value;
-        report(field, sw.elapsed, omitted: false);
-      } else {
-        report(field, sw.elapsed, omitted: true);
-      }
-    }, onError: (Object _, StackTrace _) {
-      sw.stop();
-      report(field, sw.elapsed, omitted: true);
-    }));
-  });
+  final pending = startProviders();
 
   final deadlineTimer = Timer(remaining, seal);
   unawaited(cancel.whenCancelled.then((_) => seal()));
