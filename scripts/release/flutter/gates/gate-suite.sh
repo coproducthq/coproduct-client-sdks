@@ -167,14 +167,47 @@ done
 # Android again in dark mode. device_type is read from uiMode masked with
 # UI_MODE_TYPE_MASK, and dropping that mask sends a dark-mode device into the
 # unrecognized-mode arm, which omits the attribute for every dark-mode user. The
-# light-mode run above passes either way, so this is the only thing that covers
-# it. The mode is restored afterwards so the emulator is left as it was found
+# light-mode run above passes either way, so this is the only thing that covers it
+#
+# The mode is read back and verified rather than assumed. A gate that silently
+# ran in light mode would report success for the single line it exists to cover,
+# which is worse than not having it. Whatever mode the device was found in is
+# restored, including auto
+night_mode_of() {
+    adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" shell cmd uimode night 2>/dev/null \
+        | tr -d '\r' | awk '{print $NF}'
+}
+
 android_dark_mode_gate() {
-    adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" shell cmd uimode night yes >/dev/null
-    local code=0
+    local prior observed code=0
+    prior="$(night_mode_of)"
+    if [[ -z "$prior" ]]; then
+        printf '       could not read the current night mode\n'
+        return 1
+    fi
+
+    if ! adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" \
+            shell cmd uimode night yes >/dev/null 2>&1; then
+        printf '       could not set night mode\n'
+        return 1
+    fi
+
+    observed="$(night_mode_of)"
+    if [[ "$observed" != "yes" ]]; then
+        printf '       night mode did not take effect, observed: %s\n' "$observed"
+        adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" \
+            shell cmd uimode night "$prior" >/dev/null 2>&1 || true
+        return 1
+    fi
+
     "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
         "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-android.sh" || code=$?
-    adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" shell cmd uimode night no >/dev/null
+
+    if ! adb -s "$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE" \
+            shell cmd uimode night "$prior" >/dev/null 2>&1; then
+        printf '       could not restore night mode to %s\n' "$prior"
+        [[ $code -eq 0 ]] && code=1
+    fi
     return $code
 }
 run "android acceptance in dark mode on Flutter $PRIMARY" android_dark_mode_gate

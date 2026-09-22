@@ -33,7 +33,8 @@ The three milestone deferrals are recorded in
 widget, detail getters, hooks, session attributes, `device_type`, and public
 transport/store injection are out of scope (0.2.0+)." The reactive layer from
 that same list shipped in 0.2.0. Of the four that did not, `device_type` has since
-landed; the remaining three arrived at 1.0.0 without anyone revisiting them.
+landed; the remaining three are still missing with 1.0.0 unpublished, and nobody
+revisited them in the meantime.
 
 **Why it matters more than a missing feature.** The platform advertises all ten
 in `KNOWN_STANDARD_ATTRIBUTES` (`packages/snapshot-spec/src/standard-attributes.ts`)

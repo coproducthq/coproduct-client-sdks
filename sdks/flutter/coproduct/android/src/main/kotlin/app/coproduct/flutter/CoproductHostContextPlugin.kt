@@ -22,9 +22,7 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
         // A background task queue, because the platform thread is the UI thread
-        // and a host-context answer must never block a frame. The session work
-        // this class grows next holds a process-global lock across a disk write,
-        // which is the case the queue is really sized for
+        // and a host-context answer must never block a frame
         val taskQueue = binding.binaryMessenger.makeBackgroundTaskQueue()
         channel = MethodChannel(
             binding.binaryMessenger,
