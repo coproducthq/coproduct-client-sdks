@@ -200,6 +200,28 @@ void main() {
     expect(resolved.single.$2['status'], 'error');
   });
 
+  test('a throwing injected requestPermission resolves with status:error instead of an uncaught exception', () async {
+    final client = FakeCoproductClient(flows: {'f-1': graph});
+    final resolved = <(String, Map<String, String>)>[];
+    final runtime = FlowRuntime(
+      client: client,
+      progressStore: LocalProgressStore(),
+      flowId: 'f-1',
+      flowVersion: 1,
+      requestPermission: (permission) async { throw StateError('boom'); },
+    );
+    runtime.attachResolver((requestId, response) async { resolved.add((requestId, response)); });
+
+    await runtime.handleNavigationRequest(
+      'coproduct-action:request?operation=requestPermission&requestId=req-6&param_permission=camera',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(resolved.single.$1, 'req-6');
+    expect(resolved.single.$2['status'], 'error');
+    expect(resolved.single.$2['message'], contains('boom'));
+  });
+
   test('handleNavigationRequest returns prevent immediately without waiting for a slow operation to finish', () async {
     final client = FakeCoproductClient(flows: {'f-1': graph});
     final completer = Completer<Map<String, String>>();

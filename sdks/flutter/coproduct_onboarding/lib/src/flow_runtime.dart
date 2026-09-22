@@ -149,7 +149,11 @@ class FlowRuntime {
   // widening `response`'s mutability.
   Future<Map<String, String>> _computeRequestResponse(RequestAction action) async {
     if (action.operation == 'requestPermission') {
-      return _requestPermission(action.params['permission'] ?? '');
+      try {
+        return await _requestPermission(action.params['permission'] ?? '');
+      } catch (e) {
+        return {'status': 'error', 'message': e.toString()};
+      }
     }
     final handler = onNativeOperation;
     if (handler == null) {
