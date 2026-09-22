@@ -157,6 +157,9 @@ class CoproductHost<H extends Object, C extends Object> {
       clock: clock,
       cancel: cancel,
       observe: _observeMetadata,
+      // The auto layer cannot be written until a handle exists and the initial
+      // publication has been made, so a straggler is dropped rather than
+      // written out of order
       onLate: (field, value) {},
     ).then<_MetadataOutcome>(
       _MetadataSuccess.new,

@@ -267,7 +267,7 @@ void main() {
     expect(await provider(), const frb.FrbContextValue.string('UTC'));
   });
 
-  test('a result racing the deadline publishes through exactly one path', () async {
+  test('a settled result publishes through exactly one path', () async {
     final published = <String, frb.FrbContextValue>{};
     var reports = 0;
     final attributes = await _collect(
@@ -283,6 +283,29 @@ void main() {
     final inLate = published.containsKey('timezone');
     expect(inBatch ^ inLate, isTrue, reason: 'never both, never neither');
     expect(reports, 1, reason: 'a late publication must not re-report the field');
+  });
+
+  test('a result settling in the seal turn publishes through exactly one path', () {
+    fakeAsync((async) {
+      final published = <String, frb.FrbContextValue>{};
+      final racing = Completer<frb.FrbContextValue?>();
+      Map<String, frb.FrbContextValue>? attrs;
+      _collect(
+        providers(osVersion: () => racing.future),
+        deadline: const Duration(milliseconds: 50),
+        clock: () => async.elapsed,
+        onLate: (field, value) => published[field] = value,
+      ).then((r) => attrs = r);
+      // Settled in the same turn the deadline fires, which is the only moment
+      // the batch and the late path can both look eligible
+      racing.complete(const frb.FrbContextValue.string('14'));
+      async.elapse(const Duration(milliseconds: 50));
+      async.flushMicrotasks();
+
+      final inBatch = attrs!.containsKey('os_version');
+      final inLate = published.containsKey('os_version');
+      expect(inBatch ^ inLate, isTrue, reason: 'never both, never neither');
+    });
   });
 
   for (final field in const [
@@ -310,10 +333,76 @@ void main() {
         async.flushMicrotasks();
 
         expect(attrs!.containsKey(field), isFalse);
+        expect(attrs, hasLength(5),
+            reason: 'only the named field is slow, so the other five are in the batch');
         expect(published[field], const frb.FrbContextValue.string('x'));
       });
     });
   }
+
+  test('no budget does not wait for a wedged provider', () async {
+    // The other half of starting them: a budget already spent must not let a
+    // wedged platform channel hold initialize open, which is the hang the
+    // deadline exists to prevent
+    final attributes = await _collect(
+      _providersWith('timezone', () => Completer<frb.FrbContextValue?>().future),
+      deadline: Duration.zero,
+    ).timeout(const Duration(seconds: 2));
+    expect(attributes, isEmpty);
+  });
+
+  test('a result settling after cancellation is not published late', () {
+    fakeAsync((async) {
+      final published = <String, frb.FrbContextValue>{};
+      final cancel = CancellationSignal();
+      final late = Completer<frb.FrbContextValue?>();
+      _collect(
+        providers(osVersion: () => late.future),
+        deadline: const Duration(milliseconds: 50),
+        clock: () => async.elapsed,
+        cancel: cancel,
+        onLate: (field, value) => published[field] = value,
+      ).then<void>((_) {}, onError: (Object _, StackTrace _) {});
+      cancel.cancel();
+      async.flushMicrotasks();
+      late.complete(const frb.FrbContextValue.string('14'));
+      async.flushMicrotasks();
+
+      expect(published, isEmpty,
+          reason: 'a cancelled collection has nothing left to amend');
+    });
+  });
+
+  test('a throwing late sink never affects collection', () {
+    fakeAsync((async) {
+      final late = Completer<frb.FrbContextValue?>();
+      Map<String, frb.FrbContextValue>? attrs;
+      _collect(
+        providers(osVersion: () => late.future),
+        deadline: const Duration(milliseconds: 50),
+        clock: () => async.elapsed,
+        onLate: (_, _) => throw StateError('sink exploded'),
+      ).then((r) => attrs = r);
+      async.elapse(const Duration(milliseconds: 50));
+      async.flushMicrotasks();
+      late.complete(const frb.FrbContextValue.string('14'));
+      async.flushMicrotasks();
+
+      expect(attrs!.containsKey('platform'), isTrue);
+    });
+  });
+
+  test('a throwing late sink never escapes on the exhausted path', () async {
+    // The exhausted path discards its futures, so an unguarded sink would raise
+    // an unhandled asynchronous error rather than being absorbed
+    final attributes = await _collect(
+      providers(),
+      deadline: Duration.zero,
+      onLate: (_, _) => throw StateError('sink exploded'),
+    );
+    expect(attributes, isEmpty);
+    await pumpEventQueue();
+  });
 
   test('no budget still throws when the observer cancels during sealing', () {
     fakeAsync((async) {

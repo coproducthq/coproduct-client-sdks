@@ -23,9 +23,11 @@ MetadataProvider stringProvider(Future<String?> Function() read) => () async {
     };
 
 /// Reports one provider's outcome for internal diagnostics: how long it ran and
-/// whether its field was omitted (it timed out, threw, or returned null). Wired
-/// to surface omissions so the shared startup budget can be tuned on real
-/// measurements rather than guesses
+/// whether its field was absent from the initial batch (it timed out, threw, or
+/// returned null). Absence here is not permanent, since a provider settling
+/// after the deadline still publishes through the late sink. Wired to surface
+/// omissions so the shared startup budget can be tuned on real measurements
+/// rather than guesses
 typedef MetadataObserver = void Function(String field, Duration elapsed,
     {required bool omitted});
 
@@ -55,10 +57,19 @@ class MetadataProviders {
 /// than a fixed per-provider timeout. A provider that has not settled by the
 /// deadline, throws, or returns null omits only its field. Emptiness is not the
 /// collector's concern: a string-valued source converts empty to null through
-/// [stringProvider] before the collector sees it. The
-/// providers run concurrently, so the budget is shared, not multiplied per
-/// field. This never throws for a provider failure, only for cancellation via
-/// [cancel]. Values are raw, the core normalizes them
+/// [stringProvider] before the collector sees it. The providers run
+/// concurrently, so the budget is shared, not multiplied per field. This never
+/// throws for a provider failure, only for cancellation via [cancel]. Values
+/// are raw, the core normalizes them
+///
+/// The deadline bounds how long the caller waits, not whether a value can be
+/// used. A provider that has not settled by the deadline is absent from the
+/// returned map and is instead handed to [onLate] when it settles, so one slow
+/// platform channel costs a field its place in the initial batch rather than
+/// costing it the whole runtime. Each field reaches exactly one of the two,
+/// never both. [onLate] is not called after cancellation, and a sink that
+/// throws cannot affect collection. Providers are started even when the budget
+/// is already spent, in which case every field arrives through [onLate]
 Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
   MetadataProviders providers, {
   required Duration deadline,
@@ -120,10 +131,18 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
           report(field, sw.elapsed, omitted: false);
           return;
         }
+        // A cancelled collection is being abandoned, so there is nothing left
+        // for a straggler to amend
+        if (cancel.isCancelled) return;
         // The seal already reported this field as absent from the batch, so
         // routing it here publishes the value without a second report, which
         // would break the one-report-per-field invariant the observer rests on
-        onLate(field, value);
+        try {
+          onLate(field, value);
+        } catch (_) {
+          // A sink failure must never affect collection, matching the rule the
+          // diagnostic observer already follows
+        }
       }, onError: (Object _, StackTrace _) {
         sw.stop();
         report(field, sw.elapsed, omitted: true);
@@ -147,8 +166,11 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
       throw const CoproductInitializationCancelled();
     }
     // Started but deliberately not awaited: a budget exhausted before collection
-    // begins must not cost every field for the life of the runtime
-    startProviders();
+    // begins must not cost every field for the life of the runtime. The futures
+    // are observed rather than dropped, so nothing they carry can surface as an
+    // unhandled asynchronous error
+    unawaited(Future.wait(startProviders())
+        .then<void>((_) {}, onError: (Object _, StackTrace _) {}));
     return Map.unmodifiable(attributes);
   }
 
