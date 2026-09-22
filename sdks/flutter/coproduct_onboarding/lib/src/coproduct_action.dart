@@ -25,6 +25,16 @@ sealed class CoproductAction {
         return const CompleteAction();
       case 'showPaywall':
         return ShowPaywallAction(params['paywallId'] ?? '');
+      case 'request':
+        final requestParams = <String, String>{};
+        for (final entry in params.entries) {
+          if (entry.key.startsWith('param_')) requestParams[entry.key.substring('param_'.length)] = entry.value;
+        }
+        return RequestAction(
+          operation: params['operation'] ?? '',
+          requestId: params['requestId'] ?? '',
+          params: requestParams,
+        );
       case 'track':
         return TrackAction(
           event: params['event'] ?? '',
@@ -62,6 +72,13 @@ final class CompleteAction extends CoproductAction {
 final class ShowPaywallAction extends CoproductAction {
   final String paywallId;
   const ShowPaywallAction(this.paywallId);
+}
+
+final class RequestAction extends CoproductAction {
+  final String operation;
+  final String requestId;
+  final Map<String, String> params;
+  const RequestAction({required this.operation, required this.requestId, required this.params});
 }
 
 final class TrackAction extends CoproductAction {

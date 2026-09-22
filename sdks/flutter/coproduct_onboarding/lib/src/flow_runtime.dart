@@ -80,6 +80,10 @@ class FlowRuntime {
         await onOpenUrl?.call(action.url);
       case ShowPaywallAction():
         await onShowPaywall?.call(action.paywallId);
+      case RequestAction():
+        // Parsed but not dispatched: no callback wiring exists yet for
+        // generic native-capability requests.
+        break;
       case DismissAction():
       case CompleteAction():
         // dismiss/complete are reported via the track action that precedes

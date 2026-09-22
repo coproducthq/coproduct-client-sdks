@@ -41,5 +41,22 @@ void main() {
     test('returns null for a non-coproduct-action URL', () {
       expect(CoproductAction.parse('https://example.com'), isNull);
     });
+
+    test('parses request with operation, requestId, and param_-prefixed params', () {
+      final action = CoproductAction.parse(
+        'coproduct-action:request?operation=requestPermission&requestId=abc123&param_permission=camera',
+      );
+      expect(action, isA<RequestAction>());
+      final request = action as RequestAction;
+      expect(request.operation, 'requestPermission');
+      expect(request.requestId, 'abc123');
+      expect(request.params, {'permission': 'camera'});
+    });
+
+    test('parses request with no params at all', () {
+      final action = CoproductAction.parse('coproduct-action:request?operation=fetchPlan&requestId=xyz');
+      expect(action, isA<RequestAction>());
+      expect((action as RequestAction).params, <String, String>{});
+    });
   });
 }
