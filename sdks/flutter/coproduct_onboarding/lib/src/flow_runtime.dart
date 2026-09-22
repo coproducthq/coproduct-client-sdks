@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:permission_handler/permission_handler.dart';
+
 import 'coproduct_action.dart';
 import 'coproduct_client.dart';
 import 'local_progress_store.dart';
@@ -15,6 +19,35 @@ typedef EventCallback = Future<void> Function(String event, String screenId, Map
 typedef PermissionCallback = Future<void> Function(String permission);
 typedef OpenUrlCallback = Future<void> Function(String url);
 typedef PaywallCallback = Future<void> Function(String paywallId);
+typedef NativeOperationCallback = Future<Map<String, String>> Function(String operation, Map<String, String> params);
+typedef ResolveRequestFn = Future<void> Function(String requestId, Map<String, String> response);
+typedef PermissionRequestFn = Future<Map<String, String>> Function(String permission);
+
+Permission? _permissionByName(String name) {
+  switch (name) {
+    case 'camera':
+      return Permission.camera;
+    case 'microphone':
+      return Permission.microphone;
+    case 'notifications':
+      return Permission.notification;
+    case 'location':
+      return Permission.location;
+    case 'photos':
+      return Permission.photos;
+    default:
+      return null;
+  }
+}
+
+Future<Map<String, String>> _defaultRequestPermission(String permission) async {
+  final target = _permissionByName(permission);
+  if (target == null) {
+    return {'status': 'error', 'message': 'Unknown permission "$permission"'};
+  }
+  final status = await target.request();
+  return {'status': status.name};
+}
 
 /// Owns everything native does in the flow-runtime split: assembling the
 /// shell, intercepting coproduct-action: navigation, persisting progress
@@ -30,6 +63,9 @@ class FlowRuntime {
   final PermissionCallback? onRequestPermission;
   final OpenUrlCallback? onOpenUrl;
   final PaywallCallback? onShowPaywall;
+  final NativeOperationCallback? onNativeOperation;
+  final PermissionRequestFn _requestPermission;
+  ResolveRequestFn? _resolveRequest;
 
   FlowRuntime({
     required this.client,
@@ -40,7 +76,17 @@ class FlowRuntime {
     this.onRequestPermission,
     this.onOpenUrl,
     this.onShowPaywall,
-  });
+    this.onNativeOperation,
+    PermissionRequestFn? requestPermission,
+  }) : _requestPermission = requestPermission ?? _defaultRequestPermission;
+
+  /// Wired by CoproductOnboardingFlow once its WebViewController exists, so
+  /// this class never has to import webview_flutter or hold a controller
+  /// itself -- same testability property buildShellHtml/handleNavigationRequest
+  /// already had before this feature
+  void attachResolver(ResolveRequestFn resolveRequest) {
+    _resolveRequest = resolveRequest;
+  }
 
   String buildShellHtml({
     required OnboardingFlowGraph graph,
@@ -81,9 +127,7 @@ class FlowRuntime {
       case ShowPaywallAction():
         await onShowPaywall?.call(action.paywallId);
       case RequestAction():
-        // Parsed but not dispatched: no callback wiring exists yet for
-        // generic native-capability requests.
-        break;
+        unawaited(_handleRequestAction(action));
       case DismissAction():
       case CompleteAction():
         // dismiss/complete are reported via the track action that precedes
@@ -92,5 +136,29 @@ class FlowRuntime {
     }
 
     return FlowNavigationDecision.prevent;
+  }
+
+  Future<void> _handleRequestAction(RequestAction action) async {
+    final response = await _computeRequestResponse(action);
+    await _resolveRequest?.call(action.requestId, response);
+  }
+
+  // Split out from _handleRequestAction because Dart's definite-assignment
+  // analysis rejects a final local reassigned across a try body and its
+  // catch clause; returning from each branch sidesteps that without
+  // widening `response`'s mutability.
+  Future<Map<String, String>> _computeRequestResponse(RequestAction action) async {
+    if (action.operation == 'requestPermission') {
+      return _requestPermission(action.params['permission'] ?? '');
+    }
+    final handler = onNativeOperation;
+    if (handler == null) {
+      return {'status': 'error', 'message': 'No handler registered for operation "${action.operation}"'};
+    }
+    try {
+      return await handler(action.operation, action.params);
+    } catch (e) {
+      return {'status': 'error', 'message': e.toString()};
+    }
   }
 }
