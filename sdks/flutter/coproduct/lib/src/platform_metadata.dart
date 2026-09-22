@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'host_context_channel.dart';
 import 'metadata_collector.dart';
 
 /// The platform token the core expects, or empty on an unsupported host so the
@@ -31,17 +32,21 @@ MetadataProviders platformMetadataProviders() {
         Error.throwWithStackTrace(error!, stack);
       });
   return MetadataProviders(
-    platform: () async => _platformName(),
-    osVersion: () async {
+    deviceType:
+        stringProvider(() => const HostContextChannel().readDeviceType()),
+    platform: stringProvider(() async => _platformName()),
+    osVersion: stringProvider(() async {
       if (Platform.isAndroid) {
         return (await deviceInfo.androidInfo).version.release;
       }
       if (Platform.isIOS) return (await deviceInfo.iosInfo).systemVersion;
       return null;
-    },
-    appVersion: () async => (await loadPackageInfo()).version,
-    appBuild: () async => (await loadPackageInfo()).buildNumber,
-    locale: () async => PlatformDispatcher.instance.locale.toLanguageTag(),
-    timezone: () async => (await FlutterTimezone.getLocalTimezone()).identifier,
+    }),
+    appVersion: stringProvider(() async => (await loadPackageInfo()).version),
+    appBuild: stringProvider(() async => (await loadPackageInfo()).buildNumber),
+    locale: stringProvider(
+        () async => PlatformDispatcher.instance.locale.toLanguageTag()),
+    timezone: stringProvider(
+        () async => (await FlutterTimezone.getLocalTimezone()).identifier),
   );
 }

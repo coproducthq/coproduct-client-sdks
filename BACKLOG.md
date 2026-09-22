@@ -5,21 +5,25 @@ a release. Newest first within each section.
 
 ## Flutter SDK
 
-### Four auto-populated attributes are advertised but never populated
+### Three auto-populated attributes are advertised but never populated
 
 **Status: open. Considered essential for 1.0.0 by the product owner; see the
 decision note at the end of this entry.**
 
 The `2026-07-08-auto-populated-attributes-design.md` spec defines ten attributes
 the SDKs populate with no code from the developer. iOS implements all ten. The
-Flutter SDK implements six: `platform`, `os_version`, `app_version`,
-`app_build`, `locale`, and `timezone`.
+Flutter SDK implements seven: `platform`, `os_version`, `app_version`,
+`app_build`, `locale`, `timezone`, and `device_type`.
 
-Missing on Flutter:
+`device_type` has landed, from the interface idiom on iOS and `uiMode` plus
+`smallestScreenWidthDp` on Android. The
+"no reliable cross-platform classifier" assessment it carried here was wrong:
+neither platform needs the screen-dimension inference that made it look blocked.
+
+Still missing on Flutter:
 
 | Attribute | iOS source | Why Flutter does not have it |
 |---|---|---|
-| `device_type` | `UIUserInterfaceIdiom` (`DeviceContext.swift`) | Was deferred for a technical reason: no reliable cross-platform classifier. Superseded by `2026-09-21-flutter-auto-populated-attributes-completion-design.md` §3, which states the classification contract. Neither platform requires the screen-dimension inference that made this look blocked: iOS reads the interface idiom, Android reads `uiMode` and `smallestScreenWidthDp` |
 | `network_type` | `NWPathMonitor` (`NetworkMonitor.swift`) | Scoped out of the Flutter 0.1.0 milestone |
 | `first_seen_at` | `UserDefaults` (`SessionStore.swift`) | Scoped out of the Flutter 0.1.0 milestone |
 | `session_count` | `UserDefaults` (`SessionStore.swift`) | Scoped out of the Flutter 0.1.0 milestone |
@@ -28,16 +32,18 @@ The three milestone deferrals are recorded in
 `2026-07-22-flutter-host-runtime-design.md`: "The typed reactive layer, provider
 widget, detail getters, hooks, session attributes, `device_type`, and public
 transport/store injection are out of scope (0.2.0+)." The reactive layer from
-that same list shipped in 0.2.0. These four did not, and 1.0.0 arrived without
-anyone revisiting them.
+that same list shipped in 0.2.0. Of the four that did not, `device_type` has since
+landed; the remaining three are still missing with 1.0.0 unpublished, and nobody
+revisited them in the meantime.
 
-**Why it matters more than a missing feature.** The platform advertises all four
+**Why it matters more than a missing feature.** The platform advertises all ten
 in `KNOWN_STANDARD_ATTRIBUTES` (`packages/snapshot-spec/src/standard-attributes.ts`)
 and the authoring validator suppresses its unknown-attribute warning for
-anything on that list. So an author writes `device_type equals "tablet"` against
-a Flutter app, sees no warning, and publishes. The attribute is absent on the
-device, the condition resolves indeterminate, the rule never matches, and every
-user gets the fallthrough. Nothing on the device or in the dashboard says so.
+anything on that list. So an author writes `network_type not_equals "none"`
+against a Flutter app, sees no warning, and publishes. The attribute is absent on
+the device, the condition resolves indeterminate, the rule never matches, and
+every user gets the fallthrough. Nothing on the device or in the dashboard says
+so.
 
 **What each would take.**
 
@@ -62,9 +68,6 @@ user gets the fallthrough. Nothing on the device or in the dashboard says so.
 - `network_type` needs a connectivity source plus live updates through the
   existing bulk upsert, and carries a documented startup window where it is
   briefly absent.
-- `device_type` is not blocked. See the classification contract referenced in the
-  table above.
-
 **The platform-side counterpart is no longer needed.** The earlier plan was to
 stop the validator silently accepting a rule on an attribute the target SDK does
 not populate, by warning per-SDK or scoping `KNOWN_STANDARD_ATTRIBUTES` to what
@@ -141,3 +144,71 @@ Ordered by cost against value. None is breaking; all can ship after 1.0.0.
   marked `deferred, revise before implementing`.
 - **Experiment tracking.** No evaluation listener, so no exposure recording.
   1.0.0 is scoped to flags and the README and CHANGELOG say so.
+
+## Cross-platform
+
+### The React Native SDK namespaces itself `com.coproduct`
+
+**Status: open. Cheap now, breaking after React Native publishes.**
+
+Every other surface uses `app.coproduct.*`: the Android SDK's namespace and Kotlin
+package are `app.coproduct`, and iOS namespaces every runtime identifier the same
+way (`app.coproduct.firstSeenAt`, `app.coproduct.sdk`, the `app.coproduct.host-timer`
+and `app.coproduct.network-monitor` queue labels, the `app.coproduct.defaultInstanceReady`
+notification). The demo and consumer-test apps follow `app.coproduct.<role>.<framework>`.
+
+React Native alone uses `com.coproduct`. It is a `create-react-native-library`
+template default rather than a decision, the same way the Flutter plugin carried
+`com.flutter_rust_bridge.coproduct` from its own scaffold.
+
+Beyond consistency, `app.coproduct` is the correct reverse-DNS for the domain this
+project actually owns, `coproduct.app`. `com.coproduct` asserts `coproduct.com`.
+
+The change is six string sites plus one directory move:
+
+```
+package.json                       "javaPackageName": "com.coproduct"
+android/build.gradle:54            namespace "com.coproduct"
+android/build.gradle:142           codegenJavaPackageName = "com.coproduct"
+android/src/main/java/com/coproduct/CoproductModule.kt
+android/src/main/java/com/coproduct/CoproductPackage.kt
+android/src/main/AndroidManifest.xml
+```
+
+Two of those are `codegenJavaPackageName`, so the generated sources follow rather
+than needing hand edits. Move the source directory to `android/src/main/java/app/coproduct/`.
+
+**Verify with a native build, not a typecheck.** The React Native ABI changes with the
+FFI surface, and a package rename moves the generated JSI sources, so this needs
+`scripts/build/source-linked-rn-demo-android.sh` rather than a TypeScript compile.
+
+Do it before React Native publishes. A native namespace is compatibility surface once
+consumers exist, and nothing downstream depends on it today: React Native is still at
+the binding-validation stage.
+
+### Flutter plugins that apply the Kotlin Gradle Plugin will stop building
+
+**Status: open. Gated on the Flutter floor rising to the version that enforces it.**
+
+Every Android build of a consuming app now prints:
+
+> Your app uses the following plugins that apply Kotlin Gradle Plugin (KGP):
+> coproduct, flutter_timezone. Future versions of Flutter will fail to build if
+> your app uses plugins that apply KGP.
+
+The Coproduct plugin joined that list when it gained a Kotlin source set for the
+host-context plugin class. `flutter_timezone` was already on it, so the SDK is not
+the sole cause, but it is now one of them.
+
+The fix Flutter documents is migrating to `com.android.built-in-kotlin`. Two
+reasons not to do it yet, both concrete:
+
+- `consumer-tests/flutter/android/gradle.properties` sets
+  `android.builtInKotlin=false`, and its root build applies
+  `org.jetbrains.kotlin.android` to every `com.android.library` subproject. A
+  migrated module would conflict with the release gate's own project.
+- Built-in Kotlin is not available at the Android Gradle Plugin version the
+  declared Flutter floor generates.
+
+Revisit when the floor rises. The module compiles today at both ends of the
+supported range, AGP 8.11.1 through 9.0.1, so nothing is broken now.

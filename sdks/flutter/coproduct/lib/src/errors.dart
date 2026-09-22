@@ -10,6 +10,41 @@ import 'rust/api.dart' as frb;
 /// lives in this library, as Dart's library-scoped subtype rules require
 abstract final class CoproductException implements Exception {}
 
+/// Thrown when initialize is called from a spawned background isolate. The SDK
+/// supports root isolates only: a background isolate can make request and
+/// response plugin calls but cannot receive the unsolicited host messages the
+/// live connectivity subscription needs. Each FlutterEngine has its own root
+/// isolate, so multiple engines are supported
+final class CoproductUnsupportedIsolate implements CoproductException {
+  const CoproductUnsupportedIsolate();
+  @override
+  bool operator ==(Object other) => other is CoproductUnsupportedIsolate;
+  @override
+  int get hashCode => (CoproductUnsupportedIsolate).hashCode;
+  @override
+  String toString() =>
+      'Coproduct.initialize must be called from a root isolate. '
+      'Background isolates are not supported';
+}
+
+/// Handed to the developer's error reporter when the host-context plugin does
+/// not answer. Distinct from a value the device declined to supply: this one
+/// means the native side is unreachable, which leaves targeting on the
+/// attributes it feeds silently falling through until it is fixed
+final class HostContextUnavailable implements CoproductException {
+  const HostContextUnavailable();
+  @override
+  bool operator ==(Object other) => other is HostContextUnavailable;
+  @override
+  int get hashCode => (HostContextUnavailable).hashCode;
+  @override
+  String toString() =>
+      'Coproduct: the host-context plugin did not answer readDeviceType on '
+      'channel app.coproduct.flutter/host_context, so device_type cannot be '
+      'populated. Either the plugin is not registered, or the native side is '
+      'older than the Dart side. Rules targeting it will not match on this device';
+}
+
 /// Thrown when no SDK key was supplied
 final class MissingSdkKey implements CoproductException {
   const MissingSdkKey();

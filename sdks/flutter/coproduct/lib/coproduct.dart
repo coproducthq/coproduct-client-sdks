@@ -17,5 +17,7 @@ export 'src/errors.dart'
         InvalidConfig,
         UnsupportedSchemaVersion,
         CoproductAlreadyInitialized,
-        CoproductInitializationCancelled;
+        CoproductInitializationCancelled,
+        CoproductUnsupportedIsolate,
+        HostContextUnavailable;
 export 'src/coproduct_client.dart' show CoproductClient, Coproduct;

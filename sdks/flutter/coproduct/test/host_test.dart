@@ -7,11 +7,14 @@ import 'package:coproduct/src/http_transport.dart';
 import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
 import 'package:coproduct/src/secure_identity_store.dart';
+import 'package:coproduct/src/serial_queue.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' show MockClient;
+
+const _key = 'cpk_mob_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 /// A stand-in for the opaque FRB handle, one per fake initialize.
 class _FakeHandle {
@@ -22,8 +25,14 @@ class _FakeHandle {
 /// The caller-facing client the host returns in tests, carrying its handle so a
 /// test can assert which handle was wrapped.
 class _FakeClient {
-  _FakeClient(this.handle);
+  _FakeClient(this.handle, this.identityQueue);
   final _FakeHandle handle;
+  final SerialQueue identityQueue;
+
+  /// Stands in for an identity mutator: what matters is that it occupies the
+  /// same queue the auto-upsert path uses, so ordering can be observed
+  Future<void> identify(Future<void> Function() body) =>
+      identityQueue.add(body);
 }
 
 /// An in-memory KeyValueStore so the secure store never touches a platform
@@ -90,6 +99,13 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   int? attributesInstalledAtClientCount;
   Map<String, frb.FrbContextValue>? installedAttributes;
 
+  final List<String> orderedCalls = [];
+  final List<Map<String, frb.FrbContextValue>> lateAttributes = [];
+  int setAutoPopulatedCalls = 0;
+  Completer<void>? publishGate; // suspends the initial publication
+  final Completer<void> publishEntered = Completer<void>(); // entry handshake
+  bool stateThrows = false; // makes the injected readiness state closure throw
+
   int pollCalls = 0;
   final Completer<void> firstPoll = Completer<void>();
   int shutdownCalls = 0;
@@ -146,8 +162,17 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   @override
   Future<void> setAutoPopulatedAttributes(
       _FakeHandle handle, Map<String, frb.FrbContextValue> attributes) async {
-    attributesInstalledAtClientCount = clientsCreated;
-    installedAttributes = attributes;
+    setAutoPopulatedCalls++;
+    final isBatch = setAutoPopulatedCalls == 1;
+    if (!publishEntered.isCompleted) publishEntered.complete();
+    if (publishGate != null) await publishGate!.future;
+    orderedCalls.add(isBatch ? 'batch' : 'late');
+    if (isBatch) {
+      attributesInstalledAtClientCount = clientsCreated;
+      installedAttributes = attributes;
+    } else {
+      lateAttributes.add(attributes);
+    }
     if (publishThrows) throw StateError('publish failed');
   }
 
@@ -156,6 +181,7 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 
   @override
   frb.ProviderState state(_FakeHandle handle) {
+    if (stateThrows) throw StateError('state read failed');
     stateReads++;
     if (!stateRead.isCompleted) stateRead.complete();
     return stateValue;
@@ -180,13 +206,18 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 }
 
 /// Metadata providers returning a fixed value per field.
-MetadataProviders _providers() => MetadataProviders(
-      platform: () async => 'android',
-      osVersion: () async => '14',
-      appVersion: () async => '1.2.3',
-      appBuild: () async => '42',
-      locale: () async => 'en-US',
-      timezone: () async => 'America/New_York',
+MetadataProviders _providers({
+  MetadataProvider? timezone,
+  MetadataProvider? deviceType,
+}) =>
+    MetadataProviders(
+      deviceType: deviceType ?? stringProvider(() async => 'phone'),
+      platform: stringProvider(() async => 'android'),
+      osVersion: stringProvider(() async => '14'),
+      appVersion: stringProvider(() async => '1.2.3'),
+      appBuild: stringProvider(() async => '42'),
+      locale: stringProvider(() async => 'en-US'),
+      timezone: timezone ?? stringProvider(() async => 'America/New_York'),
     );
 
 CoproductHost<_FakeHandle, _FakeClient> _host(
@@ -196,6 +227,8 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   http.Client? transportClient,
   _RecordingForeground? foreground,
   Duration Function()? initClock,
+  bool Function()? isRootIsolate,
+  void Function(Object error, StackTrace stack)? reportError,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -208,17 +241,256 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
         backing: store ?? _MemoryStore(),
         operationTimeout: const Duration(seconds: 1)),
     metadataProviders: providers ?? _providers(),
-    createClient: (h) {
+    createClient: (h, identityQueue) {
       bridge.clientsCreated++;
-      return _FakeClient(h);
+      return _FakeClient(h, identityQueue);
     },
     bindForeground: foreground?.binder ?? (onForeground) => null,
-    reportError: (e, s) {},
+    reportError: reportError ?? (e, s) {},
+    isRootIsolate: isRootIsolate ?? () => true,
     initClock: initClock,
   );
 }
 
 void main() {
+  group('host context diagnostics', () {
+    test('an unreachable host-context plugin reports once and still initializes',
+        () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        reportError: (error, _) => errors.add(error),
+      );
+
+      final client = await host.initialize(sdkKey: _key);
+      expect(client, isNotNull, reason: 'flag evaluation is unaffected');
+      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
+          reason: 'release visible, and exactly once per initialization');
+      expect(errors.single.toString(), isNot(contains(_key)));
+      await host.shutdown();
+    });
+
+    test('a device that declines to classify itself reports nothing', () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(),
+        providers: _providers(deviceType: () async => null),
+        reportError: (error, _) => errors.add(error),
+      );
+
+      await host.initialize(sdkKey: _key);
+      expect(errors, isEmpty,
+          reason: 'an omitted value is a device fact, not a misconfiguration');
+      await host.shutdown();
+    });
+
+    test('a throwing error reporter does not fail an exhausted budget either',
+        () async {
+      // The exhausted-budget path starts its providers without awaiting them, so
+      // a reporter that throws there has no caller to surface through. The
+      // collector's per-field handling is what absorbs it
+      final host = _host(
+        _FakeBridge(),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        reportError: (_, _) => throw StateError('reporter exploded'),
+      );
+      await host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(milliseconds: 1)));
+      await pumpEventQueue();
+      await host.shutdown();
+    });
+
+    test('a throwing error reporter does not fail initialization', () async {
+      final host = _host(
+        _FakeBridge(),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        reportError: (_, _) => throw StateError('reporter exploded'),
+      );
+      await host.initialize(sdkKey: _key);
+      await host.shutdown();
+    });
+  });
+
+  group('late publication', () {
+    const shortBudget =
+        CoproductConfig(startupTimeout: Duration(milliseconds: 50));
+
+    test('a late provider publishes after the initial batch, in order',
+        () async {
+      final bridge = _FakeBridge();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      await host.initialize(sdkKey: _key, config: shortBudget);
+      expect(bridge.installedAttributes!.containsKey('timezone'), isFalse);
+      expect(bridge.setAutoPopulatedCalls, 1);
+
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      expect(bridge.setAutoPopulatedCalls, 2);
+      expect(bridge.lateAttributes.single['timezone'],
+          const frb.FrbContextValue.string('UTC'));
+      await host.shutdown();
+    });
+
+    test('a late result arriving during the build waits for the initial batch',
+        () async {
+      final bridge = _FakeBridge()..publishGate = Completer<void>();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      final init = host.initialize(sdkKey: _key, config: shortBudget);
+      // Wait for the publication to be in flight rather than pumping and
+      // hoping: on a fast run the value would otherwise join the initial batch
+      await bridge.publishEntered.future;
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+      expect(bridge.orderedCalls, isEmpty, reason: 'nothing published yet');
+
+      bridge.publishGate!.complete();
+      await init;
+      await pumpEventQueue();
+
+      expect(bridge.orderedCalls, ['batch', 'late'],
+          reason: 'a late write must never precede the batch it amends');
+      await host.shutdown();
+    });
+
+    test('a late result arriving before the handle exists still publishes',
+        () async {
+      final bridge = _FakeBridge()..initGate = Completer<void>();
+      // Settles after the deadline but while the native initialize is still
+      // suspended, so it is late and there is no handle to write through yet
+      final host = _host(bridge,
+          providers: _providers(
+              timezone: () => Future<frb.FrbContextValue?>.delayed(
+                  const Duration(milliseconds: 40),
+                  () => const frb.FrbContextValue.string('UTC'))));
+
+      final init = host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(milliseconds: 20)));
+      await bridge.initializeEntered.future;
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      bridge.initGate!.complete();
+      await init;
+      await pumpEventQueue();
+
+      expect(bridge.lateAttributes.single['timezone'],
+          const frb.FrbContextValue.string('UTC'));
+      await host.shutdown();
+    });
+
+    test('a late upsert orders behind identity work on the client queue',
+        () async {
+      final bridge = _FakeBridge();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      final client = await host.initialize(sdkKey: _key, config: shortBudget);
+
+      final release = Completer<void>();
+      final identity = client.identify(() async {
+        await release.future;
+        bridge.orderedCalls.add('identify');
+      });
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      release.complete();
+      await identity;
+      await pumpEventQueue();
+
+      expect(bridge.orderedCalls, ['batch', 'identify', 'late'],
+          reason: 'one shared queue is the point, a second would reorder these');
+      await host.shutdown();
+    });
+
+    test('a late result is dropped when the build fails after publication',
+        () async {
+      // Publication succeeds, then readiness throws because its injected state
+      // closure does. An ordinary build failure does not advance the manager's
+      // generation, so only the gate's placement prevents a write to a handle
+      // whose runtime was torn down
+      final bridge = _FakeBridge()..stateThrows = true;
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      await expectLater(
+          host.initialize(sdkKey: _key, config: shortBudget), throwsA(anything));
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      expect(bridge.lateAttributes, isEmpty);
+    });
+
+    test('a late result is dropped when shutdown supersedes the runtime',
+        () async {
+      final bridge = _FakeBridge();
+      final completer = Completer<frb.FrbContextValue?>();
+      final host =
+          _host(bridge, providers: _providers(timezone: () => completer.future));
+
+      await host.initialize(sdkKey: _key, config: shortBudget);
+      await host.shutdown();
+      completer.complete(const frb.FrbContextValue.string('UTC'));
+      await pumpEventQueue();
+
+      expect(bridge.lateAttributes, isEmpty);
+    });
+  });
+
+  group('isolate support', () {
+    test('initialize on a non-root isolate is rejected before any native work',
+        () async {
+      final bridge = _FakeBridge();
+      final host = _host(bridge, isRootIsolate: () => false);
+
+      await expectLater(
+        host.initialize(sdkKey: _key),
+        throwsA(isA<CoproductUnsupportedIsolate>()),
+      );
+
+      expect(bridge.ensureInitializedCalls, 0,
+          reason: 'the gate must precede native library loading');
+      expect(bridge.initializeEntered.isCompleted, isFalse);
+    });
+
+    test('a rejected background isolate produces no host-context diagnostic',
+        () async {
+      final errors = <Object>[];
+      final host = _host(_FakeBridge(),
+          isRootIsolate: () => false, reportError: (e, _) => errors.add(e));
+
+      await expectLater(
+        host.initialize(sdkKey: _key),
+        throwsA(isA<CoproductUnsupportedIsolate>()),
+      );
+
+      // The two failures are distinct and must stay distinct: an unsupported
+      // isolate is a support boundary, an unregistered plugin is a
+      // misconfiguration
+      expect(errors, isEmpty);
+    });
+
+    test('initialize on a root isolate proceeds', () async {
+      final host = _host(_FakeBridge(), isRootIsolate: () => true);
+      await host.initialize(sdkKey: _key);
+      await host.shutdown();
+    });
+  });
+
   test('initialize wires the config, User-Agent, cache dir, and host closures',
       () async {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
@@ -275,16 +547,17 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
 
@@ -308,16 +581,17 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
 
@@ -338,6 +612,7 @@ void main() {
     final metadataStarted = Completer<void>();
     final host = CoproductHost<_FakeHandle, _FakeClient>(
       bridge: bridge,
+      isRootIsolate: () => true,
       userAgent: 'coproduct-flutter/test',
       createTransport: (t) {
         transportsCreated++;
@@ -348,17 +623,18 @@ void main() {
       secureStore: SecureIdentityStore(
           backing: _MemoryStore(), operationTimeout: const Duration(seconds: 1)),
       metadataProviders: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
-      createClient: (h) => _FakeClient(h),
+      createClient: (h, identityQueue) => _FakeClient(h, identityQueue),
       bindForeground: (onForeground) => null,
       reportError: (e, s) {},
     );
@@ -486,12 +762,13 @@ void main() {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
     final host = CoproductHost<_FakeHandle, _FakeClient>(
       bridge: bridge,
+      isRootIsolate: () => true,
       userAgent: 'coproduct-flutter/test',
       createTransport: (t) => HttpTransport(client: transport, requestTimeout: t),
       secureStore: SecureIdentityStore(
           backing: _MemoryStore(), operationTimeout: const Duration(seconds: 1)),
       metadataProviders: _providers(),
-      createClient: (h) => throw StateError('client boom'),
+      createClient: (h, identityQueue) => throw StateError('client boom'),
       bindForeground: foreground.binder,
       reportError: (e, s) {},
     );
@@ -567,12 +844,13 @@ void main() {
         initClock: () => async.elapsed,
         // platform never settles, so metadata rides the deadline
         providers: MetadataProviders(
-          platform: () => Completer<String?>().future,
-          osVersion: () async => '14',
-          appVersion: () async => '1.2.3',
-          appBuild: () async => '42',
-          locale: () async => 'en-US',
-          timezone: () async => 'America/New_York',
+          deviceType: stringProvider(() async => 'phone'),
+          platform: () => Completer<frb.FrbContextValue?>().future,
+          osVersion: stringProvider(() async => '14'),
+          appVersion: stringProvider(() async => '1.2.3'),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
         ),
       );
       host
@@ -645,17 +923,18 @@ void main() {
 
   test('a shutdown during metadata collection throws with no unhandled error',
       () async {
-    final gate = Completer<String?>();
+    final gate = Completer<frb.FrbContextValue?>();
     final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () => gate.future,
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
     final pending = host.initialize(
@@ -683,12 +962,13 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
-        platform: () => Completer<String?>().future, // wedged
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        deviceType: stringProvider(() async => 'phone'),
+        platform: () => Completer<frb.FrbContextValue?>().future, // wedged
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
     final pending = host.initialize(
@@ -763,16 +1043,17 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
-          return 'android';
+          return const frb.FrbContextValue.string('android');
         },
-        osVersion: () async => '14',
-        appVersion: () async => '1.2.3',
-        appBuild: () async => '42',
-        locale: () async => 'en-US',
-        timezone: () async => 'America/New_York',
+        osVersion: stringProvider(() async => '14'),
+        appVersion: stringProvider(() async => '1.2.3'),
+        appBuild: stringProvider(() async => '42'),
+        locale: stringProvider(() async => 'en-US'),
+        timezone: stringProvider(() async => 'America/New_York'),
       ),
     );
 

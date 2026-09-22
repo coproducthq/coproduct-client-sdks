@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import 'auto_upsert.dart';
 import 'cancellation.dart';
 import 'config.dart';
 import 'init_identity.dart';
@@ -12,6 +15,7 @@ import 'runtime.dart';
 import 'runtime_builder.dart';
 import 'scheduler.dart';
 import 'secure_identity_store.dart';
+import 'serial_queue.dart';
 import 'errors.dart';
 import 'http_transport.dart';
 import 'rust/api.dart' as frb;
@@ -63,9 +67,10 @@ class CoproductHost<H extends Object, C extends Object> {
     required HttpTransport Function(Duration requestTimeout) createTransport,
     required SecureIdentityStore secureStore,
     required MetadataProviders metadataProviders,
-    required C Function(H handle) createClient,
+    required C Function(H handle, SerialQueue identityQueue) createClient,
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
+    required bool Function() isRootIsolate,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
   })  : _bridge = bridge, // ignore: prefer_initializing_formals
@@ -76,6 +81,7 @@ class CoproductHost<H extends Object, C extends Object> {
         _createClient = createClient, // ignore: prefer_initializing_formals
         _bindForeground = bindForeground, // ignore: prefer_initializing_formals
         _reportError = reportError,
+        _isRootIsolate = isRootIsolate, // ignore: prefer_initializing_formals
         _initClock = initClock, // ignore: prefer_initializing_formals
         _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
         _manager = CoproductManager<_ActiveRuntime<C>>(
@@ -88,9 +94,10 @@ class CoproductHost<H extends Object, C extends Object> {
   final HttpTransport Function(Duration) _createTransport;
   final SecureIdentityStore _secureStore;
   final MetadataProviders _metadataProviders;
-  final C Function(H) _createClient;
+  final C Function(H, SerialQueue) _createClient;
   final ForegroundBinder _bindForeground;
   final void Function(Object, StackTrace) _reportError;
+  final bool Function() _isRootIsolate;
   final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
@@ -102,6 +109,11 @@ class CoproductHost<H extends Object, C extends Object> {
     required String sdkKey,
     CoproductConfig config = const CoproductConfig(),
   }) async {
+    // Checked before config validation and before any native work, so a
+    // rejected call cannot load the library, open a channel, or count a session
+    if (!_isRootIsolate()) {
+      throw const CoproductUnsupportedIsolate();
+    }
     final validated = validateConfig(config);
     final identity = InitIdentity(sdkKey, validated);
     try {
@@ -140,95 +152,161 @@ class CoproductHost<H extends Object, C extends Object> {
       throw const CoproductInitializationCancelled();
     }
     final transport = _createTransport(config.requestTimeout);
+    // An unreachable host-context plugin is an integration defect, not a value
+    // the device declined to supply, and left quiet it reproduces exactly the
+    // silent targeting failure the automatic attributes exist to remove, so it
+    // goes through the developer's error reporter rather than behind an assert.
+    // It reports once per initialization because the provider runs once per
+    // build, and a reporter that throws is absorbed by the collector's per-field
+    // error handling, so neither needs a guard of its own here
+    void reportHostContextUnavailable() =>
+        _reportError(const HostContextUnavailable(), StackTrace.current);
+    // Created before collection starts because the late sink closes over it.
+    // Null means the build failed and there is nothing to amend, carried as a
+    // value rather than an error because a completer whose error nobody listens
+    // for becomes an unhandled asynchronous error
+    final batchPublished = Completer<AutoUpsert?>();
+    void publishLate(String field, frb.FrbContextValue value) {
+      batchPublished.future
+          .then((upsert) => upsert?.publish({field: value}));
+    }
+    // Created here rather than inside createRuntime so the client and the
+    // auto-upsert path share one queue, which is what keeps a machine-initiated
+    // write ordered against the identity mutators
+    final identityQueue = SerialQueue();
+    AutoUpsert? candidate;
     // Start metadata collection concurrently with the FRB initialize, bounded by
     // the shared deadline and cancellation, and observe it from creation so an
     // early failure never becomes an unhandled async error before publish
+    final providers = _metadataProviders;
     final metadata = collectStaticAttributes(
-      _metadataProviders,
+      MetadataProviders(
+        // Surfaced rather than swallowed with the field: the collector treats
+        // every failure alike, and this one names a fixable misconfiguration
+        deviceType: () async {
+          try {
+            return await providers.deviceType();
+          } on HostContextUnavailable {
+            reportHostContextUnavailable();
+            rethrow;
+          }
+        },
+        platform: providers.platform,
+        osVersion: providers.osVersion,
+        appVersion: providers.appVersion,
+        appBuild: providers.appBuild,
+        locale: providers.locale,
+        timezone: providers.timezone,
+      ),
       deadline: deadline,
       clock: clock,
       cancel: cancel,
       observe: _observeMetadata,
+      onLate: publishLate,
     ).then<_MetadataOutcome>(
       _MetadataSuccess.new,
       onError: (Object error, StackTrace stack) =>
           _MetadataFailure(error, stack),
     );
-    return buildRuntime<H, _ActiveRuntime<C>>(
-      initHandle: () async {
-        final cacheDir = await _bridge.cacheDirectory();
-        if (!isCurrent()) {
-          throw const CoproductInitializationCancelled();
-        }
-        return _bridge.initialize(
-          sdkKey: sdkKey,
-          userAgent: _userAgent,
-          config: ffiConfigFor(config),
-          cacheDir: cacheDir,
-          transportRequest: transport.request,
-          secureRead: _secureStore.read,
-          secureWrite: _secureStore.write,
-        );
-      },
-      disposeTransport: transport.dispose,
-      shutdownHandle: _bridge.shutdown,
-      publishAttributes: (handle) async {
-        final outcome = await metadata;
-        if (!isCurrent()) {
-          throw const CoproductInitializationCancelled();
-        }
-        if (outcome is _MetadataFailure) {
-          Error.throwWithStackTrace(outcome.error, outcome.stack);
-        }
-        await _bridge.setAutoPopulatedAttributes(
-            handle, (outcome as _MetadataSuccess).attributes);
-        if (!isCurrent()) {
-          throw const CoproductInitializationCancelled();
-        }
-      },
-      createRuntime: (handle) {
-        final client = _createClient(handle);
-        final scheduler = Scheduler(
-          poll: () => _bridge.pollNow(handle),
-          interval: config.pollInterval,
-          pollOnForeground: config.pollOnForeground,
-          onError: _reportError,
-          clock: _schedulerClock,
-        );
-        final disposeForeground = config.pollOnForeground
-            ? _bindForeground(scheduler.onForeground)
-            : null;
-        final runtime = CoproductRuntime(
-          generation: generation,
-          scheduler: scheduler,
-          transport: transport,
-          coreShutdown: () => _bridge.shutdown(handle),
-          disposeForeground: disposeForeground,
-        );
-        return _ActiveRuntime<C>(client, runtime);
-      },
-      startRuntime: (active) => active.runtime.start(),
-      shutdownRuntime: (active) => active.runtime.shutdown(),
-      awaitReady: (handle) => awaitInitialReadiness(
-        state: () => providerStateFromFrb(_bridge.state(handle)),
-        deadline: deadline,
-        clock: clock,
-        cancel: cancel,
-      ),
-      isCurrent: isCurrent,
-      onCleanupError: _reportError,
-    );
+    try {
+      final active = await buildRuntime<H, _ActiveRuntime<C>>(
+        initHandle: () async {
+          final cacheDir = await _bridge.cacheDirectory();
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          return _bridge.initialize(
+            sdkKey: sdkKey,
+            userAgent: _userAgent,
+            config: ffiConfigFor(config),
+            cacheDir: cacheDir,
+            transportRequest: transport.request,
+            secureRead: _secureStore.read,
+            secureWrite: _secureStore.write,
+          );
+        },
+        disposeTransport: transport.dispose,
+        shutdownHandle: _bridge.shutdown,
+        publishAttributes: (handle) async {
+          final outcome = await metadata;
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          if (outcome is _MetadataFailure) {
+            Error.throwWithStackTrace(outcome.error, outcome.stack);
+          }
+          await _bridge.setAutoPopulatedAttributes(
+              handle, (outcome as _MetadataSuccess).attributes);
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          // Held rather than published: readiness runs concurrently with this and
+          // may still fail, which would tear the runtime down around a gate that
+          // was already open
+          candidate = AutoUpsert(
+            queue: identityQueue,
+            isCurrent: isCurrent,
+            send: (attributes) =>
+                _bridge.setAutoPopulatedAttributes(handle, attributes),
+            onError: _reportError,
+          );
+        },
+        createRuntime: (handle) {
+          final client = _createClient(handle, identityQueue);
+          final scheduler = Scheduler(
+            poll: () => _bridge.pollNow(handle),
+            interval: config.pollInterval,
+            pollOnForeground: config.pollOnForeground,
+            onError: _reportError,
+            clock: _schedulerClock,
+          );
+          final disposeForeground = config.pollOnForeground
+              ? _bindForeground(scheduler.onForeground)
+              : null;
+          final runtime = CoproductRuntime(
+            generation: generation,
+            scheduler: scheduler,
+            transport: transport,
+            coreShutdown: () => _bridge.shutdown(handle),
+            disposeForeground: disposeForeground,
+          );
+          return _ActiveRuntime<C>(client, runtime);
+        },
+        startRuntime: (active) => active.runtime.start(),
+        shutdownRuntime: (active) => active.runtime.shutdown(),
+        awaitReady: (handle) => awaitInitialReadiness(
+          state: () => providerStateFromFrb(_bridge.state(handle)),
+          deadline: deadline,
+          clock: clock,
+          cancel: cancel,
+        ),
+        isCurrent: isCurrent,
+        onCleanupError: _reportError,
+      );
+      // Only now is the handle known good: publication succeeded, readiness
+      // resolved, and no supersession intervened. A null candidate means
+      // publication never ran, so there is nothing to amend
+      batchPublished.complete(candidate);
+      return active;
+    } catch (error, stack) {
+      if (!batchPublished.isCompleted) {
+        batchPublished.complete(null);
+      }
+      Error.throwWithStackTrace(error, stack);
+    }
   }
 }
 
-/// Surfaces a dropped automatic attribute so the shared startup budget can be
-/// tuned on real device measurements. Confined to debug builds by the assert, so
-/// it carries no cost and no log noise in a release build
+/// Surfaces an automatic attribute that was not ready when initialize returned,
+/// so the shared startup budget can be tuned on real device measurements. This
+/// is not a permanent absence: a provider settling later publishes through the
+/// late path. Confined to debug builds by the assert, so it carries no cost and
+/// no log noise in a release build
 void _observeMetadata(String field, Duration elapsed, {required bool omitted}) {
   if (!omitted) return;
   assert(() {
-    debugPrint('coproduct: automatic attribute "$field" omitted after '
-        '${elapsed.inMilliseconds}ms');
+    debugPrint('coproduct: automatic attribute "$field" was not available when '
+        'initialize returned, after ${elapsed.inMilliseconds}ms');
     return true;
   }());
 }
