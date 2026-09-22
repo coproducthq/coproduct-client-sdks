@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:coproduct/src/config.dart';
 import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/host.dart';
+import 'package:coproduct/src/host_context_channel.dart';
 import 'package:coproduct/src/http_transport.dart';
 import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
@@ -206,7 +207,12 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 }
 
 /// Metadata providers returning a fixed value per field.
-MetadataProviders _providers({MetadataProvider? timezone}) => MetadataProviders(
+MetadataProviders _providers({
+  MetadataProvider? timezone,
+  MetadataProvider? deviceType,
+}) =>
+    MetadataProviders(
+      deviceType: deviceType ?? stringProvider(() async => 'phone'),
       platform: stringProvider(() async => 'android'),
       osVersion: stringProvider(() async => '14'),
       appVersion: stringProvider(() async => '1.2.3'),
@@ -248,6 +254,51 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
 }
 
 void main() {
+  group('host context diagnostics', () {
+    test('an unreachable host-context plugin reports once and still initializes',
+        () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        reportError: (error, _) => errors.add(error),
+      );
+
+      final client = await host.initialize(sdkKey: _key);
+      expect(client, isNotNull, reason: 'flag evaluation is unaffected');
+      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
+          reason: 'release visible, and exactly once per initialization');
+      expect(errors.single.toString(), isNot(contains(_key)));
+      await host.shutdown();
+    });
+
+    test('a device that declines to classify itself reports nothing', () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(),
+        providers: _providers(deviceType: () async => null),
+        reportError: (error, _) => errors.add(error),
+      );
+
+      await host.initialize(sdkKey: _key);
+      expect(errors, isEmpty,
+          reason: 'an omitted value is a device fact, not a misconfiguration');
+      await host.shutdown();
+    });
+
+    test('a throwing error reporter does not fail initialization', () async {
+      final host = _host(
+        _FakeBridge(),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        reportError: (_, _) => throw StateError('reporter exploded'),
+      );
+      await host.initialize(sdkKey: _key);
+      await host.shutdown();
+    });
+  });
+
   group('late publication', () {
     const shortBudget =
         CoproductConfig(startupTimeout: Duration(milliseconds: 50));
@@ -479,6 +530,7 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
@@ -512,6 +564,7 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;
@@ -553,6 +606,7 @@ void main() {
       secureStore: SecureIdentityStore(
           backing: _MemoryStore(), operationTimeout: const Duration(seconds: 1)),
       metadataProviders: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           return const frb.FrbContextValue.string('android');
@@ -773,6 +827,7 @@ void main() {
         initClock: () => async.elapsed,
         // platform never settles, so metadata rides the deadline
         providers: MetadataProviders(
+          deviceType: stringProvider(() async => 'phone'),
           platform: () => Completer<frb.FrbContextValue?>().future,
           osVersion: stringProvider(() async => '14'),
           appVersion: stringProvider(() async => '1.2.3'),
@@ -856,6 +911,7 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () => gate.future,
         osVersion: stringProvider(() async => '14'),
         appVersion: stringProvider(() async => '1.2.3'),
@@ -889,6 +945,7 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () => Completer<frb.FrbContextValue?>().future, // wedged
         osVersion: stringProvider(() async => '14'),
         appVersion: stringProvider(() async => '1.2.3'),
@@ -969,6 +1026,7 @@ void main() {
     final host = _host(
       bridge,
       providers: MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: () async {
           if (!metadataStarted.isCompleted) metadataStarted.complete();
           await metadataGate.future;

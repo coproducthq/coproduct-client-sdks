@@ -28,6 +28,7 @@ MetadataProviders _providersWith(String field, MetadataProvider provider) {
   MetadataProvider pick(String name, String value) =>
       name == field ? provider : stringProvider(() async => value);
   return MetadataProviders(
+    deviceType: pick('device_type', 'phone'),
     platform: pick('platform', 'android'),
     osVersion: pick('os_version', '14'),
     appVersion: pick('app_version', '2.3.1'),
@@ -43,6 +44,7 @@ void main() {
     MetadataProvider? osVersion,
   }) =>
       MetadataProviders(
+        deviceType: stringProvider(() async => 'phone'),
         platform: stringProvider(() async => 'android'),
         osVersion: osVersion ?? stringProvider(() async => '14'),
         appVersion: stringProvider(() async => '2.3.1'),
@@ -225,6 +227,7 @@ void main() {
       Map<String, frb.FrbContextValue>? attrs;
       collectStaticAttributes(
         MetadataProviders(
+          deviceType: counted,
           platform: counted,
           osVersion: counted,
           appVersion: counted,
@@ -239,9 +242,9 @@ void main() {
       ).then((r) => attrs = r);
       async.flushMicrotasks();
       expect(attrs, isEmpty, reason: 'nothing can settle within no budget');
-      expect(invocations, 6,
+      expect(invocations, 7,
           reason: 'skipping them leaves every field absent for the whole runtime');
-      expect(published, hasLength(6), reason: 'and every one of them publishes late');
+      expect(published, hasLength(7), reason: 'and every one of them publishes late');
     });
   });
 
@@ -309,6 +312,7 @@ void main() {
   });
 
   for (final field in const [
+    'device_type',
     'platform',
     'os_version',
     'app_version',
@@ -333,8 +337,8 @@ void main() {
         async.flushMicrotasks();
 
         expect(attrs!.containsKey(field), isFalse);
-        expect(attrs, hasLength(5),
-            reason: 'only the named field is slow, so the other five are in the batch');
+        expect(attrs, hasLength(6),
+            reason: 'only the named field is slow, so the other six are in the batch');
         expect(published[field], const frb.FrbContextValue.string('x'));
       });
     });
@@ -427,6 +431,7 @@ void main() {
       final omissions = <String, bool>{};
       _collect(
         MetadataProviders(
+          deviceType: stringProvider(() async => 'phone'),
           platform: stringProvider(() async => 'android'),
           osVersion: () => Completer<frb.FrbContextValue?>().future, // wedged
           appVersion: stringProvider(() async => ''),
@@ -444,6 +449,7 @@ void main() {
       async.elapse(const Duration(milliseconds: 50));
       async.flushMicrotasks();
       expect(counts, {
+        'device_type': 1,
         'platform': 1,
         'os_version': 1,
         'app_version': 1,

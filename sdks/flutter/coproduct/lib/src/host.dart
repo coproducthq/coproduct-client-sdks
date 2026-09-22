@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'auto_upsert.dart';
 import 'cancellation.dart';
 import 'config.dart';
+import 'host_context_channel.dart';
 import 'init_identity.dart';
 import 'manager.dart';
 import 'metadata_collector.dart';
@@ -152,6 +153,20 @@ class CoproductHost<H extends Object, C extends Object> {
       throw const CoproductInitializationCancelled();
     }
     final transport = _createTransport(config.requestTimeout);
+    // An unreachable host-context plugin is an integration defect, not a value
+    // the device declined to supply, and left quiet it reproduces exactly the
+    // silent targeting failure the automatic attributes exist to remove.
+    // Reported once per initialization, through the developer's error reporter
+    // rather than behind an assert, and guarded because initialization must
+    // survive its own diagnostics
+    var reportedHostContext = false;
+    void reportHostContextUnavailable() {
+      if (reportedHostContext) return;
+      reportedHostContext = true;
+      try {
+        _reportError(const HostContextUnavailable(), StackTrace.current);
+      } catch (_) {}
+    }
     // Created before collection starts because the late sink closes over it.
     // Null means the build failed and there is nothing to amend, carried as a
     // value rather than an error because a completer whose error nobody listens
@@ -169,8 +184,26 @@ class CoproductHost<H extends Object, C extends Object> {
     // Start metadata collection concurrently with the FRB initialize, bounded by
     // the shared deadline and cancellation, and observe it from creation so an
     // early failure never becomes an unhandled async error before publish
+    final providers = _metadataProviders;
     final metadata = collectStaticAttributes(
-      _metadataProviders,
+      MetadataProviders(
+        // Surfaced rather than swallowed with the field: the collector treats
+        // every failure alike, and this one names a fixable misconfiguration
+        deviceType: () async {
+          try {
+            return await providers.deviceType();
+          } on HostContextUnavailable {
+            reportHostContextUnavailable();
+            rethrow;
+          }
+        },
+        platform: providers.platform,
+        osVersion: providers.osVersion,
+        appVersion: providers.appVersion,
+        appBuild: providers.appBuild,
+        locale: providers.locale,
+        timezone: providers.timezone,
+      ),
       deadline: deadline,
       clock: clock,
       cancel: cancel,

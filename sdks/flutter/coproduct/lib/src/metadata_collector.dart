@@ -36,6 +36,7 @@ typedef MetadataObserver = void Function(String field, Duration elapsed,
 /// Tests substitute fakes
 class MetadataProviders {
   const MetadataProviders({
+    required this.deviceType,
     required this.platform,
     required this.osVersion,
     required this.appVersion,
@@ -44,6 +45,7 @@ class MetadataProviders {
     required this.timezone,
   });
 
+  final MetadataProvider deviceType;
   final MetadataProvider platform;
   final MetadataProvider osVersion;
   final MetadataProvider appVersion;
@@ -79,6 +81,7 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
   MetadataObserver? observe,
 }) async {
   final fields = <String, MetadataProvider>{
+    'device_type': providers.deviceType,
     'platform': providers.platform,
     'os_version': providers.osVersion,
     'app_version': providers.appVersion,

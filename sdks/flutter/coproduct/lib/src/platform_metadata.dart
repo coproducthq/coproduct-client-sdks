@@ -5,6 +5,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'host_context_channel.dart';
 import 'metadata_collector.dart';
 
 /// The platform token the core expects, or empty on an unsupported host so the
@@ -31,6 +32,8 @@ MetadataProviders platformMetadataProviders() {
         Error.throwWithStackTrace(error!, stack);
       });
   return MetadataProviders(
+    deviceType:
+        stringProvider(() => const HostContextChannel().readDeviceType()),
     platform: stringProvider(() async => _platformName()),
     osVersion: stringProvider(() async {
       if (Platform.isAndroid) {
