@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # The complete archive-backed gate matrix: both platforms on both supported
 # Flutter toolchains, symbols verified inside the artifacts that ship, runtime
-# acceptance including a dark-mode pass, the native unit suites, and both
-# no-Rust gates.
+# acceptance including a dark-mode pass, the native unit suites, a fresh
+# template app at the floor, and both no-Rust gates.
 #
 # Every stage consumes the extracted archive rather than the staging directory,
 # because a file the stage holds but pub excludes is still present for anything
@@ -54,6 +54,50 @@ for version in "$PRIMARY" "$FLOOR"; do
             "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
     done
 done
+
+# A fresh app at the floor, with the Android toolchain flutter create generates
+# left untouched. The consumer builds above pin a newer Android Gradle Plugin by
+# hand, so they prove the floor Flutter against a toolchain an adopter on that
+# release does not start from. This builds the app an adopter actually starts
+# from, which is what backs the minimums the README publishes. Android only: the
+# iOS minimum is enforced by the podspec through CocoaPods, with a clear error
+floor_template_gate() {
+    local work archive code=0
+    archive="$(cd "$COPRODUCT_FLUTTER_ARCHIVE_DIR" && pwd -P)"
+    work="$(mktemp -d)"
+    # Each step exits explicitly. set -e would not help here, because bash ignores
+    # it inside a subshell whose status is tested, so a failed build would carry
+    # on and fail later for the wrong reason
+    (
+        cd "$work" || exit 1
+        "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$FLOOR" -- \
+            flutter create --org app.coproduct.floorprobe --platforms android floor_app \
+            || exit 1
+        cd floor_app || exit 1
+        # Recorded so a failure names the toolchain it failed on
+        grep -E 'id\("(com.android.application|org.jetbrains.kotlin.android)"' \
+            android/settings.gradle.kts
+        grep distributionUrl android/gradle/wrapper/gradle-wrapper.properties
+        # The one change an adopter makes: depending on the package
+        "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$FLOOR" -- \
+            flutter pub add "coproduct:{path: $archive}" || exit 1
+        "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$FLOOR" -- \
+            flutter build apk --release || exit 1
+        unzip -q -o build/app/outputs/flutter-apk/app-release.apk 'lib/*' -d "$work/unz" \
+            || exit 1
+        libs=()
+        while IFS= read -r lib; do libs+=("$lib"); done \
+            < <(find "$work/unz/lib" -name 'libcoproduct_ffi_frb.so' -type f | sort)
+        if [[ "${#libs[@]}" -ne 3 ]]; then
+            echo "APK carries ${#libs[@]} coproduct libraries, expected three"
+            exit 1
+        fi
+        "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" elf "${libs[@]}"
+    ) || code=$?
+    rm -rf "$work"
+    return $code
+}
+run "fresh template app on Flutter $FLOOR, Android toolchain untouched" floor_template_gate
 
 # The toolchain loop ends on the floor version, so rebuild on the primary one
 # before inspecting artifacts or running acceptance. Inspecting a build left by a
