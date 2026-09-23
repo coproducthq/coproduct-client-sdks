@@ -29,7 +29,12 @@ working.
 | Dart | >= 3.10.0 |
 | iOS deployment target | 15.0+ |
 | Android minSdk | 24 |
-| Gradle (Android side) | 8.x or later |
+| Android Gradle Plugin | 8.11.1 or later |
+| Gradle | 8.14 or later |
+
+The Android versions are the ones `flutter create` generates on Flutter 3.38.1,
+and a new app on that release builds with the SDK without changing them. Older
+versions are not tested.
 
 ## Before you start
 
@@ -92,13 +97,18 @@ dependencies:
   coproduct: ^1.0.0
 ```
 
-Set the platform minimums before your first build, or `pod install` refuses the
-pod and the Android build fails:
+Raise the platform minimums where your app is below them:
 
-- **iOS.** In `ios/Podfile`, set `platform :ios, '15.0'` at the top. A new
-  Flutter app ships that line commented out, so uncomment it. Set the iOS
-  Deployment Target to 15.0 in Xcode too, then run `pod install`.
-- **Android.** In `android/app/build.gradle.kts`, set `minSdk = 24`.
+- **iOS.** A new Flutter app has no `ios/Podfile` until its first iOS build
+  generates one, and that build then stops with `The plugin "coproduct" requires
+  a higher minimum iOS deployment version`. In the generated `ios/Podfile`,
+  uncomment the `platform` line and set it to `platform :ios, '15.0'`, then build
+  again. Also set the iOS Deployment Target to 15.0 in Xcode. The build does not
+  enforce that one, but without it the app installs on iOS versions the SDK
+  cannot run on.
+- **Android.** A new app on Flutter 3.38.1 or later already uses `minSdk = 24`.
+  An app created with an older Flutter may use a lower value, so check
+  `android/app/build.gradle.kts` and raise it to 24 if needed.
 
 ## Quickstart
 

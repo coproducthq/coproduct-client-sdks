@@ -68,6 +68,7 @@ so.
 - `network_type` needs a connectivity source plus live updates through the
   existing bulk upsert, and carries a documented startup window where it is
   briefly absent.
+
 **The platform-side counterpart is no longer needed.** The earlier plan was to
 stop the validator silently accepting a rule on an attribute the target SDK does
 not populate, by warning per-SDK or scoping `KNOWN_STANDARD_ATTRIBUTES` to what
@@ -82,42 +83,42 @@ scoped into 1.0.0. The SDK ships a small native host-context plugin class for
 adapter for `network_type`. 1.0.0 is unpublished, so establishing this behavior
 before the first release avoids a targeting shift on upgrade.
 
-### The published Android toolchain floor is not proven, and the README is imprecise
+### The published Android toolchain floor is proven, with two gaps left untested
 
-**Status: open. A release gate for 1.0.0, and it predates the auto-populated
-attribute work that surfaced it.**
+**Status: resolved for Android. Two narrower questions stay open, below.**
 
-The package declares Flutter `>= 3.38.1` and the README's requirements table says
-`Gradle (Android side) | 8.x or later`. But `flutter_tools` at 3.38.1 generates
-an Android project with AGP 8.11.1, Gradle 8.14, and Kotlin 2.2.20, while
-`device_info_plus` 13.2.0 and `package_info_plus` 10.2.1, both already
-dependencies, publish a requirement of AGP `>= 8.12.1` and Gradle wrapper
-`>= 8.13` (plus Java 17, Kotlin 2.2.0, and Xcode `>= 26.1.1`). The generated AGP
-is below what dependencies the SDK already ships say they need, and the README
-names no AGP requirement at all.
+The package declares Flutter `>= 3.38.1`, and two of its dependencies,
+`device_info_plus` and `package_info_plus`, publish a minimum Android Gradle
+Plugin of 8.12.1, above the 8.11.1 that `flutter create` generates at that
+release. Nothing had tested the combination: the floor gate built an app that
+pins a newer Android Gradle Plugin by hand.
 
-Nothing here is caused by a new dependency. `AGENTS.md` already records that the
-Flutter example pins AGP 8.12.1 because that is "the floor `device_info_plus` and
-`package_info_plus` require". What was never reconciled is that number against
-the Flutter version published as the package minimum.
+A fresh `flutter create` app on Flutter 3.38.1, with its generated Android
+toolchain left untouched (Android Gradle Plugin 8.11.1, Gradle 8.14, Kotlin
+2.2.20, Java 17, minSdk 24), builds with the exact publishable package in both
+debug and release, with no warnings, and passes the symbol check. The published
+8.12.1 minimum is declared but not enforced. No dependency change was needed.
 
-The floor gate cannot catch it as written. `gates/gate-suite.sh` builds
-`consumer-tests/flutter`, which pins AGP 9.0.1 and Gradle 9.1.0, and the example
-pins 8.12.1 by hand. The floor is proven only against a hand-pinned modern AGP,
-never against what `flutter create` emits at the declared minimum, which is what
-an adopter actually gets.
+iOS needs the one step the README documents, a 15.0 platform line in the Podfile.
+Without it CocoaPods refuses the pod with a clear error, and with it the app
+builds. The README now says the Podfile does not exist until the first iOS build
+generates it, which the earlier instructions got wrong.
 
-Published requirements do not prove a build failure, so resolve it by building: a
-clean consumer app at the advertised floor with generated defaults, establishing
-what actually works. Then either align the dependencies with the floor or state
-the additional host-project toolchain requirements accurately, replacing the
-`8.x or later` line. Before 1.0.0 publishes.
+The release gate now builds exactly that fresh template app at the floor, so a
+dependency or build-file change that starts enforcing a newer toolchain fails the
+release instead of an adopter's build. That covers `connectivity_plus` too: it
+declares the same 8.12.1 minimum, and the gate will prove whether it enforces it
+when it is added.
 
-This also gates a dependency decision. The completion design prefers
-`connectivity_plus` 7.3.1 for `network_type` precisely because it adds no
-published requirement beyond the current dependency set. If this task resolves by
-downgrading `device_info_plus` or `package_info_plus` to support an unmodified
-Flutter 3.38.1 project, that choice is revisited against the lowered floor.
+**Still untested:**
+
+- **The Xcode floor.** `device_info_plus` also declares Xcode 26.1.1. This machine
+  runs 26.5, so nothing here could test a lower version, and the README states no
+  Xcode requirement. Settle it on a machine with an older Xcode, or state 26.1.1 as
+  the requirement on the dependency's word.
+- **An Android Gradle Plugin below 8.11.1**, which an app created with an older
+  Flutter release may still use. The README now says older versions are not
+  tested rather than implying they work.
 
 ## Flutter SDK, additive follow-ups
 

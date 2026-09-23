@@ -106,10 +106,11 @@ scripts/package/flutter-build-native.sh all
 Rerun it after any change to the Rust core or the FRB surface. A stale library
 surfaces as an FRB content-hash mismatch at `initialize`, not as a link error.
 
-**Set the platform minimums**, which a new Flutter app does not have. In
-`ios/Podfile` uncomment and set `platform :ios, '15.0'`, then `pod install`. In
-`android/app/build.gradle.kts` set `minSdk = 24`. Skipping either means
-`pod install` refuses the pod or the Android build fails.
+**Set the iOS platform minimum.** A new Flutter app has no `ios/Podfile` until
+its first iOS build generates one, and that build then stops because the pod
+needs iOS 15.0. In the generated `ios/Podfile`, uncomment the `platform` line as
+`platform :ios, '15.0'` and build again. Android needs nothing: a new app on
+Flutter 3.38.1 or later already uses `minSdk = 24`.
 
 Then use the SDK exactly as the package README describes. You need a mobile SDK
 key and a flag from [coproduct.app](https://coproduct.app); the key is read
