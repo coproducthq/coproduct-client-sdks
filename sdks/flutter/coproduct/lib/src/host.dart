@@ -16,6 +16,8 @@ import 'runtime_builder.dart';
 import 'scheduler.dart';
 import 'secure_identity_store.dart';
 import 'serial_queue.dart';
+import 'session.dart';
+import 'started_session.dart';
 import 'errors.dart';
 import 'http_transport.dart';
 import 'rust/api.dart' as frb;
@@ -71,6 +73,7 @@ class CoproductHost<H extends Object, C extends Object> {
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
     required bool Function() isRootIsolate,
+    required Future<SessionPair> Function() beginSession,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
   })  : _bridge = bridge, // ignore: prefer_initializing_formals
@@ -82,6 +85,7 @@ class CoproductHost<H extends Object, C extends Object> {
         _bindForeground = bindForeground, // ignore: prefer_initializing_formals
         _reportError = reportError,
         _isRootIsolate = isRootIsolate, // ignore: prefer_initializing_formals
+        _beginSession = beginSession, // ignore: prefer_initializing_formals
         _initClock = initClock, // ignore: prefer_initializing_formals
         _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
         _manager = CoproductManager<_ActiveRuntime<C>>(
@@ -98,6 +102,7 @@ class CoproductHost<H extends Object, C extends Object> {
   final ForegroundBinder _bindForeground;
   final void Function(Object, StackTrace) _reportError;
   final bool Function() _isRootIsolate;
+  final Future<SessionPair> Function() _beginSession;
   final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
@@ -156,25 +161,46 @@ class CoproductHost<H extends Object, C extends Object> {
     // the device declined to supply, and left quiet it reproduces exactly the
     // silent targeting failure the automatic attributes exist to remove, so it
     // goes through the developer's error reporter rather than behind an assert.
-    // It reports once per initialization because the provider runs once per
-    // build, and a reporter that throws is absorbed by the collector's per-field
-    // error handling, so neither needs a guard of its own here
-    void reportHostContextUnavailable() =>
-        _reportError(const HostContextUnavailable(), StackTrace.current);
+    // An unregistered plugin fails every method on the channel, and one
+    // misconfiguration should read as one error, so it reports once per build.
+    // Either method can fail after a shutdown or a newer initialize, and a
+    // report then would read as an error of the runtime that replaced it
+    var hostContextReported = false;
+    void reportHostContextUnavailable() {
+      if (hostContextReported || !isCurrent()) return;
+      hostContextReported = true;
+      _reportError(const HostContextUnavailable(), StackTrace.current);
+    }
+
+    // A storage failure and a malformed pair leave targeting just as silently
+    // degraded, so they take the same path. The caller guards a reporter that
+    // throws. A failure settling after a shutdown or a newer initialize reports
+    // nothing, since it would read as an error of the runtime that replaced it
+    void reportSessionFailure(Object error, StackTrace stack) {
+      if (!isCurrent()) return;
+      if (error is HostContextUnavailable) {
+        reportHostContextUnavailable();
+      } else {
+        _reportError(error, stack);
+      }
+    }
     // Created before collection starts because the late sink closes over it.
     // Null means the build failed and there is nothing to amend, carried as a
     // value rather than an error because a completer whose error nobody listens
     // for becomes an unhandled asynchronous error
     final batchPublished = Completer<AutoUpsert?>();
-    void publishLate(String field, frb.FrbContextValue value) {
-      batchPublished.future
-          .then((upsert) => upsert?.publish({field: value}));
+    void publishLateAttributes(Map<String, frb.FrbContextValue> attributes) {
+      batchPublished.future.then((upsert) => upsert?.publish(attributes));
     }
+
+    void publishLate(String field, frb.FrbContextValue value) =>
+        publishLateAttributes({field: value});
     // Created here rather than inside createRuntime so the client and the
     // auto-upsert path share one queue, which is what keeps a machine-initiated
     // write ordered against the identity mutators
     final identityQueue = SerialQueue();
     AutoUpsert? candidate;
+    StartedSession? session;
     // Start metadata collection concurrently with the FRB initialize, bounded by
     // the shared deadline and cancellation, and observe it from creation so an
     // early failure never becomes an unhandled async error before publish
@@ -215,7 +241,7 @@ class CoproductHost<H extends Object, C extends Object> {
           if (!isCurrent()) {
             throw const CoproductInitializationCancelled();
           }
-          return _bridge.initialize(
+          final handle = await _bridge.initialize(
             sdkKey: sdkKey,
             userAgent: _userAgent,
             config: ffiConfigFor(config),
@@ -224,6 +250,14 @@ class CoproductHost<H extends Object, C extends Object> {
             secureRead: _secureStore.read,
             secureWrite: _secureStore.write,
           );
+          // Counted only once a handle exists and the build is still current,
+          // so a rejected key, a failed library load, or a build a shutdown
+          // already superseded never counts a session. Started here rather
+          // than awaited, so it overlaps readiness
+          if (isCurrent()) {
+            session = StartedSession(_beginSession, onFailure: reportSessionFailure);
+          }
+          return handle;
         },
         disposeTransport: transport.dispose,
         shutdownHandle: _bridge.shutdown,
@@ -235,8 +269,23 @@ class CoproductHost<H extends Object, C extends Object> {
           if (outcome is _MetadataFailure) {
             Error.throwWithStackTrace(outcome.error, outcome.stack);
           }
-          await _bridge.setAutoPopulatedAttributes(
-              handle, (outcome as _MetadataSuccess).attributes);
+          // Waits only for what remains of the shared budget. A pair that misses
+          // it publishes through the same gate as a late collector field, so a
+          // wedged transaction holds neither initialize nor shutdown
+          final sessionAttributes = await session?.forBatch(
+                deadline: deadline,
+                clock: clock,
+                cancel: cancel,
+                onLate: publishLateAttributes,
+              ) ??
+              const <String, frb.FrbContextValue>{};
+          if (!isCurrent()) {
+            throw const CoproductInitializationCancelled();
+          }
+          await _bridge.setAutoPopulatedAttributes(handle, {
+            ...(outcome as _MetadataSuccess).attributes,
+            ...sessionAttributes,
+          });
           if (!isCurrent()) {
             throw const CoproductInitializationCancelled();
           }

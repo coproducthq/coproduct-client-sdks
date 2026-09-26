@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # The complete archive-backed gate matrix: both platforms on both supported
-# Flutter toolchains, symbols verified inside the artifacts that ship, runtime
-# acceptance including a dark-mode pass, the native unit suites, a fresh
-# template app at the floor, and both no-Rust gates.
+# Flutter toolchains, symbols verified inside the artifacts that ship, the
+# privacy manifest inside the release iOS app, runtime acceptance including a
+# dark-mode pass, the native unit suites, a fresh template app at the floor, and
+# both no-Rust gates
 #
-# Every stage consumes the extracted archive rather than the staging directory,
-# because a file the stage holds but pub excludes is still present for anything
-# built against the stage
+# Package-facing stages consume the extracted archive rather than the staging
+# directory, because a file the stage holds but pub excludes is still present
+# for anything built against the stage. The native unit suites are the
+# deliberate exception: their tests are not published, so they run against the
+# source-linked example project
 set -uo pipefail
 
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
@@ -167,6 +170,9 @@ check_app_framework() { # label, sdk path fragment, expected architectures
 check_app_framework 'iOS device' 'iphoneos' 'arm64'
 check_app_framework 'iOS simulator' 'iphonesimulator' 'arm64 x86_64'
 
+run 'iOS privacy manifest in the release app' \
+    "$REPO_ROOT/scripts/release/flutter/gates/privacy-manifest-check.sh" "$COPRODUCT_CONSUMER_DIR"
+
 APK="$(find "$COPRODUCT_CONSUMER_DIR/build/app/outputs" -name '*.apk' 2>/dev/null | head -1)"
 if [[ -n "$APK" ]]; then
     UNZ="$(mktemp -d)"
@@ -185,18 +191,23 @@ else
     printf '  FAIL no APK found for symbol inspection\n'; fail=1
 fi
 
-# The native unit suites. Neither runs anywhere else, so the Kotlin classifier
-# and the Swift idiom mapping would otherwise execute only by hand and rot. They
-# need no device and no artifact, so they run against the example project
+# The native unit suites. Neither runs anywhere else, so the Kotlin and Swift
+# session stores and device classifiers would otherwise execute only by hand
+# and rot. They need no artifact, so they run against the example project, and
+# only the Swift suite needs a device, the booted simulator
 android_native_unit_gate() {
     ( cd "$REPO_ROOT/sdks/flutter/coproduct/example/android" \
         && ./gradlew --quiet :coproduct:testDebugUnitTest )
 }
 run 'Android native unit suite' android_native_unit_gate
 
+# Serial, on the named simulator itself. The scheme allows parallel testing,
+# which runs the tests on a clone and shuts the original simulator down, and
+# the acceptance and no-Rust gates after this need that simulator booted
 ios_native_unit_gate() {
     ( cd "$REPO_ROOT/sdks/flutter/coproduct/example/ios" \
         && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
+            -parallel-testing-enabled NO \
             -destination "platform=iOS Simulator,id=$COPRODUCT_ACCEPTANCE_IOS_DEVICE" )
 }
 run 'iOS native unit suite' ios_native_unit_gate

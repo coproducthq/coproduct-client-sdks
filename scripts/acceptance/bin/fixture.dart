@@ -22,12 +22,30 @@ Future<void> main(List<String> args) async {
     stderr.writeln('fixture: at least one --key is required');
     exit(2);
   }
+  // Every substituted value is required. A missing one would otherwise leave a
+  // literal token in a rule, which fails on the device far from its cause
+  const required = [
+    'version',
+    'build',
+    'session-count',
+    'first-seen-floor',
+    'first-seen-ceiling',
+  ];
+  for (final name in required) {
+    if (opts[name]?.length != 1) {
+      stderr.writeln('fixture: --$name is required exactly once');
+      exit(2);
+    }
+  }
 
   final control = FixtureControl(
     buildBody: (version, omitted) => jsonEncode(buildSnapshotEnvelope(
       expectedPlatform: platform!,
       appVersion: opts['version']!.single,
       appBuild: opts['build']!.single,
+      sessionCount: opts['session-count']!.single,
+      firstSeenFloor: opts['first-seen-floor']!.single,
+      firstSeenCeiling: opts['first-seen-ceiling']!.single,
       generatedAt: '2026-08-01T00:00:00Z',
       version: version,
       omitFlags: omitted,

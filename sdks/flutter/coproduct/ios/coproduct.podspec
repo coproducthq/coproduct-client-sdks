@@ -24,6 +24,10 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
   s.platform = :ios, '15.0'
 
   s.swift_version = '5.0'
+  # The session attributes read and write UserDefaults, a required-reason API,
+  # and a third-party SDK must declare its own use rather than rely on the app
+  # or another dependency to. A resource bundle is how a pod ships the manifest
+  s.resource_bundles = { 'coproduct_privacy' => ['Resources/PrivacyInfo.xcprivacy'] }
 
   s.script_phase = {
     :name => 'Stage prebuilt Rust library',

@@ -7,6 +7,16 @@ that is whatever the system reports as its interface idiom, and on Android it is
 the 600dp width the platform's own layout qualifier uses, with televisions,
 watches, cars, appliances, VR headsets, Chromebooks and Android PCs left unset.
 
+`first_seen_at` and `session_count` are now filled in automatically, so a rule
+can target new users or returning ones with no code from you. One app launch
+counts once, however many times the SDK is initialized in it. If the device's
+storage does not keep the count, or cannot be read reliably, as on iOS before
+the device is first unlocked after a restart, both are left unset for that
+launch and `SessionAttributesUnavailable` is reported through
+`FlutterError.onError`, with a `cause` that tells a storage failure from a
+malformed response. The package now ships an Apple privacy manifest
+declaring its use of `UserDefaults`.
+
 An automatic attribute whose source is slow no longer costs that attribute the
 whole session. The startup timeout still bounds how long `initialize` waits, but
 a value that arrives after it now publishes when it lands, and observers re-emit,
@@ -17,10 +27,12 @@ rather than the attribute staying absent until the app restarts.
 lifecycle: an app running in the background is unaffected, and each
 `FlutterEngine` has its own root isolate.
 
-If the SDK's platform component is not registered in your app, that is reported
-through `FlutterError.onError` rather than passing silently, in every build
-rather than debug only, because the symptom is otherwise a rule that never
-matches with nothing to explain why.
+If the SDK's platform component is not registered in your app, or its native
+side is older than the Dart side, that is reported through
+`FlutterError.onError` rather than passing silently, in every build rather than
+debug only, because the symptom is otherwise a rule on `device_type`,
+`first_seen_at`, or `session_count` that silently stops matching, with nothing
+to explain why.
 
 First stable release. The SDK fetches and evaluates real flags on a booted
 device: it polls the Coproduct endpoint, applies automatic device and app

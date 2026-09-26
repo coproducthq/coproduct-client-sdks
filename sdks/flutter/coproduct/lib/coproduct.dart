@@ -19,5 +19,7 @@ export 'src/errors.dart'
         CoproductAlreadyInitialized,
         CoproductInitializationCancelled,
         CoproductUnsupportedIsolate,
-        HostContextUnavailable;
+        HostContextUnavailable,
+        SessionAttributesUnavailable,
+        SessionAttributesUnavailableCause;
 export 'src/coproduct_client.dart' show CoproductClient, Coproduct;

@@ -12,7 +12,7 @@ import '../lib/pub_file_list.dart';
 
 /// The exact number of files pub publishes. See the assertion below for why a
 /// count earns its keep next to the membership allowlist.
-const _expectedFileCount = 147;
+const _expectedFileCount = 152;
 
 const _maxCompressedMb = 35;
 const _maxUncompressedMb = 115;
@@ -43,10 +43,12 @@ const _required = <String>[
 const _platformExact = <String>[
   'ios/Classes/CoproductHostContextPlugin.swift',
   'ios/Classes/DeviceClassifier.swift',
+  'ios/Classes/SessionStore.swift',
   'ios/Classes/dummy_file.c',
   'ios/CoproductFFI.xcframework/Info.plist',
   'ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
   'ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a',
+  'ios/Resources/PrivacyInfo.xcprivacy',
   'ios/coproduct.podspec',
   'ios/stage_prebuilt.sh',
   'android/build.gradle',
@@ -57,6 +59,7 @@ const _platformExact = <String>[
   'android/src/main/jniLibs/x86_64/libcoproduct_ffi_frb.so',
   'android/src/main/kotlin/app/coproduct/flutter/CoproductHostContextPlugin.kt',
   'android/src/main/kotlin/app/coproduct/flutter/DeviceClassifier.kt',
+  'android/src/main/kotlin/app/coproduct/flutter/SessionStore.kt',
 ];
 
 /// Roots whose contents are governed entirely by [_platformExact].

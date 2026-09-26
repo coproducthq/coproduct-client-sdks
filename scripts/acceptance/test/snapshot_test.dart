@@ -14,6 +14,9 @@ void main() {
     appVersion: '1.0.0',
     appBuild: '1',
     generatedAt: '2026-08-01T00:00:00Z',
+    sessionCount: '2',
+    firstSeenFloor: '1767225590',
+    firstSeenCeiling: '1767225910',
   );
 
   test('the envelope wraps the snapshot and omits sdkContext', () {
@@ -23,7 +26,7 @@ void main() {
     expect(snap['version'], 1);
     expect(snap['environment'], <String, Object?>{});
     expect(snap['segments'], <Object?>[]);
-    expect((snap['flags'] as List).length, 13);
+    expect((snap['flags'] as List).length, 16);
   });
 
   test('the causality invariant holds for every targeted flag', () {
@@ -90,6 +93,9 @@ void main() {
       appVersion: '1.2.3',
       appBuild: '45',
       generatedAt: '2026-08-01T00:00:00Z',
+      sessionCount: '2',
+      firstSeenFloor: '1767225590',
+      firstSeenCeiling: '1767225910',
     );
     final fullFlags =
         ((full['snapshot']! as Map)['flags']! as List).cast<Map<String, Object?>>();
@@ -101,6 +107,9 @@ void main() {
       appVersion: '1.2.3',
       appBuild: '45',
       generatedAt: '2026-08-01T00:00:00Z',
+      sessionCount: '2',
+      firstSeenFloor: '1767225590',
+      firstSeenCeiling: '1767225910',
       version: 7,
       omitFlags: {'fetch-control'},
     );
@@ -111,5 +120,18 @@ void main() {
     expect(trimmedFlags.map((f) => f['key']), isNot(contains('fetch-control')));
     expect(trimmedFlags, hasLength(fullFlags.length - 1),
         reason: 'exactly the omitted flag is gone');
+  });
+
+  test('the session tokens are substituted from the runner', () {
+    List<Object?> valuesOf(String key) {
+      final rule = (_flag(env, key)['targetingRules'] as List).first
+          as Map<String, Object?>;
+      return (rule['condition'] as Map<String, Object?>)['values']
+          as List<Object?>;
+    }
+
+    expect(valuesOf('auto-session-count'), ['2']);
+    expect(valuesOf('auto-first-seen-at-floor'), ['1767225590']);
+    expect(valuesOf('auto-first-seen-at-ceiling'), ['1767225910']);
   });
 }

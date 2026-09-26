@@ -4,6 +4,8 @@ import 'flag_table.dart';
 /// The envelope omits the top-level sdkContext key so a server timezone cannot
 /// satisfy the timezone is_set flag. The expected platform and the app version
 /// and build are substituted into the value-equality rules.
+/// The session count and first_seen_at bounds come from the runner, which knows
+/// which pass of the relaunch pair this is
 ///
 /// [version] is the snapshot version the envelope advertises, and [omitFlags]
 /// drops those flag keys from the served snapshot so a test can prove a flag
@@ -12,6 +14,9 @@ Map<String, Object?> buildSnapshotEnvelope({
   required String expectedPlatform,
   required String appVersion,
   required String appBuild,
+  required String sessionCount,
+  required String firstSeenFloor,
+  required String firstSeenCeiling,
   required String generatedAt,
   int version = 1,
   Set<String> omitFlags = const {},
@@ -20,6 +25,9 @@ Map<String, Object?> buildSnapshotEnvelope({
         kPlatformToken => expectedPlatform,
         kAppVersionToken => appVersion,
         kAppBuildToken => appBuild,
+        kSessionCountToken => sessionCount,
+        kFirstSeenFloorToken => firstSeenFloor,
+        kFirstSeenCeilingToken => firstSeenCeiling,
         _ => token,
       };
 

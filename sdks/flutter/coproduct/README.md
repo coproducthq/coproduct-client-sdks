@@ -205,10 +205,11 @@ on the device unless you send them somewhere yourself.
 
 Attributes come from two places:
 
-- **The SDK fills in seven automatically**, with no code from you: `platform`,
-  `os_version`, `app_version`, `app_build`, `locale`, `timezone`, and
-  `device_type`. So you can target Android only, or a locale, or tablets, or
-  roll a feature out to builds at or above a version, straight away.
+- **The SDK fills in nine automatically**, with no code from you: `platform`,
+  `os_version`, `app_version`, `app_build`, `locale`, `timezone`,
+  `device_type`, `first_seen_at`, and `session_count`. So you can target
+  Android only, or a locale, or tablets, or new users, or roll a feature out to
+  builds at or above a version, straight away.
 
   `device_type` is `"phone"` or `"tablet"`, and is **left unset rather than
   guessed** on a device that is neither. On iOS it comes from the interface
@@ -220,6 +221,33 @@ Attributes come from two places:
   foldable is classified from its posture when the SDK starts and is not
   reclassified when it folds, so write rules that tolerate either value if that
   matters to you.
+
+  `first_seen_at` is when the SDK first ran in this installation of your app, in
+  whole seconds since the Unix epoch, UTC. `session_count` is roughly how many
+  times your app's process has started with the SDK initialized. Both are
+  numbers, so target them with `gte`, `lt`, and the other numeric operators. One
+  process launch counts once: a hot restart, a second `FlutterEngine`, shutting
+  the SDK down and initializing it again, and backgrounding and resuming the app
+  do not add to it, though a launch after the system has ended your app's
+  process does. Every `FlutterEngine` in one launch sees the same two values,
+  and they do not change during the launch even if the stored record is removed.
+  It is approximate by design. An Android app that runs in several processes may
+  count each of them, and a process killed immediately after launch may not be
+  counted. Both belong to the app installation: every SDK key and environment
+  your app uses sees the same values. They stay on the device and are kept apart
+  from the native iOS SDK's values if your app uses both. They normally reset
+  when the app's data is removed, but they may survive a device migration or a
+  backup restore, as other app data can.
+
+  Both are left unset for a launch in which the device cannot give the SDK a
+  trustworthy record, rather than restarting the count. On iOS that includes a
+  launch before the device is first unlocked after a restart, such as a
+  background launch straight after a reboot, and a launch in which the system
+  reports no stored record while one is still on disk. If your app's
+  default data protection class is complete, that includes every launch while
+  the device is locked. On Android it includes a launch in which the storage
+  cannot be opened, which can happen when your app runs before the first
+  unlock after a restart, as a direct-boot-aware app can.
 
   Most of these are ready the moment `initialize` returns. One whose source is
   slow can arrive shortly after instead, and an observation re-emits when it
@@ -471,6 +499,28 @@ initialized the SDK with a different key or config. Initialize once, at startup.
 
 **`identify` throws `InvalidTargetingKey`.** The identifier was empty. Pass your
 account's stable id.
+
+**`FlutterError.onError` reports `SessionAttributesUnavailable`.** Either the
+device's storage could not be read or did not keep the session record, or the
+SDK's platform component answered with a record the SDK could not read. Its
+`cause` says which: `SessionAttributesUnavailableCause.storageFailure` or
+`SessionAttributesUnavailableCause.malformedResponse`. More causes may be added
+in later releases, so a `switch` on it needs a default branch. Its message text
+is for people to read, not for parsing.
+`first_seen_at` and `session_count` are left unset for the rest of this app
+launch rather than set to values that may be wrong. Until the next launch,
+conditions that need them to have a value do not match, and an `is_not_set`
+condition on them does. A launch in which the device could not give the SDK a
+trustworthy record, described in [How evaluation works](#how-evaluation-works),
+is reported this way too.
+
+**`FlutterError.onError` reports `HostContextUnavailable`.** The SDK's platform
+component did not answer. Either it is not registered in your app, which can
+happen when Flutter is added to an existing native app, or its native side is
+older than the Dart side. `device_type`, `first_seen_at`, and `session_count`
+are then left unset. Conditions that need one of them to have a value do not
+match, and an `is_not_set` condition on it does. Flags otherwise evaluate
+normally.
 
 ## Testing your widgets
 

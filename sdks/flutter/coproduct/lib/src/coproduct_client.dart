@@ -10,6 +10,7 @@ import 'flag_observation.dart';
 import 'foreground.dart';
 import 'frb_backend.dart';
 import 'host.dart';
+import 'host_context_channel.dart';
 import 'isolate_probe.dart';
 import 'http_transport.dart';
 import 'json_value.dart';
@@ -274,6 +275,7 @@ final class Coproduct {
     bindForeground: appLifecycleForegroundBinder,
     reportError: _reportError,
     isRootIsolate: isRootIsolateNow,
+    beginSession: const HostContextChannel().beginSession,
   );
 
   /// Initializes the SDK: validates the config, constructs the client against the

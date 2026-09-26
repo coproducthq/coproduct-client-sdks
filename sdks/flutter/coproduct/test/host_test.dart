@@ -8,13 +8,23 @@ import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
 import 'package:coproduct/src/secure_identity_store.dart';
 import 'package:coproduct/src/serial_queue.dart';
+import 'package:coproduct/src/session.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart' show MockClient;
 
 const _key = 'cpk_mob_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+const _sessionPair = SessionPair(firstSeenAt: 1767225600, sessionCount: 3);
+
+/// Completes synchronously, so the pair is settled by the time the batch is
+/// assembled and tests that are not about the session see it in the batch
+/// rather than as a stray late upsert
+Future<SessionPair> _immediateSession() =>
+    SynchronousFuture<SessionPair>(_sessionPair);
 
 /// A stand-in for the opaque FRB handle, one per fake initialize.
 class _FakeHandle {
@@ -229,6 +239,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   Duration Function()? initClock,
   bool Function()? isRootIsolate,
   void Function(Object error, StackTrace stack)? reportError,
+  Future<SessionPair> Function()? beginSession,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -248,6 +259,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
     bindForeground: foreground?.binder ?? (onForeground) => null,
     reportError: reportError ?? (e, s) {},
     isRootIsolate: isRootIsolate ?? () => true,
+    beginSession: beginSession ?? _immediateSession,
     initClock: initClock,
   );
 }
@@ -613,6 +625,7 @@ void main() {
     final host = CoproductHost<_FakeHandle, _FakeClient>(
       bridge: bridge,
       isRootIsolate: () => true,
+      beginSession: _immediateSession,
       userAgent: 'coproduct-flutter/test',
       createTransport: (t) {
         transportsCreated++;
@@ -667,13 +680,18 @@ void main() {
   test('a matching concurrent initialize joins one build and one native init',
       () async {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = _host(bridge);
+    var begun = 0;
+    final host = _host(bridge, beginSession: () {
+      begun++;
+      return _immediateSession();
+    });
 
     final a = host.initialize(sdkKey: 'cpk_mob_a');
     final b = host.initialize(sdkKey: 'cpk_mob_a');
     final ca = await a;
     final cb = await b;
     expect(identical(ca, cb), isTrue);
+    expect(begun, 1); // one session transaction for the joined build
     expect(bridge.handleCounter, 1); // one FRB initialize
     expect(bridge.ensureInitializedCalls, 1); // library loaded once
     expect(bridge.cacheDirectoryCalls, 1); // cache dir resolved once
@@ -763,6 +781,7 @@ void main() {
     final host = CoproductHost<_FakeHandle, _FakeClient>(
       bridge: bridge,
       isRootIsolate: () => true,
+      beginSession: _immediateSession,
       userAgent: 'coproduct-flutter/test',
       createTransport: (t) => HttpTransport(client: transport, requestTimeout: t),
       secureStore: SecureIdentityStore(
@@ -1071,5 +1090,399 @@ void main() {
         pending, throwsA(isA<CoproductInitializationCancelled>()));
     await shutdown;
     expect(bridge.installedAttributes, isNull);
+  });
+
+  group('session attributes', () {
+    test('the pair is published in the initial batch as numbers', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(bridge);
+      await host.initialize(sdkKey: _key);
+      expect(bridge.installedAttributes!['first_seen_at'],
+          const frb.FrbContextValue.number(1767225600));
+      expect(bridge.installedAttributes!['session_count'],
+          const frb.FrbContextValue.number(3));
+      expect(bridge.lateAttributes, isEmpty);
+      await host.shutdown();
+    });
+
+    test('the transaction starts only once the handle exists', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..initGate = Completer<void>();
+      final handlesAtStart = <int>[];
+      final host = _host(bridge, beginSession: () {
+        handlesAtStart.add(bridge.handleCounter);
+        return _immediateSession();
+      });
+      final pending = host.initialize(sdkKey: _key);
+      await bridge.initializeEntered.future;
+      expect(handlesAtStart, isEmpty, reason: 'no handle, so nothing counted yet');
+      bridge.initGate!.complete();
+      await pending;
+      expect(handlesAtStart, [1], reason: 'exactly once, after the handle');
+      await host.shutdown();
+    });
+
+    test('a rejected key never counts a session', () async {
+      final bridge = _FakeBridge()
+        ..initError = const frb.InitError.invalidKeyType(prefix: 'cpk_web_');
+      var begun = 0;
+      final host = _host(bridge, beginSession: () {
+        begun++;
+        return _immediateSession();
+      });
+      await expectLater(host.initialize(sdkKey: _key), throwsA(anything));
+      expect(begun, 0);
+    });
+
+    test('a background isolate never counts a session', () async {
+      var begun = 0;
+      final host = _host(_FakeBridge(), isRootIsolate: () => false,
+          beginSession: () {
+        begun++;
+        return _immediateSession();
+      });
+      await expectLater(host.initialize(sdkKey: _key),
+          throwsA(isA<CoproductUnsupportedIsolate>()));
+      expect(begun, 0);
+    });
+
+    test('a shutdown before the handle exists means no session is counted',
+        () async {
+      final bridge = _FakeBridge()..initGate = Completer<void>();
+      var begun = 0;
+      final host = _host(bridge, beginSession: () {
+        begun++;
+        return _immediateSession();
+      });
+      final pending = host.initialize(sdkKey: _key);
+      await bridge.initializeEntered.future;
+      final stopping = host.shutdown();
+      bridge.initGate!.complete();
+      await expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
+      await stopping;
+      expect(begun, 0);
+    });
+
+    test('a pair missing the budget publishes late, both values in one upsert',
+        () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final gate = Completer<SessionPair>();
+        final host = _host(bridge,
+            initClock: () => async.elapsed, beginSession: () => gate.future);
+        var returned = false;
+        host
+            .initialize(
+              sdkKey: _key,
+              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+            )
+            .then((_) => returned = true);
+        async.elapse(const Duration(seconds: 1));
+        expect(returned, isTrue, reason: 'initialize waits only for the budget');
+        expect(bridge.installedAttributes!.containsKey('first_seen_at'), isFalse);
+        expect(bridge.installedAttributes!.containsKey('session_count'), isFalse);
+        gate.complete(_sessionPair);
+        async.flushMicrotasks();
+        expect(bridge.lateAttributes, [_sessionPair.attributes]);
+        host.shutdown();
+        async.flushMicrotasks();
+      });
+    });
+
+    test('a wedged transaction holds neither initialize nor shutdown', () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final host = _host(bridge,
+            initClock: () => async.elapsed,
+            beginSession: () => Completer<SessionPair>().future);
+        var returned = false;
+        var stopped = false;
+        host
+            .initialize(
+              sdkKey: _key,
+              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+            )
+            .then((_) => returned = true);
+        async.elapse(const Duration(seconds: 1));
+        expect(returned, isTrue);
+        host.shutdown().then((_) => stopped = true);
+        async.elapse(const Duration(seconds: 1));
+        expect(stopped, isTrue, reason: 'the transaction never completes');
+      });
+    });
+
+    test('a shutdown while initialize waits on the transaction cancels it', () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final host = _host(bridge,
+            initClock: () => async.elapsed,
+            beginSession: () => Completer<SessionPair>().future);
+        Object? thrown;
+        var stopped = false;
+        host
+            .initialize(
+              sdkKey: _key,
+              config: const CoproductConfig(startupTimeout: Duration(seconds: 10)),
+            )
+            .catchError((Object error) {
+          thrown = error;
+          return _FakeClient(_FakeHandle(0), SerialQueue());
+        });
+        async.elapse(const Duration(milliseconds: 100));
+        host.shutdown().then((_) => stopped = true);
+        async.elapse(const Duration(milliseconds: 100));
+        expect(thrown, isA<CoproductInitializationCancelled>(),
+            reason: 'the wait ends on shutdown, not on the ten-second budget');
+        expect(stopped, isTrue);
+        expect(bridge.setAutoPopulatedCalls, 0,
+            reason: 'nothing is published into a runtime being torn down');
+      });
+    });
+
+    test('a pair completing after shutdown is counted but never published', () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final gate = Completer<SessionPair>();
+        final host = _host(bridge,
+            initClock: () => async.elapsed, beginSession: () => gate.future);
+        host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+        );
+        async.elapse(const Duration(seconds: 1));
+        host.shutdown();
+        async.flushMicrotasks();
+        gate.complete(_sessionPair);
+        async.flushMicrotasks();
+        expect(bridge.lateAttributes, isEmpty,
+            reason: 'the runtime it belonged to is gone');
+      });
+    });
+
+    test('a storage failure omits both, reports once, and initializes', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final errors = <Object>[];
+      final host = _host(bridge,
+          reportError: (error, _) => errors.add(error),
+          beginSession: () async => throw const SessionAttributesUnavailable(
+              SessionAttributesUnavailableCause.storageFailure));
+      final client = await host.initialize(sdkKey: _key);
+      expect(client, isNotNull);
+      expect(bridge.installedAttributes!.containsKey('first_seen_at'), isFalse);
+      expect(bridge.installedAttributes!.containsKey('session_count'), isFalse);
+      expect(errors, [
+        const SessionAttributesUnavailable(
+            SessionAttributesUnavailableCause.storageFailure)
+      ]);
+      expect(errors.single.toString(), isNot(contains(_key)));
+      await host.shutdown();
+    });
+
+    test('a reporter that throws on a session failure does not fail initialize',
+        () async {
+      final host = _host(_FakeBridge(stateValue: frb.ProviderState.ready),
+          reportError: (_, _) => throw StateError('reporter exploded'),
+          beginSession: () async => throw const SessionAttributesUnavailable(
+              SessionAttributesUnavailableCause.storageFailure));
+      await host.initialize(sdkKey: _key);
+      await host.shutdown();
+    });
+
+    test('a session failure arriving after shutdown reports nothing', () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final gate = Completer<void>();
+        final errors = <Object>[];
+        final host = _host(bridge,
+            initClock: () => async.elapsed,
+            reportError: (error, _) => errors.add(error),
+            beginSession: () async {
+              await gate.future;
+              throw const SessionAttributesUnavailable(
+                  SessionAttributesUnavailableCause.storageFailure);
+            });
+        host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+        );
+        async.elapse(const Duration(seconds: 1));
+        host.shutdown();
+        async.flushMicrotasks();
+        gate.complete();
+        async.flushMicrotasks();
+        expect(errors, isEmpty,
+            reason: 'a stale failure would read as the next runtime\'s error');
+      });
+    });
+
+    test('a device type read failing after shutdown reports nothing', () {
+      // The device type read can outlive its build too, so the diagnostic it
+      // raises is subject to the same staleness rule as the session's
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final gate = Completer<void>();
+        final errors = <Object>[];
+        final host = _host(bridge,
+            initClock: () => async.elapsed,
+            reportError: (error, _) => errors.add(error),
+            providers: _providers(deviceType: () async {
+              await gate.future;
+              throw const HostContextUnavailable();
+            }));
+        host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+        );
+        async.elapse(const Duration(seconds: 1));
+        host.shutdown();
+        async.flushMicrotasks();
+        gate.complete();
+        async.flushMicrotasks();
+        expect(errors, isEmpty,
+            reason: 'a stale failure would read as the next runtime\'s error');
+      });
+    });
+
+    test('an unreachable plugin found after shutdown reports nothing', () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final gate = Completer<void>();
+        final errors = <Object>[];
+        final host = _host(bridge,
+            initClock: () => async.elapsed,
+            reportError: (error, _) => errors.add(error),
+            beginSession: () async {
+              await gate.future;
+              throw const HostContextUnavailable();
+            });
+        host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+        );
+        async.elapse(const Duration(seconds: 1));
+        host.shutdown();
+        async.flushMicrotasks();
+        gate.complete();
+        async.flushMicrotasks();
+        expect(errors, isEmpty,
+            reason: 'a stale failure would read as the next runtime\'s error');
+      });
+    });
+
+    test('a late pair never publishes into a runtime whose readiness failed',
+        () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge()..stateThrows = true;
+        final gate = Completer<SessionPair>();
+        final host = _host(bridge,
+            initClock: () => async.elapsed, beginSession: () => gate.future);
+        Object? thrown;
+        host
+            .initialize(
+              sdkKey: _key,
+              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+            )
+            .catchError((Object error) {
+          thrown = error;
+          return _FakeClient(_FakeHandle(0), SerialQueue());
+        });
+        async.elapse(const Duration(seconds: 1));
+        expect(thrown, isNotNull, reason: 'readiness failed the build');
+        gate.complete(_sessionPair);
+        async.flushMicrotasks();
+        expect(bridge.lateAttributes, isEmpty,
+            reason: 'a failed build opens no gate for a late pair');
+      });
+    });
+
+    test('the transaction starts even when the budget is already spent', () {
+      fakeAsync((async) {
+        // The deadline governs how long initialize waits, not whether a
+        // session is counted, so a slow cold start must not stop counting
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+          ..initGate = Completer<void>();
+        var begun = 0;
+        final host = _host(bridge, initClock: () => async.elapsed,
+            beginSession: () {
+          begun++;
+          return _immediateSession();
+        });
+        var returned = false;
+        host
+            .initialize(
+              sdkKey: _key,
+              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+            )
+            .then((_) => returned = true);
+        async.elapse(const Duration(seconds: 2));
+        bridge.initGate!.complete();
+        async.flushMicrotasks();
+        expect(returned, isTrue);
+        expect(begun, 1);
+        expect(bridge.installedAttributes!['session_count'],
+            const frb.FrbContextValue.number(3));
+        host.shutdown();
+        async.flushMicrotasks();
+      });
+    });
+
+    test('an unreachable plugin reports once when beginSession fails first',
+        () async {
+      // In a real app the device read can be the slow one, so the session
+      // failure arrives first and the device failure must be the duplicate
+      final errors = <Object>[];
+      final firstReport = Completer<void>();
+      final deviceGate = Completer<void>();
+      final host = _host(
+        _FakeBridge(stateValue: frb.ProviderState.ready),
+        providers: _providers(deviceType: () async {
+          await deviceGate.future;
+          throw const HostContextUnavailable();
+        }),
+        beginSession: () async => throw const HostContextUnavailable(),
+        reportError: (error, _) {
+          errors.add(error);
+          if (!firstReport.isCompleted) firstReport.complete();
+        },
+      );
+      final pending = host.initialize(
+        sdkKey: _key,
+        config: const CoproductConfig(startupTimeout: Duration(seconds: 5)),
+      );
+      await firstReport.future;
+      deviceGate.complete();
+      await pending;
+      await pumpEventQueue();
+      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
+          reason: 'one misconfiguration reads as one error in either order');
+      await host.shutdown();
+    });
+
+    test('an unreachable plugin reports once when both methods fail', () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(stateValue: frb.ProviderState.ready),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        beginSession: () async => throw const HostContextUnavailable(),
+        reportError: (error, _) => errors.add(error),
+      );
+      await host.initialize(sdkKey: _key);
+      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
+          reason: 'one misconfiguration reads as one error');
+      await host.shutdown();
+    });
+
+    test('a native side missing only beginSession still reports', () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(stateValue: frb.ProviderState.ready),
+        beginSession: () async => throw const HostContextUnavailable(),
+        reportError: (error, _) => errors.add(error),
+      );
+      await host.initialize(sdkKey: _key);
+      expect(errors, [const HostContextUnavailable()]);
+      await host.shutdown();
+    });
   });
 }

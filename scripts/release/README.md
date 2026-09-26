@@ -56,17 +56,21 @@ flutter/
 | `bin/check_identity.dart` | The pubspec, SDK constant, README and podspec all name the same version, *and* that version is a publishable release semver rather than a dev value |
 | `bin/license_audit.dart` | Third-party notices match a fresh audit of the shipped dependency graph, and nothing copyleft ships |
 | `bin/check_archive.dart` | Archive membership both ways, size limits, exact file count, and every staged binary re-verified against the build stamp |
-| `gates/gate-suite.sh` | Both platforms on both Flutter toolchains, symbols in the shipped artifacts, device acceptance, the testing library, and both no-Rust gates |
+| `gates/gate-suite.sh` | Both platforms on both Flutter toolchains, symbols in the shipped artifacts, the privacy manifest in the release iOS app, both native unit suites, device acceptance, the testing library, and both no-Rust gates |
+| `gates/privacy-manifest-check.sh` | The release iOS app built from the package carries exactly one Coproduct privacy manifest, declaring `UserDefaults` with reason `CA92.1`. It checks the manifest Xcode's privacy report reads, not the report itself, which Xcode generates only from an archive in the Organizer |
 | `gates/no-rust-gate.sh` | The package builds with no Rust toolchain reachable — the SDK's whole reason for shipping prebuilt binaries |
-| `gates/mutation-gates.sh` | That the gates above actually fail on broken input |
+| `gates/mutation-gates.sh` | That the release gates it enumerates fail, and name the mutation, when their input is broken. The privacy-manifest check is not yet among them |
 
 ### Why mutation gates exist
 
 A gate that passes on a broken subject is worse than no gate: it reports
-confidence it has not earned. `gates/mutation-gates.sh` breaks the package in
-twelve specific ways and requires each gate to fail *and name the mutation*, with
-a green baseline established first so that a gate already red for an unrelated
-reason cannot masquerade as a catch.
+confidence it has not earned. `gates/mutation-gates.sh` breaks the package in a
+series of specific ways and requires each gate to fail *and name the mutation*,
+with a green baseline established first so that a gate already red for an
+unrelated reason cannot masquerade as a catch.
+
+The privacy-manifest check has so far been shown to fail only by hand. It has no
+standing mutation yet.
 
 Every defect found in this pipeline so far was a gate verifying an adjacent
 property rather than the one that mattered — the file exists, the symbols

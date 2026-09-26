@@ -3,14 +3,23 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
+// Distinct session values, so a rule wired to the wrong option cannot pass
+const _sessionArgs = [
+  '--session-count', '7',
+  '--first-seen-floor', '111',
+  '--first-seen-ceiling', '222',
+];
+
 Future<(Process, int)> _startFixture(String key,
-    {List<String> alsoAuthorize = const []}) async {
+    {List<String> alsoAuthorize = const [],
+    List<String> sessionArgs = _sessionArgs}) async {
   final p = await Process.start(Platform.resolvedExecutable, [
     'run',
     'bin/fixture.dart',
     '--platform', 'ios',
     '--version', '1.0.0',
     '--build', '1',
+    ...sessionArgs,
     '--key', key,
     for (final extra in alsoAuthorize) ...['--key', extra],
   ]);
@@ -38,6 +47,44 @@ void main() {
     expect(body.containsKey('snapshot'), isTrue);
     expect(body.containsKey('sdkContext'), isFalse);
     client.close();
+  });
+
+  test('serves each session rule the value its option gave', () async {
+    const key = 'cpk_mob_abcdefghjkmnpqrstvwxyz0123456789';
+    final (proc, port) = await _startFixture(key);
+    addTearDown(() => proc.kill());
+    final served = await _snapshot(port, key);
+    expect(served.statusCode, 200);
+    final flags = ((jsonDecode(served.body) as Map)['snapshot'] as Map)['flags']
+        as List;
+    List<Object?> valuesOf(String flagKey) {
+      final flag = flags.cast<Map>().singleWhere((f) => f['key'] == flagKey);
+      final rule = (flag['targetingRules'] as List).single as Map;
+      return (rule['condition'] as Map)['values'] as List<Object?>;
+    }
+
+    expect(valuesOf('auto-session-count'), ['7']);
+    expect(valuesOf('auto-first-seen-at-floor'), ['111']);
+    expect(valuesOf('auto-first-seen-at-ceiling'), ['222']);
+  });
+
+  test('refuses to start without a first_seen_at ceiling', () async {
+    final p = await Process.start(Platform.resolvedExecutable, [
+      'run',
+      'bin/fixture.dart',
+      '--platform', 'ios',
+      '--version', '1.0.0',
+      '--build', '1',
+      '--session-count', '7',
+      '--first-seen-floor', '111',
+      '--key', 'cpk_mob_abcdefghjkmnpqrstvwxyz0123456789',
+    ]);
+    addTearDown(() => p.kill(ProcessSignal.sigkill));
+    final stdoutText = p.stdout.transform(utf8.decoder).join();
+    final stderrText = p.stderr.transform(utf8.decoder).join();
+    expect(await p.exitCode.timeout(const Duration(seconds: 30)), 2);
+    expect(await stdoutText, isNot(contains('COPRODUCT_FIXTURE_READY')));
+    expect(await stderrText, contains('--first-seen-ceiling is required'));
   });
 
   test('rejects a wrong path, method, and missing bearer', () async {

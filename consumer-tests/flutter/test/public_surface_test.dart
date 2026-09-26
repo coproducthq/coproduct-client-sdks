@@ -45,6 +45,10 @@ void main() {
     expect(UnsupportedSchemaVersion, isNotNull);
     expect(CoproductAlreadyInitialized, isNotNull);
     expect(CoproductInitializationCancelled, isNotNull);
+    expect(CoproductUnsupportedIsolate, isNotNull);
+    expect(HostContextUnavailable, isNotNull);
+    expect(SessionAttributesUnavailable, isNotNull);
+    expect(SessionAttributesUnavailableCause, isNotNull);
   });
 
   test('package:coproduct/testing.dart exports its promised surface', () {

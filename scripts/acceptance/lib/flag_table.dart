@@ -13,6 +13,9 @@ enum FlagKind { untargeted, auto, identity }
 const String kPlatformToken = '<PLATFORM>';
 const String kAppVersionToken = '<APP_VERSION>';
 const String kAppBuildToken = '<APP_BUILD>';
+const String kSessionCountToken = '<SESSION_COUNT>';
+const String kFirstSeenFloorToken = '<FIRST_SEEN_FLOOR>';
+const String kFirstSeenCeilingToken = '<FIRST_SEEN_CEILING>';
 
 class FlagSpec {
   const FlagSpec({
@@ -161,6 +164,53 @@ const List<FlagSpec> kFlagTable = [
     getterTarget: 'timezone-present',
     getterMiss: 'timezone-missing',
     callerDefault: 'timezone-default',
+  ),
+  FlagSpec(
+    key: 'auto-session-count',
+    flagType: 'STRING',
+    getter: GetterType.string,
+    kind: FlagKind.auto,
+    attribute: 'session_count',
+    // An exact count per pass, which is what proves one increment per launch.
+    // The core compares a number by its shortest string form, so 2.0 is "2"
+    operator: 'equals',
+    values: [kSessionCountToken],
+    variationTarget: 'session-count-matched',
+    variationMiss: 'session-count-missed',
+    getterTarget: 'session-count-matched',
+    getterMiss: 'session-count-missed',
+    callerDefault: 'session-count-default',
+  ),
+  FlagSpec(
+    key: 'auto-first-seen-at-floor',
+    flagType: 'STRING',
+    getter: GetterType.string,
+    kind: FlagKind.auto,
+    attribute: 'first_seen_at',
+    operator: 'gte',
+    values: [kFirstSeenFloorToken],
+    variationTarget: 'first-seen-floor-matched',
+    variationMiss: 'first-seen-floor-missed',
+    getterTarget: 'first-seen-floor-matched',
+    getterMiss: 'first-seen-floor-missed',
+    callerDefault: 'first-seen-floor-default',
+  ),
+  FlagSpec(
+    key: 'auto-first-seen-at-ceiling',
+    flagType: 'STRING',
+    getter: GetterType.string,
+    kind: FlagKind.auto,
+    attribute: 'first_seen_at',
+    // Paired with the floor, so the value is bounded on both sides: seconds
+    // rather than milliseconds, and on the relaunch, unchanged rather than
+    // recreated
+    operator: 'lt',
+    values: [kFirstSeenCeilingToken],
+    variationTarget: 'first-seen-ceiling-matched',
+    variationMiss: 'first-seen-ceiling-missed',
+    getterTarget: 'first-seen-ceiling-matched',
+    getterMiss: 'first-seen-ceiling-missed',
+    callerDefault: 'first-seen-ceiling-default',
   ),
   FlagSpec(
     key: 'identity-bool',

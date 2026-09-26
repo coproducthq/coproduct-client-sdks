@@ -56,5 +56,8 @@ scripts/release/flutter/pubspec.lock
 # Superpowers plugin
 docs/superpowers/
 
+# Internal planning, kept out of the public repository
+BACKLOG.md
+
 # Local automation scratch
 .superpowers/

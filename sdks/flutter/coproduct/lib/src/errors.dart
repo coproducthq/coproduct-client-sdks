@@ -30,7 +30,8 @@ final class CoproductUnsupportedIsolate implements CoproductException {
 /// Handed to the developer's error reporter when the host-context plugin does
 /// not answer. Distinct from a value the device declined to supply: this one
 /// means the native side is unreachable, which leaves targeting on the
-/// attributes it feeds silently falling through until it is fixed
+/// attributes it feeds silently falling through until it is fixed. Reported
+/// once per initialization however many of its methods fail
 final class HostContextUnavailable implements CoproductException {
   const HostContextUnavailable();
   @override
@@ -39,10 +40,60 @@ final class HostContextUnavailable implements CoproductException {
   int get hashCode => (HostContextUnavailable).hashCode;
   @override
   String toString() =>
-      'Coproduct: the host-context plugin did not answer readDeviceType on '
-      'channel app.coproduct.flutter/host_context, so device_type cannot be '
-      'populated. Either the plugin is not registered, or the native side is '
-      'older than the Dart side. Rules targeting it will not match on this device';
+      'Coproduct: the host-context plugin did not answer on channel '
+      'app.coproduct.flutter/host_context. It supplies device_type, '
+      'first_seen_at, and session_count, and whichever it could not answer for '
+      'are absent. Either the plugin is not registered, or its native side is '
+      'older than the Dart side and does not implement the method. Conditions '
+      'that need those attributes to have a value will not match on this '
+      'device';
+}
+
+/// Why the session attributes are unavailable. New causes may be added, so a
+/// switch over this needs a default branch
+final class SessionAttributesUnavailableCause {
+  const SessionAttributesUnavailableCause._(this._name, this._description);
+
+  /// The native session store could not be read reliably or did not confirm
+  /// its write
+  static const storageFailure = SessionAttributesUnavailableCause._(
+      'storageFailure',
+      'the native session store could not be read reliably or did not confirm '
+          'its write, so this process omits the session attributes rather than '
+          'publish values that may be wrong');
+
+  /// The platform side answered with something that is not a valid session
+  /// pair
+  static const malformedResponse = SessionAttributesUnavailableCause._(
+      'malformedResponse',
+      'the host-context plugin answered beginSession with a malformed session '
+          'record');
+
+  final String _name;
+  final String _description;
+
+  @override
+  String toString() => _name;
+}
+
+/// Handed to the developer's error reporter when first_seen_at and
+/// session_count cannot be published for this run. The two are always omitted
+/// together, never one without the other, and initialization proceeds.
+/// [cause] distinguishes a storage failure from a malformed response. The text
+/// of [toString] is for people to read and must not be parsed
+final class SessionAttributesUnavailable implements CoproductException {
+  const SessionAttributesUnavailable(this.cause);
+  final SessionAttributesUnavailableCause cause;
+  @override
+  bool operator ==(Object other) =>
+      other is SessionAttributesUnavailable && other.cause == cause;
+  @override
+  int get hashCode => cause.hashCode;
+  @override
+  String toString() =>
+      'Coproduct: first_seen_at and session_count are not available for this '
+      'run: ${cause._description}. Conditions that need them to have a value '
+      'will not match in this process';
 }
 
 /// Thrown when no SDK key was supplied

@@ -66,6 +66,25 @@ Two more gates run the Flutter SDK against an already-booted simulator or emulat
 
 Find a booted device id with `flutter devices`. The Android gate also requires `JAVA_HOME`, `ANDROID_HOME`, and `ANDROID_NDK_HOME` as above.
 
+Each acceptance gate runs the device suite twice. The first pass starts from an
+uninstalled app and keeps it installed with `--no-uninstall`. That flag does not
+exist in Flutter 3.38.1, the floor, so the gate needs a newer release. The
+release gate suite runs it on 3.44.0. The runner waits, then runs the suite
+again against the same install, so the second pass is a real process relaunch
+and the session attributes are checked across it.
+The runner reads the `first_seen_at` bounds from the device's own clock (a
+simulator shares the host's), because an emulator can run minutes behind the
+host, and it fails the run if that clock steps against the host's by more than a
+few seconds across either pass. Each run logs the device's offset from the host.
+
+Storage-failure behavior is verified through fault injection at the native
+storage layer on both platforms and through Dart host tests for failed and
+malformed native results. No device acceptance gate induces an actual
+platform-storage failure. Persistence across a real process relaunch is covered
+end to end. Concurrent callers and process-lifetime deduplication are verified
+at the native transaction layer. Registration through two real FlutterEngines
+and behavior through a driven Flutter hot restart are not covered end to end.
+
 ### Supporting packaging scripts
 
 The iOS scripts depend on these packaging scripts that can also be run on their own:
@@ -160,6 +179,35 @@ cargo test --workspace                                    # the Rust core and bo
 
 The release pipeline runs the first three and fails on any of them. It does not
 run the fourth, so that one is on you.
+
+### Native unit suites
+
+The Flutter plugin's Kotlin and Swift code (the session store and the device
+classifier) has unit tests of its own. The release gate suite runs them, but
+nothing else does, so run them whenever you change anything under
+`sdks/flutter/coproduct/android/src` or `sdks/flutter/coproduct/ios`. Both run
+against the example app.
+
+```bash
+# Kotlin, which needs JDK 17. `/usr/libexec/java_home -v 17` does not always
+# find a Homebrew JDK, so set JAVA_HOME to it directly
+(cd sdks/flutter/coproduct/example/android && \
+  JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :coproduct:testDebugUnitTest)
+
+# Swift, on a booted simulator. Run pod install after adding a file under
+# ios/Classes or ios/Resources: CocoaPods records a development pod's files
+# when it installs, so a new file is otherwise not compiled
+(cd sdks/flutter/coproduct/example/ios && pod install && \
+  xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
+    -parallel-testing-enabled NO \
+    -destination "platform=iOS Simulator,id=<booted simulator id>")
+```
+
+Read the Kotlin results from the JUnit reports under
+`sdks/flutter/coproduct/example/build/coproduct/test-results/` rather than from
+the exit status of a piped command. `-parallel-testing-enabled NO` keeps the
+Swift tests on the simulator you named: the scheme allows parallel testing,
+which runs them on a clone and shuts your simulator down.
 
 ## Manual build commands
 
@@ -491,6 +539,8 @@ git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
 | Step | Who |
 |---|---|
 | 1, 2, 5 — environment, devices, the pipeline | automated once started |
+| Before the first publication: archive a clean consumer in Xcode, generate the privacy report in the Organizer, and confirm it lists the `UserDefaults` declaration from the `coproduct_privacy` bundle | human: the pipeline checks the manifest inside the release app, but Xcode generates the report only from the Organizer |
+| Before the first publication: the session check on a physical iPhone, below | human: no simulator or emulator can be put in the state before the first unlock after boot |
 | 3, 4 — preparing and committing the version | human |
 | 6 — `publish.sh` | human, and the only supported way to publish |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
@@ -498,6 +548,39 @@ git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
 
 Dart cannot publish a new package directly to a verified publisher, which is why
 the first publication and the transfer are both manual.
+
+#### The session check on a physical iPhone
+
+Before the user first unlocks an iPhone after a restart, the file the session
+record lives in cannot be read, and `UserDefaults` reports it as empty. The SDK
+detects that and leaves `first_seen_at` and `session_count` unset for the
+launch rather than restarting the count over the real record. No simulator can
+be put in that state, so it is checked on a device before the first
+publication. An app runs before the first unlock only if something launches it
+in the background, and Xcode cannot launch an app on a locked device, so the
+check needs a test app with a background mode. The example app has none.
+
+1. Build a signed test app that depends on the SDK and can be launched in the
+   background by an exact, repeatable trigger, such as a specific silent push
+   or background task. Write the trigger down.
+2. Give it a `FlutterError.onError` handler that logs
+   `details.exception.runtimeType` and, for `SessionAttributesUnavailable`, its
+   `cause`. The default handler is not enough: it prints only the first error
+   in full and does not reliably name the exception's type.
+3. Install and open the app once, then terminate it. Download its container
+   from Xcode's Devices window and record `firstSeenAt` and `sessionCount` from
+   the `app.coproduct.flutter.session` entry in
+   `Library/Preferences/<bundle id>.plist`.
+4. Restart the phone without unlocking it and trigger the background launch.
+   Confirm that the process ran and that it reported
+   `SessionAttributesUnavailable` with the `storageFailure` cause.
+5. Unlock, terminate that process, and open the app. Download the container
+   again and confirm `firstSeenAt` equals the recorded value and `sessionCount`
+   is the recorded value plus one.
+
+Android has the equivalent only for an app that opts into direct boot, where
+the preferences file cannot be opened before the first unlock. The same check
+applies to such an app.
 
 #### When a gate fails
 
@@ -514,6 +597,14 @@ rather than defects, and both are common:
   `uptime`, `sysctl vm.swapusage`, and whether a build that once took seconds now
   takes minutes. A cold Gradle cache and a thrashing machine both look like a
   hung gate, and neither is a defect in the package.
+- **"the device clock moved Ns against the host during the run"**: an Android
+  acceptance run stopped because the emulator's clock drifted while it ran,
+  which happens when the host is overloaded. Free memory, cold-boot the emulator
+  with `"$ANDROID_HOME/emulator/emulator" -avd <name> -no-snapshot-load`, and
+  check that its offset holds steady for a minute or two by comparing
+  `adb shell date +%s` with `date +%s`, then rerun. Do not raise
+  `kClockStepSeconds`: a clock that moves during a run is exactly when the
+  `first_seen_at` bounds stop proving anything.
 
 #### Toolchains and the compatibility floor
 
