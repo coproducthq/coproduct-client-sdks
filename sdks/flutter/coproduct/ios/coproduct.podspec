@@ -21,6 +21,9 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
+  # NWPathMonitor, for network_type. Declared rather than left to Swift
+  # autolinking, which a consumer's linkage settings can defeat
+  s.frameworks = 'Network'
   s.platform = :ios, '15.0'
 
   s.swift_version = '5.0'

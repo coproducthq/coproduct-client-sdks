@@ -1,10 +1,12 @@
 package app.coproduct.flutter
 
 import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.nio.ByteBuffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -52,5 +54,17 @@ class ChannelRegistrationTest {
         })
         assertEquals("app.coproduct.flutter/host_context", messenger.channel)
         assertSame(messenger.backgroundQueue, messenger.queue)
+    }
+
+    @Test fun theNetworkChannelRunsOnThePlatformThread() {
+        // The observer's state lives on the main thread with its posted
+        // callbacks. A task queue would run listen and cancel beside them
+        val messenger = RecordingMessenger()
+        CoproductHostContextPlugin.registerNetworkChannel(messenger, object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink) {}
+            override fun onCancel(arguments: Any?) {}
+        })
+        assertEquals("app.coproduct.flutter/network_type", messenger.channel)
+        assertNull(messenger.queue)
     }
 }

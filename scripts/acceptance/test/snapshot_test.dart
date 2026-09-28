@@ -26,7 +26,7 @@ void main() {
     expect(snap['version'], 1);
     expect(snap['environment'], <String, Object?>{});
     expect(snap['segments'], <Object?>[]);
-    expect((snap['flags'] as List).length, 16);
+    expect((snap['flags'] as List).length, 17);
   });
 
   test('the causality invariant holds for every targeted flag', () {

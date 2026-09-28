@@ -126,4 +126,86 @@ void main() {
     await queue.add(() async {});
     expect(sent, 0);
   });
+
+  group('publishResolved', () {
+    test('decides what to write when the operation runs, not when it is queued',
+        () async {
+      final sent = <Map<String, frb.FrbContextValue>>[];
+      final queue = SerialQueue();
+      final upsert = AutoUpsert(
+        queue: queue,
+        isCurrent: () => true,
+        send: (attributes) async => sent.add(attributes),
+        onError: (_, _) {},
+      );
+      final release = Completer<void>();
+      unawaited(queue.add(() => release.future));
+      var value = 'wifi';
+      var sentCalls = 0;
+      upsert.publishResolved(
+        () => {'network_type': frb.FrbContextValue.string(value)},
+        onSent: () => sentCalls++,
+      );
+      value = 'cellular';
+      release.complete();
+      await queue.add(() async {});
+      expect(sent, [
+        {'network_type': const frb.FrbContextValue.string('cellular')}
+      ]);
+      expect(sentCalls, 1);
+    });
+
+    test('a null resolution writes nothing and reports nothing sent', () async {
+      var sends = 0;
+      var sentCalls = 0;
+      final queue = SerialQueue();
+      final upsert = AutoUpsert(
+        queue: queue,
+        isCurrent: () => true,
+        send: (_) async => sends++,
+        onError: (_, _) {},
+      );
+      upsert.publishResolved(() => null, onSent: () => sentCalls++);
+      await queue.add(() async {});
+      expect(sends, 0);
+      expect(sentCalls, 0);
+    });
+
+    test('a superseded generation is checked before resolving', () async {
+      var resolved = 0;
+      final queue = SerialQueue();
+      final upsert = AutoUpsert(
+        queue: queue,
+        isCurrent: () => false,
+        send: (_) async {},
+        onError: (_, _) {},
+      );
+      upsert.publishResolved(() {
+        resolved++;
+        return {'network_type': const frb.FrbContextValue.string('wifi')};
+      }, onSent: () {});
+      await queue.add(() async {});
+      expect(resolved, 0);
+    });
+
+    test('a failed send is reported and not counted as sent', () async {
+      final errors = <Object>[];
+      var sentCalls = 0;
+      final queue = SerialQueue();
+      final upsert = AutoUpsert(
+        queue: queue,
+        isCurrent: () => true,
+        send: (_) async => throw StateError('core refused'),
+        onError: (error, _) => errors.add(error),
+      );
+      upsert.publishResolved(
+        () => {'network_type': const frb.FrbContextValue.string('wifi')},
+        onSent: () => sentCalls++,
+      );
+      await queue.add(() async {});
+      await pumpEventQueue();
+      expect(errors.single, isA<StateError>());
+      expect(sentCalls, 0);
+    });
+  });
 }

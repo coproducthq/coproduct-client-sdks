@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/host_context_channel.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:coproduct/src/session.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,6 +39,7 @@ void main() {
     final message = const HostContextUnavailable().toString();
     expect(message, contains('app.coproduct.flutter/host_context'));
     expect(message, contains('device_type'));
+    expect(message, contains('network_type'));
     expect(message, contains('first_seen_at'));
     expect(message, contains('session_count'));
     // Both causes, because an unregistered plugin and a native side that lacks
@@ -140,6 +144,110 @@ void main() {
             'first_seen_at': const frb.FrbContextValue.number(1767225600),
             'session_count': const frb.FrbContextValue.number(3),
           });
+    });
+  });
+
+  group('network_type events', () {
+    const networkChannel = EventChannel('app.coproduct.flutter/network_type');
+
+    tearDown(() => messenger.setMockStreamHandler(networkChannel, null));
+
+    test('each listen carries its epoch and receives the envelope', () async {
+      Object? listenedWith;
+      messenger.setMockStreamHandler(
+        networkChannel,
+        MockStreamHandler.inline(onListen: (arguments, events) {
+          listenedWith = arguments;
+          events.success({'epoch': arguments, 'value': 'wifi'});
+        }),
+      );
+      final first =
+          await const HostContextChannel().networkTypeEvents(12).first;
+      expect(listenedWith, 12);
+      expect(first, {'epoch': 12, 'value': 'wifi'});
+    });
+
+    test('a listen replacing a cancelled one keeps its handler and the calls '
+        'reach the native side in order', () async {
+      final calls = <String>[];
+      messenger.setMockStreamHandler(
+        networkChannel,
+        MockStreamHandler.inline(
+          onListen: (arguments, events) {
+            calls.add('listen $arguments');
+            events.success({'epoch': arguments, 'value': 'wifi'});
+          },
+          onCancel: (arguments) => calls.add('cancel $arguments'),
+        ),
+      );
+      final seen = <Object?>[];
+      final first =
+          const HostContextChannel().networkTypeEvents(1).listen(seen.add);
+      await pumpEventQueue();
+      // Cancelled and replaced in one synchronous step, as a resume does
+      unawaited(first.cancel());
+      final second =
+          const HostContextChannel().networkTypeEvents(2).listen(seen.add);
+      await pumpEventQueue();
+      expect(calls, ['listen 1', 'cancel 1', 'listen 2']);
+      expect(seen, [
+        {'epoch': 1, 'value': 'wifi'},
+        {'epoch': 2, 'value': 'wifi'},
+      ]);
+      await second.cancel();
+      await pumpEventQueue();
+      expect(calls.last, 'cancel 2');
+    });
+
+    test('a native error arrives as a stream error', () async {
+      messenger.setMockStreamHandler(
+        networkChannel,
+        MockStreamHandler.inline(onListen: (arguments, events) {
+          events.error(code: 'registration-failed', message: 'too many');
+        }),
+      );
+      await expectLater(
+        const HostContextChannel().networkTypeEvents(1),
+        emitsError(isA<PlatformException>()
+            .having((e) => e.code, 'code', 'registration-failed')),
+      );
+    });
+
+    test('a native side without the network channel errors the stream once '
+        'with HostContextUnavailable and reports nothing through FlutterError',
+        () async {
+      // An older native side registers the method channel but not this one.
+      // The failure arrives on the stream, where the caller reports it once,
+      // and neither the listen nor the cancel reports through FlutterError
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+      final seen = <Object>[];
+      final subscription = const HostContextChannel()
+          .networkTypeEvents(1)
+          .listen((_) => seen.add('event'),
+              onError: (Object error) => seen.add(error),
+              onDone: () => seen.add('done'));
+      await pumpEventQueue();
+      await subscription.cancel();
+      await pumpEventQueue();
+      expect(seen, [const HostContextUnavailable()]);
+      expect(reported, isEmpty);
+    });
+
+    test('a native listen that replies with an error arrives as a stream error',
+        () async {
+      const methods = MethodChannel('app.coproduct.flutter/network_type');
+      addTearDown(() => messenger.setMockMethodCallHandler(methods, null));
+      messenger.setMockMethodCallHandler(methods, (call) async {
+        if (call.method == 'listen') throw PlatformException(code: 'boom');
+        return null;
+      });
+      await expectLater(
+        const HostContextChannel().networkTypeEvents(1),
+        emitsError(isA<PlatformException>().having((e) => e.code, 'code', 'boom')),
+      );
     });
   });
 }

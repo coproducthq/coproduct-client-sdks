@@ -32,13 +32,35 @@ class AutoUpsert {
     // map would otherwise change what was already published
     final snapshot = Map<String, frb.FrbContextValue>.unmodifiable(attributes);
     if (snapshot.isEmpty) return;
-    unawaited(_queue.add(() async {
+    _enqueue(() async {
       // Checked here rather than in publish: this operation can wait behind a
       // slow identify while the runtime is torn down, and a check at enqueue
       // time would pass and then apply to a replacement runtime
       if (!_isCurrent()) return;
       await _send(snapshot);
-    }).catchError((Object error, StackTrace stack) {
+    });
+  }
+
+  /// Like [publish], but what to write is decided when the operation runs, and
+  /// [onSent] runs once the write has reached the core. A live source uses it
+  /// so a value whose source went stale while it waited is never written, and
+  /// so its record of what the core holds advances only for a write that
+  /// happened. A null from [resolve] writes nothing
+  void publishResolved(
+    Map<String, frb.FrbContextValue>? Function() resolve, {
+    required void Function() onSent,
+  }) {
+    _enqueue(() async {
+      if (!_isCurrent()) return;
+      final attributes = resolve();
+      if (attributes == null || attributes.isEmpty) return;
+      await _send(Map<String, frb.FrbContextValue>.unmodifiable(attributes));
+      onSent();
+    });
+  }
+
+  void _enqueue(Future<void> Function() operation) {
+    unawaited(_queue.add(operation).catchError((Object error, StackTrace stack) {
       try {
         _onError(error, stack);
       } catch (_) {

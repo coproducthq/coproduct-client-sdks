@@ -2,7 +2,7 @@ import 'package:coproduct_acceptance/flag_table.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('the table has the sixteen expected flags', () {
+  test('the table has the seventeen expected flags', () {
     final keys = kFlagTable.map((f) => f.key).toList();
     expect(keys, [
       'fetch-control',
@@ -16,12 +16,22 @@ void main() {
       'auto-session-count',
       'auto-first-seen-at-floor',
       'auto-first-seen-at-ceiling',
+      'auto-network-type',
       'identity-bool',
       'identity-string',
       'identity-int',
       'identity-number',
       'identity-json',
     ]);
+  });
+
+  test('the network row proves a value arrived without naming the transport',
+      () {
+    final row = kFlagTable.singleWhere((f) => f.key == 'auto-network-type');
+    expect(row.kind, FlagKind.auto);
+    expect(row.attribute, 'network_type');
+    expect(row.operator, 'not_equals');
+    expect(row.values, ['none']);
   });
 
   test('every targeted flag has a three-way distinct target, miss, and default',

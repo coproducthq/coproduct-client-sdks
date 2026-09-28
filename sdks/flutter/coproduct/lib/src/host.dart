@@ -9,6 +9,7 @@ import 'init_identity.dart';
 import 'manager.dart';
 import 'metadata_collector.dart';
 import 'native_bridge.dart';
+import 'network_type.dart';
 import 'provider_state.dart';
 import 'readiness.dart';
 import 'runtime.dart';
@@ -74,6 +75,8 @@ class CoproductHost<H extends Object, C extends Object> {
     required void Function(Object error, StackTrace stack) reportError,
     required bool Function() isRootIsolate,
     required Future<SessionPair> Function() beginSession,
+    required NetworkTypeEvents networkTypeEvents,
+    required ForegroundBinder bindNetworkResume,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
   })  : _bridge = bridge, // ignore: prefer_initializing_formals
@@ -86,6 +89,8 @@ class CoproductHost<H extends Object, C extends Object> {
         _reportError = reportError,
         _isRootIsolate = isRootIsolate, // ignore: prefer_initializing_formals
         _beginSession = beginSession, // ignore: prefer_initializing_formals
+        _networkTypeEvents = networkTypeEvents, // ignore: prefer_initializing_formals
+        _bindNetworkResume = bindNetworkResume, // ignore: prefer_initializing_formals
         _initClock = initClock, // ignore: prefer_initializing_formals
         _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
         _manager = CoproductManager<_ActiveRuntime<C>>(
@@ -103,6 +108,10 @@ class CoproductHost<H extends Object, C extends Object> {
   final void Function(Object, StackTrace) _reportError;
   final bool Function() _isRootIsolate;
   final Future<SessionPair> Function() _beginSession;
+  final NetworkTypeEvents _networkTypeEvents;
+  // Separate from the polling binder, because network observation resumes
+  // whether or not foreground polling is enabled
+  final ForegroundBinder _bindNetworkResume;
   final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
@@ -312,12 +321,23 @@ class CoproductHost<H extends Object, C extends Object> {
           final disposeForeground = config.pollOnForeground
               ? _bindForeground(scheduler.onForeground)
               : null;
+          // Listens from the moment the runtime starts, outside the startup
+          // budget. Its writes wait for the initial batch like any late
+          // result, and are dropped if the build fails
+          final networkType = NetworkTypeService(
+            events: _networkTypeEvents,
+            upsert: batchPublished.future,
+            bindResume: _bindNetworkResume,
+            onUnavailable: reportHostContextUnavailable,
+          );
           final runtime = CoproductRuntime(
             generation: generation,
             scheduler: scheduler,
             transport: transport,
             coreShutdown: () => _bridge.shutdown(handle),
             disposeForeground: disposeForeground,
+            networkType: networkType,
+            onError: _reportError,
           );
           return _ActiveRuntime<C>(client, runtime);
         },

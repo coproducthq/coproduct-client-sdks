@@ -17,6 +17,16 @@ launch and `SessionAttributesUnavailable` is reported through
 malformed response. The package now ships an Apple privacy manifest
 declaring its use of `UserDefaults`.
 
+`network_type` is now filled in automatically and updated when the connection
+changes: `wifi`, `cellular`, `ethernet`, `other`, or `none`, so a rule can
+target users on cellular or offline with no code from you. It has no value until
+its first reading, which usually arrives during or shortly after initialization.
+`initialize` never waits for it. A device on a VPN reports
+`other` when the system does not say which connection the VPN uses, which is
+always the case on Android 7.0 to 8.1. On Android the package now declares the
+`ACCESS_NETWORK_STATE` permission, a normal permission granted at install with
+no prompt, which merges into your app's manifest.
+
 An automatic attribute whose source is slow no longer costs that attribute the
 whole session. The startup timeout still bounds how long `initialize` waits, but
 a value that arrives after it now publishes when it lands, and observers re-emit,
@@ -31,8 +41,8 @@ If the SDK's platform component is not registered in your app, or its native
 side is older than the Dart side, that is reported through
 `FlutterError.onError` rather than passing silently, in every build rather than
 debug only, because the symptom is otherwise a rule on `device_type`,
-`first_seen_at`, or `session_count` that silently stops matching, with nothing
-to explain why.
+`network_type`, `first_seen_at`, or `session_count` that silently stops
+matching, with nothing to explain why.
 
 First stable release. The SDK fetches and evaluates real flags on a booted
 device: it polls the Coproduct endpoint, applies automatic device and app

@@ -276,6 +276,8 @@ final class Coproduct {
     reportError: _reportError,
     isRootIsolate: isRootIsolateNow,
     beginSession: const HostContextChannel().beginSession,
+    networkTypeEvents: const HostContextChannel().networkTypeEvents,
+    bindNetworkResume: appLifecycleForegroundBinder,
   );
 
   /// Initializes the SDK: validates the config, constructs the client against the

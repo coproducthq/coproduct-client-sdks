@@ -182,11 +182,11 @@ run the fourth, so that one is on you.
 
 ### Native unit suites
 
-The Flutter plugin's Kotlin and Swift code (the session store and the device
-classifier) has unit tests of its own. The release gate suite runs them, but
-nothing else does, so run them whenever you change anything under
-`sdks/flutter/coproduct/android/src` or `sdks/flutter/coproduct/ios`. Both run
-against the example app.
+The Flutter plugin's Kotlin and Swift code (the session store, the device
+classifier, and the network observer) has unit tests of its own. The release
+gate suite runs them, but nothing else does, so run them whenever you change
+anything under `sdks/flutter/coproduct/android/src` or
+`sdks/flutter/coproduct/ios`. Both run against the example app.
 
 ```bash
 # Kotlin, which needs JDK 17. `/usr/libexec/java_home -v 17` does not always
@@ -202,6 +202,10 @@ against the example app.
     -parallel-testing-enabled NO \
     -destination "platform=iOS Simulator,id=<booted simulator id>")
 ```
+
+The same applies to `consumer-tests/flutter/ios`: run `pod install` there too
+after adding a file under `ios/Classes`, or its stale CocoaPods snapshot fails
+the iOS acceptance gate's build.
 
 Read the Kotlin results from the JUnit reports under
 `sdks/flutter/coproduct/example/build/coproduct/test-results/` rather than from

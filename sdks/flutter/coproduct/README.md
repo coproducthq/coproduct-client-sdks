@@ -205,11 +205,12 @@ on the device unless you send them somewhere yourself.
 
 Attributes come from two places:
 
-- **The SDK fills in nine automatically**, with no code from you: `platform`,
+- **The SDK fills in ten automatically**, with no code from you: `platform`,
   `os_version`, `app_version`, `app_build`, `locale`, `timezone`,
-  `device_type`, `first_seen_at`, and `session_count`. So you can target
-  Android only, or a locale, or tablets, or new users, or roll a feature out to
-  builds at or above a version, straight away.
+  `device_type`, `network_type`, `first_seen_at`, and `session_count`. So you
+  can target Android only, or a locale, or tablets, or users on cellular, or
+  new users, or roll a feature out to builds at or above a version, straight
+  away.
 
   `device_type` is `"phone"` or `"tablet"`, and is **left unset rather than
   guessed** on a device that is neither. On iOS it comes from the interface
@@ -221,6 +222,22 @@ Attributes come from two places:
   foldable is classified from its posture when the SDK starts and is not
   reclassified when it folds, so write rules that tolerate either value if that
   matters to you.
+
+  `network_type` is how the device is connected right now: `"wifi"`,
+  `"cellular"`, `"ethernet"`, `"other"`, or `"none"`. It is live, so it changes
+  when the connection does and observations re-emit. `"other"` means connected
+  some other way, such as Bluetooth or USB tethering or satellite, and `"none"`
+  means no connection. It describes the connection, not whether the internet is
+  reachable: a Wi-Fi network behind a sign-in page is still `"wifi"`. Behind a
+  VPN, Android 9 and later usually reports the connection underneath. When the
+  system cannot say which connection the VPN uses, the value is `"other"`, as it
+  always is on Android 7.0 to 8.1. It has no value until its first reading,
+  which usually arrives during or shortly after initialization. `initialize`
+  never waits for it. If the SDK loses its connection to the system's network
+  updates, it keeps retrying and meanwhile keeps the last value it saw, so for a
+  while it can describe a connection the device has since left.
+  On Android the SDK declares the `ACCESS_NETWORK_STATE` permission, which
+  merges into your app's manifest. It is granted at install and never prompts.
 
   `first_seen_at` is when the SDK first ran in this installation of your app, in
   whole seconds since the Unix epoch, UTC. `session_count` is roughly how many
@@ -517,10 +534,10 @@ is reported this way too.
 **`FlutterError.onError` reports `HostContextUnavailable`.** The SDK's platform
 component did not answer. Either it is not registered in your app, which can
 happen when Flutter is added to an existing native app, or its native side is
-older than the Dart side. `device_type`, `first_seen_at`, and `session_count`
-are then left unset. Conditions that need one of them to have a value do not
-match, and an `is_not_set` condition on it does. Flags otherwise evaluate
-normally.
+older than the Dart side. `device_type`, `network_type`, `first_seen_at`, and
+`session_count` are then left unset. Conditions that need one of them to have a
+value do not match, and an `is_not_set` condition on it does. Flags otherwise
+evaluate normally.
 
 ## Testing your widgets
 

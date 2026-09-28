@@ -6,6 +6,7 @@ import 'package:coproduct/src/host.dart';
 import 'package:coproduct/src/http_transport.dart';
 import 'package:coproduct/src/metadata_collector.dart';
 import 'package:coproduct/src/native_bridge.dart';
+import 'package:coproduct/src/network_type.dart';
 import 'package:coproduct/src/secure_identity_store.dart';
 import 'package:coproduct/src/serial_queue.dart';
 import 'package:coproduct/src/session.dart';
@@ -73,14 +74,52 @@ class _RecordingClient extends http.BaseClient {
 /// A ForegroundBinder that records binds and disposes and captures the callback,
 /// so a test can assert the listener was installed, disposed, or never bound.
 class _RecordingForeground {
+  _RecordingForeground({this.throwsOnBind = false});
+
+  /// Makes the binder throw instead of binding, so a test can cover a binder
+  /// that fails
+  final bool throwsOnBind;
   int binds = 0;
   int disposes = 0;
   void Function()? onForeground;
   ForegroundBinder get binder => (callback) {
         binds++;
+        if (throwsOnBind) throw StateError('bind failed');
         onForeground = callback;
         return () => disposes++;
       };
+}
+
+/// A network source that never reports, for tests not about the network. It
+/// neither errors nor ends, so it schedules no retries
+Stream<Object?> _silentNetwork(int epoch) =>
+    StreamController<Object?>.broadcast().stream;
+
+/// One listen the host's network service opened, and its controller
+class _NetworkListen {
+  _NetworkListen(this.epoch, this.controller);
+  final int epoch;
+  final StreamController<Object?> controller;
+
+  void emit(String value) =>
+      controller.add({'epoch': epoch, 'value': value});
+}
+
+/// Stands in for the platform event channel, recording listens and cancels.
+/// Broadcast, like the channel's event stream
+class _FakeNetworkEvents {
+  final List<_NetworkListen> listens = [];
+  int cancels = 0;
+
+  Stream<Object?> call(int epoch) {
+    final controller =
+        StreamController<Object?>.broadcast(onCancel: () => cancels++);
+    listens.add(_NetworkListen(epoch, controller));
+    return controller.stream;
+  }
+
+  _NetworkListen get latest => listens.last;
+  int get live => listens.where((l) => l.controller.hasListener).length;
 }
 
 /// A scriptable NativeBridge. Records the initialize arguments and captured host
@@ -111,6 +150,10 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 
   final List<String> orderedCalls = [];
   final List<Map<String, frb.FrbContextValue>> lateAttributes = [];
+  // A late write alongside the handle id it targeted, so a test can tell
+  // which runtime generation a write was aimed at
+  final List<({int handleId, Map<String, frb.FrbContextValue> attributes})>
+      lateWrites = [];
   int setAutoPopulatedCalls = 0;
   Completer<void>? publishGate; // suspends the initial publication
   final Completer<void> publishEntered = Completer<void>(); // entry handshake
@@ -182,6 +225,7 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
       installedAttributes = attributes;
     } else {
       lateAttributes.add(attributes);
+      lateWrites.add((handleId: handle.id, attributes: attributes));
     }
     if (publishThrows) throw StateError('publish failed');
   }
@@ -240,6 +284,8 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   bool Function()? isRootIsolate,
   void Function(Object error, StackTrace stack)? reportError,
   Future<SessionPair> Function()? beginSession,
+  NetworkTypeEvents? networkTypeEvents,
+  _RecordingForeground? networkResume,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -261,6 +307,8 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
     isRootIsolate: isRootIsolate ?? () => true,
     beginSession: beginSession ?? _immediateSession,
     initClock: initClock,
+    networkTypeEvents: networkTypeEvents ?? _silentNetwork,
+    bindNetworkResume: networkResume?.binder ?? (onResume) => null,
   );
 }
 
@@ -650,6 +698,8 @@ void main() {
       createClient: (h, identityQueue) => _FakeClient(h, identityQueue),
       bindForeground: (onForeground) => null,
       reportError: (e, s) {},
+      networkTypeEvents: _silentNetwork,
+      bindNetworkResume: (onResume) => null,
     );
 
     final pending = host.initialize(sdkKey: 'cpk_mob_a');
@@ -790,6 +840,8 @@ void main() {
       createClient: (h, identityQueue) => throw StateError('client boom'),
       bindForeground: foreground.binder,
       reportError: (e, s) {},
+      networkTypeEvents: _silentNetwork,
+      bindNetworkResume: (onResume) => null,
     );
 
     await expectLater(
@@ -1483,6 +1535,230 @@ void main() {
       await host.initialize(sdkKey: _key);
       expect(errors, [const HostContextUnavailable()]);
       await host.shutdown();
+    });
+  });
+
+  group('network_type', () {
+    const wifi = {'network_type': frb.FrbContextValue.string('wifi')};
+
+    test('a value publishes after the initial batch and never in it', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+      await host.initialize(sdkKey: _key);
+      expect(network.listens, hasLength(1),
+          reason: 'observation starts with the runtime');
+      network.latest.emit('wifi');
+      await pumpEventQueue();
+      expect(bridge.installedAttributes!.containsKey('network_type'), isFalse);
+      expect(bridge.lateAttributes, [wifi]);
+      await host.shutdown();
+    });
+
+    test('a value observed during initialize waits for the initial batch',
+        () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..publishGate = Completer<void>();
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+      final init = host.initialize(sdkKey: _key);
+      await bridge.publishEntered.future;
+      await pumpEventQueue();
+      network.latest.emit('wifi');
+      await pumpEventQueue();
+      expect(bridge.orderedCalls, isEmpty);
+      bridge.publishGate!.complete();
+      await init;
+      await pumpEventQueue();
+      expect(bridge.orderedCalls, ['batch', 'late']);
+      expect(bridge.lateAttributes, [wifi]);
+      await host.shutdown();
+    });
+
+    test('shutdown cancels observation, and a value queued behind identify '
+        'when it begins is dropped', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+      final client = await host.initialize(sdkKey: _key);
+      final identify = Completer<void>();
+      unawaited(client.identify(() => identify.future));
+      network.latest.emit('wifi');
+      await pumpEventQueue();
+      await host.shutdown();
+      identify.complete();
+      await pumpEventQueue();
+      expect(bridge.lateAttributes, isEmpty);
+      expect(network.live, 0);
+    });
+
+    test('a failed build cancels observation', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..publishThrows = true;
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+      await expectLater(host.initialize(sdkKey: _key), throwsA(anything));
+      await pumpEventQueue();
+      expect(network.live, 0);
+    });
+
+    test('resume resubscribes whether or not polling on foreground is on',
+        () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final network = _FakeNetworkEvents();
+      final foreground = _RecordingForeground();
+      final networkResume = _RecordingForeground();
+      final host = _host(bridge,
+          networkTypeEvents: network.call,
+          foreground: foreground,
+          networkResume: networkResume);
+      await host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(pollOnForeground: false));
+      await pumpEventQueue();
+      expect(foreground.binds, 0);
+      expect(networkResume.binds, 1);
+      networkResume.onForeground!();
+      await pumpEventQueue();
+      expect(network.listens, hasLength(2));
+      expect(network.live, 1);
+      await host.shutdown();
+      expect(networkResume.disposes, 1);
+    });
+
+    test('a re-initialized runtime publishes network_type again', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+      await host.initialize(sdkKey: _key);
+      network.latest.emit('wifi');
+      await pumpEventQueue();
+      await host.shutdown();
+      await host.initialize(sdkKey: _key);
+      await pumpEventQueue();
+      network.latest.emit('wifi');
+      await pumpEventQueue();
+      // _FakeBridge classifies only its first call across the bridge's whole
+      // lifetime as the batch, so the second runtime's own initial batch lands
+      // here as a 'late' entry too. Scope the assertion to network_type
+      expect(
+          bridge.lateAttributes.where((a) => a.containsKey('network_type')),
+          [wifi, wifi]);
+      await host.shutdown();
+    });
+
+    test('a missing plugin reads as one error across the device read and '
+        'every network resume', () async {
+      final errors = <Object>[];
+      final networkResume = _RecordingForeground();
+      final opened = <int>[];
+      final host = _host(
+        _FakeBridge(stateValue: frb.ProviderState.ready),
+        providers:
+            _providers(deviceType: () => throw const HostContextUnavailable()),
+        networkTypeEvents: (epoch) {
+          opened.add(epoch);
+          return Stream<Object?>.error(const HostContextUnavailable())
+              .asBroadcastStream();
+        },
+        networkResume: networkResume,
+        reportError: (error, _) => errors.add(error),
+      );
+      await host.initialize(sdkKey: _key);
+      await pumpEventQueue();
+      networkResume.onForeground!();
+      await pumpEventQueue();
+      networkResume.onForeground!();
+      await pumpEventQueue();
+      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
+          reason: 'one misconfiguration reads as one error');
+      expect(opened, hasLength(1), reason: 'a resume opens no new listen');
+      await host.shutdown();
+    });
+
+    test('a native side missing only the network channel still reports',
+        () async {
+      final errors = <Object>[];
+      final host = _host(
+        _FakeBridge(stateValue: frb.ProviderState.ready),
+        networkTypeEvents: (epoch) =>
+            Stream<Object?>.error(const HostContextUnavailable())
+                .asBroadcastStream(),
+        reportError: (error, _) => errors.add(error),
+      );
+      await host.initialize(sdkKey: _key);
+      await pumpEventQueue();
+      expect(errors, [const HostContextUnavailable()]);
+      await host.shutdown();
+    });
+
+    test('a networkResume binder that throws still lets initialize succeed '
+        'and reports the error', () async {
+      final errors = <Object>[];
+      final networkResume = _RecordingForeground(throwsOnBind: true);
+      final host = _host(_FakeBridge(stateValue: frb.ProviderState.ready),
+          networkResume: networkResume,
+          reportError: (error, _) => errors.add(error));
+
+      final client = await host.initialize(sdkKey: _key);
+      expect(client, isNotNull);
+      expect(errors, hasLength(1));
+      expect(errors.single, isA<StateError>());
+      await host.shutdown();
+    });
+
+    test('a write queued behind identify at shutdown never reaches a '
+        'replacement runtime', () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+
+      final firstClient = await host.initialize(sdkKey: _key);
+      final firstHandleId = firstClient.handle.id;
+      final gate = Completer<void>();
+      unawaited(firstClient.identify(() => gate.future));
+      network.latest.emit('wifi');
+      await pumpEventQueue();
+      await host.shutdown();
+
+      final secondClient = await host.initialize(sdkKey: _key);
+      final secondHandleId = secondClient.handle.id;
+
+      gate.complete();
+      await pumpEventQueue();
+
+      final networkWrites =
+          bridge.lateWrites.where((w) => w.attributes.containsKey('network_type'));
+      expect(networkWrites.where((w) => w.handleId == firstHandleId), isEmpty,
+          reason: 'the write never reaches the first runtime after shutdown');
+      expect(networkWrites.where((w) => w.handleId == secondHandleId), isEmpty,
+          reason: 'the first runtime\'s event never reaches the replacement');
+      await host.shutdown();
+    });
+
+    test('a readiness failure after publication closes observation and '
+        'publishes nothing', () async {
+      final bridge = _FakeBridge()..stateThrows = true;
+      final network = _FakeNetworkEvents();
+      final host = _host(bridge, networkTypeEvents: network.call);
+
+      // The matcher attaches to the future immediately, so a rejection that
+      // settles during the pump below is never briefly unhandled
+      final expectation =
+          expectLater(host.initialize(sdkKey: _key), throwsA(anything));
+      await pumpEventQueue();
+      // Best-effort: emit only if the listen has already started by the time
+      // readiness has had a chance to fail
+      if (network.listens.isNotEmpty) {
+        network.latest.emit('wifi');
+      }
+      await expectation;
+      await pumpEventQueue();
+
+      expect(network.live, 0);
+      expect(
+          bridge.lateAttributes.where((a) => a.containsKey('network_type')),
+          isEmpty);
     });
   });
 }

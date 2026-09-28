@@ -213,6 +213,23 @@ const List<FlagSpec> kFlagTable = [
     callerDefault: 'first-seen-ceiling-default',
   ),
   FlagSpec(
+    key: 'auto-network-type',
+    flagType: 'STRING',
+    getter: GetterType.string,
+    kind: FlagKind.auto,
+    attribute: 'network_type',
+    // not_equals none rather than a value: the runner's simulator or emulator
+    // may be on any transport. A missing attribute is indeterminate for
+    // not_equals rather than a match, so this still proves a value arrived
+    operator: 'not_equals',
+    values: ['none'],
+    variationTarget: 'network-type-connected',
+    variationMiss: 'network-type-missing',
+    getterTarget: 'network-type-connected',
+    getterMiss: 'network-type-missing',
+    callerDefault: 'network-type-default',
+  ),
+  FlagSpec(
     key: 'identity-bool',
     flagType: 'BOOL',
     getter: GetterType.boolean,

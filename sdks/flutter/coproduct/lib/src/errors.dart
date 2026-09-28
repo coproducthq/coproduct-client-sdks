@@ -42,9 +42,10 @@ final class HostContextUnavailable implements CoproductException {
   String toString() =>
       'Coproduct: the host-context plugin did not answer on channel '
       'app.coproduct.flutter/host_context. It supplies device_type, '
-      'first_seen_at, and session_count, and whichever it could not answer for '
-      'are absent. Either the plugin is not registered, or its native side is '
-      'older than the Dart side and does not implement the method. Conditions '
+      'network_type, first_seen_at, and session_count, and whichever it could '
+      'not answer for are absent. Either the plugin is not registered, or its '
+      'native side is older than the Dart side and does not implement the '
+      'method. Conditions '
       'that need those attributes to have a value will not match on this '
       'device';
 }

@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:coproduct/src/auto_upsert.dart';
 import 'package:coproduct/src/http_transport.dart';
+import 'package:coproduct/src/network_type.dart';
 import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:coproduct/src/runtime.dart';
 import 'package:coproduct/src/scheduler.dart';
@@ -28,6 +30,34 @@ Scheduler _scheduler(void Function() onPoll) => Scheduler(
         onPoll();
         return const frb.PollOutcome.updated();
       },
+    );
+
+/// A Scheduler that logs its own stop, so a shutdown ordering test can observe
+/// when the scheduler actually stopped rather than only inferring it
+class _LoggingScheduler extends Scheduler {
+  _LoggingScheduler(
+    this._log, {
+    required super.poll,
+    required super.interval,
+    required super.pollOnForeground,
+    required super.onError,
+  });
+
+  final List<String> _log;
+
+  @override
+  void stop() {
+    _log.add('scheduler-stopped');
+    super.stop();
+  }
+}
+
+Scheduler _loggingScheduler(List<String> log) => _LoggingScheduler(
+      log,
+      interval: const Duration(milliseconds: 20),
+      pollOnForeground: true,
+      onError: (_, _) {},
+      poll: () async => const frb.PollOutcome.updated(),
     );
 
 void main() {
@@ -130,5 +160,131 @@ void main() {
     await expectLater(runtime.shutdown(), throwsA(isA<StateError>()));
     // The core latch was still set and the transport still closed
     expect(log, ['core-shutdown', 'transport-closed']);
+  });
+
+  group('network observation', () {
+    NetworkTypeService network(List<String> log) => NetworkTypeService(
+          events: (epoch) {
+            log.add('network-listen');
+            return StreamController<Object?>.broadcast(
+              onCancel: () => log.add('network-cancelled'),
+            ).stream;
+          },
+          upsert: Future<AutoUpsert?>.value(),
+          bindResume: (_) => null,
+          onUnavailable: () {},
+        );
+
+    test('starts with the runtime and closes at shutdown, after the foreground '
+        'listener and before the core, and stops the scheduler in between',
+        () async {
+      final log = <String>[];
+      final runtime = CoproductRuntime(
+        generation: 1,
+        scheduler: _loggingScheduler(log),
+        transport: HttpTransport(
+            client: _RecordingClient(log),
+            requestTimeout: const Duration(seconds: 1)),
+        coreShutdown: () async => log.add('core-shutdown'),
+        disposeForeground: () => log.add('foreground-disposed'),
+        networkType: network(log),
+      );
+      runtime.start();
+      await pumpEventQueue();
+      expect(log, ['network-listen']);
+      await runtime.shutdown();
+      expect(log, [
+        'network-listen',
+        'foreground-disposed',
+        'network-cancelled',
+        'scheduler-stopped',
+        'core-shutdown',
+        'transport-closed',
+      ]);
+    });
+
+    test('a foreground disposal that throws still closes network observation',
+        () async {
+      final log = <String>[];
+      final runtime = CoproductRuntime(
+        generation: 1,
+        scheduler: _scheduler(() {}),
+        transport: HttpTransport(
+            client: _RecordingClient(log),
+            requestTimeout: const Duration(seconds: 1)),
+        coreShutdown: () async => log.add('core-shutdown'),
+        disposeForeground: () => throw StateError('dispose failed'),
+        networkType: network(log),
+      );
+      runtime.start();
+      await pumpEventQueue();
+      await expectLater(runtime.shutdown(), throwsStateError);
+      expect(log, contains('network-cancelled'));
+      expect(log, contains('core-shutdown'));
+    });
+
+    test('a resume binder that throws does not fail start, reports the '
+        'error, and polling still starts', () async {
+      var polls = 0;
+      final errors = <Object>[];
+      final controllers = <StreamController<Object?>>[];
+      final networkType = NetworkTypeService(
+        events: (epoch) {
+          final controller = StreamController<Object?>.broadcast();
+          controllers.add(controller);
+          return controller.stream;
+        },
+        upsert: Future<AutoUpsert?>.value(),
+        bindResume: (_) => throw StateError('bind failed'),
+        onUnavailable: () {},
+      );
+      final runtime = CoproductRuntime(
+        generation: 1,
+        scheduler: _scheduler(() => polls++),
+        transport: HttpTransport(
+            client: _RecordingClient(<String>[]),
+            requestTimeout: const Duration(seconds: 1)),
+        coreShutdown: () async {},
+        networkType: networkType,
+        onError: (error, stack) => errors.add(error),
+      );
+
+      expect(runtime.start, returnsNormally);
+      expect(errors, hasLength(1));
+      expect(errors.single, isA<StateError>());
+      expect(polls, greaterThan(0), reason: 'polling still started');
+
+      // The service subscribes before binding resume, so the throwing binder
+      // costs only the resume rechecks and the listen is live
+      expect(controllers, hasLength(1));
+      expect(controllers.single.hasListener, isTrue);
+      await expectLater(runtime.shutdown(), completes);
+      expect(controllers.single.hasListener, isFalse,
+          reason: 'close leaves nothing live');
+    });
+
+    test('a resume binder and an error reporter that both throw do not fail '
+        'start', () async {
+      var polls = 0;
+      final runtime = CoproductRuntime(
+        generation: 1,
+        scheduler: _scheduler(() => polls++),
+        transport: HttpTransport(
+            client: _RecordingClient(<String>[]),
+            requestTimeout: const Duration(seconds: 1)),
+        coreShutdown: () async {},
+        networkType: NetworkTypeService(
+          events: (epoch) => StreamController<Object?>.broadcast().stream,
+          upsert: Future<AutoUpsert?>.value(),
+          bindResume: (_) => throw StateError('bind failed'),
+          onUnavailable: () {},
+        ),
+        onError: (_, _) => throw StateError('reporter exploded'),
+      );
+
+      expect(runtime.start, returnsNormally);
+      expect(polls, greaterThan(0), reason: 'polling still started');
+      await expectLater(runtime.shutdown(), completes);
+    });
   });
 }

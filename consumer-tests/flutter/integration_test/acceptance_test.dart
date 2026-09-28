@@ -47,9 +47,9 @@ void main() {
         (jsonDecode(expectedRaw) as List).cast<Map<String, dynamic>>();
     // Fail red if the expected table is degenerate or short, so an empty or
     // truncated table cannot pass green having proven nothing about the flags
-    // Sixteen is the flag count locked by the host flag_table_test
-    expect(expected, hasLength(16),
-        reason: 'the runner must pass all sixteen flag expectations');
+    // Seventeen is the flag count locked by the host flag_table_test
+    expect(expected, hasLength(17),
+        reason: 'the runner must pass all seventeen flag expectations');
 
     final client = await Coproduct.initialize(
       sdkKey: key,

@@ -605,3 +605,349 @@ final class SessionStoreTests: XCTestCase {
         }
     }
 }
+
+private let wifiPath = NetworkPathFacts(satisfied: true, wifi: true, cellular: false, ethernet: false)
+private let cellularPath = NetworkPathFacts(satisfied: true, wifi: false, cellular: true, ethernet: false)
+private let offlinePath = NetworkPathFacts(satisfied: false, wifi: false, cellular: false, ethernet: false)
+
+/// Reads one event as "epoch:value", or nil when it is not the envelope
+private func decoded(_ event: Any?) -> String? {
+    guard let map = event as? [String: Any],
+          let epoch = map["epoch"] as? NSNumber,
+          let value = map["value"] as? String else { return nil }
+    return "\(epoch.int64Value):\(value)"
+}
+
+/// Stands in for NWPathMonitor. It delivers nothing on its own: a test calls
+/// deliver, which is what the real monitor's main-queue update amounts to, and
+/// it keeps delivering after cancel, which is what an update already in flight
+/// does
+final class FakePathSource: NetworkPathSource {
+    private(set) var starts = 0
+    private(set) var cancels = 0
+    private var onUpdate: ((NetworkPathFacts) -> Void)?
+
+    /// Delivered from within cancel(), after the cancel count increments, so a
+    /// test can reproduce a source that delivers while it is being cancelled
+    var deliverOnCancel: NetworkPathFacts?
+
+    func start(onUpdate: @escaping (NetworkPathFacts) -> Void) {
+        starts += 1
+        self.onUpdate = onUpdate
+    }
+
+    func cancel() {
+        cancels += 1
+        if let facts = deliverOnCancel {
+            onUpdate?(facts)
+        }
+    }
+
+    func deliver(_ facts: NetworkPathFacts) {
+        onUpdate?(facts)
+    }
+}
+
+/// Records every event a sink received, in order
+final class RecordingEventSink {
+    private(set) var events: [Any?] = []
+    lazy var sink: FlutterEventSink = { [unowned self] event in self.events.append(event) }
+    var values: [String] { events.compactMap(decoded) }
+    var errorCodes: [String] { events.compactMap { ($0 as? FlutterError)?.code } }
+}
+
+final class NetworkTypeClassifierTests: XCTestCase {
+    func testEveryCombinationMatchesTheIOSSDKPrecedence() {
+        // The iOS SDK's order, restated as a table, so one physical network maps
+        // the same way through either SDK
+        for satisfied in [false, true] {
+            for wifi in [false, true] {
+                for cellular in [false, true] {
+                    for ethernet in [false, true] {
+                        let expected: String
+                        if !satisfied { expected = "none" }
+                        else if wifi { expected = "wifi" }
+                        else if cellular { expected = "cellular" }
+                        else if ethernet { expected = "ethernet" }
+                        else { expected = "other" }
+                        let facts = NetworkPathFacts(
+                            satisfied: satisfied, wifi: wifi, cellular: cellular, ethernet: ethernet)
+                        XCTAssertEqual(NetworkTypeClassifier.classify(facts), expected, "\(facts)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testConnectedThroughNoKnownInterfaceIsOtherNeverNone() {
+        let facts = NetworkPathFacts(satisfied: true, wifi: false, cellular: false, ethernet: false)
+        XCTAssertEqual(NetworkTypeClassifier.classify(facts), "other")
+    }
+}
+
+final class NetworkTypeObserverTests: XCTestCase {
+    private var sources: [FakePathSource] = []
+
+    override func setUp() {
+        super.setUp()
+        sources = []
+    }
+
+    private func makeObserver() -> NetworkTypeObserver {
+        NetworkTypeObserver(makeSource: { [unowned self] in
+            let source = FakePathSource()
+            self.sources.append(source)
+            return source
+        })
+    }
+
+    func testTheCurrentPathIsReportedWithTheListensEpoch() {
+        let observer = makeObserver()
+        let sink = RecordingEventSink()
+        XCTAssertNil(observer.onListen(withArguments: 7, eventSink: sink.sink))
+        XCTAssertEqual(sources.count, 1)
+        XCTAssertEqual(sources[0].starts, 1)
+        sources[0].deliver(wifiPath)
+        sources[0].deliver(offlinePath)
+        XCTAssertEqual(sink.values, ["7:wifi", "7:none"])
+    }
+
+    func testALargeEpochSurvives() {
+        let observer = makeObserver()
+        let sink = RecordingEventSink()
+        _ = observer.onListen(withArguments: NSNumber(value: 5_000_000_000 as Int64), eventSink: sink.sink)
+        sources[0].deliver(cellularPath)
+        XCTAssertEqual(sink.values, ["5000000000:cellular"])
+    }
+
+    func testAListenWithoutAnIntegerEpochIsAStreamErrorAndStartsNothing() {
+        // Sent on the stream rather than returned, because a returned error
+        // reaches FlutterError.reportError and leaves the Dart stream silent
+        let arguments: [Any?] = [nil, "7", NSNumber(value: 7.5), NSNumber(value: 7.0), NSNumber(value: true)]
+        for argument in arguments {
+            let observer = makeObserver()
+            let sink = RecordingEventSink()
+            XCTAssertNil(observer.onListen(withArguments: argument, eventSink: sink.sink))
+            XCTAssertEqual(sink.errorCodes, [NetworkTypeObserver.invalidEpoch], "\(String(describing: argument))")
+        }
+        XCTAssertTrue(sources.isEmpty)
+    }
+
+    func testAnInvalidEpochReleasesTheListenItReplaced() {
+        // Both platforms cancel before validating, so a relisten that turns out
+        // invalid must still release what it replaced
+        let observer = makeObserver()
+        let first = RecordingEventSink()
+        _ = observer.onListen(withArguments: 1, eventSink: first.sink)
+        let second = RecordingEventSink()
+        XCTAssertNil(observer.onListen(withArguments: "x", eventSink: second.sink))
+        XCTAssertEqual(sources[0].cancels, 1)
+        XCTAssertEqual(second.errorCodes, [NetworkTypeObserver.invalidEpoch])
+        sources[0].deliver(wifiPath)
+        XCTAssertTrue(first.events.isEmpty)
+        XCTAssertTrue(second.values.isEmpty, "the invalid listen's error is the only event it should ever see")
+    }
+
+    func testAnUpdateAfterCancelIsNotDelivered() {
+        // An iOS event sink stays callable after its listen is cancelled, so
+        // the observer must drop this itself
+        let observer = makeObserver()
+        let sink = RecordingEventSink()
+        _ = observer.onListen(withArguments: 1, eventSink: sink.sink)
+        XCTAssertNil(observer.onCancel(withArguments: nil))
+        sources[0].deliver(wifiPath)
+        XCTAssertTrue(sink.events.isEmpty)
+        XCTAssertEqual(sources[0].cancels, 1)
+    }
+
+    func testAnUpdateDeliveredWhileItsListenIsCancellingIsDropped() {
+        // A source may deliver while it is being cancelled, when the listen is
+        // still alive but no longer current, so only the identity check stops it
+        let observer = makeObserver()
+        let sink = RecordingEventSink()
+        _ = observer.onListen(withArguments: 1, eventSink: sink.sink)
+        sources[0].deliverOnCancel = wifiPath
+        observer.cancel()
+        XCTAssertTrue(sink.events.isEmpty)
+    }
+
+    func testAnUpdateDeliveredWhileARelistenIsCancellingItIsDropped() {
+        // The same in-flight-during-cancel scenario, reached through a relisten
+        // rather than an explicit cancel
+        let observer = makeObserver()
+        let first = RecordingEventSink()
+        let second = RecordingEventSink()
+        _ = observer.onListen(withArguments: 1, eventSink: first.sink)
+        sources[0].deliverOnCancel = wifiPath
+        _ = observer.onListen(withArguments: 2, eventSink: second.sink)
+        XCTAssertTrue(first.events.isEmpty)
+    }
+
+    func testCancelIsIdempotentWhateverTheOrder() {
+        // A listen cancel and an engine detachment both cancel
+        let observer = makeObserver()
+        _ = observer.onListen(withArguments: 1, eventSink: RecordingEventSink().sink)
+        _ = observer.onCancel(withArguments: nil)
+        observer.cancel()
+        XCTAssertEqual(sources[0].cancels, 1)
+
+        let detachedFirst = makeObserver()
+        _ = detachedFirst.onListen(withArguments: 1, eventSink: RecordingEventSink().sink)
+        detachedFirst.cancel()
+        _ = detachedFirst.onCancel(withArguments: nil)
+        XCTAssertEqual(sources[1].cancels, 1)
+    }
+
+    func testAListenWhileListeningReplacesThePreviousOne() {
+        // A Dart hot restart relistens without cancelling its subscription, so
+        // the observer must not depend on a cancel arriving first
+        let observer = makeObserver()
+        let first = RecordingEventSink()
+        let second = RecordingEventSink()
+        _ = observer.onListen(withArguments: 1, eventSink: first.sink)
+        _ = observer.onListen(withArguments: 2, eventSink: second.sink)
+        XCTAssertEqual(sources[0].cancels, 1)
+        sources[0].deliver(wifiPath)
+        sources[1].deliver(cellularPath)
+        XCTAssertTrue(first.events.isEmpty)
+        XCTAssertEqual(second.values, ["2:cellular"])
+    }
+
+    func testRelistenStartsAFreshMonitor() {
+        // A cancelled NWPathMonitor cannot be restarted
+        let observer = makeObserver()
+        _ = observer.onListen(withArguments: 1, eventSink: RecordingEventSink().sink)
+        _ = observer.onCancel(withArguments: nil)
+        let sink = RecordingEventSink()
+        _ = observer.onListen(withArguments: 2, eventSink: sink.sink)
+        XCTAssertEqual(sources.count, 2)
+        XCTAssertEqual(sources.map(\.starts), [1, 1])
+        sources[1].deliver(wifiPath)
+        XCTAssertEqual(sink.values, ["2:wifi"])
+    }
+
+    func testCancellingOneObserverLeavesAnotherObserving() {
+        // One observer per engine. Two instances against fakes, not two real
+        // engines
+        let first = makeObserver()
+        let second = makeObserver()
+        let sink = RecordingEventSink()
+        _ = first.onListen(withArguments: 1, eventSink: RecordingEventSink().sink)
+        _ = second.onListen(withArguments: 2, eventSink: sink.sink)
+        first.cancel()
+        sources[1].deliver(wifiPath)
+        XCTAssertEqual(sink.values, ["2:wifi"])
+        XCTAssertEqual(sources[1].cancels, 0)
+    }
+
+    func testTheMonitorDoesNotRetainTheObserver() {
+        var observer: NetworkTypeObserver? = makeObserver()
+        weak var weakObserver = observer
+        _ = observer?.onListen(withArguments: 1, eventSink: RecordingEventSink().sink)
+        observer = nil
+        XCTAssertNil(weakObserver, "the monitor's handler holds the observer strongly")
+    }
+
+    func testReleasingTheObserverReleasesTheSourceEvenWhileListening() {
+        // A strong capture of the listen in the update handler would form a
+        // cycle through the source and the handler that only cancel() breaks.
+        // Nothing here calls cancel, so releasing the observer must be enough
+        var capturedSource: FakePathSource? = FakePathSource()
+        weak var weakSource = capturedSource
+        var observer: NetworkTypeObserver? = NetworkTypeObserver(makeSource: { capturedSource! })
+        _ = observer?.onListen(withArguments: 1, eventSink: RecordingEventSink().sink)
+        capturedSource = nil
+        observer = nil
+        XCTAssertNil(weakSource, "the update handler retained the source")
+    }
+}
+
+/// Records the handlers channels install and the messages sent through it, so a
+/// test drives the event channel's own listen protocol. The Objective-C header
+/// FlutterBinaryMessenger.h is the authority on these signatures
+final class RecordingMessenger: NSObject, FlutterBinaryMessenger {
+    private(set) var handlers: [String: FlutterBinaryMessageHandler] = [:]
+    private(set) var sent: [(channel: String, message: Data?)] = []
+
+    func send(onChannel channel: String, message: Data?) {
+        sent.append((channel, message))
+    }
+
+    func send(onChannel channel: String, message: Data?, binaryReply callback: FlutterBinaryReply?) {
+        sent.append((channel, message))
+    }
+
+    func setMessageHandlerOnChannel(
+        _ channel: String,
+        binaryMessageHandler handler: FlutterBinaryMessageHandler?
+    ) -> FlutterBinaryMessengerConnection {
+        handlers[channel] = handler
+        return 0
+    }
+
+    func cleanUpConnection(_ connection: FlutterBinaryMessengerConnection) {}
+}
+
+final class PluginRegistrationTests: XCTestCase {
+    func testRegistrationPublishesTheInstanceAndServesTheNetworkChannel() throws {
+        let source = FakePathSource()
+        let plugin = CoproductHostContextPlugin(
+            defaultsFilePath: nil,
+            sessionProcess: SessionProcessState(),
+            networkObserver: NetworkTypeObserver(makeSource: { source })
+        )
+        let messenger = RecordingMessenger()
+        var delegates: [CoproductHostContextPlugin] = []
+        var published: [NSObject] = []
+        CoproductHostContextPlugin.install(
+            plugin,
+            messenger: messenger,
+            addMethodCallDelegate: { delegate, _ in delegates.append(delegate) },
+            publish: { published.append($0) }
+        )
+        // detachFromEngine(for:) reaches only a published instance
+        XCTAssertEqual(published.count, 1)
+        XCTAssertTrue(published.first === plugin)
+        XCTAssertEqual(delegates.count, 1)
+        XCTAssertTrue(delegates.first === plugin)
+
+        // Through the event channel's own protocol, so the wiring is proven and
+        // not only the observer
+        let channel = "app.coproduct.flutter/network_type"
+        let codec = FlutterStandardMethodCodec.sharedInstance()
+        let handler = try XCTUnwrap(messenger.handlers[channel])
+        handler(codec.encode(FlutterMethodCall(methodName: "listen", arguments: 4))) { _ in }
+        source.deliver(wifiPath)
+        let message = try XCTUnwrap(messenger.sent.last(where: { $0.channel == channel })?.message)
+        XCTAssertEqual(decoded(codec.decodeEnvelope(message)), "4:wifi")
+    }
+
+    func testDetachCancelsTheNetworkObserver() {
+        // Objective-C treats detachFromEngine(for:) as an optional protocol
+        // method, so a Swift signature that does not match it exactly still
+        // compiles and is silently never called by the engine
+        XCTAssertTrue(
+            CoproductHostContextPlugin().responds(to: Selector(("detachFromEngineForRegistrar:"))))
+
+        let source = FakePathSource()
+        let plugin = CoproductHostContextPlugin(
+            defaultsFilePath: nil,
+            sessionProcess: SessionProcessState(),
+            networkObserver: NetworkTypeObserver(makeSource: { source })
+        )
+        let messenger = RecordingMessenger()
+        CoproductHostContextPlugin.install(
+            plugin,
+            messenger: messenger,
+            addMethodCallDelegate: { _, _ in },
+            publish: { _ in }
+        )
+        let channel = "app.coproduct.flutter/network_type"
+        let codec = FlutterStandardMethodCodec.sharedInstance()
+        messenger.handlers[channel]?(codec.encode(FlutterMethodCall(methodName: "listen", arguments: 1))) { _ in }
+
+        plugin.detach()
+
+        XCTAssertEqual(source.cancels, 1)
+    }
+}
