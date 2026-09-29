@@ -38,6 +38,7 @@ void main() {
   test('the diagnostic names the channel and every attribute it feeds', () {
     final message = const HostContextUnavailable().toString();
     expect(message, contains('app.coproduct.flutter/host_context'));
+    expect(message, contains('app.coproduct.flutter/network_type'));
     expect(message, contains('device_type'));
     expect(message, contains('network_type'));
     expect(message, contains('first_seen_at'));

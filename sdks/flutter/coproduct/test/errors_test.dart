@@ -83,12 +83,12 @@ void main() {
         SessionAttributesUnavailable(
                 SessionAttributesUnavailableCause.storageFailure)
             .toString(),
-        contains('native session store could not be read reliably'));
+        contains('launch record could not be read reliably'));
     expect(
         SessionAttributesUnavailable(
                 SessionAttributesUnavailableCause.malformedResponse)
             .toString(),
-        contains('malformed session record'));
+        contains('launch record the SDK could not read'));
   });
 
   test('session diagnostic equality and hashCode are keyed on the cause', () {

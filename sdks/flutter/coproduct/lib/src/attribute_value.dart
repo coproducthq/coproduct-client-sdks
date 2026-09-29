@@ -2,11 +2,17 @@ import 'package:flutter/foundation.dart' show listEquals;
 
 import 'rust/api.dart' as frb;
 
-/// A targeting attribute value. One of the five cases the public context domain
-/// supports: string, number, boolean, string list, or null
+/// The value of an attribute your targeting rules match against: a string,
+/// number, bool, list of strings, or explicit null.
+///
+/// Create one with a factory constructor, for example
+/// `const AttributeValue.string('pro')`, and pass it in the attribute map of
+/// `CoproductClient.identify` or another identity call
 sealed class AttributeValue {
+  /// Base constructor for the value kinds. Use a factory constructor instead
   const AttributeValue();
 
+  /// A string attribute
   const factory AttributeValue.string(String value) = StringAttributeValue;
 
   /// A numeric attribute. The value is stored as a double, so an integer
@@ -17,16 +23,18 @@ sealed class AttributeValue {
   /// naturally. Call `.toDouble()` yourself when you hold a `num` variable
   const factory AttributeValue.number(double value) = NumberAttributeValue;
 
+  /// A boolean attribute
   const factory AttributeValue.bool(bool value) = BoolAttributeValue;
 
-  /// A string list attribute. This is the one factory that cannot be `const`,
-  /// because it copies the values so a later change to the caller's list cannot
-  /// alter an attribute already sent
+  /// A list-of-strings attribute. This is the one factory that cannot be
+  /// `const`, because it copies [values], so changing your list later does not
+  /// change an attribute you already set
   factory AttributeValue.stringList(Iterable<String> values) =>
       StringListAttributeValue(List<String>.unmodifiable(values));
 
-  /// An explicit null attribute value. This is distinct from omitting the key,
-  /// whose effect depends on the mutator, and from removing the key
+  /// An explicit null attribute value. This is distinct from leaving the key
+  /// out of a map, whose effect depends on the call, and from removing the key
+  /// with `CoproductClient.removeAttributes`
   const factory AttributeValue.nullValue() = NullAttributeValue;
 }
 

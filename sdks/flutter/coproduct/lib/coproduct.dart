@@ -1,4 +1,8 @@
-/// The Coproduct Flutter SDK
+/// The Coproduct Flutter SDK, for reading feature flags in a Flutter app.
+///
+/// Call [Coproduct.initialize] once at startup, then read flags from the
+/// returned [CoproductClient] or with [CoproductFlagBuilder]. Put the client in
+/// a [CoproductScope] so widgets below it can find it
 library;
 
 export 'src/attribute_value.dart' show AttributeValue;

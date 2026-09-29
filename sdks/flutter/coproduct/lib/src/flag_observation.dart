@@ -5,29 +5,30 @@ import 'package:flutter/foundation.dart';
 
 import 'json_value.dart';
 
-/// A live view of one flag's value.
+/// A live view of one flag's value, returned by the `observe` methods on
+/// `CoproductClient` such as `observeBool`.
 ///
-/// [value] is readable synchronously at any time and is seeded at construction
-/// with whatever the matching getter would return at that moment, so there is
-/// no unset window. That makes the seed consistent with the getter, not
-/// necessarily current with the server: an observation created before the first
-/// poll lands serves the default supplied here, exactly as the getter would,
-/// and converges once a snapshot arrives. Listeners are notified when the value
-/// actually changes, which makes this usable directly with
-/// `ValueListenableBuilder`, or through the ownership recipes in
-/// `doc/state_management_recipes.md`.
+/// [value] is available immediately. It starts as what the matching getter
+/// returns at that moment, so before the SDK has flags it is the default value
+/// you passed. It updates when new flags arrive, when you change the identity
+/// or attributes, or when an automatic attribute such as `network_type`
+/// changes, and listeners are notified only when the value actually changes.
+/// A flag the SDK can no longer resolve, for example because it was deleted or
+/// the SDK key was rejected, gives the default value you passed.
 ///
-/// An observation holds a native subscription, so its owner must call
-/// [dispose]. Cancelling a stream subscription obtained elsewhere does not end
-/// the native session. [dispose] does. Widgets built with
-/// `CoproductFlagBuilder` are already disposed for you.
+/// It is a `ValueListenable`, so it works with `ValueListenableBuilder` and
+/// with state-management packages. See the recipes at
+/// https://github.com/coproducthq/coproduct-client-sdks/blob/main/sdks/flutter/coproduct/doc/state_management_recipes.md
 ///
-/// The value converges rather than being instantaneous. After a state change
-/// the getter may briefly return the new value while an observation still
-/// holds the previous one, and once delivery lands they agree. A value that becomes
-/// unavailable, because the flag left the snapshot or the SDK key was revoked,
-/// resolves to the default supplied at registration. After shutdown an existing
-/// observation retains its last value and stops updating
+/// An observation keeps a listener registered inside the SDK until you call
+/// [dispose], so whoever creates it must dispose it. Canceling a subscription
+/// to a stream built from it, for example by a state-management package, does
+/// not release it. `CoproductFlagBuilder` disposes its own.
+///
+/// After a change, a getter can return the new value a moment before the
+/// observation notifies, and then the two agree again. After
+/// `Coproduct.shutdown`, an existing observation keeps its last value and
+/// stops updating
 final class FlagObservation<T> extends ChangeNotifier
     implements ValueListenable<T> {
   FlagObservation._({
@@ -53,6 +54,7 @@ final class FlagObservation<T> extends ChangeNotifier
   late T _value;
   bool _disposed = false;
 
+  /// The flag's current value, available synchronously at any time
   @override
   T get value => _value;
 
@@ -66,8 +68,10 @@ final class FlagObservation<T> extends ChangeNotifier
     notifyListeners();
   }
 
-  /// Ends the native subscription and releases the observation. Synchronous,
-  /// idempotent, safe to call after shutdown, and never throws
+  /// Releases the observation and stops its updates.
+  ///
+  /// Synchronous, safe to call more than once or after `Coproduct.shutdown`,
+  /// and never throws
   @override
   void dispose() {
     if (_disposed) return;

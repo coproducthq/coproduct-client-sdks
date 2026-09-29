@@ -13,37 +13,39 @@ import 'package:coproduct/coproduct.dart';
 ///
 /// ```dart
 /// Future<void> main() async {
-///   // Required before initialize, which reaches platform plugins
+///   // Required before initialize, which reads the app version and cache
+///   // directory through platform plugins
 ///   WidgetsFlutterBinding.ensureInitialized();
-///   final client = await Coproduct.initialize(sdkKey: 'your-key');
+///   final client = await Coproduct.initialize(sdkKey: 'cpk_mob_...');
 ///   runApp(CoproductScope(client: client, child: const MyApp()));
 /// }
 /// ```
 ///
 /// [CoproductFlagBuilder] finds the client here when its `client` argument is
 /// omitted, and [of] returns it for anything else, such as calling `identify`
-/// after a login.
+/// after sign-in.
 ///
 /// This scope carries a client your app already created. It does not call
-/// `Coproduct.initialize`, it does not call `Coproduct.shutdown`, and it owns
-/// no observation's lifetime. An app using Provider, Riverpod, or BLoC can
-/// carry the client in that instead and pass `client:` explicitly, in which
-/// case no scope is needed
+/// `Coproduct.initialize` or `Coproduct.shutdown`, and it disposes no
+/// observation. An app using Provider, Riverpod, or BLoC can hold the client
+/// there instead and pass `client:` explicitly, and then needs no scope
 final class CoproductScope extends InheritedWidget {
+  /// Makes [client] available to [child] and every widget below it
   const CoproductScope({
     super.key,
     required this.client,
     required super.child,
   });
 
-  /// The client every descendant resolves
+  /// The client that [of] returns to every widget below this scope
   final CoproductClient client;
 
-  /// The client from the nearest enclosing [CoproductScope].
+  /// Returns the client from the nearest [CoproductScope] above [context].
   ///
-  /// Throws a [FlutterError] when no scope is above [context]. It throws in
-  /// every build mode rather than asserting, so a release build reports the
-  /// same diagnostic instead of an unhelpful null check
+  /// The calling widget rebuilds if the scope is given a different client.
+  /// Throws a [FlutterError] when no scope is above [context], in every build
+  /// mode. The message names both fixes: add a scope, or pass the client
+  /// explicitly
   static CoproductClient of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<CoproductScope>();
     if (scope == null) {

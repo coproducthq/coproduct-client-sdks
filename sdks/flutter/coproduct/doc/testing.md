@@ -37,10 +37,18 @@ void main() {
 `harness.client` is a genuine `CoproductClient`. Pass it to `CoproductScope`, to
 a builder's `client:`, or to your own code that takes one.
 
+## Structuring your app for tests
+
+The harness replaces the client, not `Coproduct.initialize`. Keep `initialize`
+in `main`, and in tests pump the widget that sits below your `CoproductScope`,
+giving the scope `harness.client`. If a widget takes a client as a constructor
+argument, pass `harness.client` instead.
+
 ## The harness supplies values, not targeting
 
 **It does not evaluate targeting rules**, segments, prerequisites, rollouts, or
-bucketing. Those live in the SDK's Rust core and are tested there.
+bucketing. Rule evaluation is tested in the SDK itself. Your widget tests only
+need to cover what your UI does with each value.
 
 So set the result your scenario needs:
 
@@ -93,10 +101,9 @@ harness.setBool('new-checkout', true);
 await tester.pumpAndSettle();
 ```
 
-A single `pump()` is not enough. Delivery is asynchronous, matching production,
-and the test binding checks whether a frame is already scheduled *before* it
-flushes microtasks, so a value set by the test arrives after that check and is
-drawn only by the following pump.
+A bare `pump()` draws the previous value. Delivery is asynchronous, as in
+production, so the update arrives just after the test binding has decided
+whether a frame is needed, and only the following pump draws it.
 
 If the widget under test contains a continuous animation that prevents settling,
 flush one delivery instead:
@@ -113,7 +120,7 @@ than a transition log.
 ## Provider state
 
 The harness reports `ProviderState.ready` by default, so ordinary tests need no
-setup. To exercise a loading or failure path:
+setup. To exercise code that reads `client.state`:
 
 ```dart
 harness.setProviderState(ProviderState.notReady);
@@ -122,6 +129,10 @@ expect(harness.client.state, ProviderState.notReady);
 
 Provider-state changes are visible immediately, with no pump, because `state` is
 a plain getter.
+
+`setProviderState` changes only what `client.state` reports. Flag values stay
+whatever you set. To test what your app shows before it has flags, also remove
+the flags your widget reads with `removeFlag`, so reads serve your defaults.
 
 ## Asserting on identity
 

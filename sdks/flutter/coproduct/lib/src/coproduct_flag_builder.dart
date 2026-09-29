@@ -10,11 +10,13 @@ import 'package:coproduct/coproduct.dart';
 
 import 'json_value.dart';
 
-/// Builds a widget from a flag's live value, owning the observation for you.
+/// Builds a widget from a flag's current value, and rebuilds it when the value
+/// changes. The right choice for most flag-gated widgets.
 ///
-/// Each entry point creates its observation when the widget is first built,
-/// rebuilds the subtree when the value changes, and disposes the observation
-/// when the widget is removed, so a builder user never manages a lifetime.
+/// Each entry point creates an observation of the flag when the widget is
+/// first built, rebuilds the subtree when the value changes, and disposes the
+/// observation when the widget is removed, so you never manage its lifetime.
+/// Until the SDK has flags, the value is the default value you passed.
 ///
 /// ```dart
 /// CoproductFlagBuilder.boolFlag(
@@ -25,22 +27,31 @@ import 'json_value.dart';
 /// )
 /// ```
 ///
-/// The client is resolved in one of two ways: an explicit `client` argument
-/// wins, and otherwise the nearest enclosing [CoproductScope] is used and is
-/// required. Pass `client` explicitly when something else already holds it,
-/// such as a Provider, Riverpod, or BLoC container, and no scope is needed.
+/// Every entry point takes the same arguments:
+///
+/// - `client` is optional. Without it, the builder uses the client from the
+///   nearest [CoproductScope] above it, and throws if there is none. Pass it
+///   when something else holds the client, such as Provider, Riverpod, or
+///   BLoC, and then no scope is needed.
+/// - `flagKey` and `defaultValue` are the same as for the matching getter,
+///   such as `CoproductClient.getBool`.
+/// - `builder` receives the current value and `child`.
+/// - `child` is optional and passed to `builder` unchanged. Put an expensive
+///   subtree that does not depend on the flag there, so it is not rebuilt when
+///   the flag changes.
 ///
 /// The observation is replaced only when the client, the flag key, or the
-/// default changes, so a rebuilding ancestor does not churn native sessions. An advanced caller who wants to share one observation across
-/// several widgets can hold a [FlagObservation] directly, pass it to
-/// `ValueListenableBuilder`, and dispose it themselves
+/// default value changes, so a rebuilding parent does not repeatedly
+/// re-register it. To share one observation across several widgets, hold a
+/// [FlagObservation] yourself, pass it to `ValueListenableBuilder`, and dispose
+/// it when you are done
 final class CoproductFlagBuilder {
   // A namespace of typed entry points, never instantiated. The entry points are
   // static because a Dart constructor cannot specialize the generic widget's
   // type argument from the type of one of its arguments
   CoproductFlagBuilder._();
 
-  /// Builds from a boolean flag
+  /// Builds from a boolean flag, read as with `CoproductClient.getBool`
   static Widget boolFlag({
     Key? key,
     CoproductClient? client,
@@ -72,7 +83,7 @@ final class CoproductFlagBuilder {
         },
       );
 
-  /// Builds from a string flag
+  /// Builds from a string flag, read as with `CoproductClient.getString`
   static Widget stringFlag({
     Key? key,
     CoproductClient? client,
@@ -97,7 +108,8 @@ final class CoproductFlagBuilder {
         },
       );
 
-  /// Builds from an integer flag
+  /// Builds from a number flag read as an integer, as with
+  /// `CoproductClient.getInt`. A fractional value is truncated toward zero
   static Widget intFlag({
     Key? key,
     CoproductClient? client,
@@ -122,7 +134,7 @@ final class CoproductFlagBuilder {
         },
       );
 
-  /// Builds from a numeric flag
+  /// Builds from a number flag, read as with `CoproductClient.getNumber`
   static Widget numberFlag({
     Key? key,
     CoproductClient? client,
@@ -147,8 +159,9 @@ final class CoproductFlagBuilder {
         },
       );
 
-  /// Builds from a JSON flag. The value is a decoded, deeply unmodifiable Dart
-  /// structure
+  /// Builds from a JSON flag, read as with `CoproductClient.getJson`. The value
+  /// is a deeply unmodifiable Dart value: a map, list, string, number, bool, or
+  /// null
   static Widget jsonFlag({
     Key? key,
     CoproductClient? client,

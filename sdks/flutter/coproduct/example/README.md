@@ -3,38 +3,46 @@
 A small app showing how to initialize the SDK, read a flag, and observe changes
 as values update.
 
-**Reading this on pub.dev?** Copy `lib/main.dart` into an app that depends on
-`coproduct` from pub.dev and run it with the `--dart-define` below. That path
-uses the published prebuilt binaries and needs no Rust toolchain.
+## Running it
 
-**Working in a clone of the repository?** This example source-links the SDK and
-compiles the Rust core, so it needs Rust, Xcode, and the Android NDK. Build the
-native libraries first — they are gitignored build output, absent from a clean
-checkout:
+Copy `lib/main.dart` into a Flutter app that depends on `coproduct` from
+pub.dev, then run it with your mobile SDK key:
 
 ```sh
-scripts/package/flutter-build-native.sh all
-```
-
-The source-linked demo scripts run that step for you:
-`scripts/build/source-linked-flutter-demo-ios.sh` and
-`scripts/build/source-linked-flutter-demo-android.sh`.
-
-Then, from this directory:
-
-```sh
-flutter pub get
 flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 ```
 
+That path uses the published prebuilt binaries and needs no Rust toolchain.
+
 The key is read with `String.fromEnvironment`, so pass it with `--dart-define`
-rather than editing the source. Without it the app runs against a placeholder
-and every flag serves its caller default.
+rather than editing the source. Without it the app runs with a placeholder key
+that Coproduct rejects, and every flag serves its default.
+
+Working in a clone of the repository? See
+[DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md)
+for building the example from source.
+
+## Flags it reads
+
+Create these flags in the project your key belongs to, or the app shows its
+default values:
+
+| Flag key | Flag type | Read with |
+|---|---|---|
+| `test-flag` | Boolean | `CoproductFlagBuilder.boolFlag` and `getBool` |
+| `greeting` | String | `CoproductFlagBuilder.stringFlag` and `getString` |
+| `max-items` | Number | `CoproductFlagBuilder.intFlag` and `getInt` |
+| `ratio` | Number | `CoproductFlagBuilder.numberFlag` and `getNumber` |
+| `theme` | JSON | `CoproductFlagBuilder.jsonFlag` and `getJson` |
+
+## How it starts
 
 This example initializes after `runApp` rather than before it, so the first
-frame renders immediately and the shell is visible while the SDK starts. The
-package README's Quickstart does the opposite, awaiting `initialize` before
-`runApp`, which keeps the first frame authoritative. Both are supported; choose
-by whether you would rather show the shell sooner or avoid a frame of defaults.
+frame renders immediately and the app shell is visible while the SDK starts.
+The package README's quick start does the opposite and awaits `initialize`
+before `runApp`. The first frame then shows real values whenever the flags
+arrive within `startupTimeout` or are saved from an earlier launch. Both
+approaches are supported. Choose based on whether you would rather show the
+app shell sooner or avoid a frame of default values.
 
 See the package README for the full API.

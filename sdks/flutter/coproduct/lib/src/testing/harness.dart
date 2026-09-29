@@ -5,16 +5,16 @@ import '../coproduct_client.dart';
 import '../provider_state.dart';
 import 'in_memory_backend.dart';
 
-/// Drives a real [CoproductClient] from an in-memory value source, so a widget
-/// test can exercise the reactive API with no native library and no network.
+/// Gives a widget test a real [CoproductClient] backed by flag values you set,
+/// with no SDK key, no native library, and no network.
 ///
-/// The mutation controls live here rather than on the client, so an application
-/// cannot depend on test-only methods and the production surface stays closed.
+/// The controls live here rather than on the client, so your app code cannot
+/// depend on test-only methods.
 ///
 /// **The harness supplies resolved values. It does not evaluate targeting
-/// rules**, segments, prerequisites, rollouts, or bucketing. Set the result your
-/// scenario needs, and change it after an identity call if the scenario depends
-/// on who is identified.
+/// rules**, segments, prerequisites, or rollouts. Set the result your scenario
+/// needs, and change it after an identity call if the scenario depends on who
+/// is identified.
 ///
 /// ```dart
 /// final harness = CoproductTestHarness()..setBool('new-checkout', false);
@@ -28,21 +28,20 @@ import 'in_memory_backend.dart';
 /// await tester.pumpAndSettle();
 /// ```
 ///
-/// Harness updates are delivered asynchronously, matching production. Use
-/// `pumpAndSettle` before asserting on the rebuilt widget. If the tree contains
-/// a continuous animation that prevents settling, `pump(Duration.zero)` flushes
-/// one delivery and renders its rebuild.
+/// Use `pumpAndSettle` after changing a value, or `pump(Duration.zero)` if an
+/// animation never settles. A bare `pump()` draws the previous value, because
+/// the update arrives just after the frame is scheduled.
 ///
-/// A bare `pump()` is not sufficient. The test binding checks whether a frame is
-/// already scheduled before it flushes microtasks, so a delivery queued by a
-/// setter arrives after that check and is drawn only by the following pump. This
-/// is deterministic from the scheduler state rather than flaky, but it is not a
-/// contract to write tests against.
+/// When several changes happen before one frame, only the latest value is
+/// rendered. Observations report the current value, not every change.
 ///
-/// Only the latest value is rendered when several changes land before one frame.
-/// That is convergence, not lost delivery: this API reports current flag state
-/// rather than a transition log
+/// A flag you have not set reads as your default value. The harness starts
+/// with [client] reporting [ProviderState.ready]
 final class CoproductTestHarness {
+  /// Creates a harness with no flags set.
+  ///
+  /// [anonymousId] is the targeting key the client uses before an identity
+  /// call, and the one `signOut` returns to
   CoproductTestHarness({String anonymousId = 'test-anonymous-id'})
       : _backend = InMemoryBackend(anonymousId: anonymousId) {
     _client = createClientForBackend(_backend);
@@ -51,19 +50,25 @@ final class CoproductTestHarness {
   final InMemoryBackend _backend;
   late final CoproductClient _client;
 
-  /// A genuine client, accepted anywhere the SDK expects one
+  /// A real client, accepted anywhere the SDK expects one, such as
+  /// `CoproductScope` or `CoproductFlagBuilder`
   CoproductClient get client => _client;
 
+  /// Sets a boolean flag. Observations and builders of [key] update, and
+  /// getters return [value]. Throws a [StateError] after [shutdown]
   void setBool(String key, bool value) => _backend.set(key, StoredBool(value));
 
+  /// Sets a string flag. Observations and builders of [key] update, and
+  /// getters return [value]. Throws a [StateError] after [shutdown]
   void setString(String key, String value) =>
       _backend.set(key, StoredString(value));
 
-  /// Accepts a [num] for ergonomics, stores a double, and rejects a non-finite
-  /// value because no flag can serve one.
+  /// Sets a number flag, stored as a double.
   ///
-  /// There is no `setInt`: the core has four flag types, and an integer read is
-  /// a projection of a number
+  /// There is no `setInt`, because there is no integer flag type. `getInt`
+  /// and `intFlag` read a number flag, truncating toward zero. Throws an
+  /// [ArgumentError] for a value that is not finite, because no flag can serve
+  /// one, and a [StateError] after [shutdown]
   void setNumber(String key, num value) {
     final asDouble = value.toDouble();
     if (!asDouble.isFinite) {
@@ -72,8 +77,11 @@ final class CoproductTestHarness {
     _backend.set(key, StoredNumber(asDouble));
   }
 
-  /// Stores normalized encoded JSON. A value outside the JSON domain fails here
-  /// rather than silently becoming unavailable
+  /// Sets a JSON flag.
+  ///
+  /// [value] must be JSON-encodable: null, a number, string, or bool, or lists
+  /// and string-keyed maps of those. Throws an [ArgumentError] otherwise, and a
+  /// [StateError] after [shutdown]
   void setJson(String key, Object? value) {
     final String encoded;
     try {
@@ -84,27 +92,36 @@ final class CoproductTestHarness {
     _backend.set(key, StoredJson(encoded));
   }
 
-  /// Makes the flag unavailable, so every observation reverts to its own caller
-  /// default. Distinct from an available JSON null, which [setJson] stores
+  /// Removes the flag, so every read and observation of [key] returns its own
+  /// default value. This differs from `setJson(key, null)`, which sets a JSON
+  /// flag whose value is null. Throws a [StateError] after [shutdown]
   void removeFlag(String key) => _backend.set(key, null);
 
-  /// Visible to `client.state` immediately
+  /// Sets what `client.state` reports, immediately.
+  ///
+  /// This changes only the state. Flag values stay as you set them, so to test
+  /// the experience before flags arrive, also remove the flags your widget
+  /// reads with [removeFlag]. Throws a [StateError] after [shutdown]
   void setProviderState(ProviderState state) => _backend.setProviderState(state);
 
-  /// Closes every active observation. Afterward the retained client's getters
-  /// serve their defaults, and any harness setter throws a [StateError]
+  /// Shuts the harness down, like `Coproduct.shutdown` for a real client.
+  ///
+  /// Every observation stops updating, getters on [client] return their
+  /// default values, and every harness setter throws a [StateError]. Safe to
+  /// call more than once, so it suits `addTearDown`
   Future<void> shutdown() => _backend.shutdown();
 
-  /// The current targeting key, the anonymous id until an identity call sets it
+  /// The targeting key the client is using: the anonymous id until an identity
+  /// call sets a user id or targeting key
   String get targetingKey => _backend.targetingKey;
 
-  /// The attributes supplied through the identity APIs, after reserved-name
-  /// filtering.
+  /// The attributes your code set through the identity calls, without the
+  /// reserved names `user_id` and `targetingKey`.
   ///
-  /// This is inspection of developer input, not the production evaluation
-  /// context: it deliberately does not reproduce the core's attribute
-  /// normalization, which transforms locale, country, continent, region_code,
-  /// os_version, and app_version before storing them
+  /// These are the values exactly as you passed them. The real SDK normalizes
+  /// `locale`, `country`, `continent`, `region_code`, `os_version`, and
+  /// `app_version` before rules see them, and the harness does not. The
+  /// automatic attributes are not included
   Map<String, AttributeValue> get developerAttributes =>
       _backend.developerAttributes;
 }

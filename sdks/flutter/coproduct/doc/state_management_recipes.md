@@ -1,7 +1,7 @@
 # State management recipes
 
 `FlagObservation<T>` is a plain `ValueListenable<T>` with a `dispose()`, so it
-works with whatever this app already uses. This SDK depends on no state
+works with whatever your app already uses. This SDK depends on no state
 management package, and none of the recipes below add one.
 
 Every recipe that owns an observation answers the same two questions: **who
@@ -10,9 +10,13 @@ rebuilds** when a flag changes, and **who calls `dispose()`**.
 ## The value you get
 
 An observation has a value immediately, so there is no loading state to handle
-and nothing to guard against. Before the SDK has downloaded the flag, that value
-is the default you supplied, and it updates when flag data arrives. It always
-matches what the equivalent getter would return at that moment.
+and nothing to guard against. Until the SDK has flags, from the network or from
+the copy saved on an earlier launch, that value is the default you supplied,
+and it updates when flags arrive.
+
+It starts out equal to what the matching getter returns. After a change, the
+getter can return the new value a moment before the observation notifies, and
+then the two agree again.
 
 `observeBool`, `observeString`, `observeInt`, and `observeNumber` give you a
 non-nullable value. `observeJson` gives you `Object?`, and its `null` is a real
@@ -112,7 +116,7 @@ Future<void> main() async {
   // plugins, so the binding has to exist before it runs
   WidgetsFlutterBinding.ensureInitialized();
 
-  final client = await Coproduct.initialize(sdkKey: 'your-key');
+  final client = await Coproduct.initialize(sdkKey: 'cpk_mob_...');
   runApp(CoproductScope(client: client, child: const MyApp()));
 }
 ```
@@ -150,7 +154,13 @@ your app decides what to show while `initialize` is still running.
 ## Recipe 4: Provider
 
 If your app already keeps the client in a Provider, read it from there and pass
-it explicitly. You do not need a `CoproductScope` as well.
+it explicitly. You do not need a `CoproductScope` as well. To expose the client
+through Provider in the first place:
+
+```dart
+final client = await Coproduct.initialize(sdkKey: 'cpk_mob_...');
+runApp(Provider<CoproductClient>.value(value: client, child: const MyApp()));
+```
 
 `ListenableProvider` calls the `dispose` callback you give it, which is exactly
 what an observation needs. Place this inside `build`, below the Provider that
@@ -219,7 +229,8 @@ the observation for a rebuild to happen.
 ## Recipe 6: BLoC
 
 If a repository provider already carries the client, pass it from there and skip
-the `CoproductScope`.
+the `CoproductScope`. To expose it, wrap your app in
+`RepositoryProvider<CoproductClient>.value(value: client, child: ...)`.
 
 The Cubit forwards the observation's changes into its state and disposes the
 observation in `close()`. A `Cubit` shows the ownership without event-handler
@@ -272,7 +283,7 @@ created, and `close()` removes the listener and disposes the observation.
 
 With a full `Bloc`, the same shape applies with one addition: the listener calls
 `add(...)`, so register a matching `on<CheckoutFlagChanged>` handler in the
-constructor, or the first flag change throws for want of a handler.
+constructor, or the first flag change throws because no handler is registered.
 
 ## Shutdown
 
@@ -282,7 +293,5 @@ safe. An observation created after shutdown serves the default you supply.
 
 ## A note on these samples
 
-`CoproductScope` and `CoproductFlagBuilder` are shipped code, tested by this
-package's own suite. The Provider, Riverpod, and BLoC samples reference packages
-this SDK does not depend on, so they are reviewed by hand rather than compiled
-here. Adapt names to your version of those packages.
+The Provider, Riverpod, and BLoC samples use packages this SDK does not depend
+on. Adjust names for the versions you use.

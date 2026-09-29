@@ -32,17 +32,21 @@ CoproductClient createClientForBackend(CoproductClientBackend backend,
         {SerialQueue? identityQueue}) =>
     CoproductClient._(backend, identityQueue ?? SerialQueue());
 
-/// A live Coproduct client for reading flags and setting the evaluation identity.
+/// Reads flags and sets who they are evaluated for. Get one from
+/// [Coproduct.initialize], or from `CoproductTestHarness` in a widget test.
 ///
-/// The identity mutators (`identify`, `signOut`, `setContext`, `updateAttributes`,
-/// `removeAttributes`) share these semantics: they perform no network request,
-/// they re-evaluate the currently loaded snapshot locally and may notify
-/// observers, and they apply in call order. Await a mutation to observe its
-/// completion and errors, or to read settled state such as [previousAnonymousId]
-/// afterwards. Ignoring the returned future gives up that observation, and if the
-/// operation fails the error surfaces as an unhandled asynchronous error.
-/// Identified state is not persisted across launches, so call [identify] again
-/// after initialize on each launch. With no snapshot loaded, reads return defaults
+/// Reads never throw. Each one is an in-memory lookup against the flags the
+/// SDK has downloaded, so it makes no network request. When the SDK cannot
+/// resolve a flag, a read returns the default value you pass.
+///
+/// The identity calls ([identify], [setContext], [updateAttributes],
+/// [removeAttributes], and [signOut]) make no network request either. They
+/// re-evaluate the flags the SDK already has, apply in the order you call
+/// them, and update observations. Await them: when the future completes,
+/// getters, observations, and [previousAnonymousId] reflect the change, and
+/// an ignored future that fails becomes an unhandled asynchronous error.
+/// Identity is not saved between launches, so call [identify] again after
+/// `initialize` on each launch
 final class CoproductClient {
   CoproductClient._(this._backend, this._identityQueue);
 
@@ -52,37 +56,61 @@ final class CoproductClient {
   // would reintroduce exactly the interleaving this one exists to prevent
   final SerialQueue _identityQueue;
 
+  /// Reads a boolean flag.
+  ///
+  /// Returns the value Coproduct serves for the current user: the value of the
+  /// targeting rule the user matches, the flag's fallthrough value when no
+  /// rule matches, or its off value when the flag is switched off or paused,
+  /// its prerequisite is not met, or its rules use a condition this SDK
+  /// version does not understand. Returns
+  /// [defaultValue] when the SDK cannot resolve the flag: it has no flags
+  /// yet, no flag with [key] exists, the flag is not a boolean, the SDK key was
+  /// rejected, or the SDK was shut down. Never throws.
+  ///
+  /// This reads the value at this moment and nothing more. Called inside
+  /// `build`, it does not rebuild your widget when the flag changes. Use
+  /// `CoproductFlagBuilder.boolFlag` or [observeBool] for that
   bool getBool(String key, {required bool defaultValue}) =>
       _backend.getBool(key, defaultValue: defaultValue);
 
-  /// Reads a string flag, returning [defaultValue] if the flag is missing, the
-  /// wrong type, or the SDK is not ready
+  /// Reads a string flag.
+  ///
+  /// Returns [defaultValue] when the SDK cannot resolve the flag, including
+  /// when the flag is not a string. See [getBool] for what a read serves.
+  /// Never throws, and does not rebuild a widget when the flag changes
   String getString(String key, {required String defaultValue}) =>
       _backend.getString(key, defaultValue: defaultValue);
 
-  /// Reads an integer flag, returning [defaultValue] if the flag is missing, the
-  /// wrong type, or the SDK is not ready. Integers travel as the numeric flag
-  /// type, so a fractional value is truncated toward zero
+  /// Reads a number flag as an integer.
+  ///
+  /// There is no separate integer flag type, so create a number flag. A
+  /// fractional value is truncated toward zero, and a value outside the signed
+  /// 64-bit range returns [defaultValue]. Returns [defaultValue] when the SDK
+  /// cannot resolve the flag, including when the flag is not a number. See
+  /// [getBool] for what a read serves. Never throws, and does not rebuild a
+  /// widget when the flag changes
   int getInt(String key, {required int defaultValue}) =>
       _backend.getInt(key, defaultValue: defaultValue);
 
-  /// Reads a numeric flag, returning [defaultValue] if the flag is missing, the
-  /// wrong type, or the SDK is not ready
+  /// Reads a number flag.
+  ///
+  /// Returns [defaultValue] when the SDK cannot resolve the flag, including
+  /// when the flag is not a number. See [getBool] for what a read serves.
+  /// Never throws, and does not rebuild a widget when the flag changes
   double getNumber(String key, {required double defaultValue}) =>
       _backend.getNumber(key, defaultValue: defaultValue);
 
-  /// Reads a JSON flag as a native Dart value (map, list, scalar, or null).
+  /// Reads a JSON flag as a Dart value: a map, list, string, number, bool, or
+  /// null.
   ///
-  /// The result is deeply unmodifiable, matching [observeJson], so one ownership
-  /// rule covers every JSON value the SDK hands back. Copy it if you need to
-  /// mutate.
+  /// The result is deeply unmodifiable, so copy it before changing it. Returns
+  /// [defaultValue] when the SDK cannot resolve the flag, including when the
+  /// flag is not a JSON flag. See [getBool] for what a read serves.
   ///
-  /// [defaultValue] must be JSON-encodable: null, a JSON scalar, a list of
-  /// JSON-encodable values, or a string-keyed map of JSON-encodable values. If
-  /// encoding or decoding fails, the supplied [defaultValue] is returned
-  /// unchanged instead of throwing, matching the "reads do not throw" contract.
-  /// A default JSON cannot encode never round-trips, so it comes back exactly as
-  /// supplied and is the one result that is not unmodifiable
+  /// Pass a JSON-encodable [defaultValue]: null, a number, string, or bool, or
+  /// lists and string-keyed maps of those. A default value that cannot be
+  /// encoded is returned exactly as you passed it, and is then the one result
+  /// that is not unmodifiable. Never throws
   Object? getJson(String key, {required Object? defaultValue}) {
     final String defaultValueJson;
     try {
@@ -99,14 +127,21 @@ final class CoproductClient {
     }
   }
 
-  /// Identifies the evaluated context by [userId] and replaces its developer
-  /// attributes with [attributes], so an attribute not in the map is cleared.
-  /// [linkAnonymous] (default true) carries the pre-identify anonymous id forward,
-  /// readable via [previousAnonymousId]. Reserved keys `user_id` and `targetingKey`
-  /// in [attributes] are ignored, so set identity through [userId]. Throws
-  /// `InvalidTargetingKey` if [userId] is empty. Awaiting settles the in-memory
-  /// transition, lifecycle notifications, and observer fan-out, and performs no
-  /// persistence
+  /// Sets the signed-in user that flags are evaluated for.
+  ///
+  /// [userId] is your stable account id, and a rule on `user_id` matches it.
+  /// [attributes] replaces the attributes you set earlier, so an attribute
+  /// missing from the map is cleared. The keys `user_id` and `targetingKey`
+  /// are reserved and ignored in [attributes]. The automatic attributes are
+  /// never cleared.
+  ///
+  /// With [linkAnonymous] true, the default, this installation's anonymous id
+  /// is captured in [previousAnonymousId] unless one is already stored. With
+  /// it false, [previousAnonymousId] is cleared.
+  ///
+  /// Makes no network request. When the future completes, getters and
+  /// observations reflect the new user. The user id is not saved, so call this
+  /// again on each launch. Throws [InvalidTargetingKey] if [userId] is empty
   Future<void> identify({
     required String userId,
     Map<String, AttributeValue> attributes = const {},
@@ -122,16 +157,23 @@ final class CoproductClient {
         ));
   }
 
-  /// Clears the identified user and reverts to the anonymous identity, clearing
-  /// developer attributes. Awaiting settles the transition and the anonymous-id
-  /// persistence attempt, not durable storage, since a write failure is logged and
-  /// swallowed
+  /// Returns to this installation's anonymous id, and clears your attributes
+  /// and [previousAnonymousId].
+  ///
+  /// The anonymous id is the same one used before sign-in, so an anonymous
+  /// rollout places the device in the same group as before. The automatic
+  /// attributes are never cleared
   Future<void> signOut() => _identityQueue.add(_backend.signOut);
 
-  /// Replaces the targeting key and developer attributes of the current context,
-  /// so an attribute not in [attributes] is cleared. Reserved keys `user_id` and
-  /// `targetingKey` are ignored. Throws `InvalidTargetingKey` if [targetingKey]
-  /// is empty
+  /// Sets the targeting key flags are evaluated for directly, and replaces
+  /// your attributes with [attributes].
+  ///
+  /// Use it when what you target is not a signed-in account, such as a team
+  /// or a device. A rule on `user_id` matches [targetingKey]. Like [identify],
+  /// an attribute missing from [attributes] is cleared, the reserved keys
+  /// `user_id` and `targetingKey` are ignored, and the automatic attributes
+  /// are never cleared. Unlike [identify], it leaves [previousAnonymousId]
+  /// unchanged. Throws [InvalidTargetingKey] if [targetingKey] is empty
   Future<void> setContext({
     required String targetingKey,
     Map<String, AttributeValue> attributes = const {},
@@ -143,44 +185,56 @@ final class CoproductClient {
         ));
   }
 
-  /// Merges [attributes] into the current developer attributes, so omitted keys
-  /// remain. Reserved keys `user_id` and `targetingKey` are ignored
+  /// Merges [attributes] into the attributes you set earlier. Keys you leave
+  /// out stay as they are.
+  ///
+  /// The reserved keys `user_id` and `targetingKey` are ignored. An attribute
+  /// with the same name as an automatic attribute overrides it while it is set
   Future<void> updateAttributes(Map<String, AttributeValue> attributes) {
     final snapshot = Map<String, AttributeValue>.unmodifiable(attributes);
     return _identityQueue.add(() => _backend.updateAttributes(snapshot));
   }
 
-  /// Removes the named developer attributes, which may reveal a lower context
-  /// layer's value for those keys
+  /// Removes the named attributes you set earlier.
+  ///
+  /// If an automatic attribute has the same name, its value applies again
   Future<void> removeAttributes(List<String> keys) {
     final snapshot = snapshotKeys(keys);
     return _identityQueue.add(() => _backend.removeAttributes(snapshot));
   }
 
-  /// The anonymous id captured to link a pre-login session, or null. A linked
-  /// identify captures the current anonymous id only when no id is currently
-  /// stored, so later linked identifies do not overwrite a stored value. signOut
-  /// or an unlinked identify (linkAnonymous false) clears it, after which a later
-  /// linked identify can capture it again. Read it after awaiting the identity
-  /// mutation that should have changed it
+  /// The anonymous id captured when someone signed in, or null.
+  ///
+  /// Pass it to your own analytics or backend alongside the signed-in id to
+  /// join activity from before sign-in to the account. The SDK does not send
+  /// it anywhere. [identify] captures it only when none is stored, so a later
+  /// [identify] does not overwrite it. [signOut], and [identify] with
+  /// `linkAnonymous: false`, clear it. Read it after awaiting the call that
+  /// should have changed it
   String? get previousAnonymousId => _backend.previousAnonymousId;
 
-  /// The current provider lifecycle state.
+  /// What the SDK is doing: whether it has flags, and whether its checks for
+  /// updates are succeeding. See [ProviderState] for each value.
   ///
-  /// A freshly polled value can become readable a moment before this reports
-  /// [ProviderState.ready]: the snapshot is swapped first so a getter never
-  /// serves a stale value while this says ready. Observe the flag you care
-  /// about rather than waiting on this
+  /// Most apps never need it, because reads serve your default value whenever
+  /// the SDK cannot resolve a flag. This is a plain getter with no listener.
+  /// A getter can return newly downloaded values a moment before this reports
+  /// [ProviderState.ready], so to react when flags arrive, observe the flag you
+  /// care about instead
   ProviderState get state => _backend.state;
 
-  /// Observes a boolean flag, returning a [FlagObservation] whose value is
-  /// already seeded with what [getBool] would return right now.
+  /// Observes a boolean flag, returning a [FlagObservation] that holds its
+  /// current value and notifies listeners when it changes.
   ///
-  /// The observation updates when a poll, an identity change, or a context
-  /// change alters this flag's value, and resolves to [defaultValue] whenever
-  /// the flag is unavailable. The caller owns it: call
-  /// [FlagObservation.dispose] when the owner goes away, or let
-  /// [CoproductFlagBuilder] own one for you
+  /// The value starts as what [getBool] returns right now, so it is available
+  /// immediately. It updates when new flags arrive, when you change the
+  /// identity or attributes, or when an automatic attribute such as
+  /// `network_type` changes. When the SDK cannot resolve the flag, the value is
+  /// [defaultValue].
+  ///
+  /// You own the observation: call [FlagObservation.dispose] when you are
+  /// done. `CoproductFlagBuilder` creates and disposes one for you, and is the
+  /// easier choice for a widget
   FlagObservation<bool> observeBool(String key, {required bool defaultValue}) {
     final handle = _backend.observeBool(key);
     return boolObservation(
@@ -191,8 +245,11 @@ final class CoproductClient {
     );
   }
 
-  /// Observes a string flag. See [observeBool] for ownership and update
-  /// semantics
+  /// Observes a string flag, returning a [FlagObservation] that notifies
+  /// listeners when its value changes.
+  ///
+  /// The value starts as what [getString] returns right now. See [observeBool]
+  /// for when it updates and why you must dispose it
   FlagObservation<String> observeString(String key,
       {required String defaultValue}) {
     final handle = _backend.observeString(key);
@@ -204,10 +261,13 @@ final class CoproductClient {
     );
   }
 
-  /// Observes an integer flag. Integers travel as the numeric flag type, so a
-  /// fractional value is truncated toward zero and a value outside the integer
-  /// range is unavailable, matching [getInt]. See [observeBool] for ownership
-  /// and update semantics
+  /// Observes a number flag as an integer, returning a [FlagObservation] that
+  /// notifies listeners when its value changes.
+  ///
+  /// The value starts as what [getInt] returns right now. As with [getInt], a
+  /// fractional value is truncated toward zero, and a value outside the signed
+  /// 64-bit range serves [defaultValue]. See [observeBool] for when it updates
+  /// and why you must dispose it
   FlagObservation<int> observeInt(String key, {required int defaultValue}) {
     final handle = _backend.observeInt(key);
     return intObservation(
@@ -218,8 +278,11 @@ final class CoproductClient {
     );
   }
 
-  /// Observes a numeric flag. See [observeBool] for ownership and update
-  /// semantics
+  /// Observes a number flag, returning a [FlagObservation] that notifies
+  /// listeners when its value changes.
+  ///
+  /// The value starts as what [getNumber] returns right now. See [observeBool]
+  /// for when it updates and why you must dispose it
   FlagObservation<double> observeNumber(String key,
       {required double defaultValue}) {
     final handle = _backend.observeNumber(key);
@@ -231,18 +294,17 @@ final class CoproductClient {
     );
   }
 
-  /// Observes a JSON flag as a native Dart value (map, list, scalar, or null).
+  /// Observes a JSON flag as a Dart value, returning a [FlagObservation] that
+  /// notifies listeners when its value changes.
   ///
-  /// This is the one observation whose value is legitimately nullable: a flag
-  /// serving the JSON document `null` resolves to Dart `null`, which is a real
-  /// value and is distinct from the flag being unavailable. An unavailable flag
-  /// resolves to [defaultValue] like every other type.
+  /// The value starts as what [getJson] returns right now, and is deeply
+  /// unmodifiable. A flag that serves the JSON document `null` gives Dart
+  /// `null`, which is a real value, distinct from the flag being unresolved.
+  /// An unresolved flag gives [defaultValue], like every other type.
   ///
-  /// Decoded values are deeply unmodifiable. [defaultValue] should be
-  /// JSON-encodable, and an encodable one is served back in its decoded form so
-  /// it matches [getJson]. One that is not encodable is served back exactly as
-  /// supplied rather than throwing. See [observeBool] for ownership and update
-  /// semantics
+  /// Pass a JSON-encodable [defaultValue]. A default value that cannot be
+  /// encoded is served exactly as you passed it rather than throwing. See
+  /// [observeBool] for when it updates and why you must dispose it
   FlagObservation<Object?> observeJson(String key,
       {required Object? defaultValue}) {
     final handle = _backend.observeJson(key);
@@ -255,8 +317,10 @@ final class CoproductClient {
   }
 }
 
-/// The single process-wide runtime, initialized and shut down through the static
-/// entry points. Reads and identity live on the returned [CoproductClient].
+/// Starts and stops the SDK. There is one SDK instance per Flutter engine.
+///
+/// Call [initialize] once at startup, then read flags and set the identity on
+/// the [CoproductClient] it returns
 final class Coproduct {
   Coproduct._();
 
@@ -280,25 +344,50 @@ final class Coproduct {
     bindNetworkResume: appLifecycleForegroundBinder,
   );
 
-  /// Initializes the SDK: validates the config, constructs the client against the
-  /// cache and stored identity, installs automatic context, and starts polling.
-  /// Initialization waits for automatic metadata collection and initial provider
-  /// readiness against the [CoproductConfig.startupTimeout] convergence budget.
-  /// Mandatory native construction runs outside that budget, so the return time
-  /// can exceed it. Concurrent or repeated calls with the same key and config
-  /// join the same client, a different key or config throws
-  /// [CoproductAlreadyInitialized]. The returned client is ready to read, serving
-  /// cache or defaults until the first poll lands.
+  /// Starts the SDK and returns a client for reading flags.
+  ///
+  /// [sdkKey] is a mobile SDK key from Coproduct, `cpk_mob_` followed by 32
+  /// characters. Call `WidgetsFlutterBinding.ensureInitialized()` first, and
+  /// call this from your app's main isolate.
+  ///
+  /// It checks the key and [config], loads any flags saved on an earlier
+  /// launch, collects the automatic attributes, and starts checking for
+  /// updates. On a first launch it waits up to
+  /// [CoproductConfig.startupTimeout] for the first download, then returns
+  /// whether or not the flags arrived, and reads serve your default values
+  /// until they do. On a later launch it starts from the saved flags and does
+  /// not wait for the network. It can return slightly after
+  /// [CoproductConfig.startupTimeout].
+  ///
+  /// Calling it again with the same key and config returns the same client.
+  /// A different key or config throws [CoproductAlreadyInitialized], so call
+  /// [shutdown] first to change either.
+  ///
+  /// Throws a [CoproductException] only for a mistake in your code, or when
+  /// [shutdown] interrupts it, never for a network problem. The mistakes are
+  /// [MissingSdkKey], [InvalidKeyType], [MalformedSdkKey], [InvalidConfig],
+  /// [CoproductAlreadyInitialized], and [CoproductUnsupportedIsolate]. A
+  /// [shutdown] that runs before this finishes throws
+  /// [CoproductInitializationCancelled]. A well-formed key that Coproduct
+  /// rejects, such as a revoked one, does not throw. The first check is
+  /// rejected, [CoproductClient.state] becomes [ProviderState.fatal], and
+  /// reads serve your default values. On a launch with saved flags, those are
+  /// served until that first check completes
   static Future<CoproductClient> initialize({
     required String sdkKey,
     CoproductConfig config = const CoproductConfig(),
   }) =>
       _host.initialize(sdkKey: sdkKey, config: config);
 
-  /// Tears the runtime down: stops polling, sets the core shutdown latch, and
-  /// closes the transport. After shutdown the typed getters on a retained client
-  /// return their supplied defaults. Idempotent, and a no-op when nothing is
-  /// initialized. A later [initialize] builds a fresh runtime.
+  /// Stops the SDK: ends checks for updates and closes its network
+  /// connection.
+  ///
+  /// Afterward, getters on an existing client return your default values,
+  /// observations keep their last value and stop updating, and identity calls
+  /// complete without effect. Safe to call more than once, and does nothing
+  /// when the SDK is not running. A later [initialize] returns a new client,
+  /// so replace any client you stored. Most apps call this only at final
+  /// teardown, if at all
   static Future<void> shutdown() => _host.shutdown();
 }
 

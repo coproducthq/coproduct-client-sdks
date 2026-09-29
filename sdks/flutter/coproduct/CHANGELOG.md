@@ -2,10 +2,11 @@
 
 `device_type` is now filled in automatically alongside the six attributes the
 SDK already supplied, so a rule can target phones or tablets with no code from
-you. It is left unset rather than guessed on a device that is neither: on iOS
-that is whatever the system reports as its interface idiom, and on Android it is
-the 600dp width the platform's own layout qualifier uses, with televisions,
-watches, cars, appliances, VR headsets, Chromebooks and Android PCs left unset.
+you. It is left unset rather than guessed on a device that is neither. On iOS
+it comes from the interface idiom, and a device whose idiom is neither phone nor
+pad is left unset. On Android it is classified by the 600dp width the
+platform's own layout qualifier uses, with televisions, watches, cars,
+appliances, VR headsets, Chromebooks and Android PCs left unset.
 
 `first_seen_at` and `session_count` are now filled in automatically, so a rule
 can target new users or returning ones with no code from you. One app launch
@@ -47,8 +48,10 @@ matching, with nothing to explain why.
 First stable release. The SDK fetches and evaluates real flags on a booted
 device: it polls the Coproduct endpoint, applies automatic device and app
 context, evaluates targeting and identity, and serves values from the
-synchronous getters. Initialization waits for automatic metadata collection and
-first-poll readiness against one `startupTimeout` convergence budget.
+synchronous getters. It saves the last flags it downloaded, so a later launch
+starts with them and `initialize` returns without waiting for the network. On a
+launch with no saved flags, `initialize` waits for the first download, and on
+every launch for the automatic attributes, within one `startupTimeout`.
 
 The SDK now ships prebuilt native libraries inside the package, so building an
 app that depends on it no longer requires a Rust toolchain. Earlier versions
@@ -85,14 +88,15 @@ character.
 Flags can now be observed as well as read. `observeBool`, `observeString`,
 `observeInt`, `observeNumber`, and `observeJson` return a `FlagObservation`, a
 `ValueListenable` seeded synchronously with the value its matching getter would
-return and updated when a poll or an identity change alters it. An observation
-notifies only when the value actually changes, resolves to the caller's default
-whenever the flag is unavailable, and is ended with `dispose()`.
-`CoproductFlagBuilder` builds a widget from a flag and owns that lifecycle for
-you. `CoproductScope` carries the client down the widget tree, so a builder can
-omit `client` and resolve it from the context instead. Multi-flag reads, the detail
-getters, and experiment tracking are planned for a later release: this version
-delivers and evaluates flags, and does not yet record which variant a user saw.
+return and updated when new flags arrive, when the identity or attributes
+change, or when an automatic attribute such as `network_type` changes. An
+observation notifies only when the value actually changes, resolves to the
+caller's default whenever the flag is unavailable, and is ended with
+`dispose()`. `CoproductFlagBuilder` builds a widget from a flag and owns that
+lifecycle for you. `CoproductScope` carries the client down the widget tree, so
+a builder can omit `client` and resolve it from the context instead. This
+release does not include multi-flag reads, evaluation details, or experiment
+tracking, and it does not record which variation a user saw.
 
 ## 0.0.1
 
