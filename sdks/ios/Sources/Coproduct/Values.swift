@@ -43,8 +43,8 @@ public enum FlagDetailValue: Sendable, Equatable {
     case json(String)
 }
 
-/// Unified evaluation details returned by every typed getter, so the public
-/// surface has a single details type for all flag types
+/// Evaluation details returned by every detail getter (getBoolDetails and the
+/// others), so the public surface has a single details type for all flag types
 public struct FlagEvaluationDetails: Sendable, Equatable {
     public let value: FlagDetailValue
     public let variant: String?

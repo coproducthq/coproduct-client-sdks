@@ -2,9 +2,10 @@ import CoproductFFI
 import Foundation
 import Security
 
-/// Production SecureStore backed by the iOS Keychain so identity tokens survive
-/// app restarts and stay outside the snapshot cache. Keychain failures map onto
-/// the SecureStoreError categories without an attached message
+/// Production SecureStore backed by the iOS Keychain, so the SDK's anonymous id
+/// survives app restarts and stays outside the snapshot cache. The identified
+/// user id is never stored. Keychain failures map onto the SecureStoreError
+/// categories without an attached message
 public final class KeychainSecureStore: HostSecureStore, @unchecked Sendable {
     private let service: String
 

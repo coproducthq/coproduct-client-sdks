@@ -66,9 +66,10 @@ public final class FlagObservation<T: Sendable>: @unchecked Sendable {
 }
 
 /// Reference-typed observation handle for a set of keys. Each key's value is
-/// provided as a FlagDetailValue so integer and JSON flags keep their type
-/// rather than collapsing to a double or a string. Releasing the last strong
-/// reference cancels the underlying subscription
+/// provided as a FlagDetailValue that keeps the flag's type: a boolean flag as
+/// .bool, a string flag as .string, a number flag as .number, and a JSON flag as
+/// .json with the raw JSON text. A bundle never delivers .int. Releasing the
+/// last strong reference cancels the underlying subscription
 public final class FlagBundleObservation: @unchecked Sendable {
     /// The flag keys this bundle observation tracks
     public let keys: [String]

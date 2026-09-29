@@ -1,8 +1,10 @@
 import CoproductFFI
 import Foundation
 
-/// Default production transport. Implements HostTransport through URLSession so
-/// the platform's ATS, certificate pinning, and proxy expectations all apply
+/// Default production transport. Implements HostTransport through URLSession, so
+/// App Transport Security and the system proxy settings apply. It does no
+/// certificate pinning of its own: pass a URLSession configured with a pinning
+/// delegate for that
 public final class URLSessionTransport: HostTransport, @unchecked Sendable {
     private let session: URLSession
     private let requestTimeout: TimeInterval?

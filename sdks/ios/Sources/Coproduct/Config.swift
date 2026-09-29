@@ -7,12 +7,12 @@ public struct CoproductConfig: Sendable {
     /// NaN, infinities, negatives, and out-of-range values are rejected at initialize
     public var pollInterval: TimeInterval
 
-    /// Startup timeout in seconds. Default 3, must be positive: a zero or
-    /// negative value is rejected at initialize. The maximum time initialize
-    /// waits for the first poll to make the provider ready before returning with
-    /// the SDK polling in the background. A slow or unreachable first poll never
-    /// fails initialize: reads serve cached values or supplied defaults until the
-    /// first successful poll lands
+    /// Startup timeout in seconds. Default 3. The maximum time initialize waits
+    /// for the first poll before returning with the SDK polling in the
+    /// background. The value is converted to whole seconds, rounding toward zero,
+    /// before it is validated, so a value below 1 is rejected at initialize. A
+    /// slow or unreachable first poll never fails initialize: reads serve cached
+    /// values or supplied defaults until the first successful poll lands
     public var startupTimeout: TimeInterval
 
     /// Override the auto-generated anonymous id, persisted over any prior value

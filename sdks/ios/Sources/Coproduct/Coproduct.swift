@@ -9,19 +9,19 @@ public enum Coproduct {
 
     /// Initialize the SDK with the default configuration.
     ///
-    /// Returns once the client is built from cache and the first poll has either
-    /// made the provider ready or `startupTimeout` has elapsed, whichever comes
+    /// Returns as soon as flags are available from the on-device cache, the
+    /// first poll succeeds or fails, or `startupTimeout` elapses, whichever comes
     /// first. Polling then continues in the background, and reads serve cached
-    /// values or the supplied defaults until the provider is ready.
+    /// values or the supplied defaults until flags arrive.
     ///
     /// Calling this a second time returns the existing instance, even with a
     /// different sdk key (a warning is logged); call ``shutdown()`` first to
     /// switch environments.
     ///
     /// - Throws: ``CoproductError`` for every launch failure: an out-of-range or
-    ///   unrepresentable config value, a missing or malformed sdk key, an
-    ///   unsupported snapshot schema, or a shutdown that races startup. A slow or
-    ///   unreachable first poll does not throw.
+    ///   unrepresentable config value, a missing or malformed sdk key, or a
+    ///   shutdown that races startup. A slow or unreachable first poll does not
+    ///   throw.
     public static func initialize(sdkKey: String) async throws {
         _ = try await Instances.shared.initialize(sdkKey: sdkKey, config: CoproductConfig())
     }
@@ -43,8 +43,10 @@ public enum Coproduct {
     /// - Parameters:
     ///   - userId: A stable identifier for the user.
     ///   - attributes: Targeting attributes to attach. Defaults to none.
-    ///   - linkAnonymous: Carry the pre-identify anonymous identity forward.
-    ///     Defaults to `true`.
+    ///   - linkAnonymous: When `true`, the default, record the current anonymous
+    ///     id in ``previousAnonymousId`` if none is recorded yet. When `false`,
+    ///     clear it. Targeting uses `userId` either way, and nothing is sent to a
+    ///     server.
     public static func identify(
         userId: String,
         attributes: [String: AttributeValue] = [:],
@@ -97,8 +99,10 @@ public enum Coproduct {
         client.setContext(targetingKey: targetingKey, attributes: attributes)
     }
 
-    /// The anonymous id from before the most recent identify, or `nil` if there
-    /// is none, including before initialize.
+    /// The anonymous id recorded by the first linked identify since initialize or
+    /// the last signOut, or `nil`. A later identify does not overwrite it, and
+    /// signOut or an identify with `linkAnonymous: false` clears it. Held in
+    /// memory only, and `nil` before initialize.
     public static var previousAnonymousId: String? {
         Instances.shared.defaultInstance().flatMap { $0.previousAnonymousId() }
     }
@@ -217,8 +221,10 @@ public enum Coproduct {
     // initialized instance and traps otherwise, because it returns a live
     // observation the caller subscribes to
 
-    /// Observe a boolean flag. The observation seeds with the current value and
-    /// emits every subsequent change. Requires an initialized instance.
+    /// Observe a boolean flag. The observation holds the current value from the
+    /// moment it is created and delivers later values in order. Changes that land
+    /// close together may be coalesced to the latest. Requires an initialized
+    /// instance.
     public static func observe(_ key: String, default defaultValue: Bool) -> FlagObservation<Bool> {
         Instances.shared.requireDefault().observeBool(key: key, defaultValue: defaultValue)
     }
@@ -292,8 +298,10 @@ public enum Coproduct {
             ?? CoproductSnapshot(version: 0, flagCount: 0, environment: "")
     }
 
-    /// Tear down the instance: stop polling, cancel handlers and observations,
-    /// and release the client. Reactive surfaces re-attach if you initialize
+    /// Tear down the instance: stop polling, cancel handlers, hooks, the
+    /// evaluation listener, and observations, and release the client. Existing
+    /// `FlagObservation` and `FlagBundleObservation` objects keep their last
+    /// value and stop updating. `@CoproductFlag` re-attaches if you initialize
     /// again. The on-disk snapshot cache is preserved for the next launch.
     public static func shutdown() async {
         await Instances.shared.shutdown()
@@ -373,7 +381,7 @@ public enum CoproductError: Error, Sendable {
     /// A configuration value is out of range or cannot be represented. Covers both
     /// wrapper guards (NaN, infinities, negatives, values that do not fit UInt64)
     /// and core range checks (for example a pollInterval below 30 or a
-    /// non-positive startupTimeout)
+    /// startupTimeout below 1 second)
     case invalidConfig(field: String, reason: String)
 
     /// The sdk key is missing or is not a well-formed mobile key
