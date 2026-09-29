@@ -400,8 +400,10 @@ extension CoproductError {
             return .launchFailed(reason: String(describing: error))
         }
         switch initError {
-        case let .InvalidKeyType(prefix):
-            return .invalidSdkKey(reason: "unexpected key prefix `\(prefix)`")
+        case .InvalidKeyType:
+            // The rejected key may be a secret pasted by mistake, so the reason
+            // is fixed and carries no part of it
+            return .invalidSdkKey(reason: "expected a Coproduct mobile SDK key (cpk_mob_)")
         case let .MalformedSdkKey(reason):
             return .invalidSdkKey(reason: reason)
         case .MissingSdkKey:

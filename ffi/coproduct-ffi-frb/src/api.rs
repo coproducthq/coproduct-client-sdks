@@ -40,7 +40,7 @@ pub struct HttpResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum InitError {
-    #[error("invalid SDK key type: expected cpk_mob_, got {prefix}")]
+    #[error("invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)")]
     InvalidKeyType { prefix: String },
     #[error("malformed SDK key: {reason}")]
     MalformedSdkKey { reason: String },
@@ -1045,5 +1045,78 @@ fn to_core_header(header: HttpHeader) -> core_transport::HttpHeader {
     core_transport::HttpHeader {
         name: header.name,
         value: header.value,
+    }
+}
+
+#[cfg(test)]
+mod init_error_conversion_tests {
+    use super::*;
+    use coproduct_core::secure_store::{SecureStore, SecureStoreError};
+    use coproduct_core::transport::{HttpRequest, HttpResponse, Transport, TransportError};
+    use std::future::Future;
+    use std::pin::pin;
+    use std::task::{Context, Poll, Waker};
+
+    #[derive(Debug)]
+    struct UnusedTransport;
+
+    #[async_trait::async_trait]
+    impl Transport for UnusedTransport {
+        async fn request(&self, _req: HttpRequest) -> Result<HttpResponse, TransportError> {
+            Err(TransportError::NetworkUnreachable)
+        }
+    }
+
+    #[derive(Debug)]
+    struct UnusedSecureStore;
+
+    #[async_trait::async_trait]
+    impl SecureStore for UnusedSecureStore {
+        async fn read(&self, _key: String) -> Result<Option<String>, SecureStoreError> {
+            Ok(None)
+        }
+        async fn write(&self, _key: String, _value: String) -> Result<(), SecureStoreError> {
+            Ok(())
+        }
+    }
+
+    /// The core error for a rejected key. Key validation returns before the
+    /// first await, so one poll resolves the future
+    fn core_error_for(sdk_key: &str) -> coproduct_core::error::InitError {
+        let future = coproduct_core::client::CoproductClient::initialize(
+            sdk_key.to_string(),
+            "coproduct-flutter/test".to_string(),
+            coproduct_core::config::CoproductConfig::default(),
+            std::env::temp_dir().to_string_lossy().into_owned(),
+            Arc::new(UnusedTransport),
+            Arc::new(UnusedSecureStore),
+        );
+        let mut future = pin!(future);
+        let mut cx = Context::from_waker(Waker::noop());
+        match future.as_mut().poll(&mut cx) {
+            Poll::Ready(Err(err)) => err,
+            Poll::Ready(Ok(_)) => panic!("key must be rejected"),
+            Poll::Pending => panic!("key validation must not await"),
+        }
+    }
+
+    #[test]
+    fn invalid_key_type_carries_no_part_of_the_rejected_key() {
+        let key = "password_hunter2";
+        let err = InitError::from(core_error_for(key));
+        match &err {
+            InitError::InvalidKeyType { prefix } => assert_eq!(prefix, "(redacted)"),
+            other => panic!("expected InvalidKeyType, got {other:?}"),
+        }
+        assert_eq!(
+            err.to_string(),
+            "invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)"
+        );
+        let debug = format!("{err:?}");
+        for rendered in [err.to_string(), debug] {
+            assert!(!rendered.contains(key), "{rendered:?}");
+            assert!(!rendered.contains("hunter2"), "{rendered:?}");
+            assert!(!rendered.contains("password"), "{rendered:?}");
+        }
     }
 }

@@ -77,6 +77,11 @@ and is still returned exactly as supplied.
 `ProviderState` no longer carries a `reconciling` value. `state` never returned
 it, so the value described a condition a developer could not observe.
 
+A rejected SDK key is no longer quoted, even in part, in any error.
+`InvalidKeyType` no longer has an `observedPrefix` field, and
+`MalformedSdkKey.reason` gives the position of an invalid character but not the
+character.
+
 Flags can now be observed as well as read. `observeBool`, `observeString`,
 `observeInt`, `observeNumber`, and `observeJson` return a `FlagObservation`, a
 `ValueListenable` seeded synchronously with the value its matching getter would

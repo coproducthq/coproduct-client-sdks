@@ -1,13 +1,16 @@
 use coproduct_core::error::InitError;
 
 #[test]
-fn invalid_key_type_renders_prefix() {
+fn invalid_key_type_renders_a_fixed_sentence_whatever_the_prefix() {
     let err = InitError::InvalidKeyType {
         prefix: "cpk_dsh_".into(),
     };
     let rendered = format!("{err}");
-    assert!(rendered.contains("cpk_mob_"));
-    assert!(rendered.contains("cpk_dsh_"));
+    assert_eq!(
+        rendered,
+        "invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)"
+    );
+    assert!(!rendered.contains("cpk_dsh_"));
 }
 
 #[test]

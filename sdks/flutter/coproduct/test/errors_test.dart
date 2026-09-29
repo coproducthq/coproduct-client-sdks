@@ -7,9 +7,9 @@ void main() {
     expect(translateInitError(const frb.InitError.missingSdkKey()),
         isA<MissingSdkKey>());
     expect(
-        translateInitError(const frb.InitError.invalidKeyType(prefix: 'cpk_web_')),
-        isA<InvalidKeyType>()
-            .having((e) => e.observedPrefix, 'observedPrefix', 'cpk_web_'));
+        translateInitError(
+            const frb.InitError.invalidKeyType(prefix: '(redacted)')),
+        const InvalidKeyType());
     expect(translateInitError(const frb.InitError.malformedSdkKey(reason: 'bad')),
         isA<MalformedSdkKey>());
     expect(
@@ -22,6 +22,34 @@ void main() {
         isA<UnsupportedSchemaVersion>());
   });
 
+  test('a wrong key type never carries the prefix it was given', () {
+    // Whatever the prefix field holds, the public error carries none of it
+    final error = translateInitError(
+        const frb.InitError.invalidKeyType(prefix: 'password_hunter2'));
+    expect(error, isA<InvalidKeyType>());
+    expect(error, const InvalidKeyType());
+    expect(error.toString(),
+        'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)');
+    expect(error.toString(), isNot(contains('hunter2')));
+    expect(error.toString(), isNot(contains('password')));
+  });
+
+  test('wrong key type equality and hashCode depend only on the type', () {
+    // Non-const instances to exercise the operator, not const canonicalization
+    expect(InvalidKeyType(), InvalidKeyType());
+    expect(InvalidKeyType().hashCode, InvalidKeyType().hashCode);
+    expect(InvalidKeyType(), isNot(const MissingSdkKey()));
+  });
+
+  test('a malformed key reason passes through translation unchanged', () {
+    const reason =
+        'invalid character at position 39, expected lowercase Crockford base32';
+    final error =
+        translateInitError(const frb.InitError.malformedSdkKey(reason: reason));
+    expect(error, const MalformedSdkKey(reason));
+    expect((error as MalformedSdkKey).reason, reason);
+  });
+
   test('every public error is a CoproductException, including identity', () {
     expect(const MissingSdkKey(), isA<CoproductException>());
     expect(const InvalidTargetingKey(), isA<CoproductException>());
@@ -30,7 +58,6 @@ void main() {
   test('field-bearing errors have value equality and hide the key', () {
     expect(const InvalidConfig('pollInterval', 'too small'),
         const InvalidConfig('pollInterval', 'too small'));
-    expect(const InvalidKeyType('cpk_web_'), const InvalidKeyType('cpk_web_'));
     expect(const MissingSdkKey(), const MissingSdkKey());
     // Non-const instances to exercise the operator, not const canonicalization
     expect(InvalidTargetingKey(), InvalidTargetingKey());

@@ -66,6 +66,10 @@ impl Transport for NoopTransport {
 const KEY_PREFIX: &str = "cpk_mob_";
 const KEY_BODY_LEN: usize = 32;
 const KEY_TOTAL_LEN: usize = KEY_PREFIX.len() + KEY_BODY_LEN;
+/// The only value `InitError::InvalidKeyType` ever carries as its prefix. A
+/// rejected key may be a secret pasted by mistake, so no part of it is echoed
+/// into an error where it could reach logs
+const REDACTED_KEY_PREFIX: &str = "(redacted)";
 const DEFAULT_ENDPOINT: &str = "https://sdk.coproduct.app";
 /// Consecutive poll failures before the provider moves from Retrying to Stale
 const RETRY_BUDGET: u32 = 5;
@@ -152,31 +156,33 @@ impl CoproductClient {
             return Err(InitError::MissingSdkKey);
         }
         if !sdk_key.starts_with(KEY_PREFIX) {
-            let prefix = sdk_key.split('_').take(2).collect::<Vec<_>>().join("_");
             return Err(InitError::InvalidKeyType {
-                prefix: format!("{prefix}_"),
+                prefix: REDACTED_KEY_PREFIX.to_string(),
             });
         }
         // Beyond the prefix, the platform validates a Crockford base32 lowercase
         // body of exactly 32 chars (40 total). Catching typos and length errors
         // at init time fails fast with a clear error rather than after a network
-        // round trip and a 401
-        if sdk_key.len() != KEY_TOTAL_LEN {
+        // round trip and a 401. Length is counted in characters, so a multibyte
+        // character counts once and reaches the character check below
+        let key_chars = sdk_key.chars().count();
+        if key_chars != KEY_TOTAL_LEN {
             return Err(InitError::MalformedSdkKey {
-                reason: format!(
-                    "expected {KEY_TOTAL_LEN} characters total, got {}",
-                    sdk_key.len()
-                ),
+                reason: format!("expected {KEY_TOTAL_LEN} characters total, got {key_chars}"),
             });
         }
-        if let Some((index, bad)) = sdk_key[KEY_PREFIX.len()..]
+        // Report only the position. The character itself is part of the key and
+        // may be a control character that would forge or corrupt a log line.
+        // Slicing at the prefix length cannot split a character, because the key
+        // starts with the ASCII prefix
+        if let Some((index, _)) = sdk_key[KEY_PREFIX.len()..]
             .chars()
             .enumerate()
             .find(|(_, c)| !is_crockford_lower(*c))
         {
             return Err(InitError::MalformedSdkKey {
                 reason: format!(
-                    "invalid character `{bad}` at position {}, expected lowercase Crockford base32",
+                    "invalid character at position {}, expected lowercase Crockford base32",
                     KEY_PREFIX.len() + index
                 ),
             });

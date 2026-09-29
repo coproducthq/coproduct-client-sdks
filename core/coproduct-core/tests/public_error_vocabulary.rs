@@ -3,11 +3,11 @@ use coproduct_core::error::{EvaluationErrorCode, InitError};
 #[test]
 fn init_error_variants_exist() {
     let invalid_key = InitError::InvalidKeyType {
-        prefix: "cpk_srv".into(),
+        prefix: "(redacted)".into(),
     };
     assert_eq!(
         format!("{}", invalid_key),
-        "invalid SDK key type: expected cpk_mob_, got cpk_srv"
+        "invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)"
     );
 
     let mismatch = InitError::UnsupportedSchemaVersion {

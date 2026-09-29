@@ -93,4 +93,48 @@ final class InitializeErrorContractTests: XCTestCase {
             failGeneric(error)
         }
     }
+
+    // A rejected key may be a secret pasted by mistake, so the reason is a fixed
+    // sentence that carries no part of it
+    func testWrongKeyTypeReasonNeverEchoesTheKey() async {
+        do {
+            try await Coproduct.initialize(
+                sdkKey: "password_hunter2",
+                config: CoproductConfig(secureStore: TestSecureStore())
+            )
+            XCTFail("expected initialize to throw")
+        } catch let error as CoproductError {
+            guard case let .invalidSdkKey(reason) = error else {
+                return XCTFail("expected .invalidSdkKey, got \(error)")
+            }
+            XCTAssertEqual(reason, "expected a Coproduct mobile SDK key (cpk_mob_)")
+            XCTAssertFalse(reason.contains("hunter2"))
+        } catch {
+            failGeneric(error)
+        }
+    }
+
+    // The offending character is never quoted, so a control character in a key
+    // cannot forge or corrupt a log line
+    func testMalformedKeyReasonCarriesNoControlCharacter() async {
+        let key = "cpk_mob_" + String(repeating: "w", count: 31) + "\n"
+        do {
+            try await Coproduct.initialize(
+                sdkKey: key,
+                config: CoproductConfig(secureStore: TestSecureStore())
+            )
+            XCTFail("expected initialize to throw")
+        } catch let error as CoproductError {
+            guard case let .invalidSdkKey(reason) = error else {
+                return XCTFail("expected .invalidSdkKey, got \(error)")
+            }
+            XCTAssertFalse(reason.contains("\n"))
+            XCTAssertEqual(
+                reason,
+                "invalid character at position 39, expected lowercase Crockford base32"
+            )
+        } catch {
+            failGeneric(error)
+        }
+    }
 }

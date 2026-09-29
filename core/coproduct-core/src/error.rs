@@ -8,7 +8,9 @@ use thiserror::Error;
 /// not surface here. The SDK enters notReady and continues in background
 #[derive(Debug, Error)]
 pub enum InitError {
-    #[error("invalid SDK key type: expected cpk_mob_, got {prefix}")]
+    /// `prefix` is always the fixed redaction marker, never caller input. The
+    /// field is kept so the generated bindings keep their shape
+    #[error("invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)")]
     InvalidKeyType { prefix: String },
 
     #[error("malformed SDK key: {reason}")]

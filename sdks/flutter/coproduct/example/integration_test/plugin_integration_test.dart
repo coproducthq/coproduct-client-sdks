@@ -123,6 +123,36 @@ void main() {
     await client.removeAttributes(['tier']);
   });
 
+  testWidgets('a malformed key reason from the core names no character',
+      (WidgetTester tester) async {
+    // The reason is built by the real core, so a control character in the key
+    // must not reach the public error
+    final key = 'cpk_mob_${'w' * 31}\n';
+    Object? caught;
+    try {
+      await Coproduct.initialize(sdkKey: key);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught, isA<MalformedSdkKey>());
+    final reason = (caught as MalformedSdkKey).reason;
+    expect(reason, matches(RegExp(r'^invalid character at position 39, ')));
+    expect(reason, isNot(matches(RegExp(r'[\x00-\x1f\x7f]'))));
+  });
+
+  testWidgets('a wrong key type from the core throws InvalidKeyType',
+      (WidgetTester tester) async {
+    Object? caught;
+    try {
+      await Coproduct.initialize(sdkKey: 'password_hunter2');
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught, const InvalidKeyType());
+    expect(caught.toString(),
+        'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)');
+  });
+
   testWidgets('bucketForVectors matches all golden vectors',
       (WidgetTester tester) async {
     await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');

@@ -108,19 +108,18 @@ final class MissingSdkKey implements CoproductException {
   String toString() => 'A Coproduct SDK key is required';
 }
 
-/// Thrown when the SDK key prefix is not the mobile prefix. [observedPrefix] is
-/// the prefix that was supplied, not the expected one
+/// Thrown when the SDK key is not a Coproduct mobile SDK key, which starts with
+/// `cpk_mob_`. It carries no part of the rejected key, because a value supplied
+/// by mistake may be a secret that should never reach logs
 final class InvalidKeyType implements CoproductException {
-  const InvalidKeyType(this.observedPrefix);
-  final String observedPrefix;
+  const InvalidKeyType();
   @override
-  bool operator ==(Object other) =>
-      other is InvalidKeyType && other.observedPrefix == observedPrefix;
+  bool operator ==(Object other) => other is InvalidKeyType;
   @override
-  int get hashCode => observedPrefix.hashCode;
+  int get hashCode => (InvalidKeyType).hashCode;
   @override
   String toString() =>
-      'Invalid SDK key type: expected the mobile key prefix, got "$observedPrefix"';
+      'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)';
 }
 
 /// Thrown when the SDK key is structurally malformed
@@ -195,7 +194,7 @@ final class CoproductInitializationCancelled implements CoproductException {
 /// and unit tested here, so the production translation path is the tested one
 CoproductException translateInitError(frb.InitError error) => switch (error) {
       frb.InitError_MissingSdkKey() => const MissingSdkKey(),
-      frb.InitError_InvalidKeyType(:final prefix) => InvalidKeyType(prefix),
+      frb.InitError_InvalidKeyType() => const InvalidKeyType(),
       frb.InitError_MalformedSdkKey(:final reason) => MalformedSdkKey(reason),
       frb.InitError_InvalidConfig(:final field, :final reason) =>
         InvalidConfig(field, reason),
