@@ -3,6 +3,12 @@ description: "Flutter SDK for Coproduct, a feature management and experimentatio
 version: 1.0.0
 homepage: https://coproduct.app
 repository: https://github.com/coproducthq/coproduct-client-sdks/tree/main/sdks/flutter/coproduct
+issue_tracker: https://github.com/coproducthq/coproduct-client-sdks/issues
+topics:
+  - feature-flags
+  - feature-toggles
+  - remote-config
+  - targeting
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
