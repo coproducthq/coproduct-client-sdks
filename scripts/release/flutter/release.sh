@@ -59,9 +59,11 @@ step "the SDK's own analyze and tests"
 # behavioural regression passed all of them, because the archive consumers and
 # the acceptance suite only exercise valid configurations and never enter a
 # guard clause. Deleting the minimum-poll-interval guard shipped clean.
+# Formatting is checked here too: pub.dev scores it and shows an unformatted
+# file on the package page, and nothing else would catch the drift
 ( cd sdks/flutter/coproduct \
     && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PINNED_FLUTTER" -- \
-        bash -c 'flutter pub get >/dev/null && flutter analyze && flutter test' )
+        bash -c 'flutter pub get >/dev/null && dart format --output=none --set-exit-if-changed . && flutter analyze && flutter test' )
 echo "COPRODUCT_FLUTTER_SDK_TESTS_STATUS pass=true"
 
 step "the release tooling's own tests"
