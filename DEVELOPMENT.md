@@ -538,6 +538,33 @@ git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
   && git push origin "flutter-v$COPRODUCT_RELEASE_VERSION"
 ```
 
+**8. Publish the GitHub Release.** Developers read releases, not tags, and in a
+repository with several SDKs the title is what says which one a release
+belongs to. Use this version's changelog entry as the notes:
+
+```bash
+awk -v v="## $COPRODUCT_RELEASE_VERSION " \
+  'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' \
+  sdks/flutter/coproduct/CHANGELOG.md > "$COPRODUCT_RELEASE_ROOT/notes.md"
+gh release create "flutter-v$COPRODUCT_RELEASE_VERSION" \
+  --title "Flutter SDK $COPRODUCT_RELEASE_VERSION" \
+  --notes-file "$COPRODUCT_RELEASE_ROOT/notes.md" --verify-tag
+```
+
+#### Tag names
+
+Each SDK versions independently, so every tag names its SDK:
+`<sdk>-v<version>`, where `<sdk>` is `flutter`, `android`, `react-native`, or
+`ios`, as in `flutter-v1.0.0`. This is also the default that release tooling
+such as release-please uses for a repository with several components. The
+GitHub Release for a tag is titled `<SDK name> SDK <version>`, such as
+`Flutter SDK 1.0.0`.
+
+Swift Package Manager is the exception. It reads only a `Package.swift` at a
+repository's root and only plain version tags, so the iOS SDK is distributed
+from its own repository, tagged `1.0.0`. This repository still gets an
+`ios-v<version>` tag on the commit the release was built from.
+
 #### Who does what
 
 | Step | Who |
@@ -548,7 +575,7 @@ git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
 | 3, 4 — preparing and committing the version | human |
 | 6 — `publish.sh` | human, and the only supported way to publish |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
-| 7 — the tag | human |
+| 7, 8 — the tag and the GitHub Release | human |
 
 Dart cannot publish a new package directly to a verified publisher, which is why
 the first publication and the transfer are both manual.
