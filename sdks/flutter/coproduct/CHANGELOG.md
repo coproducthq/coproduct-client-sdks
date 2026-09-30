@@ -1,4 +1,4 @@
-## Unreleased
+## 1.0.0 - 2026-09-30
 
 First stable release of the Coproduct Flutter SDK. It downloads your feature
 flags, evaluates targeting on the device, and serves values synchronously.
