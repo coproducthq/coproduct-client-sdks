@@ -15,12 +15,12 @@ flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 That path uses the published prebuilt binaries and needs no Rust toolchain.
 
 The key is read with `String.fromEnvironment`, so pass it with `--dart-define`
-rather than editing the source. Without it the app runs with a placeholder key
-that Coproduct rejects, and every flag serves its default.
+rather than editing the source. Without it the app does not start the SDK and
+shows a message explaining how to pass the key.
 
-Working in a clone of the repository? See
-[DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md)
-for building the example from source.
+Working in a clone of the repository? Building the example from source needs
+the Rust toolchain, and `DEVELOPMENT.md` at the repository root lists the
+commands.
 
 ## Flags it reads
 

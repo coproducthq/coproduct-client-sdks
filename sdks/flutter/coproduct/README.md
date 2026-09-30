@@ -848,8 +848,10 @@ the opposite of the quick start. Both approaches are supported. See
 
 ## Building from source
 
-See [DEVELOPMENT.md](https://github.com/coproducthq/coproduct-client-sdks/blob/main/DEVELOPMENT.md)
-in the repository for prerequisites and per-platform build commands.
+The package ships prebuilt native libraries, so using it needs no Rust
+toolchain. Building the SDK itself from a clone of the repository does, and
+`DEVELOPMENT.md` at the repository root lists the prerequisites and
+per-platform build commands.
 
 ## License
 

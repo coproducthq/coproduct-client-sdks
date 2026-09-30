@@ -8,9 +8,13 @@ void main() {
   runApp(const MyApp());
 }
 
-// Demo flag keys, one per value type. With no real snapshot loaded the reads
-// return the defaults passed here, so the example runs end to end against the
-// placeholder key and still exercises every read and mutate surface
+// The mobile SDK key, passed at build time so it never sits in source:
+// flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
+const String _sdkKey = String.fromEnvironment('COPRODUCT_SDK_KEY');
+
+// Demo flag keys, one per value type. When the key's project has none of these
+// flags, the reads return the defaults passed here, so every read and mutate
+// surface still runs end to end
 const String _boolFlag = 'test-flag';
 const String _stringFlag = 'greeting';
 const String _intFlag = 'max-items';
@@ -18,7 +22,12 @@ const String _numberFlag = 'ratio';
 const String _jsonFlag = 'theme';
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.sdkKey = _sdkKey});
+
+  /// The key the app initializes with. An empty key shows setup instructions
+  /// instead of starting the SDK. The SDK starts once, when the state is
+  /// created, so the key is expected to stay the same for the app's lifetime
+  final String sdkKey;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -31,18 +40,17 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    if (widget.sdkKey.isEmpty) {
+      developer.log('COPRODUCT_FLUTTER_DEMO_MISSING_KEY', name: 'coproduct');
+      return;
+    }
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
     final CoproductClient c;
     try {
-      c = await Coproduct.initialize(
-        sdkKey: const String.fromEnvironment(
-          'COPRODUCT_SDK_KEY',
-          defaultValue: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
-        ),
-      );
+      c = await Coproduct.initialize(sdkKey: widget.sdkKey);
     } on CoproductInitializationCancelled {
       // The widget was disposed while initialize was still in flight
       return;
@@ -72,15 +80,21 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
-    unawaited(Coproduct.shutdown().catchError((Object error, StackTrace stack) {
-      developer.log('COPRODUCT_FLUTTER_DEMO_SHUTDOWN_ERROR',
-          name: 'coproduct', error: error, stackTrace: stack);
-    }));
+    // Without a key the SDK never started, so there is nothing to shut down
+    if (widget.sdkKey.isNotEmpty) {
+      unawaited(Coproduct.shutdown().catchError((Object error, StackTrace stack) {
+        developer.log('COPRODUCT_FLUTTER_DEMO_SHUTDOWN_ERROR',
+            name: 'coproduct', error: error, stackTrace: stack);
+      }));
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.sdkKey.isEmpty) {
+      return const MaterialApp(home: _MissingKey());
+    }
     final c = client;
     return MaterialApp(
       home: Scaffold(
@@ -95,6 +109,36 @@ class _MyAppState extends State<MyApp> {
                 client: c,
                 child: const _FlagDemo(),
               ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the flag demo when the app started without a key
+class _MissingKey extends StatelessWidget {
+  const _MissingKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Coproduct Flutter scaffold')),
+      body: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('No SDK key was passed, so the SDK has not started.',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 12),
+            Text('Create a mobile SDK key in Coproduct, then run the app with '
+                'it:'),
+            SizedBox(height: 8),
+            Text('flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key'),
+            SizedBox(height: 12),
+            Text('Pass the key at build time rather than writing it into the '
+                'source.'),
+          ],
+        ),
       ),
     );
   }

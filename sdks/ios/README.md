@@ -13,6 +13,7 @@ A **feature flag** is a value you control from Coproduct rather than from your a
 - [Quick start](#quick-start)
 - [Requirements and platform support](#requirements-and-platform-support)
 - [Installation](#installation)
+- [Keeping your key out of source](#keeping-your-key-out-of-source)
 - [Key concepts](#key-concepts)
 - [Initializing and shutting down](#initializing-and-shutting-down)
 - [Reading flags](#reading-flags)
@@ -79,6 +80,8 @@ struct MyApp: App {
 
 The placeholder key `cpk_mob_...` makes `initialize` throw `CoproductError.invalidSdkKey`, so a key you forgot to replace fails straight away.
 
+The quick start writes the key inline to stay short. Before you commit, move it into your build configuration, as [Keeping your key out of source](#keeping-your-key-out-of-source) shows.
+
 **5. Gate a view on the flag.** `@CoproductFlag` reads the flag and re-renders the view when it changes:
 
 ```swift
@@ -144,6 +147,63 @@ The package vends a single library product, `Coproduct`. Import it where you rea
 ```swift
 import Coproduct
 ```
+
+## Keeping your key out of source
+
+Keep your SDK key out of source control, so it is not shared with everyone who can read your repository. One way is to keep it in an Xcode build configuration file that is not committed, and read it at runtime through `Info.plist`.
+
+**1. Add a committed configuration file.** In Xcode, add a new **Configuration Settings File** named `Config.xcconfig` to your project, with one line:
+
+```
+#include? "CoproductSecrets.xcconfig"
+```
+
+In the project editor, select the project, not a target, and open the **Info** tab. Under **Configurations**, set `Config` as the project's configuration file in each configuration. Xcode records this as the `baseConfigurationReference` of the project's build configurations in `project.pbxproj`. Setting it on the project leaves each target's own configuration file in place, including one CocoaPods generates, and every target still inherits `COPRODUCT_SDK_KEY`. Only files that belong to the project appear there, so a file created outside Xcode must be added to the project first. If the project already uses configuration files of your own, add the `#include?` line to each of them instead, because each configuration, such as Debug and Release, can use a different file. Do not edit a generated configuration file such as CocoaPods' `Pods-*.xcconfig`, because the next `pod install` overwrites it. The `?` makes the include optional, so a checkout without the secrets file still builds.
+
+**2. Put the key in a file you do not commit.** Create `CoproductSecrets.xcconfig` beside it, and add `CoproductSecrets.xcconfig` to your `.gitignore`:
+
+```
+COPRODUCT_SDK_KEY = cpk_mob_...
+```
+
+Replace `cpk_mob_...` with your mobile SDK key.
+
+**3. Expose the value through `Info.plist`.** In your app target's **Info** tab, add a row under **Custom iOS Target Properties** with the key `CoproductSDKKey`, the type `String`, and the value `$(COPRODUCT_SDK_KEY)`. This adds the entry below to the target's `Info.plist`, and Xcode substitutes the build setting when it builds the app:
+
+```xml
+<key>CoproductSDKKey</key>
+<string>$(COPRODUCT_SDK_KEY)</string>
+```
+
+If the target generates its `Info.plist` and has no file of its own, create an `Info.plist` holding this entry next to the `.xcodeproj`, and set the target's `INFOPLIST_FILE` build setting to its path relative to the project directory, such as `Info.plist`. Xcode merges it with the generated keys. Keep the file out of any folder Xcode keeps in sync with the file system, which is how a new app's source folder works. Xcode adds every file in such a folder to the target and copies any file it does not compile into the app as a resource, so an `Info.plist` there fails the build with an error that begins `Multiple commands produce`. If you see that error after adding the row in the **Info** tab, move the file next to the `.xcodeproj` and update `INFOPLIST_FILE` to match.
+
+**4. Read the key and pass it to `initialize`.** Replace the `.task` from the quick start with this one. It reads the key instead of writing it inline, and still identifies the signed-in user:
+
+```swift
+.task {
+    guard let sdkKey = Bundle.main.object(forInfoDictionaryKey: "CoproductSDKKey") as? String,
+          !sdkKey.isEmpty else {
+        print("Coproduct SDK key is missing. Set COPRODUCT_SDK_KEY in CoproductSecrets.xcconfig.")
+        return
+    }
+    do {
+        try await Coproduct.initialize(sdkKey: sdkKey)
+    } catch {
+        print("Coproduct failed to start: \(error)")
+        return
+    }
+    // The SDK does not remember the signed-in user between launches
+    if let userId = currentSignedInUserId() {
+        Coproduct.identify(userId: userId)
+    }
+}
+```
+
+When `CoproductSecrets.xcconfig` is missing, `$(COPRODUCT_SDK_KEY)` expands to an empty string, so the guard reports the missing key instead of starting the SDK with a blank one.
+
+On a build server, write `CoproductSecrets.xcconfig` from a secret before the build runs.
+
+The key still ships inside your built app, like any value the app reads at runtime. This pattern keeps it out of your repository, not out of the binary.
 
 ## Key concepts
 
@@ -814,7 +874,7 @@ All three protocols are class-bound and `Sendable`, so conform with a `final cla
 
 ## Building from source
 
-Building the SDK from source needs the Rust toolchain pinned in the repository's `rust-toolchain.toml`, because the package's binary, `CoproductFFI.xcframework`, is built from Rust and is not checked in. See [BUILDING.md](BUILDING.md) for the iOS build steps and the repository's [DEVELOPMENT.md](../../DEVELOPMENT.md) for prerequisites. Once the binary is built, you can add the `sdks/ios` directory to an app as a local package.
+Building the SDK from source needs the Rust toolchain pinned in the repository's `rust-toolchain.toml`, because the package's binary, `CoproductFFI.xcframework`, is built from Rust and is not checked in. The repository's `sdks/ios/BUILDING.md` lists the build steps. Once the binary is built, you can add the `sdks/ios` directory to an app as a local package.
 
 ## License
 
