@@ -39,9 +39,10 @@ Silicon and Intel Macs.
   `FlutterError.onError` instead. No error includes your SDK key or any part of
   a key the SDK rejected.
 - **Privacy.** The package ships an Apple privacy manifest declaring its use of
-  `UserDefaults`. On Android it declares `ACCESS_NETWORK_STATE`, a normal
-  permission granted at install with no prompt. The README's privacy section
-  lists what is stored on the device and what is sent to Coproduct.
+  `UserDefaults` and of file timestamps for its flag cache. On Android it
+  declares `ACCESS_NETWORK_STATE`, a normal permission granted at install with
+  no prompt. The README's privacy section lists what is stored on the device
+  and what is sent to Coproduct.
 
 This release does not include multi-flag reads, evaluation details, or
 experiment tracking, and it does not record which variation a user saw.

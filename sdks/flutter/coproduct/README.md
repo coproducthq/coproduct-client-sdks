@@ -733,7 +733,9 @@ The SDK ships a `PrivacyInfo.xcprivacy` privacy manifest. It declares:
 
 - no tracking and no tracking domains;
 - no collected data types;
-- access to `UserDefaults`, with reason `CA92.1`, for the launch record.
+- access to `UserDefaults`, with reason `CA92.1`, for the launch record;
+- access to file timestamps, with reason `C617.1`, for the flag cache in your
+  app's caches directory.
 
 Xcode includes it in your app's privacy report. Google Play's Data safety form
 and Apple's App Privacy details can treat the approximate location above as
