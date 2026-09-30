@@ -14,19 +14,22 @@ class StartedSession {
     Future<SessionPair> Function() begin, {
     required void Function(Object error, StackTrace stack) onFailure,
   }) {
-    _settled = Future<SessionPair>.sync(begin).then<SessionPair?>((pair) {
-      _pair = pair;
-      _isSettled = true;
-      return pair;
-    }, onError: (Object error, StackTrace stack) {
-      _isSettled = true;
-      try {
-        onFailure(error, stack);
-      } catch (_) {
-        // Initialization must survive its own diagnostics
-      }
-      return null;
-    });
+    _settled = Future<SessionPair>.sync(begin).then<SessionPair?>(
+      (pair) {
+        _pair = pair;
+        _isSettled = true;
+        return pair;
+      },
+      onError: (Object error, StackTrace stack) {
+        _isSettled = true;
+        try {
+          onFailure(error, stack);
+        } catch (_) {
+          // Initialization must survive its own diagnostics
+        }
+        return null;
+      },
+    );
   }
 
   late final Future<SessionPair?> _settled;
@@ -67,19 +70,21 @@ class StartedSession {
       decided.complete(const {});
     }
 
-    unawaited(_settled.then((pair) {
-      if (!sealed) {
-        sealed = true;
-        decided.complete(pair?.attributes ?? const {});
-        return;
-      }
-      if (pair == null || cancel.isCancelled) return;
-      try {
-        onLate(pair.attributes);
-      } catch (_) {
-        // A sink failure must never surface as an unhandled error
-      }
-    }));
+    unawaited(
+      _settled.then((pair) {
+        if (!sealed) {
+          sealed = true;
+          decided.complete(pair?.attributes ?? const {});
+          return;
+        }
+        if (pair == null || cancel.isCancelled) return;
+        try {
+          onLate(pair.attributes);
+        } catch (_) {
+          // A sink failure must never surface as an unhandled error
+        }
+      }),
+    );
 
     final remaining = deadline - clock();
     if (remaining <= Duration.zero) {

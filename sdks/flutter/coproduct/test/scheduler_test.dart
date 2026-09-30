@@ -19,16 +19,26 @@ void main() {
       }
     });
     test('rate limited returns max(retryAfter, interval)', () {
-      expect(nextPollDelay(const frb.PollOutcome.rateLimited(retryAfterSecs: 10),
-          interval), interval);
       expect(
-          nextPollDelay(
-              const frb.PollOutcome.rateLimited(retryAfterSecs: 120), interval),
-          const Duration(seconds: 120));
+        nextPollDelay(
+          const frb.PollOutcome.rateLimited(retryAfterSecs: 10),
+          interval,
+        ),
+        interval,
+      );
+      expect(
+        nextPollDelay(
+          const frb.PollOutcome.rateLimited(retryAfterSecs: 120),
+          interval,
+        ),
+        const Duration(seconds: 120),
+      );
     });
     test('stale backs off, fatal stops', () {
-      expect(nextPollDelay(const frb.PollOutcome.stale(), interval),
-          const Duration(seconds: 300));
+      expect(
+        nextPollDelay(const frb.PollOutcome.stale(), interval),
+        const Duration(seconds: 300),
+      );
       expect(nextPollDelay(const frb.PollOutcome.fatal(), interval), isNull);
     });
   });

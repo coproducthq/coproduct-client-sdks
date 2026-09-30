@@ -7,116 +7,137 @@ import 'package:coproduct/src/serial_queue.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('a caller map mutated after the call does not change the queued identify',
-      () async {
-    final backend = _CapturingBackend();
-    final client = createClientForBackend(backend);
+  test(
+    'a caller map mutated after the call does not change the queued identify',
+    () async {
+      final backend = _CapturingBackend();
+      final client = createClientForBackend(backend);
 
-    // Hold the identity queue with an operation that will not settle yet, so the
-    // identify below is still queued when the caller mutates its map
-    final gate = Completer<void>();
-    backend.gate = gate.future;
-    unawaited(client.signOut());
+      // Hold the identity queue with an operation that will not settle yet, so the
+      // identify below is still queued when the caller mutates its map
+      final gate = Completer<void>();
+      backend.gate = gate.future;
+      unawaited(client.signOut());
 
-    final attributes = <String, AttributeValue>{
-      'plan': const AttributeValue.string('pro'),
-    };
-    final pending = client.identify(userId: 'u1', attributes: attributes);
+      final attributes = <String, AttributeValue>{
+        'plan': const AttributeValue.string('pro'),
+      };
+      final pending = client.identify(userId: 'u1', attributes: attributes);
 
-    attributes['plan'] = const AttributeValue.string('mutated');
-    attributes['added'] = const AttributeValue.string('late');
+      attributes['plan'] = const AttributeValue.string('mutated');
+      attributes['added'] = const AttributeValue.string('late');
 
-    gate.complete();
-    await pending;
+      gate.complete();
+      await pending;
 
-    expect(backend.identifyAttributes,
-        {'plan': const AttributeValue.string('pro')});
-  });
+      expect(backend.identifyAttributes, {
+        'plan': const AttributeValue.string('pro'),
+      });
+    },
+  );
 
-  test('a caller list mutated after the call does not change the queued removal',
-      () async {
-    final backend = _CapturingBackend();
-    final client = createClientForBackend(backend);
+  test(
+    'a caller list mutated after the call does not change the queued removal',
+    () async {
+      final backend = _CapturingBackend();
+      final client = createClientForBackend(backend);
 
-    final gate = Completer<void>();
-    backend.gate = gate.future;
-    unawaited(client.signOut());
+      final gate = Completer<void>();
+      backend.gate = gate.future;
+      unawaited(client.signOut());
 
-    final keys = <String>['plan'];
-    final pending = client.removeAttributes(keys);
-    keys.add('late');
+      final keys = <String>['plan'];
+      final pending = client.removeAttributes(keys);
+      keys.add('late');
 
-    gate.complete();
-    await pending;
+      gate.complete();
+      await pending;
 
-    expect(backend.removedNames, ['plan']);
-  });
-  test('a caller map mutated after the call does not change the queued setContext',
-      () async {
-    final backend = _CapturingBackend();
-    final client = createClientForBackend(backend);
+      expect(backend.removedNames, ['plan']);
+    },
+  );
+  test(
+    'a caller map mutated after the call does not change the queued setContext',
+    () async {
+      final backend = _CapturingBackend();
+      final client = createClientForBackend(backend);
 
-    final gate = Completer<void>();
-    backend.gate = gate.future;
-    unawaited(client.signOut());
+      final gate = Completer<void>();
+      backend.gate = gate.future;
+      unawaited(client.signOut());
 
-    final attributes = <String, AttributeValue>{
-      'plan': const AttributeValue.string('pro'),
-    };
-    final pending = client.setContext(targetingKey: 't1', attributes: attributes);
-    attributes['plan'] = const AttributeValue.string('mutated');
+      final attributes = <String, AttributeValue>{
+        'plan': const AttributeValue.string('pro'),
+      };
+      final pending = client.setContext(
+        targetingKey: 't1',
+        attributes: attributes,
+      );
+      attributes['plan'] = const AttributeValue.string('mutated');
 
-    gate.complete();
-    await pending;
+      gate.complete();
+      await pending;
 
-    expect(backend.setContextAttributes,
-        {'plan': const AttributeValue.string('pro')});
-  });
+      expect(backend.setContextAttributes, {
+        'plan': const AttributeValue.string('pro'),
+      });
+    },
+  );
 
-  test('a caller map mutated after the call does not change the queued update',
-      () async {
-    final backend = _CapturingBackend();
-    final client = createClientForBackend(backend);
+  test(
+    'a caller map mutated after the call does not change the queued update',
+    () async {
+      final backend = _CapturingBackend();
+      final client = createClientForBackend(backend);
 
-    final gate = Completer<void>();
-    backend.gate = gate.future;
-    unawaited(client.signOut());
+      final gate = Completer<void>();
+      backend.gate = gate.future;
+      unawaited(client.signOut());
 
-    final attributes = <String, AttributeValue>{
-      'plan': const AttributeValue.string('pro'),
-    };
-    final pending = client.updateAttributes(attributes);
-    attributes['plan'] = const AttributeValue.string('mutated');
+      final attributes = <String, AttributeValue>{
+        'plan': const AttributeValue.string('pro'),
+      };
+      final pending = client.updateAttributes(attributes);
+      attributes['plan'] = const AttributeValue.string('mutated');
 
-    gate.complete();
-    await pending;
+      gate.complete();
+      await pending;
 
-    expect(backend.updatedAttributes,
-        {'plan': const AttributeValue.string('pro')});
-  });
-  test('a client built with a supplied queue waits behind work already on it',
-      () async {
-    // The shared queue is what orders a machine-initiated write against the
-    // identity mutators. A client that quietly made its own would reintroduce
-    // exactly the interleaving the single queue exists to prevent
-    var signedOut = false;
-    final queue = SerialQueue();
-    final client =
-        createClientForBackend(_CapturingBackend(), identityQueue: queue);
+      expect(backend.updatedAttributes, {
+        'plan': const AttributeValue.string('pro'),
+      });
+    },
+  );
+  test(
+    'a client built with a supplied queue waits behind work already on it',
+    () async {
+      // The shared queue is what orders a machine-initiated write against the
+      // identity mutators. A client that quietly made its own would reintroduce
+      // exactly the interleaving the single queue exists to prevent
+      var signedOut = false;
+      final queue = SerialQueue();
+      final client = createClientForBackend(
+        _CapturingBackend(),
+        identityQueue: queue,
+      );
 
-    final release = Completer<void>();
-    final blocker = queue.add(() => release.future);
-    unawaited(client.signOut().then((_) => signedOut = true));
-    await pumpEventQueue();
+      final release = Completer<void>();
+      final blocker = queue.add(() => release.future);
+      unawaited(client.signOut().then((_) => signedOut = true));
+      await pumpEventQueue();
 
-    expect(signedOut, isFalse,
-        reason: 'the client must wait behind work already on the shared queue');
+      expect(
+        signedOut,
+        isFalse,
+        reason: 'the client must wait behind work already on the shared queue',
+      );
 
-    release.complete();
-    await blocker;
-    await queue.add(() async {});
-    expect(signedOut, isTrue);
-  });
+      release.complete();
+      await blocker;
+      await queue.add(() async {});
+      expect(signedOut, isTrue);
+    },
+  );
 }
 
 final class _CapturingBackend implements CoproductClientBackend {

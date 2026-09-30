@@ -15,8 +15,8 @@ class CoproductManager<C extends Object> {
   CoproductManager({
     required Future<void> Function(C) shutdownClient,
     required void Function(Object error, StackTrace stack) onCleanupError,
-  })  : _shutdownClient = shutdownClient, // ignore: prefer_initializing_formals
-        _onCleanupError = onCleanupError; // ignore: prefer_initializing_formals
+  }) : _shutdownClient = shutdownClient, // ignore: prefer_initializing_formals
+       _onCleanupError = onCleanupError; // ignore: prefer_initializing_formals
 
   final Future<void> Function(C) _shutdownClient;
   final void Function(Object error, StackTrace stack) _onCleanupError;
@@ -35,8 +35,11 @@ class CoproductManager<C extends Object> {
   Future<C> initialize(
     Object identity,
     Future<C> Function(
-            int generation, CancellationSignal cancel, bool Function() isCurrent)
-        build,
+      int generation,
+      CancellationSignal cancel,
+      bool Function() isCurrent,
+    )
+    build,
   ) async {
     // Wait out an in-progress shutdown, ignoring its outcome, re-checking in case
     // another shutdown starts while we wait
@@ -71,7 +74,8 @@ class CoproductManager<C extends Object> {
       final C client;
       try {
         client = await Future<C>.sync(
-            () => build(generation, cancel, () => generation == _generation));
+          () => build(generation, cancel, () => generation == _generation),
+        );
       } catch (error, stack) {
         _releaseClaim(claim, cancel);
         if (generation != _generation) {
@@ -132,15 +136,19 @@ class CoproductManager<C extends Object> {
     }
     final completer = Completer<void>();
     _shutdown = completer.future;
-    unawaited(_runShutdown().then<void>(
-      (_) => completer.complete(),
-      onError: (Object error, StackTrace stack) =>
-          completer.completeError(error, stack),
-    ).whenComplete(() {
-      if (identical(_shutdown, completer.future)) {
-        _shutdown = null;
-      }
-    }));
+    unawaited(
+      _runShutdown()
+          .then<void>(
+            (_) => completer.complete(),
+            onError: (Object error, StackTrace stack) =>
+                completer.completeError(error, stack),
+          )
+          .whenComplete(() {
+            if (identical(_shutdown, completer.future)) {
+              _shutdown = null;
+            }
+          }),
+    );
     return completer.future;
   }
 

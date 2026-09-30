@@ -4,20 +4,25 @@ import 'package:coproduct/src/rust/api.dart' as frb;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('the generated invalid-targeting-key error becomes InvalidTargetingKey',
-      () async {
-    await expectLater(
+  test(
+    'the generated invalid-targeting-key error becomes InvalidTargetingKey',
+    () async {
+      await expectLater(
         translateIdentityErrors<void>(
-            () async => throw frb.IdentityError.invalidTargetingKey),
-        throwsA(isA<InvalidTargetingKey>()));
-  });
+          () async => throw frb.IdentityError.invalidTargetingKey,
+        ),
+        throwsA(isA<InvalidTargetingKey>()),
+      );
+    },
+  );
 
   test('an unrelated exception is rethrown unchanged with its stack', () async {
     final original = StateError('unexpected');
     final originalStack = StackTrace.current;
     try {
       await translateIdentityErrors<void>(
-          () => Future<void>.error(original, originalStack));
+        () => Future<void>.error(original, originalStack),
+      );
       fail('should have rethrown');
     } catch (error, stack) {
       expect(identical(error, original), isTrue);

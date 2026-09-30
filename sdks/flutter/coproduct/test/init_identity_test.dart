@@ -14,24 +14,29 @@ void main() {
     const base = InitIdentity('cpk_mob_a', CoproductConfig());
     expect(base == const InitIdentity('cpk_mob_b', CoproductConfig()), isFalse);
     expect(
-        base ==
-            const InitIdentity(
-                'cpk_mob_a', CoproductConfig(pollInterval: Duration(minutes: 2))),
-        isFalse);
+      base ==
+          const InitIdentity(
+            'cpk_mob_a',
+            CoproductConfig(pollInterval: Duration(minutes: 2)),
+          ),
+      isFalse,
+    );
   });
 
-  test('ffiConfigFor maps durations to microseconds and the endpoint to a string',
-      () {
-    final config = CoproductConfig(
-      pollInterval: const Duration(seconds: 45),
-      startupTimeout: const Duration(seconds: 2),
-      endpoint: Uri.parse('https://flags.example.com'),
-    );
-    final ffi = ffiConfigFor(config);
-    expect(ffi.pollIntervalUs, 45 * 1000 * 1000);
-    expect(ffi.startupTimeoutUs, 2 * 1000 * 1000);
-    expect(ffi.endpoint, 'https://flags.example.com');
-  });
+  test(
+    'ffiConfigFor maps durations to microseconds and the endpoint to a string',
+    () {
+      final config = CoproductConfig(
+        pollInterval: const Duration(seconds: 45),
+        startupTimeout: const Duration(seconds: 2),
+        endpoint: Uri.parse('https://flags.example.com'),
+      );
+      final ffi = ffiConfigFor(config);
+      expect(ffi.pollIntervalUs, 45 * 1000 * 1000);
+      expect(ffi.startupTimeoutUs, 2 * 1000 * 1000);
+      expect(ffi.endpoint, 'https://flags.example.com');
+    },
+  );
 
   test('ffiConfigFor passes a null endpoint through as null', () {
     expect(ffiConfigFor(const CoproductConfig()).endpoint, isNull);

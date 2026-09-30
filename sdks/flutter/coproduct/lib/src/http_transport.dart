@@ -17,10 +17,8 @@ import 'rust/api.dart' as frb;
 /// before closing the reused client, so the client is never closed while a
 /// request is executing
 class HttpTransport {
-  HttpTransport({
-    http.Client? client,
-    required this.requestTimeout,
-  }) : _client = client ?? http.Client();
+  HttpTransport({http.Client? client, required this.requestTimeout})
+    : _client = client ?? http.Client();
 
   final http.Client _client;
   final Duration requestTimeout;
@@ -61,11 +59,13 @@ class HttpTransport {
     final settled = source.then<void>((_) {}, onError: (_) {});
     _activeAbort = abort;
     _activeRequest = settled;
-    unawaited(settled.whenComplete(() {
-      _requestInFlight = false;
-      if (identical(_activeAbort, abort)) _activeAbort = null;
-      if (identical(_activeRequest, settled)) _activeRequest = null;
-    }));
+    unawaited(
+      settled.whenComplete(() {
+        _requestInFlight = false;
+        if (identical(_activeAbort, abort)) _activeAbort = null;
+        if (identical(_activeRequest, settled)) _activeRequest = null;
+      }),
+    );
     try {
       // One deadline across send and body read. On timeout, fire the abort so
       // the socket is torn down, then surface a timeout to the caller. The
@@ -75,7 +75,9 @@ class HttpTransport {
         onTimeout: () {
           if (!abort.isCompleted) abort.complete();
           throw TimeoutException(
-              'Request exceeded $requestTimeout', requestTimeout);
+            'Request exceeded $requestTimeout',
+            requestTimeout,
+          );
         },
       );
       return frb.HttpResponse(
@@ -114,7 +116,7 @@ class HttpTransport {
   }
 
   String _methodName(frb.HttpMethod method) => switch (method) {
-        frb.HttpMethod.get_ => 'GET',
-        frb.HttpMethod.post => 'POST',
-      };
+    frb.HttpMethod.get_ => 'GET',
+    frb.HttpMethod.post => 'POST',
+  };
 }

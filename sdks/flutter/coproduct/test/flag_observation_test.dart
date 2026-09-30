@@ -67,12 +67,17 @@ void main() {
       var notifications = 0;
       observation.addListener(() => notifications += 1);
 
-      events..add('same')..add('same');
+      events
+        ..add('same')
+        ..add('same');
       await pumpEventQueue();
 
       expect(observation.value, 'same');
-      expect(notifications, 0,
-          reason: 'a value equal to the current one is not a change');
+      expect(
+        notifications,
+        0,
+        reason: 'a value equal to the current one is not a change',
+      );
     });
 
     test('an unavailable delivery resolves to the caller default', () async {
@@ -89,8 +94,11 @@ void main() {
       events.add(null);
       await pumpEventQueue();
 
-      expect(observation.value, isTrue,
-          reason: 'a flag that left the snapshot serves the caller default');
+      expect(
+        observation.value,
+        isTrue,
+        reason: 'a flag that left the snapshot serves the caller default',
+      );
     });
 
     test('delivers integer values', () async {
@@ -111,29 +119,35 @@ void main() {
       expect(observation.value, 42);
     });
 
-    test('treats a redelivered NaN as unchanged but a change away as a change',
-        () async {
-      final events = StreamController<double?>();
-      addTearDown(events.close);
-      final observation = numberObservation(
-        defaultValue: 0.0,
-        seed: double.nan,
-        events: events.stream,
-        cancel: () {},
-      );
-      addTearDown(observation.dispose);
-      var notifications = 0;
-      observation.addListener(() => notifications += 1);
+    test(
+      'treats a redelivered NaN as unchanged but a change away as a change',
+      () async {
+        final events = StreamController<double?>();
+        addTearDown(events.close);
+        final observation = numberObservation(
+          defaultValue: 0.0,
+          seed: double.nan,
+          events: events.stream,
+          cancel: () {},
+        );
+        addTearDown(observation.dispose);
+        var notifications = 0;
+        observation.addListener(() => notifications += 1);
 
-      events.add(double.nan);
-      await pumpEventQueue();
-      expect(notifications, 0, reason: 'NaN did not become a different value');
+        events.add(double.nan);
+        await pumpEventQueue();
+        expect(
+          notifications,
+          0,
+          reason: 'NaN did not become a different value',
+        );
 
-      events.add(1.5);
-      await pumpEventQueue();
-      expect(notifications, 1);
-      expect(observation.value, 1.5);
-    });
+        events.add(1.5);
+        await pumpEventQueue();
+        expect(notifications, 1);
+        expect(observation.value, 1.5);
+      },
+    );
 
     test('reports a stream error instead of letting it escape', () async {
       final events = StreamController<String?>();
@@ -154,11 +168,17 @@ void main() {
       events.addError(StateError('the native stream failed'));
       await pumpEventQueue();
 
-      expect(reported, hasLength(1),
-          reason: 'an unhandled stream error would escape into the zone');
+      expect(
+        reported,
+        hasLength(1),
+        reason: 'an unhandled stream error would escape into the zone',
+      );
       expect(reported.single.exception, isA<StateError>());
-      expect(observation.value, 'held',
-          reason: 'an error is not a value, so the last one stands');
+      expect(
+        observation.value,
+        'held',
+        reason: 'an error is not a value, so the last one stands',
+      );
     });
 
     test('retains the last value when the stream completes', () async {
@@ -174,8 +194,11 @@ void main() {
       await events.close();
       await pumpEventQueue();
 
-      expect(observation.value, 'held',
-          reason: 'shutdown freezes the observation rather than resetting it');
+      expect(
+        observation.value,
+        'held',
+        reason: 'shutdown freezes the observation rather than resetting it',
+      );
     });
   });
 
@@ -211,33 +234,34 @@ void main() {
 
       events.add('{"two":2,"one":1}');
       await pumpEventQueue();
-      expect(notifications, 0,
-          reason: 'key order is not a value change');
+      expect(notifications, 0, reason: 'key order is not a value change');
 
       events.add('{"one":1,"two":3}');
       await pumpEventQueue();
       expect(notifications, 1);
     });
 
-    test('an unavailable delivery resolves to an unmodifiable default',
-        () async {
-      final events = StreamController<String?>();
-      addTearDown(events.close);
-      final observation = jsonObservation(
-        defaultValue: {'caller': 'default'},
-        seed: '{"a":1}',
-        events: events.stream,
-        cancel: () {},
-      );
-      addTearDown(observation.dispose);
+    test(
+      'an unavailable delivery resolves to an unmodifiable default',
+      () async {
+        final events = StreamController<String?>();
+        addTearDown(events.close);
+        final observation = jsonObservation(
+          defaultValue: {'caller': 'default'},
+          seed: '{"a":1}',
+          events: events.stream,
+          cancel: () {},
+        );
+        addTearDown(observation.dispose);
 
-      events.add(null);
-      await pumpEventQueue();
+        events.add(null);
+        await pumpEventQueue();
 
-      final value = observation.value! as Map<String, Object?>;
-      expect(value['caller'], 'default');
-      expect(() => value['caller'] = 'mutated', throwsUnsupportedError);
-    });
+        final value = observation.value! as Map<String, Object?>;
+        expect(value['caller'], 'default');
+        expect(() => value['caller'] = 'mutated', throwsUnsupportedError);
+      },
+    );
 
     test('a malformed payload resolves to the default', () async {
       final events = StreamController<String?>();
@@ -261,28 +285,30 @@ void main() {
       expect((observation.value! as Map)['caller'], 'default');
     });
 
-    test('distinguishes a JSON null payload from an unavailable delivery',
-        () async {
-      final events = StreamController<String?>();
-      addTearDown(events.close);
-      final observation = jsonObservation(
-        defaultValue: const {'caller': 'default'},
-        seed: '{"a":1}',
-        events: events.stream,
-        cancel: () {},
-      );
-      addTearDown(observation.dispose);
+    test(
+      'distinguishes a JSON null payload from an unavailable delivery',
+      () async {
+        final events = StreamController<String?>();
+        addTearDown(events.close);
+        final observation = jsonObservation(
+          defaultValue: const {'caller': 'default'},
+          seed: '{"a":1}',
+          events: events.stream,
+          cancel: () {},
+        );
+        addTearDown(observation.dispose);
 
-      // 'null' is a valid JSON document whose value is null, which is a real
-      // flag value. A raw null is the absence of any value
-      events.add('null');
-      await pumpEventQueue();
-      expect(observation.value, isNull);
+        // 'null' is a valid JSON document whose value is null, which is a real
+        // flag value. A raw null is the absence of any value
+        events.add('null');
+        await pumpEventQueue();
+        expect(observation.value, isNull);
 
-      events.add(null);
-      await pumpEventQueue();
-      expect((observation.value! as Map)['caller'], 'default');
-    });
+        events.add(null);
+        await pumpEventQueue();
+        expect((observation.value! as Map)['caller'], 'default');
+      },
+    );
 
     test('delivers scalar payloads', () async {
       final events = StreamController<String?>();
@@ -305,24 +331,26 @@ void main() {
       expect(observation.value, isTrue);
     });
 
-    test('serves a decoded immutable form of a default with a toJson method',
-        () async {
-      final events = StreamController<String?>();
-      addTearDown(events.close);
-      final observation = jsonObservation(
-        defaultValue: _Encodable(),
-        seed: null,
-        events: events.stream,
-        cancel: () {},
-      );
-      addTearDown(observation.dispose);
+    test(
+      'serves a decoded immutable form of a default with a toJson method',
+      () async {
+        final events = StreamController<String?>();
+        addTearDown(events.close);
+        final observation = jsonObservation(
+          defaultValue: _Encodable(),
+          seed: null,
+          events: events.stream,
+          cancel: () {},
+        );
+        addTearDown(observation.dispose);
 
-      // getJson round-trips such a default through JSON and returns the decoded
-      // form, so an unavailable observation must serve the same thing
-      final value = observation.value! as Map<String, Object?>;
-      expect(value['kind'], 'custom');
-      expect(() => value['kind'] = 'mutated', throwsUnsupportedError);
-    });
+        // getJson round-trips such a default through JSON and returns the decoded
+        // form, so an unavailable observation must serve the same thing
+        final value = observation.value! as Map<String, Object?>;
+        expect(value['kind'], 'custom');
+        expect(() => value['kind'] = 'mutated', throwsUnsupportedError);
+      },
+    );
 
     test('retains an unencodable default by identity', () async {
       final events = StreamController<String?>();
@@ -336,15 +364,21 @@ void main() {
       );
       addTearDown(observation.dispose);
 
-      expect(identical(observation.value, unencodable), isTrue,
-          reason: 'a default JSON cannot encode is kept exactly as supplied');
+      expect(
+        identical(observation.value, unencodable),
+        isTrue,
+        reason: 'a default JSON cannot encode is kept exactly as supplied',
+      );
 
       var notifications = 0;
       observation.addListener(() => notifications += 1);
       events.add(null);
       await pumpEventQueue();
-      expect(notifications, 0,
-          reason: 'the same retained default is not a change');
+      expect(
+        notifications,
+        0,
+        reason: 'the same retained default is not a change',
+      );
     });
   });
 
@@ -402,10 +436,16 @@ void main() {
       events.add(true);
       await pumpEventQueue();
 
-      expect(notifications, 0,
-          reason: 'a disposed observation notifies nobody');
-      expect(observation.value, isFalse,
-          reason: 'and it keeps the value it was disposed holding');
+      expect(
+        notifications,
+        0,
+        reason: 'a disposed observation notifies nobody',
+      );
+      expect(
+        observation.value,
+        isFalse,
+        reason: 'and it keeps the value it was disposed holding',
+      );
     });
 
     test('completes disposal and reports when the native cancel throws', () {
@@ -461,8 +501,12 @@ class _KeepsDelivering<T> extends Stream<T> {
   }) {
     // The real subscription is deliberately kept and never cancelled, so events
     // continue to arrive after the caller cancels the one it is handed
-    _source.listen(onData,
-        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+    _source.listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
     return _InertSubscription<T>();
   }
 }

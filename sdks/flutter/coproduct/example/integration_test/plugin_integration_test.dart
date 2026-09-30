@@ -18,10 +18,12 @@ void main() {
     await Coproduct.shutdown();
   });
 
-  testWidgets('initialize, read a default, identify, shut down',
-      (WidgetTester tester) async {
+  testWidgets('initialize, read a default, identify, shut down', (
+    WidgetTester tester,
+  ) async {
     final client = await Coproduct.initialize(
-        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+      sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+    );
 
     // With no snapshot fixture, an unknown flag reads its default. The full
     // targeted-value acceptance against a device fixture is out of scope here
@@ -32,16 +34,21 @@ void main() {
     expect(client.previousAnonymousId, isNotNull);
   });
 
-  testWidgets('typed getters cross the ffi and return defaults for missing keys',
-      (WidgetTester tester) async {
+  testWidgets('typed getters cross the ffi and return defaults for missing keys', (
+    WidgetTester tester,
+  ) async {
     final client = await Coproduct.initialize(
-        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+      sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+    );
 
     // initialize loads any persisted snapshot from the app cache, so a per-run
     // unique prefix keeps these default-path assertions independent of prior runs
     final k = 'cp-${DateTime.now().microsecondsSinceEpoch}-';
 
-    expect(client.getString('${k}string', defaultValue: 'fallback'), 'fallback');
+    expect(
+      client.getString('${k}string', defaultValue: 'fallback'),
+      'fallback',
+    );
     expect(client.getNumber('${k}number', defaultValue: 3.5), 3.5);
 
     // Full signed-64-bit precision survives the FFI, including the extremes and a
@@ -49,26 +56,43 @@ void main() {
     // as the operand of unary minus, so the signed-64-bit minimum is a valid
     // negative expression, and its native int covers the signed 64-bit range
     expect(client.getInt('${k}int', defaultValue: 42), 42);
-    expect(client.getInt('${k}int-max', defaultValue: 9223372036854775807), 9223372036854775807);
-    expect(client.getInt('${k}int-min', defaultValue: -9223372036854775808), -9223372036854775808);
-    expect(client.getInt('${k}int-big', defaultValue: 9007199254740993), 9007199254740993);
+    expect(
+      client.getInt('${k}int-max', defaultValue: 9223372036854775807),
+      9223372036854775807,
+    );
+    expect(
+      client.getInt('${k}int-min', defaultValue: -9223372036854775808),
+      -9223372036854775808,
+    );
+    expect(
+      client.getInt('${k}int-big', defaultValue: 9007199254740993),
+      9007199254740993,
+    );
 
     // getJson encode/decode round trip on the default path: map, list, nested,
     // scalar, and null
     expect(
-        client.getJson('${k}json-map', defaultValue: {
+      client.getJson(
+        '${k}json-map',
+        defaultValue: {
           'theme': 'system',
           'nested': {
-            'items': [1, 2, 3]
-          }
-        }),
-        {
-          'theme': 'system',
-          'nested': {
-            'items': [1, 2, 3]
-          }
-        });
-    expect(client.getJson('${k}json-list', defaultValue: [1, 'two', null]), [1, 'two', null]);
+            'items': [1, 2, 3],
+          },
+        },
+      ),
+      {
+        'theme': 'system',
+        'nested': {
+          'items': [1, 2, 3],
+        },
+      },
+    );
+    expect(client.getJson('${k}json-list', defaultValue: [1, 'two', null]), [
+      1,
+      'two',
+      null,
+    ]);
     expect(client.getJson('${k}json-scalar', defaultValue: 'hi'), 'hi');
     expect(client.getJson('${k}json-null', defaultValue: null), isNull);
 
@@ -77,19 +101,31 @@ void main() {
     // cyclic structure
     final cyclic = <String, Object?>{};
     cyclic['self'] = cyclic;
-    expect(identical(client.getJson('${k}json-cyclic', defaultValue: cyclic), cyclic), isTrue);
+    expect(
+      identical(
+        client.getJson('${k}json-cyclic', defaultValue: cyclic),
+        cyclic,
+      ),
+      isTrue,
+    );
   });
 
-  testWidgets('identity mutators cross the ffi and surface typed errors',
-      (WidgetTester tester) async {
+  testWidgets('identity mutators cross the ffi and surface typed errors', (
+    WidgetTester tester,
+  ) async {
     final client = await Coproduct.initialize(
-        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+      sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+    );
 
     // Empty keys surface the public typed error, not a generated or bridge type
-    await expectLater(client.identify(userId: ''),
-        throwsA(isA<InvalidTargetingKey>()));
-    await expectLater(client.setContext(targetingKey: ''),
-        throwsA(isA<InvalidTargetingKey>()));
+    await expectLater(
+      client.identify(userId: ''),
+      throwsA(isA<InvalidTargetingKey>()),
+    );
+    await expectLater(
+      client.setContext(targetingKey: ''),
+      throwsA(isA<InvalidTargetingKey>()),
+    );
 
     // A rejected queued mutation does not block a later valid one
     final rejected = client.identify(userId: '');
@@ -106,25 +142,32 @@ void main() {
 
     // Every AttributeValue variant encodes and decodes across the real bridge, and
     // a later linked identify recaptures the same original anonymous id
-    await client.identify(userId: 'bob', attributes: {
-      'plan': const AttributeValue.string('pro'),
-      'seats': AttributeValue.number(5),
-      'ratio': AttributeValue.number(1.5),
-      'beta': const AttributeValue.bool(true),
-      'roles': AttributeValue.stringList(['admin', 'editor']),
-      'empty': AttributeValue.stringList(const []),
-      'note': const AttributeValue.nullValue(),
-    });
+    await client.identify(
+      userId: 'bob',
+      attributes: {
+        'plan': const AttributeValue.string('pro'),
+        'seats': AttributeValue.number(5),
+        'ratio': AttributeValue.number(1.5),
+        'beta': const AttributeValue.bool(true),
+        'roles': AttributeValue.stringList(['admin', 'editor']),
+        'empty': AttributeValue.stringList(const []),
+        'note': const AttributeValue.nullValue(),
+      },
+    );
     expect(client.previousAnonymousId, captured);
-    await client.updateAttributes({'plan': const AttributeValue.string('team')});
-    await client.setContext(targetingKey: 'org-42', attributes: {
-      'tier': const AttributeValue.string('gold'),
+    await client.updateAttributes({
+      'plan': const AttributeValue.string('team'),
     });
+    await client.setContext(
+      targetingKey: 'org-42',
+      attributes: {'tier': const AttributeValue.string('gold')},
+    );
     await client.removeAttributes(['tier']);
   });
 
-  testWidgets('a malformed key reason from the core names no character',
-      (WidgetTester tester) async {
+  testWidgets('a malformed key reason from the core names no character', (
+    WidgetTester tester,
+  ) async {
     // The reason is built by the real core, so a control character in the key
     // must not reach the public error
     final key = 'cpk_mob_${'w' * 31}\n';
@@ -140,8 +183,9 @@ void main() {
     expect(reason, isNot(matches(RegExp(r'[\x00-\x1f\x7f]'))));
   });
 
-  testWidgets('a wrong key type from the core throws InvalidKeyType',
-      (WidgetTester tester) async {
+  testWidgets('a wrong key type from the core throws InvalidKeyType', (
+    WidgetTester tester,
+  ) async {
     Object? caught;
     try {
       await Coproduct.initialize(sdkKey: 'password_hunter2');
@@ -149,18 +193,21 @@ void main() {
       caught = error;
     }
     expect(caught, const InvalidKeyType());
-    expect(caught.toString(),
-        'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)');
+    expect(
+      caught.toString(),
+      'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)',
+    );
   });
 
-  testWidgets('bucketForVectors matches all golden vectors',
-      (WidgetTester tester) async {
-    await Coproduct.initialize(sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+  testWidgets('bucketForVectors matches all golden vectors', (
+    WidgetTester tester,
+  ) async {
+    await Coproduct.initialize(
+      sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+    );
 
-    final raw =
-        await rootBundle.loadString('assets/bucketing_vectors.json');
-    final vectors = (jsonDecode(raw) as List)
-        .cast<Map<String, dynamic>>();
+    final raw = await rootBundle.loadString('assets/bucketing_vectors.json');
+    final vectors = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
 
     expect(vectors.length, 4, reason: 'expected 4 vectors in fixture');
 

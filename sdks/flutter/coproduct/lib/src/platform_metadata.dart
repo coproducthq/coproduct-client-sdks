@@ -32,8 +32,9 @@ MetadataProviders platformMetadataProviders() {
         Error.throwWithStackTrace(error!, stack);
       });
   return MetadataProviders(
-    deviceType:
-        stringProvider(() => const HostContextChannel().readDeviceType()),
+    deviceType: stringProvider(
+      () => const HostContextChannel().readDeviceType(),
+    ),
     platform: stringProvider(() async => _platformName()),
     osVersion: stringProvider(() async {
       if (Platform.isAndroid) {
@@ -45,8 +46,10 @@ MetadataProviders platformMetadataProviders() {
     appVersion: stringProvider(() async => (await loadPackageInfo()).version),
     appBuild: stringProvider(() async => (await loadPackageInfo()).buildNumber),
     locale: stringProvider(
-        () async => PlatformDispatcher.instance.locale.toLanguageTag()),
+      () async => PlatformDispatcher.instance.locale.toLanguageTag(),
+    ),
     timezone: stringProvider(
-        () async => (await FlutterTimezone.getLocalTimezone()).identifier),
+      () async => (await FlutterTimezone.getLocalTimezone()).identifier,
+    ),
   );
 }

@@ -57,7 +57,8 @@ class _Core {
     queue: queue,
     isCurrent: () => current,
     send: (attributes) async => values.add(
-        (attributes['network_type']! as frb.FrbContextValue_String).field0),
+      (attributes['network_type']! as frb.FrbContextValue_String).field0,
+    ),
     onError: (_, _) {},
   );
 }
@@ -112,7 +113,10 @@ void main() {
   });
 
   test('parse accepts only the envelope a matching plugin sends', () {
-    expect(NetworkTypeEvent.parse({'epoch': 3, 'value': 'none'})?.value, 'none');
+    expect(
+      NetworkTypeEvent.parse({'epoch': 3, 'value': 'none'})?.value,
+      'none',
+    );
     for (final raw in <Object?>[
       'wifi',
       null,
@@ -256,7 +260,10 @@ void main() {
       async.elapse(const Duration(minutes: 5));
       expect(core.values, isEmpty);
       expect(events.listens, hasLength(1));
-      expect(printed, contains('coproduct: dropped a malformed network_type event'));
+      expect(
+        printed,
+        contains('coproduct: dropped a malformed network_type event'),
+      );
     });
   });
 
@@ -271,9 +278,17 @@ void main() {
         async.flushMicrotasks();
         expect(events.live, 0, reason: 'the failed listen is cancelled');
         async.elapse(expected - const Duration(milliseconds: 1));
-        expect(events.listens, hasLength(failure), reason: 'retry $failure early');
+        expect(
+          events.listens,
+          hasLength(failure),
+          reason: 'retry $failure early',
+        );
         async.elapse(const Duration(milliseconds: 1));
-        expect(events.listens, hasLength(failure + 1), reason: 'retry $failure');
+        expect(
+          events.listens,
+          hasLength(failure + 1),
+          reason: 'retry $failure',
+        );
         final doubled = expected * 2;
         expected = doubled > NetworkTypeService.retryCap
             ? NetworkTypeService.retryCap
@@ -319,32 +334,41 @@ void main() {
       events.latest.controller.addError(StateError('refused'));
       final before = events.listens.length;
       async.elapse(NetworkTypeService.retryFloor);
-      expect(events.listens, hasLength(before),
-          reason: 'the stale event must not have reset the delay to the floor');
+      expect(
+        events.listens,
+        hasLength(before),
+        reason: 'the stale event must not have reset the delay to the floor',
+      );
       async.elapse(NetworkTypeService.retryFloor);
       expect(events.listens, hasLength(before + 1));
     });
   });
 
-  test('a missing network channel reports once and stops observing for good',
-      () {
-    fakeAsync((async) {
-      service().start();
-      async.flushMicrotasks();
-      events.latest.controller.addError(const HostContextUnavailable());
-      async.flushMicrotasks();
-      expect(unavailable, 1);
-      expect(events.live, 0, reason: 'the failed listen is cancelled');
-      async.elapse(NetworkTypeService.retryCap * 2);
-      expect(events.listens, hasLength(1), reason: 'no retry is scheduled');
-      for (var i = 0; i < 3; i++) {
-        resume!();
+  test(
+    'a missing network channel reports once and stops observing for good',
+    () {
+      fakeAsync((async) {
+        service().start();
         async.flushMicrotasks();
-      }
-      expect(events.listens, hasLength(1), reason: 'a resume opens no listen');
-      expect(unavailable, 1);
-    });
-  });
+        events.latest.controller.addError(const HostContextUnavailable());
+        async.flushMicrotasks();
+        expect(unavailable, 1);
+        expect(events.live, 0, reason: 'the failed listen is cancelled');
+        async.elapse(NetworkTypeService.retryCap * 2);
+        expect(events.listens, hasLength(1), reason: 'no retry is scheduled');
+        for (var i = 0; i < 3; i++) {
+          resume!();
+          async.flushMicrotasks();
+        }
+        expect(
+          events.listens,
+          hasLength(1),
+          reason: 'a resume opens no listen',
+        );
+        expect(unavailable, 1);
+      });
+    },
+  );
 
   test('an unexpected end of the stream is a failure', () {
     fakeAsync((async) {
@@ -367,7 +391,11 @@ void main() {
       async.flushMicrotasks();
       expect(events.listens, hasLength(2));
       async.elapse(const Duration(minutes: 5));
-      expect(events.listens, hasLength(2), reason: 'the old timer did not fire');
+      expect(
+        events.listens,
+        hasLength(2),
+        reason: 'the old timer did not fire',
+      );
     });
   });
 

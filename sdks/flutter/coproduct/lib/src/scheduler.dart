@@ -14,8 +14,7 @@ Duration? nextPollDelay(frb.PollOutcome outcome, Duration interval) =>
       frb.PollOutcome_Updated() ||
       frb.PollOutcome_NotModified() ||
       frb.PollOutcome_Retrying() ||
-      frb.PollOutcome_DedupedSkipped() =>
-        interval,
+      frb.PollOutcome_DedupedSkipped() => interval,
       frb.PollOutcome_RateLimited(:final retryAfterSecs) =>
         Duration(seconds: retryAfterSecs) > interval
             ? Duration(seconds: retryAfterSecs)
@@ -42,9 +41,9 @@ class Scheduler {
     required this.pollOnForeground,
     required void Function(Object error, StackTrace stack) onError,
     Duration Function()? clock,
-  })  : _now = clock ?? _monotonicClock(),
-        // ignore: prefer_initializing_formals
-        _onError = onError;
+  }) : _now = clock ?? _monotonicClock(),
+       // ignore: prefer_initializing_formals
+       _onError = onError;
 
   final Future<frb.PollOutcome> Function() poll;
   final Duration interval;
@@ -120,8 +119,9 @@ class Scheduler {
       return;
     }
     final now = _now();
-    _earliestForegroundPoll =
-        (outcome != null && _isBackoff(outcome)) ? now + delay : now;
+    _earliestForegroundPoll = (outcome != null && _isBackoff(outcome))
+        ? now + delay
+        : now;
     _timer?.cancel();
     _timer = Timer(delay, _trigger);
   }

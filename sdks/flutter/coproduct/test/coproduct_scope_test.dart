@@ -4,58 +4,80 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('resolves the nearest scope rather than the outermost',
-      (tester) async {
+  testWidgets('resolves the nearest scope rather than the outermost', (
+    tester,
+  ) async {
     final outer = CoproductTestHarness().client;
     final inner = CoproductTestHarness().client;
     late CoproductClient fromOuter;
     late CoproductClient fromInner;
 
-    await tester.pumpWidget(CoproductScope(
-      client: outer,
-      child: Builder(builder: (context) {
-        fromOuter = CoproductScope.of(context);
-        return CoproductScope(
-          client: inner,
-          child: Builder(builder: (context) {
-            fromInner = CoproductScope.of(context);
-            return const SizedBox.shrink();
-          }),
-        );
-      }),
-    ));
+    await tester.pumpWidget(
+      CoproductScope(
+        client: outer,
+        child: Builder(
+          builder: (context) {
+            fromOuter = CoproductScope.of(context);
+            return CoproductScope(
+              client: inner,
+              child: Builder(
+                builder: (context) {
+                  fromInner = CoproductScope.of(context);
+                  return const SizedBox.shrink();
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
 
     expect(identical(fromOuter, outer), isTrue);
-    expect(identical(fromInner, inner), isTrue,
-        reason: 'the nearest scope wins');
+    expect(
+      identical(fromInner, inner),
+      isTrue,
+      reason: 'the nearest scope wins',
+    );
   });
 
-  testWidgets('throws a diagnostic error when no scope is above',
-      (tester) async {
+  testWidgets('throws a diagnostic error when no scope is above', (
+    tester,
+  ) async {
     Object? thrown;
 
     // Caught here rather than allowed to escape, because an exception thrown
     // during build would otherwise be reported by the test framework as a
     // widget error and this test wants to inspect the message
-    await tester.pumpWidget(Builder(builder: (context) {
-      try {
-        CoproductScope.of(context);
-      } catch (error) {
-        thrown = error;
-      }
-      return const SizedBox.shrink();
-    }));
+    await tester.pumpWidget(
+      Builder(
+        builder: (context) {
+          try {
+            CoproductScope.of(context);
+          } catch (error) {
+            thrown = error;
+          }
+          return const SizedBox.shrink();
+        },
+      ),
+    );
 
     expect(thrown, isA<FlutterError>());
     final message = (thrown! as FlutterError).message;
-    expect(message, contains('CoproductScope'),
-        reason: 'the message must name the widget to install');
-    expect(message, contains('client:'),
-        reason: 'and the other remedy, passing a client explicitly');
+    expect(
+      message,
+      contains('CoproductScope'),
+      reason: 'the message must name the widget to install',
+    );
+    expect(
+      message,
+      contains('client:'),
+      reason: 'and the other remedy, passing a client explicitly',
+    );
   });
 
-  testWidgets('notifies dependents only when the client changes',
-      (tester) async {
+  testWidgets('notifies dependents only when the client changes', (
+    tester,
+  ) async {
     final first = CoproductTestHarness().client;
     final second = CoproductTestHarness().client;
     _dependentBuilds = 0;
@@ -70,12 +92,14 @@ void main() {
     expect(_dependentBuilds, 1);
 
     await tester.pumpWidget(host(first));
-    expect(_dependentBuilds, 1,
-        reason: 'the same client is not a change');
+    expect(_dependentBuilds, 1, reason: 'the same client is not a change');
 
     await tester.pumpWidget(host(second));
-    expect(_dependentBuilds, 2,
-        reason: 'a different client must notify dependents');
+    expect(
+      _dependentBuilds,
+      2,
+      reason: 'a different client must notify dependents',
+    );
   });
 }
 

@@ -17,10 +17,10 @@ typedef MetadataProvider = Future<frb.FrbContextValue?> Function();
 /// nothing. A provider that is not string-valued is responsible for its own
 /// emptiness rule, because only the string case has one
 MetadataProvider stringProvider(Future<String?> Function() read) => () async {
-      final value = await read();
-      if (value == null || value.isEmpty) return null;
-      return frb.FrbContextValue.string(value);
-    };
+  final value = await read();
+  if (value == null || value.isEmpty) return null;
+  return frb.FrbContextValue.string(value);
+};
 
 /// Reports one provider's outcome for internal diagnostics: how long it ran and
 /// whether its field was absent from the initial batch (it timed out, threw, or
@@ -28,8 +28,8 @@ MetadataProvider stringProvider(Future<String?> Function() read) => () async {
 /// after the deadline still publishes through the late sink. Wired to surface
 /// omissions so the shared startup budget can be tuned on real measurements
 /// rather than guesses
-typedef MetadataObserver = void Function(String field, Duration elapsed,
-    {required bool omitted});
+typedef MetadataObserver =
+    void Function(String field, Duration elapsed, {required bool omitted});
 
 /// The injectable providers for each static attribute. Real implementations wrap
 /// package_info_plus, device_info_plus, flutter_timezone, and dart:io
@@ -110,7 +110,11 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
     // Report every field that has not settled as omitted, with the time spent
     // before giving up, so a wedged provider still produces a useful diagnostic
     for (final field in fields.keys) {
-      report(field, stopwatches[field]?.elapsed ?? Duration.zero, omitted: true);
+      report(
+        field,
+        stopwatches[field]?.elapsed ?? Duration.zero,
+        omitted: true,
+      );
     }
     if (!sealed$.isCompleted) sealed$.complete();
   }
@@ -123,33 +127,38 @@ Future<Map<String, frb.FrbContextValue>> collectStaticAttributes(
     fields.forEach((field, provider) {
       final sw = Stopwatch()..start();
       stopwatches[field] = sw;
-      started.add(Future<frb.FrbContextValue?>.sync(provider).then((value) {
-        sw.stop();
-        if (value == null) {
-          report(field, sw.elapsed, omitted: true);
-          return;
-        }
-        if (!sealed) {
-          attributes[field] = value;
-          report(field, sw.elapsed, omitted: false);
-          return;
-        }
-        // A cancelled collection is being abandoned, so there is nothing left
-        // for a straggler to amend
-        if (cancel.isCancelled) return;
-        // The seal already reported this field as absent from the batch, so
-        // routing it here publishes the value without a second report, which
-        // would break the one-report-per-field invariant the observer rests on
-        try {
-          onLate(field, value);
-        } catch (_) {
-          // A sink failure must never affect collection, matching the rule the
-          // diagnostic observer already follows
-        }
-      }, onError: (Object _, StackTrace _) {
-        sw.stop();
-        report(field, sw.elapsed, omitted: true);
-      }));
+      started.add(
+        Future<frb.FrbContextValue?>.sync(provider).then(
+          (value) {
+            sw.stop();
+            if (value == null) {
+              report(field, sw.elapsed, omitted: true);
+              return;
+            }
+            if (!sealed) {
+              attributes[field] = value;
+              report(field, sw.elapsed, omitted: false);
+              return;
+            }
+            // A cancelled collection is being abandoned, so there is nothing left
+            // for a straggler to amend
+            if (cancel.isCancelled) return;
+            // The seal already reported this field as absent from the batch, so
+            // routing it here publishes the value without a second report, which
+            // would break the one-report-per-field invariant the observer rests on
+            try {
+              onLate(field, value);
+            } catch (_) {
+              // A sink failure must never affect collection, matching the rule the
+              // diagnostic observer already follows
+            }
+          },
+          onError: (Object _, StackTrace _) {
+            sw.stop();
+            report(field, sw.elapsed, omitted: true);
+          },
+        ),
+      );
     });
     return started;
   }

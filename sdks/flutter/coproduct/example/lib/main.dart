@@ -55,8 +55,12 @@ class _MyAppState extends State<MyApp> {
       // The widget was disposed while initialize was still in flight
       return;
     } catch (error, stack) {
-      developer.log('COPRODUCT_FLUTTER_DEMO_INIT_ERROR',
-          name: 'coproduct', error: error, stackTrace: stack);
+      developer.log(
+        'COPRODUCT_FLUTTER_DEMO_INIT_ERROR',
+        name: 'coproduct',
+        error: error,
+        stackTrace: stack,
+      );
       return;
     }
 
@@ -82,10 +86,16 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     // Without a key the SDK never started, so there is nothing to shut down
     if (widget.sdkKey.isNotEmpty) {
-      unawaited(Coproduct.shutdown().catchError((Object error, StackTrace stack) {
-        developer.log('COPRODUCT_FLUTTER_DEMO_SHUTDOWN_ERROR',
-            name: 'coproduct', error: error, stackTrace: stack);
-      }));
+      unawaited(
+        Coproduct.shutdown().catchError((Object error, StackTrace stack) {
+          developer.log(
+            'COPRODUCT_FLUTTER_DEMO_SHUTDOWN_ERROR',
+            name: 'coproduct',
+            error: error,
+            stackTrace: stack,
+          );
+        }),
+      );
     }
     super.dispose();
   }
@@ -105,10 +115,7 @@ class _MyAppState extends State<MyApp> {
         // instead, which the README shows
         body: c == null
             ? const Center(child: Text('SDK ready: no'))
-            : CoproductScope(
-                client: c,
-                child: const _FlagDemo(),
-              ),
+            : CoproductScope(client: c, child: const _FlagDemo()),
       ),
     );
   }
@@ -127,16 +134,24 @@ class _MissingKey extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('No SDK key was passed, so the SDK has not started.',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'No SDK key was passed, so the SDK has not started.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 12),
-            Text('Create a mobile SDK key in Coproduct, then run the app with '
-                'it:'),
+            Text(
+              'Create a mobile SDK key in Coproduct, then run the app with '
+              'it:',
+            ),
             SizedBox(height: 8),
-            Text('flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key'),
+            Text(
+              'flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key',
+            ),
             SizedBox(height: 12),
-            Text('Pass the key at build time rather than writing it into the '
-                'source.'),
+            Text(
+              'Pass the key at build time rather than writing it into the '
+              'source.',
+            ),
           ],
         ),
       ),
@@ -163,8 +178,10 @@ class _FlagDemo extends StatelessWidget {
 
           // Reactive reads. Each builder rebuilds by itself whenever its flag
           // changes and disposes its observation when it leaves the tree
-          const Text('Observed (live)',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Observed (live)',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           CoproductFlagBuilder.boolFlag(
             flagKey: _boolFlag,
             defaultValue: false,
@@ -195,16 +212,28 @@ class _FlagDemo extends StatelessWidget {
           // One-shot reads. The synchronous getters read each value once, when
           // this widget builds, and do not follow later changes the way the
           // builders above do. That is the difference between the two surfaces
-          const Text('Read at build (one-shot)',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          Text('getBool: ${CoproductScope.of(context).getBool(_boolFlag, defaultValue: false)}'),
-          Text('getString: '
-              '${CoproductScope.of(context).getString(_stringFlag, defaultValue: 'default')}'),
-          Text('getInt: ${CoproductScope.of(context).getInt(_intFlag, defaultValue: 0)}'),
-          Text('getNumber: '
-              '${CoproductScope.of(context).getNumber(_numberFlag, defaultValue: 0)}'),
-          Text('getJson: '
-              '${CoproductScope.of(context).getJson(_jsonFlag, defaultValue: const <String, Object?>{})}'),
+          const Text(
+            'Read at build (one-shot)',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(
+            'getBool: ${CoproductScope.of(context).getBool(_boolFlag, defaultValue: false)}',
+          ),
+          Text(
+            'getString: '
+            '${CoproductScope.of(context).getString(_stringFlag, defaultValue: 'default')}',
+          ),
+          Text(
+            'getInt: ${CoproductScope.of(context).getInt(_intFlag, defaultValue: 0)}',
+          ),
+          Text(
+            'getNumber: '
+            '${CoproductScope.of(context).getNumber(_numberFlag, defaultValue: 0)}',
+          ),
+          Text(
+            'getJson: '
+            '${CoproductScope.of(context).getJson(_jsonFlag, defaultValue: const <String, Object?>{})}',
+          ),
           const SizedBox(height: 16),
 
           // Identity mutations re-evaluate the loaded snapshot locally and
@@ -215,31 +244,39 @@ class _FlagDemo extends StatelessWidget {
             spacing: 8,
             children: [
               ElevatedButton(
-                onPressed: () => _run('identify', () => client.identify(
-                      userId: 'user-123',
-                      attributes: const {'plan': AttributeValue.string('pro')},
-                    )),
+                onPressed: () => _run(
+                  'identify',
+                  () => client.identify(
+                    userId: 'user-123',
+                    attributes: const {'plan': AttributeValue.string('pro')},
+                  ),
+                ),
                 child: const Text('identify'),
               ),
               ElevatedButton(
-                onPressed: () => _run('updateAttributes',
-                    () => client.updateAttributes(
-                          const {'seats': AttributeValue.number(5)},
-                        )),
+                onPressed: () => _run(
+                  'updateAttributes',
+                  () => client.updateAttributes(const {
+                    'seats': AttributeValue.number(5),
+                  }),
+                ),
                 child: const Text('update attrs'),
               ),
               ElevatedButton(
-                onPressed: () =>
-                    _run('removeAttributes', () => client.removeAttributes(
-                          const ['seats'],
-                        )),
+                onPressed: () => _run(
+                  'removeAttributes',
+                  () => client.removeAttributes(const ['seats']),
+                ),
                 child: const Text('remove attrs'),
               ),
               ElevatedButton(
-                onPressed: () => _run('setContext', () => client.setContext(
-                      targetingKey: 'tenant-42',
-                      attributes: const {'tier': AttributeValue.string('gold')},
-                    )),
+                onPressed: () => _run(
+                  'setContext',
+                  () => client.setContext(
+                    targetingKey: 'tenant-42',
+                    attributes: const {'tier': AttributeValue.string('gold')},
+                  ),
+                ),
                 child: const Text('set context'),
               ),
               ElevatedButton(
@@ -256,12 +293,22 @@ class _FlagDemo extends StatelessWidget {
   // Fire an identity mutation and log its outcome. A real app awaits the future
   // where it needs to read settled state such as previousAnonymousId afterward
   void _run(String label, Future<void> Function() action) {
-    unawaited(action().then((_) {
-      developer.log('COPRODUCT_FLUTTER_DEMO_IDENTITY ok=$label',
-          name: 'coproduct');
-    }).catchError((Object error, StackTrace stack) {
-      developer.log('COPRODUCT_FLUTTER_DEMO_IDENTITY_ERROR label=$label',
-          name: 'coproduct', error: error, stackTrace: stack);
-    }));
+    unawaited(
+      action()
+          .then((_) {
+            developer.log(
+              'COPRODUCT_FLUTTER_DEMO_IDENTITY ok=$label',
+              name: 'coproduct',
+            );
+          })
+          .catchError((Object error, StackTrace stack) {
+            developer.log(
+              'COPRODUCT_FLUTTER_DEMO_IDENTITY_ERROR label=$label',
+              name: 'coproduct',
+              error: error,
+              stackTrace: stack,
+            );
+          }),
+    );
   }
 }

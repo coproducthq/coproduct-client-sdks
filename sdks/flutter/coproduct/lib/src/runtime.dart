@@ -18,15 +18,14 @@ class CoproductRuntime {
     void Function()? disposeForeground,
     NetworkTypeService? networkType,
     void Function(Object error, StackTrace stack)? onError,
-  })  :
-        // ignore: prefer_initializing_formals
-        _coreShutdown = coreShutdown,
-        // ignore: prefer_initializing_formals
-        _disposeForeground = disposeForeground,
-        // ignore: prefer_initializing_formals
-        _networkType = networkType,
-        // ignore: prefer_initializing_formals
-        _onError = onError;
+  }) : // ignore: prefer_initializing_formals
+       _coreShutdown = coreShutdown,
+       // ignore: prefer_initializing_formals
+       _disposeForeground = disposeForeground,
+       // ignore: prefer_initializing_formals
+       _networkType = networkType,
+       // ignore: prefer_initializing_formals
+       _onError = onError;
 
   final int generation;
   final Scheduler scheduler;
@@ -66,11 +65,13 @@ class CoproductRuntime {
     }
     final completer = Completer<void>();
     _shutdown = completer.future;
-    unawaited(_runShutdown().then<void>(
-      (_) => completer.complete(),
-      onError: (Object error, StackTrace stack) =>
-          completer.completeError(error, stack),
-    ));
+    unawaited(
+      _runShutdown().then<void>(
+        (_) => completer.complete(),
+        onError: (Object error, StackTrace stack) =>
+            completer.completeError(error, stack),
+      ),
+    );
     return completer.future;
   }
 

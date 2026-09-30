@@ -35,11 +35,8 @@ final class FrbBackend implements CoproductClientBackend {
       frb.getNumber(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  String getJson(String key, {required String defaultValueJson}) => frb.getJson(
-        client: handle,
-        key: key,
-        defaultValueJson: defaultValueJson,
-      );
+  String getJson(String key, {required String defaultValueJson}) =>
+      frb.getJson(client: handle, key: key, defaultValueJson: defaultValueJson);
 
   @override
   ObservationHandle<bool> observeBool(String key) {
@@ -96,13 +93,14 @@ final class FrbBackend implements CoproductClientBackend {
     required String userId,
     required Map<String, AttributeValue> attributes,
     required bool linkAnonymous,
-  }) =>
-      translateIdentityErrors(() => frb.identify(
-            handle: handle,
-            userId: userId,
-            attributes: toFrbAttributes(attributes),
-            linkAnonymous: linkAnonymous,
-          ));
+  }) => translateIdentityErrors(
+    () => frb.identify(
+      handle: handle,
+      userId: userId,
+      attributes: toFrbAttributes(attributes),
+      linkAnonymous: linkAnonymous,
+    ),
+  );
 
   @override
   Future<void> signOut() => frb.signOut(handle: handle);
@@ -111,12 +109,13 @@ final class FrbBackend implements CoproductClientBackend {
   Future<void> setContext({
     required String targetingKey,
     required Map<String, AttributeValue> attributes,
-  }) =>
-      translateIdentityErrors(() => frb.setContext(
-            handle: handle,
-            targetingKey: targetingKey,
-            attributes: toFrbAttributes(attributes),
-          ));
+  }) => translateIdentityErrors(
+    () => frb.setContext(
+      handle: handle,
+      targetingKey: targetingKey,
+      attributes: toFrbAttributes(attributes),
+    ),
+  );
 
   @override
   Future<void> updateAttributes(Map<String, AttributeValue> attributes) =>

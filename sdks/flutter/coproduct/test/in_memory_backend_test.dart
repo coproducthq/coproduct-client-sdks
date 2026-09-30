@@ -23,14 +23,16 @@ void main() {
       expect(backend.getJson('j', defaultValueJson: 'null'), '{"a":1}');
     });
 
-    test('each typed getter serves the caller default when the flag is absent',
-        () {
-      expect(backend.getBool('missing', defaultValue: true), isTrue);
-      expect(backend.getString('missing', defaultValue: 'd'), 'd');
-      expect(backend.getInt('missing', defaultValue: 7), 7);
-      expect(backend.getNumber('missing', defaultValue: 1.5), 1.5);
-      expect(backend.getJson('missing', defaultValueJson: '"d"'), '"d"');
-    });
+    test(
+      'each typed getter serves the caller default when the flag is absent',
+      () {
+        expect(backend.getBool('missing', defaultValue: true), isTrue);
+        expect(backend.getString('missing', defaultValue: 'd'), 'd');
+        expect(backend.getInt('missing', defaultValue: 7), 7);
+        expect(backend.getNumber('missing', defaultValue: 1.5), 1.5);
+        expect(backend.getJson('missing', defaultValueJson: '"d"'), '"d"');
+      },
+    );
 
     test('a wrong-type read serves the caller default', () {
       backend.set('k', const StoredBool(true));
@@ -45,7 +47,10 @@ void main() {
 
     test('a scalar is not readable by getJson', () {
       backend.set('k', const StoredBool(true));
-      expect(backend.getJson('k', defaultValueJson: '"fallback"'), '"fallback"');
+      expect(
+        backend.getJson('k', defaultValueJson: '"fallback"'),
+        '"fallback"',
+      );
     });
 
     test('NUMBER serves both integer and number reads', () {
@@ -56,19 +61,21 @@ void main() {
   });
 
   group('delivery', () {
-    test('each observation seeds synchronously from the latest stored value',
-        () {
-      backend.set('b', const StoredBool(true));
-      backend.set('s', const StoredString('x'));
-      backend.set('n', const StoredNumber(2.5));
-      backend.set('j', StoredJson('[1]'));
+    test(
+      'each observation seeds synchronously from the latest stored value',
+      () {
+        backend.set('b', const StoredBool(true));
+        backend.set('s', const StoredString('x'));
+        backend.set('n', const StoredNumber(2.5));
+        backend.set('j', StoredJson('[1]'));
 
-      expect(backend.observeBool('b').seed, isTrue);
-      expect(backend.observeString('s').seed, 'x');
-      expect(backend.observeInt('n').seed, 2);
-      expect(backend.observeNumber('n').seed, 2.5);
-      expect(backend.observeJson('j').seed, '[1]');
-    });
+        expect(backend.observeBool('b').seed, isTrue);
+        expect(backend.observeString('s').seed, 'x');
+        expect(backend.observeInt('n').seed, 2);
+        expect(backend.observeNumber('n').seed, 2.5);
+        expect(backend.observeJson('j').seed, '[1]');
+      },
+    );
 
     test('a new observation does not receive an event enqueued before it '
         'registered', () async {
@@ -94,18 +101,20 @@ void main() {
       expect(events, isEmpty);
     });
 
-    test('a JSON assignment differing only in key order enqueues no raw event',
-        () async {
-      backend.set('config', StoredJson('{"a":1,"b":2}'));
-      final handle = backend.observeJson('config');
-      final events = <String?>[];
-      handle.events.listen(events.add);
+    test(
+      'a JSON assignment differing only in key order enqueues no raw event',
+      () async {
+        backend.set('config', StoredJson('{"a":1,"b":2}'));
+        final handle = backend.observeJson('config');
+        final events = <String?>[];
+        handle.events.listen(events.add);
 
-      backend.set('config', StoredJson('{"b":2,"a":1}'));
-      await settle();
+        backend.set('config', StoredJson('{"b":2,"a":1}'));
+        await settle();
 
-      expect(events, isEmpty);
-    });
+        expect(events, isEmpty);
+      },
+    );
 
     test('replacing a JSON integer with a float is a change', () async {
       backend.set('k', StoredJson('1'));
@@ -163,24 +172,26 @@ void main() {
       expect(events, [1, 2, 3]);
     });
 
-    test('removal delivers null and each observation reverts to its own default',
-        () async {
-      backend.set('k', const StoredBool(true));
-      final a = backend.observeBool('k');
-      final b = backend.observeBool('k');
-      final eventsA = <bool?>[];
-      final eventsB = <bool?>[];
-      a.events.listen(eventsA.add);
-      b.events.listen(eventsB.add);
+    test(
+      'removal delivers null and each observation reverts to its own default',
+      () async {
+        backend.set('k', const StoredBool(true));
+        final a = backend.observeBool('k');
+        final b = backend.observeBool('k');
+        final eventsA = <bool?>[];
+        final eventsB = <bool?>[];
+        a.events.listen(eventsA.add);
+        b.events.listen(eventsB.add);
 
-      backend.set('k', null);
-      await settle();
+        backend.set('k', null);
+        await settle();
 
-      expect(eventsA, [null]);
-      expect(eventsB, [null]);
-      expect(backend.getBool('k', defaultValue: false), isFalse);
-      expect(backend.getBool('k', defaultValue: true), isTrue);
-    });
+        expect(eventsA, [null]);
+        expect(eventsB, [null]);
+        expect(backend.getBool('k', defaultValue: false), isFalse);
+        expect(backend.getBool('k', defaultValue: true), isTrue);
+      },
+    );
 
     test('an available JSON null is distinct from removal', () async {
       backend.set('k', StoredJson('null'));
@@ -264,8 +275,10 @@ void main() {
     test('a setter after shutdown throws StateError', () async {
       await backend.shutdown();
       expect(() => backend.set('k', const StoredBool(true)), throwsStateError);
-      expect(() => backend.setProviderState(ProviderState.stale),
-          throwsStateError);
+      expect(
+        () => backend.setProviderState(ProviderState.stale),
+        throwsStateError,
+      );
     });
 
     test('getters after shutdown serve the caller default', () async {
@@ -275,16 +288,18 @@ void main() {
       expect(backend.getJson('k', defaultValueJson: '"d"'), '"d"');
     });
 
-    test('registering after shutdown returns a null seed and a closed stream',
-        () async {
-      await backend.shutdown();
-      final handle = backend.observeBool('k');
+    test(
+      'registering after shutdown returns a null seed and a closed stream',
+      () async {
+        await backend.shutdown();
+        final handle = backend.observeBool('k');
 
-      expect(handle.seed, isNull);
-      expect(backend.registrationCount, 0);
-      await expectLater(handle.events, emitsDone);
-      expect(handle.cancel, returnsNormally);
-    });
+        expect(handle.seed, isNull);
+        expect(backend.registrationCount, 0);
+        await expectLater(handle.events, emitsDone);
+        expect(handle.cancel, returnsNormally);
+      },
+    );
   });
 
   group('integer projection, white box', () {
@@ -304,11 +319,13 @@ void main() {
       expect(backend.getInt('k', defaultValue: 7), 7);
     });
 
-    test('a NUMBER below the signed 64-bit lower bound projects to unavailable',
-        () {
-      backend.set('k', const StoredNumber(-9223372036854777856.0));
-      expect(backend.getInt('k', defaultValue: 7), 7);
-    });
+    test(
+      'a NUMBER below the signed 64-bit lower bound projects to unavailable',
+      () {
+        backend.set('k', const StoredNumber(-9223372036854777856.0));
+        expect(backend.getInt('k', defaultValue: 7), 7);
+      },
+    );
 
     test('the lower bound itself is accepted', () {
       backend.set('k', const StoredNumber(-9223372036854775808.0));
@@ -365,7 +382,10 @@ void main() {
         'plan': AttributeValue.string('pro'),
       };
       await backend.identify(
-          userId: 'u1', attributes: reserved, linkAnonymous: true);
+        userId: 'u1',
+        attributes: reserved,
+        linkAnonymous: true,
+      );
       expect(backend.developerAttributes.keys, ['plan']);
 
       await backend.updateAttributes(reserved);
@@ -376,47 +396,51 @@ void main() {
     });
 
     test('a linked identify captures the original anonymous id once', () async {
-      await backend.identify(
-          userId: 'u1', attributes: {}, linkAnonymous: true);
+      await backend.identify(userId: 'u1', attributes: {}, linkAnonymous: true);
       expect(backend.previousAnonymousId, backend.anonymousId);
 
-      await backend.identify(
-          userId: 'u2', attributes: {}, linkAnonymous: true);
+      await backend.identify(userId: 'u2', attributes: {}, linkAnonymous: true);
       expect(backend.previousAnonymousId, backend.anonymousId);
     });
 
     test('an unlinked identify then a linked identify captures the original '
         'anonymous id', () async {
       await backend.identify(
-          userId: 'u1', attributes: {}, linkAnonymous: false);
-      await backend.identify(
-          userId: 'u2', attributes: {}, linkAnonymous: true);
+        userId: 'u1',
+        attributes: {},
+        linkAnonymous: false,
+      );
+      await backend.identify(userId: 'u2', attributes: {}, linkAnonymous: true);
 
       expect(backend.previousAnonymousId, backend.anonymousId);
       expect(backend.previousAnonymousId, isNot('u1'));
     });
 
     test('an unlinked identify clears the captured id', () async {
+      await backend.identify(userId: 'u1', attributes: {}, linkAnonymous: true);
       await backend.identify(
-          userId: 'u1', attributes: {}, linkAnonymous: true);
-      await backend.identify(
-          userId: 'u2', attributes: {}, linkAnonymous: false);
-      expect(backend.previousAnonymousId, isNull);
-    });
-
-    test('signOut restores the original anonymous id and clears attributes',
-        () async {
-      await backend.identify(
-        userId: 'u1',
-        attributes: {'plan': const AttributeValue.string('pro')},
-        linkAnonymous: true,
+        userId: 'u2',
+        attributes: {},
+        linkAnonymous: false,
       );
-      await backend.signOut();
-
-      expect(backend.targetingKey, backend.anonymousId);
-      expect(backend.developerAttributes, isEmpty);
       expect(backend.previousAnonymousId, isNull);
     });
+
+    test(
+      'signOut restores the original anonymous id and clears attributes',
+      () async {
+        await backend.identify(
+          userId: 'u1',
+          attributes: {'plan': const AttributeValue.string('pro')},
+          linkAnonymous: true,
+        );
+        await backend.signOut();
+
+        expect(backend.targetingKey, backend.anonymousId);
+        expect(backend.developerAttributes, isEmpty);
+        expect(backend.previousAnonymousId, isNull);
+      },
+    );
 
     test('an empty key before shutdown rejects', () async {
       await expectLater(
@@ -445,28 +469,32 @@ void main() {
 
     test('identify after shutdown succeeds and changes nothing', () async {
       await backend.shutdown();
-      await backend.identify(
-          userId: 'u1', attributes: {}, linkAnonymous: true);
+      await backend.identify(userId: 'u1', attributes: {}, linkAnonymous: true);
       expect(backend.targetingKey, backend.anonymousId);
     });
 
-    test('updateAttributes after shutdown succeeds and changes nothing',
-        () async {
-      await backend.identify(
-        userId: 'u1',
-        attributes: {'plan': const AttributeValue.string('pro')},
-        linkAnonymous: true,
-      );
-      await backend.shutdown();
-      await backend.updateAttributes({'plan': const AttributeValue.string('free')});
+    test(
+      'updateAttributes after shutdown succeeds and changes nothing',
+      () async {
+        await backend.identify(
+          userId: 'u1',
+          attributes: {'plan': const AttributeValue.string('pro')},
+          linkAnonymous: true,
+        );
+        await backend.shutdown();
+        await backend.updateAttributes({
+          'plan': const AttributeValue.string('free'),
+        });
 
-      expect(backend.developerAttributes['plan'],
-          const AttributeValue.string('pro'));
-    });
+        expect(
+          backend.developerAttributes['plan'],
+          const AttributeValue.string('pro'),
+        );
+      },
+    );
 
     test('signOut after shutdown succeeds and changes nothing', () async {
-      await backend.identify(
-          userId: 'u1', attributes: {}, linkAnonymous: true);
+      await backend.identify(userId: 'u1', attributes: {}, linkAnonymous: true);
       await backend.shutdown();
       await backend.signOut();
 
@@ -475,8 +503,7 @@ void main() {
 
     test('no identity mutation changes any flag value', () async {
       backend.set('k', const StoredBool(true));
-      await backend.identify(
-          userId: 'u1', attributes: {}, linkAnonymous: true);
+      await backend.identify(userId: 'u1', attributes: {}, linkAnonymous: true);
       await backend.updateAttributes({'a': const AttributeValue.string('1')});
       await backend.signOut();
 

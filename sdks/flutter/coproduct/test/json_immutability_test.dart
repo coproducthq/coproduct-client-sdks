@@ -4,21 +4,31 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('getJson returns a deeply unmodifiable structure', () {
-    final client = createClientForBackend(_StubBackend('{"nested":{"x":1},"list":[1]}'));
-    final value = client.getJson('config', defaultValue: const <String, Object?>{}) as Map;
+    final client = createClientForBackend(
+      _StubBackend('{"nested":{"x":1},"list":[1]}'),
+    );
+    final value =
+        client.getJson('config', defaultValue: const <String, Object?>{})
+            as Map;
 
     expect(() => value['added'] = 1, throwsUnsupportedError);
     expect(() => (value['nested'] as Map)['x'] = 2, throwsUnsupportedError);
     expect(() => (value['list'] as List).add(2), throwsUnsupportedError);
   });
 
-  test('a caller default JSON cannot encode is returned exactly as supplied', () {
-    final cyclic = <String, Object?>{};
-    cyclic['self'] = cyclic;
-    final client = createClientForBackend(_StubBackend('null'));
+  test(
+    'a caller default JSON cannot encode is returned exactly as supplied',
+    () {
+      final cyclic = <String, Object?>{};
+      cyclic['self'] = cyclic;
+      final client = createClientForBackend(_StubBackend('null'));
 
-    expect(identical(client.getJson('any', defaultValue: cyclic), cyclic), isTrue);
-  });
+      expect(
+        identical(client.getJson('any', defaultValue: cyclic), cyclic),
+        isTrue,
+      );
+    },
+  );
 }
 
 final class _StubBackend implements CoproductClientBackend {

@@ -18,8 +18,8 @@ void main() {
 }
 
 String _pubspecVersion() {
-  final versionLine = File('pubspec.yaml')
-      .readAsLinesSync()
-      .firstWhere((l) => l.startsWith('version:'));
+  final versionLine = File(
+    'pubspec.yaml',
+  ).readAsLinesSync().firstWhere((l) => l.startsWith('version:'));
   return versionLine.split(':')[1].trim();
 }

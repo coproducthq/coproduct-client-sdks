@@ -37,9 +37,9 @@ final class FlagObservation<T> extends ChangeNotifier
     required void Function() cancel,
     required T Function(Object? raw) resolve,
     required bool Function(T a, T b) unchanged,
-  })  : _cancel = cancel,
-        _resolve = resolve,
-        _unchanged = unchanged {
+  }) : _cancel = cancel,
+       _resolve = resolve,
+       _unchanged = unchanged {
     _value = resolve(seed);
     // A stream error is reported like any other observation failure rather
     // than escaping into whatever zone built this
@@ -98,12 +98,14 @@ final class FlagObservation<T> extends ChangeNotifier
 }
 
 void _reportObservationError(Object error, StackTrace stack) {
-  FlutterError.reportError(FlutterErrorDetails(
-    exception: error,
-    stack: stack,
-    library: 'coproduct',
-    context: ErrorDescription('while running a flag observation'),
-  ));
+  FlutterError.reportError(
+    FlutterErrorDetails(
+      exception: error,
+      stack: stack,
+      library: 'coproduct',
+      context: ErrorDescription('while running a flag observation'),
+    ),
+  );
 }
 
 /// Builds a boolean observation over one native session
@@ -112,14 +114,13 @@ FlagObservation<bool> boolObservation({
   required bool? seed,
   required Stream<bool?> events,
   required void Function() cancel,
-}) =>
-    FlagObservation<bool>._(
-      seed: seed,
-      events: events,
-      cancel: cancel,
-      resolve: (raw) => (raw as bool?) ?? defaultValue,
-      unchanged: (a, b) => a == b,
-    );
+}) => FlagObservation<bool>._(
+  seed: seed,
+  events: events,
+  cancel: cancel,
+  resolve: (raw) => (raw as bool?) ?? defaultValue,
+  unchanged: (a, b) => a == b,
+);
 
 /// Builds a string observation over one native session
 FlagObservation<String> stringObservation({
@@ -127,14 +128,13 @@ FlagObservation<String> stringObservation({
   required String? seed,
   required Stream<String?> events,
   required void Function() cancel,
-}) =>
-    FlagObservation<String>._(
-      seed: seed,
-      events: events,
-      cancel: cancel,
-      resolve: (raw) => (raw as String?) ?? defaultValue,
-      unchanged: (a, b) => a == b,
-    );
+}) => FlagObservation<String>._(
+  seed: seed,
+  events: events,
+  cancel: cancel,
+  resolve: (raw) => (raw as String?) ?? defaultValue,
+  unchanged: (a, b) => a == b,
+);
 
 /// Builds an integer observation over one native session. The native side has
 /// already truncated the numeric flag value toward zero and resolved an
@@ -144,14 +144,13 @@ FlagObservation<int> intObservation({
   required int? seed,
   required Stream<int?> events,
   required void Function() cancel,
-}) =>
-    FlagObservation<int>._(
-      seed: seed,
-      events: events,
-      cancel: cancel,
-      resolve: (raw) => (raw as int?) ?? defaultValue,
-      unchanged: (a, b) => a == b,
-    );
+}) => FlagObservation<int>._(
+  seed: seed,
+  events: events,
+  cancel: cancel,
+  resolve: (raw) => (raw as int?) ?? defaultValue,
+  unchanged: (a, b) => a == b,
+);
 
 /// Builds a numeric observation over one native session. Two NaN values count
 /// as unchanged, so a redelivered NaN does not notify on every transition
@@ -160,14 +159,13 @@ FlagObservation<double> numberObservation({
   required double? seed,
   required Stream<double?> events,
   required void Function() cancel,
-}) =>
-    FlagObservation<double>._(
-      seed: seed,
-      events: events,
-      cancel: cancel,
-      resolve: (raw) => (raw as double?) ?? defaultValue,
-      unchanged: (a, b) => a == b || (a.isNaN && b.isNaN),
-    );
+}) => FlagObservation<double>._(
+  seed: seed,
+  events: events,
+  cancel: cancel,
+  resolve: (raw) => (raw as double?) ?? defaultValue,
+  unchanged: (a, b) => a == b || (a.isNaN && b.isNaN),
+);
 
 /// Builds a JSON observation over one native session. Values travel as JSON
 /// text and are decoded here, so change detection compares decoded structures

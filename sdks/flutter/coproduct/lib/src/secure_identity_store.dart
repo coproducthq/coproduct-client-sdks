@@ -11,12 +11,14 @@ abstract interface class KeyValueStore {
 /// encrypted storage on Android)
 class FlutterSecureKeyValueStore implements KeyValueStore {
   FlutterSecureKeyValueStore([FlutterSecureStorage? storage])
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(),
-              iOptions: IOSOptions(
-                  accessibility: KeychainAccessibility.first_unlock),
-            );
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: AndroidOptions(),
+            iOptions: IOSOptions(
+              accessibility: KeychainAccessibility.first_unlock,
+            ),
+          );
 
   final FlutterSecureStorage _storage;
 
@@ -37,10 +39,8 @@ class FlutterSecureKeyValueStore implements KeyValueStore {
 /// though a late platform write may still land. The core supplies its own global
 /// storage key, passed through
 class SecureIdentityStore {
-  SecureIdentityStore({
-    KeyValueStore? backing,
-    required this.operationTimeout,
-  }) : _backing = backing ?? FlutterSecureKeyValueStore();
+  SecureIdentityStore({KeyValueStore? backing, required this.operationTimeout})
+    : _backing = backing ?? FlutterSecureKeyValueStore();
 
   final KeyValueStore _backing;
   final Duration operationTimeout;

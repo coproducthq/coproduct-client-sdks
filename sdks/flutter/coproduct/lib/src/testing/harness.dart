@@ -43,7 +43,7 @@ final class CoproductTestHarness {
   /// [anonymousId] is the targeting key the client uses before an identity
   /// call, and the one `signOut` returns to
   CoproductTestHarness({String anonymousId = 'test-anonymous-id'})
-      : _backend = InMemoryBackend(anonymousId: anonymousId) {
+    : _backend = InMemoryBackend(anonymousId: anonymousId) {
     _client = createClientForBackend(_backend);
   }
 
@@ -102,7 +102,8 @@ final class CoproductTestHarness {
   /// This changes only the state. Flag values stay as you set them, so to test
   /// the experience before flags arrive, also remove the flags your widget
   /// reads with [removeFlag]. Throws a [StateError] after [shutdown]
-  void setProviderState(ProviderState state) => _backend.setProviderState(state);
+  void setProviderState(ProviderState state) =>
+      _backend.setProviderState(state);
 
   /// Shuts the harness down, like `Coproduct.shutdown` for a real client.
   ///

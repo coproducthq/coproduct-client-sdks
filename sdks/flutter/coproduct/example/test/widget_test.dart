@@ -12,17 +12,21 @@ import 'package:coproduct_example/main.dart';
 const _syntheticKey = 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww';
 
 void main() {
-  testWidgets('shows the setup message when no key was passed',
-      (WidgetTester tester) async {
+  testWidgets('shows the setup message when no key was passed', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp(sdkKey: ''));
 
-    expect(find.textContaining('--dart-define=COPRODUCT_SDK_KEY='),
-        findsOneWidget);
+    expect(
+      find.textContaining('--dart-define=COPRODUCT_SDK_KEY='),
+      findsOneWidget,
+    );
     expect(find.text('SDK ready: no'), findsNothing);
   });
 
-  testWidgets('renders the not-ready shell before initialize resolves',
-      (WidgetTester tester) async {
+  testWidgets('renders the not-ready shell before initialize resolves', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp(sdkKey: _syntheticKey));
 
     // The shell renders immediately and the scope is installed only once

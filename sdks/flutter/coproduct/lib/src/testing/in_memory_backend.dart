@@ -159,7 +159,7 @@ final class _TypedSink<T> implements _Sink {
 /// rollouts, or bucketing exist here
 final class InMemoryBackend implements CoproductClientBackend {
   InMemoryBackend({this.anonymousId = 'test-anonymous-id'})
-      : _targetingKey = anonymousId;
+    : _targetingKey = anonymousId;
 
   final String anonymousId;
 
@@ -271,8 +271,9 @@ final class InMemoryBackend implements CoproductClientBackend {
       _shutdown ? defaultValue : projectNumber(_flags[key]) ?? defaultValue;
 
   @override
-  String getJson(String key, {required String defaultValueJson}) =>
-      _shutdown ? defaultValueJson : projectJson(_flags[key]) ?? defaultValueJson;
+  String getJson(String key, {required String defaultValueJson}) => _shutdown
+      ? defaultValueJson
+      : projectJson(_flags[key]) ?? defaultValueJson;
 
   ObservationHandle<T> _observe<T>(
     String key,
@@ -320,10 +321,9 @@ final class InMemoryBackend implements CoproductClientBackend {
 
   Map<String, AttributeValue> _withoutReserved(
     Map<String, AttributeValue> attributes,
-  ) =>
-      Map<String, AttributeValue>.fromEntries(
-        attributes.entries.where((e) => !_reservedNames.contains(e.key)),
-      );
+  ) => Map<String, AttributeValue>.fromEntries(
+    attributes.entries.where((e) => !_reservedNames.contains(e.key)),
+  );
 
   @override
   Future<void> identify({

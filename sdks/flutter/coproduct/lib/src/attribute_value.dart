@@ -99,21 +99,23 @@ final class NullAttributeValue extends AttributeValue {
 /// Converts the public attribute value into the generated FFI representation.
 /// Package-private so the generated type never reaches the public API
 frb.FrbContextValue toFrbContextValue(AttributeValue value) => switch (value) {
-      StringAttributeValue(:final value) => frb.FrbContextValue.string(value),
-      NumberAttributeValue(:final value) => frb.FrbContextValue.number(value),
-      BoolAttributeValue(:final value) => frb.FrbContextValue.bool(value),
-      StringListAttributeValue(:final values) =>
-        frb.FrbContextValue.stringList(values),
-      NullAttributeValue() => frb.FrbContextValue.null_(),
-    };
+  StringAttributeValue(:final value) => frb.FrbContextValue.string(value),
+  NumberAttributeValue(:final value) => frb.FrbContextValue.number(value),
+  BoolAttributeValue(:final value) => frb.FrbContextValue.bool(value),
+  StringListAttributeValue(:final values) => frb.FrbContextValue.stringList(
+    values,
+  ),
+  NullAttributeValue() => frb.FrbContextValue.null_(),
+};
 
 /// Snapshots and converts an attribute map into the FFI representation at call
 /// time. Building a fresh map here, before the operation is queued, is what keeps
 /// a later mutation of the caller's map from changing an already-queued operation
 Map<String, frb.FrbContextValue> toFrbAttributes(
-        Map<String, AttributeValue> attributes) =>
-    attributes.map((key, value) => MapEntry(key, toFrbContextValue(value)));
+  Map<String, AttributeValue> attributes,
+) => attributes.map((key, value) => MapEntry(key, toFrbContextValue(value)));
 
 /// Snapshots a key list into an unmodifiable copy at call time, so a later
 /// mutation of the caller's list cannot change an already-queued removal
-List<String> snapshotKeys(Iterable<String> keys) => List<String>.unmodifiable(keys);
+List<String> snapshotKeys(Iterable<String> keys) =>
+    List<String>.unmodifiable(keys);

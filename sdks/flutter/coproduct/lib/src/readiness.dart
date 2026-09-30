@@ -34,8 +34,9 @@ Future<void> awaitInitialReadiness({
     if (remaining <= Duration.zero) {
       return;
     }
-    final step =
-        remaining < _readinessReadInterval ? remaining : _readinessReadInterval;
+    final step = remaining < _readinessReadInterval
+        ? remaining
+        : _readinessReadInterval;
     // Race the wait against cancellation so a cancel does not sit out the full
     // step, then the loop re-checks in order
     await Future.any([Future<void>.delayed(step), cancel.whenCancelled]);

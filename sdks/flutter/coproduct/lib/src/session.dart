@@ -18,9 +18,9 @@ final class SessionPair {
   /// the way the other SDKs publish them. Exact, because [fromChannel] admits
   /// nothing above [kMaxExactInteger]
   Map<String, frb.FrbContextValue> get attributes => {
-        'first_seen_at': frb.FrbContextValue.number(firstSeenAt.toDouble()),
-        'session_count': frb.FrbContextValue.number(sessionCount.toDouble()),
-      };
+    'first_seen_at': frb.FrbContextValue.number(firstSeenAt.toDouble()),
+    'session_count': frb.FrbContextValue.number(sessionCount.toDouble()),
+  };
 
   /// Validates the platform answer as a unit. Anything short of a map carrying
   /// both integers in range is a defect in the native side or the codec, and
@@ -30,14 +30,16 @@ final class SessionPair {
         case {
           'first_seen_at': final int firstSeenAt,
           'session_count': final int sessionCount,
-        } when firstSeenAt >= 0 &&
+        }
+        when firstSeenAt >= 0 &&
             firstSeenAt <= kMaxExactInteger &&
             sessionCount >= 1 &&
             sessionCount <= kMaxExactInteger) {
       return SessionPair(firstSeenAt: firstSeenAt, sessionCount: sessionCount);
     }
     throw const SessionAttributesUnavailable(
-        SessionAttributesUnavailableCause.malformedResponse);
+      SessionAttributesUnavailableCause.malformedResponse,
+    );
   }
 
   @override

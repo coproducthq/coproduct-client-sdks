@@ -13,9 +13,7 @@ class InitIdentity {
 
   @override
   bool operator ==(Object other) =>
-      other is InitIdentity &&
-      other.sdkKey == sdkKey &&
-      other.config == config;
+      other is InitIdentity && other.sdkKey == sdkKey && other.config == config;
 
   @override
   int get hashCode => Object.hash(sdkKey, config);
@@ -26,7 +24,7 @@ class InitIdentity {
 /// default. Request timeout and foreground polling are host behavior and do not
 /// cross into the core config.
 frb.FfiConfig ffiConfigFor(CoproductConfig config) => frb.FfiConfig(
-      pollIntervalUs: config.pollInterval.inMicroseconds,
-      startupTimeoutUs: config.startupTimeout.inMicroseconds,
-      endpoint: config.endpoint?.toString(),
-    );
+  pollIntervalUs: config.pollInterval.inMicroseconds,
+  startupTimeoutUs: config.startupTimeout.inMicroseconds,
+  endpoint: config.endpoint?.toString(),
+);

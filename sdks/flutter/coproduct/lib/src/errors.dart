@@ -76,16 +76,18 @@ final class SessionAttributesUnavailableCause {
   /// no action. On Android the underlying exception is in logcat under the tag
   /// `Coproduct`
   static const storageFailure = SessionAttributesUnavailableCause._(
-      'storageFailure',
-      'the device storage that holds the SDK\'s launch record could not be '
-          'read reliably or did not confirm a save, so the SDK leaves these '
-          'attributes unset rather than risk wrong values');
+    'storageFailure',
+    'the device storage that holds the SDK\'s launch record could not be '
+        'read reliably or did not confirm a save, so the SDK leaves these '
+        'attributes unset rather than risk wrong values',
+  );
 
   /// The SDK's native plugin returned a launch record the SDK could not read
   static const malformedResponse = SessionAttributesUnavailableCause._(
-      'malformedResponse',
-      'the SDK\'s native plugin returned a launch record the SDK could not '
-          'read');
+    'malformedResponse',
+    'the SDK\'s native plugin returned a launch record the SDK could not '
+        'read',
+  );
 
   final String _name;
   final String _description;
@@ -206,7 +208,10 @@ final class InvalidConfig implements CoproductException {
 /// are ignored, and the SDK keeps serving the flags it had
 final class UnsupportedSchemaVersion implements CoproductException {
   /// Creates the exception. The SDK never throws it
-  const UnsupportedSchemaVersion({required this.actual, required this.supported});
+  const UnsupportedSchemaVersion({
+    required this.actual,
+    required this.supported,
+  });
 
   /// The format version of the flags the SDK received
   final int actual;
@@ -263,14 +268,16 @@ final class CoproductInitializationCancelled implements CoproductException {
 /// Translates a generated init error into its public type. Used by the wrapper
 /// and unit tested here, so the production translation path is the tested one
 CoproductException translateInitError(frb.InitError error) => switch (error) {
-      frb.InitError_MissingSdkKey() => const MissingSdkKey(),
-      frb.InitError_InvalidKeyType() => const InvalidKeyType(),
-      frb.InitError_MalformedSdkKey(:final reason) => MalformedSdkKey(reason),
-      frb.InitError_InvalidConfig(:final field, :final reason) =>
-        InvalidConfig(field, reason),
-      frb.InitError_UnsupportedSchemaVersion(:final actual, :final supported) =>
-        UnsupportedSchemaVersion(actual: actual, supported: supported),
-    };
+  frb.InitError_MissingSdkKey() => const MissingSdkKey(),
+  frb.InitError_InvalidKeyType() => const InvalidKeyType(),
+  frb.InitError_MalformedSdkKey(:final reason) => MalformedSdkKey(reason),
+  frb.InitError_InvalidConfig(:final field, :final reason) => InvalidConfig(
+    field,
+    reason,
+  ),
+  frb.InitError_UnsupportedSchemaVersion(:final actual, :final supported) =>
+    UnsupportedSchemaVersion(actual: actual, supported: supported),
+};
 
 /// Thrown by `CoproductClient.identify` and `CoproductClient.setContext` when
 /// the user id or targeting key is empty. Pass a non-empty stable id

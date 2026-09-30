@@ -36,9 +36,9 @@ enum ProviderState {
 
 /// Translates the generated provider state into the public enum
 ProviderState providerStateFromFrb(frb.ProviderState state) => switch (state) {
-      frb.ProviderState.notReady => ProviderState.notReady,
-      frb.ProviderState.ready => ProviderState.ready,
-      frb.ProviderState.retrying => ProviderState.retrying,
-      frb.ProviderState.stale => ProviderState.stale,
-      frb.ProviderState.fatal => ProviderState.fatal,
-    };
+  frb.ProviderState.notReady => ProviderState.notReady,
+  frb.ProviderState.ready => ProviderState.ready,
+  frb.ProviderState.retrying => ProviderState.retrying,
+  frb.ProviderState.stale => ProviderState.stale,
+  frb.ProviderState.fatal => ProviderState.fatal,
+};

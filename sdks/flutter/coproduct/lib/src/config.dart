@@ -72,15 +72,20 @@ final class CoproductConfig {
 
   @override
   int get hashCode => Object.hash(
-      pollInterval, startupTimeout, requestTimeout, endpoint, pollOnForeground);
+    pollInterval,
+    startupTimeout,
+    requestTimeout,
+    endpoint,
+    pollOnForeground,
+  );
 
   CoproductConfig _withEndpoint(Uri? e) => CoproductConfig(
-        pollInterval: pollInterval,
-        startupTimeout: startupTimeout,
-        requestTimeout: requestTimeout,
-        endpoint: e,
-        pollOnForeground: pollOnForeground,
-      );
+    pollInterval: pollInterval,
+    startupTimeout: startupTimeout,
+    requestTimeout: requestTimeout,
+    endpoint: e,
+    pollOnForeground: pollOnForeground,
+  );
 }
 
 /// The core minimum poll interval, matching coproduct-core MIN_POLL_INTERVAL

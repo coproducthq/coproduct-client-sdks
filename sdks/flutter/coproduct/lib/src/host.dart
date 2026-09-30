@@ -48,7 +48,8 @@ Duration Function() _stopwatchClock() {
 /// Binds a foreground refresh to platform lifecycle events, returning a disposer
 /// or null when there is nothing to dispose. Injected so tests drive foreground
 /// events without a widget binding.
-typedef ForegroundBinder = void Function()? Function(void Function() onForeground);
+typedef ForegroundBinder =
+    void Function()? Function(void Function() onForeground);
 
 /// The retained live runtime: the caller-facing client and the coordinator that
 /// tears it down. The manager holds this and returns [client] to the caller.
@@ -79,24 +80,28 @@ class CoproductHost<H extends Object, C extends Object> {
     required ForegroundBinder bindNetworkResume,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
-  })  : _bridge = bridge, // ignore: prefer_initializing_formals
-        _userAgent = userAgent, // ignore: prefer_initializing_formals
-        _createTransport = createTransport, // ignore: prefer_initializing_formals
-        _secureStore = secureStore, // ignore: prefer_initializing_formals
-        _metadataProviders = metadataProviders, // ignore: prefer_initializing_formals
-        _createClient = createClient, // ignore: prefer_initializing_formals
-        _bindForeground = bindForeground, // ignore: prefer_initializing_formals
-        _reportError = reportError,
-        _isRootIsolate = isRootIsolate, // ignore: prefer_initializing_formals
-        _beginSession = beginSession, // ignore: prefer_initializing_formals
-        _networkTypeEvents = networkTypeEvents, // ignore: prefer_initializing_formals
-        _bindNetworkResume = bindNetworkResume, // ignore: prefer_initializing_formals
-        _initClock = initClock, // ignore: prefer_initializing_formals
-        _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
-        _manager = CoproductManager<_ActiveRuntime<C>>(
-          shutdownClient: (active) => active.runtime.shutdown(),
-          onCleanupError: reportError,
-        );
+  }) : _bridge = bridge, // ignore: prefer_initializing_formals
+       _userAgent = userAgent, // ignore: prefer_initializing_formals
+       _createTransport =
+           createTransport, // ignore: prefer_initializing_formals
+       _secureStore = secureStore, // ignore: prefer_initializing_formals
+       _metadataProviders =
+           metadataProviders, // ignore: prefer_initializing_formals
+       _createClient = createClient, // ignore: prefer_initializing_formals
+       _bindForeground = bindForeground, // ignore: prefer_initializing_formals
+       _reportError = reportError,
+       _isRootIsolate = isRootIsolate, // ignore: prefer_initializing_formals
+       _beginSession = beginSession, // ignore: prefer_initializing_formals
+       _networkTypeEvents =
+           networkTypeEvents, // ignore: prefer_initializing_formals
+       _bindNetworkResume =
+           bindNetworkResume, // ignore: prefer_initializing_formals
+       _initClock = initClock, // ignore: prefer_initializing_formals
+       _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
+       _manager = CoproductManager<_ActiveRuntime<C>>(
+         shutdownClient: (active) => active.runtime.shutdown(),
+         onCleanupError: reportError,
+       );
 
   final NativeBridge<H> _bridge;
   final String _userAgent;
@@ -193,6 +198,7 @@ class CoproductHost<H extends Object, C extends Object> {
         _reportError(error, stack);
       }
     }
+
     // Created before collection starts because the late sink closes over it.
     // Null means the build failed and there is nothing to amend, carried as a
     // value rather than an error because a completer whose error nobody listens
@@ -214,35 +220,36 @@ class CoproductHost<H extends Object, C extends Object> {
     // the shared deadline and cancellation, and observe it from creation so an
     // early failure never becomes an unhandled async error before publish
     final providers = _metadataProviders;
-    final metadata = collectStaticAttributes(
-      MetadataProviders(
-        // Surfaced rather than swallowed with the field: the collector treats
-        // every failure alike, and this one names a fixable misconfiguration
-        deviceType: () async {
-          try {
-            return await providers.deviceType();
-          } on HostContextUnavailable {
-            reportHostContextUnavailable();
-            rethrow;
-          }
-        },
-        platform: providers.platform,
-        osVersion: providers.osVersion,
-        appVersion: providers.appVersion,
-        appBuild: providers.appBuild,
-        locale: providers.locale,
-        timezone: providers.timezone,
-      ),
-      deadline: deadline,
-      clock: clock,
-      cancel: cancel,
-      observe: _observeMetadata,
-      onLate: publishLate,
-    ).then<_MetadataOutcome>(
-      _MetadataSuccess.new,
-      onError: (Object error, StackTrace stack) =>
-          _MetadataFailure(error, stack),
-    );
+    final metadata =
+        collectStaticAttributes(
+          MetadataProviders(
+            // Surfaced rather than swallowed with the field: the collector treats
+            // every failure alike, and this one names a fixable misconfiguration
+            deviceType: () async {
+              try {
+                return await providers.deviceType();
+              } on HostContextUnavailable {
+                reportHostContextUnavailable();
+                rethrow;
+              }
+            },
+            platform: providers.platform,
+            osVersion: providers.osVersion,
+            appVersion: providers.appVersion,
+            appBuild: providers.appBuild,
+            locale: providers.locale,
+            timezone: providers.timezone,
+          ),
+          deadline: deadline,
+          clock: clock,
+          cancel: cancel,
+          observe: _observeMetadata,
+          onLate: publishLate,
+        ).then<_MetadataOutcome>(
+          _MetadataSuccess.new,
+          onError: (Object error, StackTrace stack) =>
+              _MetadataFailure(error, stack),
+        );
     try {
       final active = await buildRuntime<H, _ActiveRuntime<C>>(
         initHandle: () async {
@@ -264,7 +271,10 @@ class CoproductHost<H extends Object, C extends Object> {
           // already superseded never counts a session. Started here rather
           // than awaited, so it overlaps readiness
           if (isCurrent()) {
-            session = StartedSession(_beginSession, onFailure: reportSessionFailure);
+            session = StartedSession(
+              _beginSession,
+              onFailure: reportSessionFailure,
+            );
           }
           return handle;
         },
@@ -281,7 +291,8 @@ class CoproductHost<H extends Object, C extends Object> {
           // Waits only for what remains of the shared budget. A pair that misses
           // it publishes through the same gate as a late collector field, so a
           // wedged transaction holds neither initialize nor shutdown
-          final sessionAttributes = await session?.forBatch(
+          final sessionAttributes =
+              await session?.forBatch(
                 deadline: deadline,
                 clock: clock,
                 cancel: cancel,
@@ -374,8 +385,10 @@ class CoproductHost<H extends Object, C extends Object> {
 void _observeMetadata(String field, Duration elapsed, {required bool omitted}) {
   if (!omitted) return;
   assert(() {
-    debugPrint('coproduct: automatic attribute "$field" was not available when '
-        'initialize returned, after ${elapsed.inMilliseconds}ms');
+    debugPrint(
+      'coproduct: automatic attribute "$field" was not available when '
+      'initialize returned, after ${elapsed.inMilliseconds}ms',
+    );
     return true;
   }());
 }

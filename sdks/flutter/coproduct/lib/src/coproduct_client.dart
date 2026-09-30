@@ -28,9 +28,10 @@ import 'serial_queue.dart';
 /// out of the public surface and can change without a breaking release. The
 /// constructor is private so the contract is not part of an exported class's
 /// signature
-CoproductClient createClientForBackend(CoproductClientBackend backend,
-        {SerialQueue? identityQueue}) =>
-    CoproductClient._(backend, identityQueue ?? SerialQueue());
+CoproductClient createClientForBackend(
+  CoproductClientBackend backend, {
+  SerialQueue? identityQueue,
+}) => CoproductClient._(backend, identityQueue ?? SerialQueue());
 
 /// Reads flags and sets who they are evaluated for. Get one from
 /// [Coproduct.initialize], or from `CoproductTestHarness` in a widget test.
@@ -118,8 +119,10 @@ final class CoproductClient {
     } catch (_) {
       return defaultValue;
     }
-    final resultJson =
-        _backend.getJson(key, defaultValueJson: defaultValueJson);
+    final resultJson = _backend.getJson(
+      key,
+      defaultValueJson: defaultValueJson,
+    );
     try {
       return unmodifiableJson(jsonDecode(resultJson));
     } catch (_) {
@@ -150,11 +153,13 @@ final class CoproductClient {
     // Snapshotted synchronously, before the operation is queued, so a later
     // mutation of the caller's map cannot change an operation already in flight
     final snapshot = Map<String, AttributeValue>.unmodifiable(attributes);
-    return _identityQueue.add(() => _backend.identify(
-          userId: userId,
-          attributes: snapshot,
-          linkAnonymous: linkAnonymous,
-        ));
+    return _identityQueue.add(
+      () => _backend.identify(
+        userId: userId,
+        attributes: snapshot,
+        linkAnonymous: linkAnonymous,
+      ),
+    );
   }
 
   /// Returns to this installation's anonymous id, and clears your attributes
@@ -179,10 +184,10 @@ final class CoproductClient {
     Map<String, AttributeValue> attributes = const {},
   }) {
     final snapshot = Map<String, AttributeValue>.unmodifiable(attributes);
-    return _identityQueue.add(() => _backend.setContext(
-          targetingKey: targetingKey,
-          attributes: snapshot,
-        ));
+    return _identityQueue.add(
+      () =>
+          _backend.setContext(targetingKey: targetingKey, attributes: snapshot),
+    );
   }
 
   /// Merges [attributes] into the attributes you set earlier. Keys you leave
@@ -250,8 +255,10 @@ final class CoproductClient {
   ///
   /// The value starts as what [getString] returns right now. See [observeBool]
   /// for when it updates and why you must dispose it
-  FlagObservation<String> observeString(String key,
-      {required String defaultValue}) {
+  FlagObservation<String> observeString(
+    String key, {
+    required String defaultValue,
+  }) {
     final handle = _backend.observeString(key);
     return stringObservation(
       defaultValue: defaultValue,
@@ -283,8 +290,10 @@ final class CoproductClient {
   ///
   /// The value starts as what [getNumber] returns right now. See [observeBool]
   /// for when it updates and why you must dispose it
-  FlagObservation<double> observeNumber(String key,
-      {required double defaultValue}) {
+  FlagObservation<double> observeNumber(
+    String key, {
+    required double defaultValue,
+  }) {
     final handle = _backend.observeNumber(key);
     return numberObservation(
       defaultValue: defaultValue,
@@ -305,8 +314,10 @@ final class CoproductClient {
   /// Pass a JSON-encodable [defaultValue]. A default value that cannot be
   /// encoded is served exactly as you passed it rather than throwing. See
   /// [observeBool] for when it updates and why you must dispose it
-  FlagObservation<Object?> observeJson(String key,
-      {required Object? defaultValue}) {
+  FlagObservation<Object?> observeJson(
+    String key, {
+    required Object? defaultValue,
+  }) {
     final handle = _backend.observeJson(key);
     return jsonObservation(
       defaultValue: defaultValue,
@@ -326,23 +337,25 @@ final class Coproduct {
 
   static final CoproductHost<frb.CoproductClientHandle, CoproductClient> _host =
       CoproductHost<frb.CoproductClientHandle, CoproductClient>(
-    bridge: FrbNativeBridge(),
-    userAgent: coproductUserAgent,
-    createTransport: (requestTimeout) =>
-        HttpTransport(requestTimeout: requestTimeout),
-    secureStore:
-        SecureIdentityStore(operationTimeout: const Duration(seconds: 1)),
-    metadataProviders: platformMetadataProviders(),
-    createClient: (handle, identityQueue) => createClientForBackend(
-        FrbBackend(handle),
-        identityQueue: identityQueue),
-    bindForeground: appLifecycleForegroundBinder,
-    reportError: _reportError,
-    isRootIsolate: isRootIsolateNow,
-    beginSession: const HostContextChannel().beginSession,
-    networkTypeEvents: const HostContextChannel().networkTypeEvents,
-    bindNetworkResume: appLifecycleForegroundBinder,
-  );
+        bridge: FrbNativeBridge(),
+        userAgent: coproductUserAgent,
+        createTransport: (requestTimeout) =>
+            HttpTransport(requestTimeout: requestTimeout),
+        secureStore: SecureIdentityStore(
+          operationTimeout: const Duration(seconds: 1),
+        ),
+        metadataProviders: platformMetadataProviders(),
+        createClient: (handle, identityQueue) => createClientForBackend(
+          FrbBackend(handle),
+          identityQueue: identityQueue,
+        ),
+        bindForeground: appLifecycleForegroundBinder,
+        reportError: _reportError,
+        isRootIsolate: isRootIsolateNow,
+        beginSession: const HostContextChannel().beginSession,
+        networkTypeEvents: const HostContextChannel().networkTypeEvents,
+        bindNetworkResume: appLifecycleForegroundBinder,
+      );
 
   /// Starts the SDK and returns a client for reading flags.
   ///
@@ -376,8 +389,7 @@ final class Coproduct {
   static Future<CoproductClient> initialize({
     required String sdkKey,
     CoproductConfig config = const CoproductConfig(),
-  }) =>
-      _host.initialize(sdkKey: sdkKey, config: config);
+  }) => _host.initialize(sdkKey: sdkKey, config: config);
 
   /// Stops the SDK: ends checks for updates and closes its network
   /// connection.
@@ -392,9 +404,7 @@ final class Coproduct {
 }
 
 void _reportError(Object error, StackTrace stack) {
-  FlutterError.reportError(FlutterErrorDetails(
-    exception: error,
-    stack: stack,
-    library: 'coproduct',
-  ));
+  FlutterError.reportError(
+    FlutterErrorDetails(exception: error, stack: stack, library: 'coproduct'),
+  );
 }

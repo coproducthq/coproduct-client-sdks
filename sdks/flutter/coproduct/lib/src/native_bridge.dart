@@ -26,14 +26,17 @@ abstract interface class NativeBridge<H extends Object> {
     required String userAgent,
     required frb.FfiConfig config,
     required String cacheDir,
-    required FutureOr<frb.HttpResponse> Function(frb.HttpRequest) transportRequest,
+    required FutureOr<frb.HttpResponse> Function(frb.HttpRequest)
+    transportRequest,
     required FutureOr<String?> Function(String) secureRead,
     required FutureOr<void> Function(String, String) secureWrite,
   });
 
   /// Installs the auto-populated attributes on the core context.
   Future<void> setAutoPopulatedAttributes(
-      H handle, Map<String, frb.FrbContextValue> attributes);
+    H handle,
+    Map<String, frb.FrbContextValue> attributes,
+  );
 
   /// The current provider state, read synchronously from core memory.
   frb.ProviderState state(H handle);
@@ -76,25 +79,25 @@ class FrbNativeBridge implements NativeBridge<frb.CoproductClientHandle> {
     required String userAgent,
     required frb.FfiConfig config,
     required String cacheDir,
-    required FutureOr<frb.HttpResponse> Function(frb.HttpRequest) transportRequest,
+    required FutureOr<frb.HttpResponse> Function(frb.HttpRequest)
+    transportRequest,
     required FutureOr<String?> Function(String) secureRead,
     required FutureOr<void> Function(String, String) secureWrite,
-  }) =>
-      frb.initialize(
-        sdkKey: sdkKey,
-        userAgent: userAgent,
-        config: config,
-        cacheDir: cacheDir,
-        transportRequest: transportRequest,
-        secureRead: secureRead,
-        secureWrite: secureWrite,
-      );
+  }) => frb.initialize(
+    sdkKey: sdkKey,
+    userAgent: userAgent,
+    config: config,
+    cacheDir: cacheDir,
+    transportRequest: transportRequest,
+    secureRead: secureRead,
+    secureWrite: secureWrite,
+  );
 
   @override
   Future<void> setAutoPopulatedAttributes(
-          frb.CoproductClientHandle handle,
-          Map<String, frb.FrbContextValue> attributes) =>
-      frb.setAutoPopulatedAttributes(handle: handle, attributes: attributes);
+    frb.CoproductClientHandle handle,
+    Map<String, frb.FrbContextValue> attributes,
+  ) => frb.setAutoPopulatedAttributes(handle: handle, attributes: attributes);
 
   @override
   frb.ProviderState state(frb.CoproductClientHandle handle) =>

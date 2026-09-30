@@ -61,24 +61,26 @@ void main() {
     });
   });
 
-  test('is strictly bounded, the last wait is capped to the remaining deadline',
-      () {
-    fakeAsync((async) {
-      var done = false;
-      // 3010ms is not a multiple of the 25ms interval, so the final wait must be
-      // capped to the 10ms remaining rather than overshooting a full interval
-      awaitInitialReadiness(
-        state: () => ProviderState.notReady,
-        deadline: const Duration(milliseconds: 3010),
-        clock: () => async.elapsed,
-        cancel: CancellationSignal(),
-      ).then((_) => done = true);
-      async.elapse(const Duration(milliseconds: 3000));
-      expect(done, isFalse);
-      async.elapse(const Duration(milliseconds: 10)); // exactly the deadline
-      expect(done, isTrue);
-    });
-  });
+  test(
+    'is strictly bounded, the last wait is capped to the remaining deadline',
+    () {
+      fakeAsync((async) {
+        var done = false;
+        // 3010ms is not a multiple of the 25ms interval, so the final wait must be
+        // capped to the 10ms remaining rather than overshooting a full interval
+        awaitInitialReadiness(
+          state: () => ProviderState.notReady,
+          deadline: const Duration(milliseconds: 3010),
+          clock: () => async.elapsed,
+          cancel: CancellationSignal(),
+        ).then((_) => done = true);
+        async.elapse(const Duration(milliseconds: 3000));
+        expect(done, isFalse);
+        async.elapse(const Duration(milliseconds: 10)); // exactly the deadline
+        expect(done, isTrue);
+      });
+    },
+  );
 
   test('a provider turning ready at the deadline is read, not timed out', () {
     fakeAsync((async) {
@@ -102,20 +104,23 @@ void main() {
     });
   });
 
-  test('an already-cancelled signal throws even when the provider is ready', () {
-    fakeAsync((async) {
-      final cancel = CancellationSignal()..cancel();
-      Object? error;
-      awaitInitialReadiness(
-        state: () => ProviderState.ready,
-        deadline: const Duration(seconds: 5),
-        clock: () => async.elapsed,
-        cancel: cancel,
-      ).then<void>((_) {}, onError: (Object e, StackTrace _) => error = e);
-      async.flushMicrotasks();
-      expect(error, isA<CoproductInitializationCancelled>());
-    });
-  });
+  test(
+    'an already-cancelled signal throws even when the provider is ready',
+    () {
+      fakeAsync((async) {
+        final cancel = CancellationSignal()..cancel();
+        Object? error;
+        awaitInitialReadiness(
+          state: () => ProviderState.ready,
+          deadline: const Duration(seconds: 5),
+          clock: () => async.elapsed,
+          cancel: cancel,
+        ).then<void>((_) {}, onError: (Object e, StackTrace _) => error = e);
+        async.flushMicrotasks();
+        expect(error, isA<CoproductInitializationCancelled>());
+      });
+    },
+  );
 
   test('a cancellation during the wait throws promptly', () {
     fakeAsync((async) {

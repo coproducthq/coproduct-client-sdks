@@ -59,29 +59,28 @@ final class CoproductFlagBuilder {
     required bool defaultValue,
     required ValueWidgetBuilder<bool> builder,
     Widget? child,
-  }) =>
-      Builder(
-        // The key belongs on the outer widget, because that is what
-        // participates in sibling reconciliation at the call site. With it on
-        // the inner widget, reordered siblings would match positionally and
-        // the inner elements would be replaced rather than moved, which reads
-        // correctly on screen while churning native sessions
-        key: key,
-        builder: (context) {
-          // Short-circuits, so an explicit client never registers an inherited
-          // dependency and a scope change cannot rebuild this subtree
-          final resolved = client ?? CoproductScope.of(context);
-          return ObservedFlagBuilder<bool>(
-            clientIdentity: resolved,
-            flagKey: flagKey,
-            defaultValue: defaultValue,
-            create: () => resolved.observeBool(flagKey, defaultValue: defaultValue),
-            unchangedDefault: (a, b) => a == b,
-            builder: builder,
-            child: child,
-          );
-        },
+  }) => Builder(
+    // The key belongs on the outer widget, because that is what
+    // participates in sibling reconciliation at the call site. With it on
+    // the inner widget, reordered siblings would match positionally and
+    // the inner elements would be replaced rather than moved, which reads
+    // correctly on screen while churning native sessions
+    key: key,
+    builder: (context) {
+      // Short-circuits, so an explicit client never registers an inherited
+      // dependency and a scope change cannot rebuild this subtree
+      final resolved = client ?? CoproductScope.of(context);
+      return ObservedFlagBuilder<bool>(
+        clientIdentity: resolved,
+        flagKey: flagKey,
+        defaultValue: defaultValue,
+        create: () => resolved.observeBool(flagKey, defaultValue: defaultValue),
+        unchangedDefault: (a, b) => a == b,
+        builder: builder,
+        child: child,
       );
+    },
+  );
 
   /// Builds from a string flag, read as with `CoproductClient.getString`
   static Widget stringFlag({
@@ -91,22 +90,22 @@ final class CoproductFlagBuilder {
     required String defaultValue,
     required ValueWidgetBuilder<String> builder,
     Widget? child,
-  }) =>
-      Builder(
-        key: key,
-        builder: (context) {
-          final resolved = client ?? CoproductScope.of(context);
-          return ObservedFlagBuilder<String>(
-            clientIdentity: resolved,
-            flagKey: flagKey,
-            defaultValue: defaultValue,
-            create: () => resolved.observeString(flagKey, defaultValue: defaultValue),
-            unchangedDefault: (a, b) => a == b,
-            builder: builder,
-            child: child,
-          );
-        },
+  }) => Builder(
+    key: key,
+    builder: (context) {
+      final resolved = client ?? CoproductScope.of(context);
+      return ObservedFlagBuilder<String>(
+        clientIdentity: resolved,
+        flagKey: flagKey,
+        defaultValue: defaultValue,
+        create: () =>
+            resolved.observeString(flagKey, defaultValue: defaultValue),
+        unchangedDefault: (a, b) => a == b,
+        builder: builder,
+        child: child,
       );
+    },
+  );
 
   /// Builds from a number flag read as an integer, as with
   /// `CoproductClient.getInt`. A fractional value is truncated toward zero
@@ -117,22 +116,21 @@ final class CoproductFlagBuilder {
     required int defaultValue,
     required ValueWidgetBuilder<int> builder,
     Widget? child,
-  }) =>
-      Builder(
-        key: key,
-        builder: (context) {
-          final resolved = client ?? CoproductScope.of(context);
-          return ObservedFlagBuilder<int>(
-            clientIdentity: resolved,
-            flagKey: flagKey,
-            defaultValue: defaultValue,
-            create: () => resolved.observeInt(flagKey, defaultValue: defaultValue),
-            unchangedDefault: (a, b) => a == b,
-            builder: builder,
-            child: child,
-          );
-        },
+  }) => Builder(
+    key: key,
+    builder: (context) {
+      final resolved = client ?? CoproductScope.of(context);
+      return ObservedFlagBuilder<int>(
+        clientIdentity: resolved,
+        flagKey: flagKey,
+        defaultValue: defaultValue,
+        create: () => resolved.observeInt(flagKey, defaultValue: defaultValue),
+        unchangedDefault: (a, b) => a == b,
+        builder: builder,
+        child: child,
       );
+    },
+  );
 
   /// Builds from a number flag, read as with `CoproductClient.getNumber`
   static Widget numberFlag({
@@ -142,22 +140,22 @@ final class CoproductFlagBuilder {
     required double defaultValue,
     required ValueWidgetBuilder<double> builder,
     Widget? child,
-  }) =>
-      Builder(
-        key: key,
-        builder: (context) {
-          final resolved = client ?? CoproductScope.of(context);
-          return ObservedFlagBuilder<double>(
-            clientIdentity: resolved,
-            flagKey: flagKey,
-            defaultValue: defaultValue,
-            create: () => resolved.observeNumber(flagKey, defaultValue: defaultValue),
-            unchangedDefault: (a, b) => a == b || (a.isNaN && b.isNaN),
-            builder: builder,
-            child: child,
-          );
-        },
+  }) => Builder(
+    key: key,
+    builder: (context) {
+      final resolved = client ?? CoproductScope.of(context);
+      return ObservedFlagBuilder<double>(
+        clientIdentity: resolved,
+        flagKey: flagKey,
+        defaultValue: defaultValue,
+        create: () =>
+            resolved.observeNumber(flagKey, defaultValue: defaultValue),
+        unchangedDefault: (a, b) => a == b || (a.isNaN && b.isNaN),
+        builder: builder,
+        child: child,
       );
+    },
+  );
 
   /// Builds from a JSON flag, read as with `CoproductClient.getJson`. The value
   /// is a deeply unmodifiable Dart value: a map, list, string, number, bool, or
@@ -169,24 +167,23 @@ final class CoproductFlagBuilder {
     required Object? defaultValue,
     required ValueWidgetBuilder<Object?> builder,
     Widget? child,
-  }) =>
-      Builder(
-        key: key,
-        builder: (context) {
-          final resolved = client ?? CoproductScope.of(context);
-          return ObservedFlagBuilder<Object?>(
-            clientIdentity: resolved,
-            flagKey: flagKey,
-            defaultValue: defaultValue,
-            create: () => resolved.observeJson(flagKey, defaultValue: defaultValue),
-            // Defaults are compared the way the observation resolves them, so
-            // two objects that encode to the same document are one default
-            unchangedDefault: jsonDefaultsEqual,
-            builder: builder,
-            child: child,
-          );
-        },
+  }) => Builder(
+    key: key,
+    builder: (context) {
+      final resolved = client ?? CoproductScope.of(context);
+      return ObservedFlagBuilder<Object?>(
+        clientIdentity: resolved,
+        flagKey: flagKey,
+        defaultValue: defaultValue,
+        create: () => resolved.observeJson(flagKey, defaultValue: defaultValue),
+        // Defaults are compared the way the observation resolves them, so
+        // two objects that encode to the same document are one default
+        unchangedDefault: jsonDefaultsEqual,
+        builder: builder,
+        child: child,
       );
+    },
+  );
 }
 
 /// The generic widget behind every [CoproductFlagBuilder] entry point.
@@ -237,7 +234,8 @@ class _ObservedFlagBuilderState<T> extends State<ObservedFlagBuilder<T>> {
     // The create callback is deliberately not compared. A parent that rebuilds
     // passes a fresh closure every time, so comparing it would re-register a
     // native session on every frame
-    final same = identical(widget.clientIdentity, oldWidget.clientIdentity) &&
+    final same =
+        identical(widget.clientIdentity, oldWidget.clientIdentity) &&
         widget.flagKey == oldWidget.flagKey &&
         widget.unchangedDefault(widget.defaultValue, oldWidget.defaultValue);
     if (same) return;
@@ -253,8 +251,8 @@ class _ObservedFlagBuilderState<T> extends State<ObservedFlagBuilder<T>> {
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<T>(
-        valueListenable: _observation,
-        builder: widget.builder,
-        child: widget.child,
-      );
+    valueListenable: _observation,
+    builder: widget.builder,
+    child: widget.child,
+  );
 }

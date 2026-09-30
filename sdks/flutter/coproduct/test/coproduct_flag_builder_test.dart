@@ -43,26 +43,28 @@ void main() {
     required String flagKey,
     required String defaultValue,
     String? seed,
-  }) =>
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: ObservedFlagBuilder<String>(
-          clientIdentity: clientIdentity,
-          flagKey: flagKey,
-          defaultValue: defaultValue,
-          create: () => createString(seed, defaultValue),
-          unchangedDefault: (a, b) => a == b,
-          builder: (context, value, child) => Text(value),
-        ),
-      );
+  }) => Directionality(
+    textDirection: TextDirection.ltr,
+    child: ObservedFlagBuilder<String>(
+      clientIdentity: clientIdentity,
+      flagKey: flagKey,
+      defaultValue: defaultValue,
+      create: () => createString(seed, defaultValue),
+      unchangedDefault: (a, b) => a == b,
+      builder: (context, value, child) => Text(value),
+    ),
+  );
 
   testWidgets('serves the seeded value and rebuilds on change', (tester) async {
     final client = Object();
-    await tester.pumpWidget(host(
+    await tester.pumpWidget(
+      host(
         clientIdentity: client,
         flagKey: 'k',
         defaultValue: 'fallback',
-        seed: 'seeded'));
+        seed: 'seeded',
+      ),
+    );
 
     expect(find.text('seeded'), findsOneWidget);
 
@@ -72,46 +74,64 @@ void main() {
     expect(find.text('updated'), findsOneWidget);
   });
 
-  testWidgets('serves the default when the flag is unavailable',
-      (tester) async {
-    await tester.pumpWidget(host(
+  testWidgets('serves the default when the flag is unavailable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
         clientIdentity: Object(),
         flagKey: 'k',
         defaultValue: 'fallback',
-        seed: null));
+        seed: null,
+      ),
+    );
 
     expect(find.text('fallback'), findsOneWidget);
   });
 
-  testWidgets('creates the observation once across unrelated rebuilds',
-      (tester) async {
+  testWidgets('creates the observation once across unrelated rebuilds', (
+    tester,
+  ) async {
     final client = Object();
     for (var i = 0; i < 3; i++) {
-      await tester.pumpWidget(host(
+      await tester.pumpWidget(
+        host(
           clientIdentity: client,
           flagKey: 'k',
           defaultValue: 'fallback',
-          seed: 'seeded'));
+          seed: 'seeded',
+        ),
+      );
     }
 
-    expect(creates, 1,
-        reason: 'a rebuild with the same client, key, and default keeps the '
-            'live native session');
+    expect(
+      creates,
+      1,
+      reason:
+          'a rebuild with the same client, key, and default keeps the '
+          'live native session',
+    );
     expect(cancels, 0);
   });
 
   testWidgets('re-subscribes when the flag key changes', (tester) async {
     final client = Object();
-    await tester.pumpWidget(host(
+    await tester.pumpWidget(
+      host(
         clientIdentity: client,
         flagKey: 'first',
         defaultValue: 'fallback',
-        seed: 'a'));
-    await tester.pumpWidget(host(
+        seed: 'a',
+      ),
+    );
+    await tester.pumpWidget(
+      host(
         clientIdentity: client,
         flagKey: 'second',
         defaultValue: 'fallback',
-        seed: 'b'));
+        seed: 'b',
+      ),
+    );
 
     expect(creates, 2);
     expect(cancels, 1, reason: 'the replaced observation is disposed');
@@ -119,16 +139,22 @@ void main() {
   });
 
   testWidgets('re-subscribes when the client changes', (tester) async {
-    await tester.pumpWidget(host(
+    await tester.pumpWidget(
+      host(
         clientIdentity: Object(),
         flagKey: 'k',
         defaultValue: 'fallback',
-        seed: 'a'));
-    await tester.pumpWidget(host(
+        seed: 'a',
+      ),
+    );
+    await tester.pumpWidget(
+      host(
         clientIdentity: Object(),
         flagKey: 'k',
         defaultValue: 'fallback',
-        seed: 'b'));
+        seed: 'b',
+      ),
+    );
 
     expect(creates, 2);
     expect(cancels, 1);
@@ -136,12 +162,24 @@ void main() {
 
   testWidgets('re-subscribes when the default changes', (tester) async {
     final client = Object();
-    await tester.pumpWidget(host(
-        clientIdentity: client, flagKey: 'k', defaultValue: 'one', seed: null));
+    await tester.pumpWidget(
+      host(
+        clientIdentity: client,
+        flagKey: 'k',
+        defaultValue: 'one',
+        seed: null,
+      ),
+    );
     expect(find.text('one'), findsOneWidget);
 
-    await tester.pumpWidget(host(
-        clientIdentity: client, flagKey: 'k', defaultValue: 'two', seed: null));
+    await tester.pumpWidget(
+      host(
+        clientIdentity: client,
+        flagKey: 'k',
+        defaultValue: 'two',
+        seed: null,
+      ),
+    );
 
     expect(creates, 2);
     expect(cancels, 1);
@@ -149,52 +187,63 @@ void main() {
   });
 
   testWidgets('disposes its observation when unmounted', (tester) async {
-    await tester.pumpWidget(host(
+    await tester.pumpWidget(
+      host(
         clientIdentity: Object(),
         flagKey: 'k',
         defaultValue: 'fallback',
-        seed: 'a'));
+        seed: 'a',
+      ),
+    );
     await tester.pumpWidget(const SizedBox.shrink());
 
-    expect(cancels, 1,
-        reason: 'a builder user never disposes, so unmount must');
+    expect(
+      cancels,
+      1,
+      reason: 'a builder user never disposes, so unmount must',
+    );
   });
 
-  testWidgets('a json default that only reorders keys does not re-subscribe',
-      (tester) async {
+  testWidgets('a json default that only reorders keys does not re-subscribe', (
+    tester,
+  ) async {
     final client = Object();
     var jsonCreates = 0;
     Widget jsonHost(Map<String, Object?> defaultValue) => Directionality(
-          textDirection: TextDirection.ltr,
-          child: ObservedFlagBuilder<Object?>(
-            clientIdentity: client,
-            flagKey: 'k',
+      textDirection: TextDirection.ltr,
+      child: ObservedFlagBuilder<Object?>(
+        clientIdentity: client,
+        flagKey: 'k',
+        defaultValue: defaultValue,
+        create: () {
+          jsonCreates += 1;
+          final controller = StreamController<String?>();
+          controllers.add(controller);
+          return jsonObservation(
             defaultValue: defaultValue,
-            create: () {
-              jsonCreates += 1;
-              final controller = StreamController<String?>();
-              controllers.add(controller);
-              return jsonObservation(
-                defaultValue: defaultValue,
-                seed: null,
-                events: controller.stream,
-                cancel: () => cancels += 1,
-              );
-            },
-            unchangedDefault: jsonDefaultsEqual,
-            builder: (context, value, child) => Text('$value'),
-          ),
-        );
+            seed: null,
+            events: controller.stream,
+            cancel: () => cancels += 1,
+          );
+        },
+        unchangedDefault: jsonDefaultsEqual,
+        builder: (context, value, child) => Text('$value'),
+      ),
+    );
 
     await tester.pumpWidget(jsonHost({'a': 1, 'b': 2}));
     await tester.pumpWidget(jsonHost({'b': 2, 'a': 1}));
 
-    expect(jsonCreates, 1,
-        reason: 'a structurally identical default is not a new default');
+    expect(
+      jsonCreates,
+      1,
+      reason: 'a structurally identical default is not a new default',
+    );
   });
 
-  testWidgets('the json facade treats an equivalent default as one default',
-      (tester) async {
+  testWidgets('the json facade treats an equivalent default as one default', (
+    tester,
+  ) async {
     // Through the public facade, not the widget directly, because the wiring
     // from jsonFlag to the default comparison is the thing being pinned. The
     // fake client reaches it without a native library
@@ -206,34 +255,33 @@ void main() {
       }
     });
     Widget host(Object? defaultValue) => Directionality(
-          textDirection: TextDirection.ltr,
-          child: CoproductFlagBuilder.jsonFlag(
-            client: client.client,
-            flagKey: 'k',
-            defaultValue: defaultValue,
-            builder: (context, value, child) => Text('$value'),
-          ),
-        );
+      textDirection: TextDirection.ltr,
+      child: CoproductFlagBuilder.jsonFlag(
+        client: client.client,
+        flagKey: 'k',
+        defaultValue: defaultValue,
+        builder: (context, value, child) => Text('$value'),
+      ),
+    );
 
     // A parent that rebuilds constructs a fresh default object each time. Two
     // that encode to the same document are one default, so the live native
     // session is kept rather than torn down and replaced with an identical one
     await tester.pumpWidget(host(_Encodable()));
     await tester.pumpWidget(host(_Encodable()));
-    expect(creates, 1,
-        reason: 'the same encoded document is the same default');
+    expect(creates, 1, reason: 'the same encoded document is the same default');
 
     // A default JSON cannot encode is served exactly as supplied, so two of
     // them really are different defaults
     await tester.pumpWidget(host(_Unencodable()));
     expect(creates, 2);
     await tester.pumpWidget(host(_Unencodable()));
-    expect(creates, 3,
-        reason: 'an unencodable default compares by identity');
+    expect(creates, 3, reason: 'an unencodable default compares by identity');
   });
 
-  testWidgets('a NaN number default is one default across rebuilds',
-      (tester) async {
+  testWidgets('a NaN number default is one default across rebuilds', (
+    tester,
+  ) async {
     // NaN is never equal to itself, so without the NaN rule in the default
     // comparison every parent rebuild would tear down a live native session
     // and register an identical one
@@ -245,14 +293,14 @@ void main() {
       }
     });
     Widget host() => Directionality(
-          textDirection: TextDirection.ltr,
-          child: CoproductFlagBuilder.numberFlag(
-            client: client.client,
-            flagKey: 'k',
-            defaultValue: double.nan,
-            builder: (context, value, child) => Text('$value'),
-          ),
-        );
+      textDirection: TextDirection.ltr,
+      child: CoproductFlagBuilder.numberFlag(
+        client: client.client,
+        flagKey: 'k',
+        defaultValue: double.nan,
+        builder: (context, value, child) => Text('$value'),
+      ),
+    );
 
     await tester.pumpWidget(host());
     await tester.pumpWidget(host());
@@ -263,58 +311,70 @@ void main() {
   testWidgets('omitting client resolves the nearest scope', (tester) async {
     final scoped = _FakeBackend(() {});
 
-    await tester.pumpWidget(_host(
-      scoped.client,
-      CoproductFlagBuilder.stringFlag(
-        flagKey: 'greeting',
-        defaultValue: 'fallback',
-        builder: (context, value, child) => Text(value),
+    await tester.pumpWidget(
+      _host(
+        scoped.client,
+        CoproductFlagBuilder.stringFlag(
+          flagKey: 'greeting',
+          defaultValue: 'fallback',
+          builder: (context, value, child) => Text(value),
+        ),
       ),
-    ));
+    );
 
     expect(scoped.registrations, 1);
-    expect(find.text('greeting'), findsOneWidget,
-        reason: 'the scoped client is the one that was observed');
+    expect(
+      find.text('greeting'),
+      findsOneWidget,
+      reason: 'the scoped client is the one that was observed',
+    );
   });
 
-  testWidgets('an explicit client works with no scope anywhere',
-      (tester) async {
+  testWidgets('an explicit client works with no scope anywhere', (
+    tester,
+  ) async {
     final explicit = _FakeBackend(() {});
 
-    await tester.pumpWidget(Directionality(
-      textDirection: TextDirection.ltr,
-      child: CoproductFlagBuilder.stringFlag(
-        client: explicit.client,
-        flagKey: 'greeting',
-        defaultValue: 'fallback',
-        builder: (context, value, child) => Text(value),
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: CoproductFlagBuilder.stringFlag(
+          client: explicit.client,
+          flagKey: 'greeting',
+          defaultValue: 'fallback',
+          builder: (context, value, child) => Text(value),
+        ),
       ),
-    ));
+    );
 
     expect(explicit.registrations, 1);
   });
 
-  testWidgets('an explicit client wins over a surrounding scope',
-      (tester) async {
+  testWidgets('an explicit client wins over a surrounding scope', (
+    tester,
+  ) async {
     final scoped = _FakeBackend(() {});
     final explicit = _FakeBackend(() {});
 
-    await tester.pumpWidget(_host(
-      scoped.client,
-      CoproductFlagBuilder.stringFlag(
-        client: explicit.client,
-        flagKey: 'greeting',
-        defaultValue: 'fallback',
-        builder: (context, value, child) => Text(value),
+    await tester.pumpWidget(
+      _host(
+        scoped.client,
+        CoproductFlagBuilder.stringFlag(
+          client: explicit.client,
+          flagKey: 'greeting',
+          defaultValue: 'fallback',
+          builder: (context, value, child) => Text(value),
+        ),
       ),
-    ));
+    );
 
     expect(explicit.registrations, 1);
     expect(scoped.registrations, 0);
   });
 
-  testWidgets('an explicit client does not depend on the scope',
-      (tester) async {
+  testWidgets('an explicit client does not depend on the scope', (
+    tester,
+  ) async {
     final explicit = _FakeBackend(() {});
     final scopedFirst = _FakeBackend(() {});
     final scopedSecond = _FakeBackend(() {});
@@ -339,12 +399,16 @@ void main() {
     expect(builds, 1);
 
     await tester.pumpWidget(_host(scopedSecond.client, flagWidget));
-    expect(builds, 1,
-        reason: 'an explicit client registers no scope dependency');
+    expect(
+      builds,
+      1,
+      reason: 'an explicit client registers no scope dependency',
+    );
   });
 
-  testWidgets('replacing the scoped client re-registers exactly once',
-      (tester) async {
+  testWidgets('replacing the scoped client re-registers exactly once', (
+    tester,
+  ) async {
     final first = _FakeBackend(() {});
     final second = _FakeBackend(() {});
     final flagWidget = CoproductFlagBuilder.stringFlag(
@@ -359,22 +423,29 @@ void main() {
     await tester.pumpWidget(_host(second.client, flagWidget));
 
     expect(second.registrations, 1);
-    expect(first.cancellations, 1,
-        reason: 'the observation on the old client is disposed');
-    expect(first.registrations, 1,
-        reason: 'and the old client is never observed again');
+    expect(
+      first.cancellations,
+      1,
+      reason: 'the observation on the old client is disposed',
+    );
+    expect(
+      first.registrations,
+      1,
+      reason: 'and the old client is never observed again',
+    );
   });
 
-  testWidgets('a keyed reorder moves observations rather than replacing them',
-      (tester) async {
+  testWidgets('a keyed reorder moves observations rather than replacing them', (
+    tester,
+  ) async {
     final client = _FakeBackend(() {});
     Widget flag(String flagKey) => CoproductFlagBuilder.stringFlag(
-          key: ValueKey<String>(flagKey),
-          client: client.client,
-          flagKey: flagKey,
-          defaultValue: 'fallback',
-          builder: (context, value, child) => Text(value),
-        );
+      key: ValueKey<String>(flagKey),
+      client: client.client,
+      flagKey: flagKey,
+      defaultValue: 'fallback',
+      builder: (context, value, child) => Text(value),
+    );
     final alpha = flag('alpha');
     final beta = flag('beta');
 
@@ -387,8 +458,11 @@ void main() {
     // Lifecycle, not rendered output. With the key on the inner widget the
     // values would still be correct while both observations were torn down and
     // rebuilt, which is exactly what a value-only assertion would miss
-    expect(client.registrations, 2,
-        reason: 'a keyed reorder moves elements, it does not re-register');
+    expect(
+      client.registrations,
+      2,
+      reason: 'a keyed reorder moves elements, it does not re-register',
+    );
     expect(client.cancellations, 0);
   });
 
@@ -396,45 +470,57 @@ void main() {
   // per entry point, so a test that exercises one proves nothing about the
   // other four. These three cover all five
   List<Widget> everyEntryPoint({CoproductClient? client}) => [
-        CoproductFlagBuilder.boolFlag(
-            client: client,
-            flagKey: 'b',
-            defaultValue: false,
-            builder: (context, value, child) => Text('$value')),
-        CoproductFlagBuilder.stringFlag(
-            client: client,
-            flagKey: 's',
-            defaultValue: 'd',
-            builder: (context, value, child) => Text(value)),
-        CoproductFlagBuilder.intFlag(
-            client: client,
-            flagKey: 'i',
-            defaultValue: 0,
-            builder: (context, value, child) => Text('$value')),
-        CoproductFlagBuilder.numberFlag(
-            client: client,
-            flagKey: 'n',
-            defaultValue: 0,
-            builder: (context, value, child) => Text('$value')),
-        CoproductFlagBuilder.jsonFlag(
-            client: client,
-            flagKey: 'j',
-            defaultValue: null,
-            builder: (context, value, child) => Text('$value')),
-      ];
+    CoproductFlagBuilder.boolFlag(
+      client: client,
+      flagKey: 'b',
+      defaultValue: false,
+      builder: (context, value, child) => Text('$value'),
+    ),
+    CoproductFlagBuilder.stringFlag(
+      client: client,
+      flagKey: 's',
+      defaultValue: 'd',
+      builder: (context, value, child) => Text(value),
+    ),
+    CoproductFlagBuilder.intFlag(
+      client: client,
+      flagKey: 'i',
+      defaultValue: 0,
+      builder: (context, value, child) => Text('$value'),
+    ),
+    CoproductFlagBuilder.numberFlag(
+      client: client,
+      flagKey: 'n',
+      defaultValue: 0,
+      builder: (context, value, child) => Text('$value'),
+    ),
+    CoproductFlagBuilder.jsonFlag(
+      client: client,
+      flagKey: 'j',
+      defaultValue: null,
+      builder: (context, value, child) => Text('$value'),
+    ),
+  ];
 
-  testWidgets('every entry point resolves the scope when client is omitted',
-      (tester) async {
+  testWidgets('every entry point resolves the scope when client is omitted', (
+    tester,
+  ) async {
     final scoped = _FakeBackend(() {});
 
     await tester.pumpWidget(_host(scoped.client, _column(everyEntryPoint())));
 
-    expect(scoped.observedKeys, ['b', 's', 'i', 'n', 'j'],
-        reason: 'each entry point must reach the scoped client');
+    expect(scoped.observedKeys, [
+      'b',
+      's',
+      'i',
+      'n',
+      'j',
+    ], reason: 'each entry point must reach the scoped client');
   });
 
-  testWidgets('every entry point accepts an explicit client with no scope',
-      (tester) async {
+  testWidgets('every entry point accepts an explicit client with no scope', (
+    tester,
+  ) async {
     final explicit = _FakeBackend(() {});
 
     await tester.pumpWidget(_column(everyEntryPoint(client: explicit.client)));
@@ -450,35 +536,40 @@ void main() {
     final client = _FakeBackend(() {});
     for (final widget in [
       CoproductFlagBuilder.boolFlag(
-          key: key,
-          client: client.client,
-          flagKey: 'b',
-          defaultValue: false,
-          builder: (context, value, child) => const SizedBox.shrink()),
+        key: key,
+        client: client.client,
+        flagKey: 'b',
+        defaultValue: false,
+        builder: (context, value, child) => const SizedBox.shrink(),
+      ),
       CoproductFlagBuilder.stringFlag(
-          key: key,
-          client: client.client,
-          flagKey: 's',
-          defaultValue: 'd',
-          builder: (context, value, child) => const SizedBox.shrink()),
+        key: key,
+        client: client.client,
+        flagKey: 's',
+        defaultValue: 'd',
+        builder: (context, value, child) => const SizedBox.shrink(),
+      ),
       CoproductFlagBuilder.intFlag(
-          key: key,
-          client: client.client,
-          flagKey: 'i',
-          defaultValue: 0,
-          builder: (context, value, child) => const SizedBox.shrink()),
+        key: key,
+        client: client.client,
+        flagKey: 'i',
+        defaultValue: 0,
+        builder: (context, value, child) => const SizedBox.shrink(),
+      ),
       CoproductFlagBuilder.numberFlag(
-          key: key,
-          client: client.client,
-          flagKey: 'n',
-          defaultValue: 0,
-          builder: (context, value, child) => const SizedBox.shrink()),
+        key: key,
+        client: client.client,
+        flagKey: 'n',
+        defaultValue: 0,
+        builder: (context, value, child) => const SizedBox.shrink(),
+      ),
       CoproductFlagBuilder.jsonFlag(
-          key: key,
-          client: client.client,
-          flagKey: 'j',
-          defaultValue: null,
-          builder: (context, value, child) => const SizedBox.shrink()),
+        key: key,
+        client: client.client,
+        flagKey: 'j',
+        defaultValue: null,
+        builder: (context, value, child) => const SizedBox.shrink(),
+      ),
     ]) {
       expect(widget.key, same(key));
     }
@@ -497,7 +588,8 @@ void main() {
       required bool defaultValue,
       required ValueWidgetBuilder<bool> builder,
       Widget? child,
-    }) boolFlag = CoproductFlagBuilder.boolFlag;
+    })
+    boolFlag = CoproductFlagBuilder.boolFlag;
     final Widget Function({
       Key? key,
       CoproductClient? client,
@@ -505,7 +597,8 @@ void main() {
       required String defaultValue,
       required ValueWidgetBuilder<String> builder,
       Widget? child,
-    }) stringFlag = CoproductFlagBuilder.stringFlag;
+    })
+    stringFlag = CoproductFlagBuilder.stringFlag;
     final Widget Function({
       Key? key,
       CoproductClient? client,
@@ -513,7 +606,8 @@ void main() {
       required int defaultValue,
       required ValueWidgetBuilder<int> builder,
       Widget? child,
-    }) intFlag = CoproductFlagBuilder.intFlag;
+    })
+    intFlag = CoproductFlagBuilder.intFlag;
     final Widget Function({
       Key? key,
       CoproductClient? client,
@@ -521,7 +615,8 @@ void main() {
       required double defaultValue,
       required ValueWidgetBuilder<double> builder,
       Widget? child,
-    }) numberFlag = CoproductFlagBuilder.numberFlag;
+    })
+    numberFlag = CoproductFlagBuilder.numberFlag;
     final Widget Function({
       Key? key,
       CoproductClient? client,
@@ -529,10 +624,16 @@ void main() {
       required Object? defaultValue,
       required ValueWidgetBuilder<Object?> builder,
       Widget? child,
-    }) jsonFlag = CoproductFlagBuilder.jsonFlag;
+    })
+    jsonFlag = CoproductFlagBuilder.jsonFlag;
 
-    expect([boolFlag, stringFlag, intFlag, numberFlag, jsonFlag],
-        everyElement(isNotNull));
+    expect([
+      boolFlag,
+      stringFlag,
+      intFlag,
+      numberFlag,
+      jsonFlag,
+    ], everyElement(isNotNull));
   });
 }
 
@@ -598,7 +699,7 @@ class _FakeBackend implements CoproductClientBackend {
     final controller = StreamController<String?>();
     controllers.add(controller);
     return ObservationHandle<String>(
-      seed: key,  // so the rendered text says which observation is on screen,
+      seed: key, // so the rendered text says which observation is on screen,
       events: controller.stream,
       cancel: () => cancellations += 1,
     );
@@ -643,11 +744,11 @@ class _Encodable {
 class _Unencodable {}
 
 Widget _host(CoproductClient client, Widget child) => Directionality(
-      textDirection: TextDirection.ltr,
-      child: CoproductScope(client: client, child: child),
-    );
+  textDirection: TextDirection.ltr,
+  child: CoproductScope(client: client, child: child),
+);
 
 Widget _column(List<Widget> children) => Directionality(
-      textDirection: TextDirection.ltr,
-      child: Column(children: children),
-    );
+  textDirection: TextDirection.ltr,
+  child: Column(children: children),
+);

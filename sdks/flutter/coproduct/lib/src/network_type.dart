@@ -59,10 +59,10 @@ class NetworkTypeService {
     required Future<AutoUpsert?> upsert,
     required ForegroundBinder bindResume,
     required void Function() onUnavailable,
-  })  : _events = events,
-        _upsert = upsert,
-        _bindResume = bindResume,
-        _onUnavailable = onUnavailable;
+  }) : _events = events,
+       _upsert = upsert,
+       _bindResume = bindResume,
+       _onUnavailable = onUnavailable;
 
   /// The first retry delay, and where it returns to after a valid event
   static const retryFloor = Duration(seconds: 1);
@@ -160,7 +160,9 @@ class NetworkTypeService {
     _retryDelay = retryFloor;
     final epoch = event.epoch;
     final value = event.value;
-    unawaited(_upsert.then((upsert) => upsert?.publishResolved(
+    unawaited(
+      _upsert.then(
+        (upsert) => upsert?.publishResolved(
           () {
             // Rechecked when the write runs, which can be long after the event
             // if it waited behind a slow identify
@@ -172,7 +174,9 @@ class NetworkTypeService {
           onSent: () {
             if (epoch == _epoch) _lastAccepted = value;
           },
-        )));
+        ),
+      ),
+    );
   }
 
   void _onUnavailableChannel(int epoch) {
@@ -193,8 +197,10 @@ class NetworkTypeService {
 
   void _onFailure(int epoch) {
     if (_closed || _unavailable || epoch != _epoch) return;
-    _debugLog('network_type observation failed, retrying in '
-        '${_retryDelay.inMilliseconds}ms');
+    _debugLog(
+      'network_type observation failed, retrying in '
+      '${_retryDelay.inMilliseconds}ms',
+    );
     final failed = _subscription;
     _subscription = null;
     // Nothing more from the failed listen is accepted. The value it published

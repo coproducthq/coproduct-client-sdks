@@ -8,16 +8,18 @@ void main() {
     final harness = CoproductTestHarness()..setBool('new-checkout', false);
     addTearDown(harness.shutdown);
 
-    await tester.pumpWidget(MaterialApp(
-      home: CoproductScope(
-        client: harness.client,
-        child: CoproductFlagBuilder.boolFlag(
-          flagKey: 'new-checkout',
-          defaultValue: false,
-          builder: (context, enabled, child) => Text(enabled ? 'new' : 'old'),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoproductScope(
+          client: harness.client,
+          child: CoproductFlagBuilder.boolFlag(
+            flagKey: 'new-checkout',
+            defaultValue: false,
+            builder: (context, enabled, child) => Text(enabled ? 'new' : 'old'),
+          ),
         ),
       ),
-    ));
+    );
     expect(find.text('old'), findsOneWidget);
 
     harness.setBool('new-checkout', true);
@@ -25,21 +27,24 @@ void main() {
     expect(find.text('new'), findsOneWidget);
   });
 
-  testWidgets('the widget serves its default until a value is set',
-      (tester) async {
+  testWidgets('the widget serves its default until a value is set', (
+    tester,
+  ) async {
     final harness = CoproductTestHarness();
     addTearDown(harness.shutdown);
 
-    await tester.pumpWidget(MaterialApp(
-      home: CoproductScope(
-        client: harness.client,
-        child: CoproductFlagBuilder.stringFlag(
-          flagKey: 'greeting',
-          defaultValue: 'hi',
-          builder: (context, value, child) => Text(value),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoproductScope(
+          client: harness.client,
+          child: CoproductFlagBuilder.stringFlag(
+            flagKey: 'greeting',
+            defaultValue: 'hi',
+            builder: (context, value, child) => Text(value),
+          ),
         ),
       ),
-    ));
+    );
     expect(find.text('hi'), findsOneWidget);
 
     harness.setString('greeting', 'hello');
@@ -75,7 +80,10 @@ void main() {
     expect(harness.client.getString('s', defaultValue: 'd'), 'x');
     expect(harness.client.getInt('n', defaultValue: 0), 42);
     expect(harness.client.getNumber('n', defaultValue: 0), 42.75);
-    expect(harness.client.getJson('j', defaultValue: const <String, Object?>{}), {'a': 1});
+    expect(
+      harness.client.getJson('j', defaultValue: const <String, Object?>{}),
+      {'a': 1},
+    );
   });
 
   test('replacing a JSON integer with a float updates the public getter', () {
@@ -93,13 +101,17 @@ void main() {
   });
 
   test('setNumber rejects a non-finite value', () {
-    expect(() => CoproductTestHarness().setNumber('k', double.nan),
-        throwsArgumentError);
+    expect(
+      () => CoproductTestHarness().setNumber('k', double.nan),
+      throwsArgumentError,
+    );
   });
 
   test('setJson rejects a value outside the JSON domain', () {
-    expect(() => CoproductTestHarness().setJson('k', Object()),
-        throwsArgumentError);
+    expect(
+      () => CoproductTestHarness().setJson('k', Object()),
+      throwsArgumentError,
+    );
   });
 
   test('a setter after shutdown throws StateError', () async {
@@ -118,17 +130,21 @@ void main() {
     );
 
     expect(harness.targetingKey, 'u1');
-    expect(harness.developerAttributes,
-        {'plan': const AttributeValue.string('pro')});
+    expect(harness.developerAttributes, {
+      'plan': const AttributeValue.string('pro'),
+    });
     expect(harness.client.previousAnonymousId, 'test-anonymous-id');
     expect(harness.client.getBool('k', defaultValue: false), isTrue);
   });
 
   test('developerAttributes is unmodifiable', () async {
     final harness = CoproductTestHarness();
-    await harness.client
-        .updateAttributes({'a': const AttributeValue.string('1')});
-    expect(() => harness.developerAttributes['b'] = const AttributeValue.string('2'),
-        throwsUnsupportedError);
+    await harness.client.updateAttributes({
+      'a': const AttributeValue.string('1'),
+    });
+    expect(
+      () => harness.developerAttributes['b'] = const AttributeValue.string('2'),
+      throwsUnsupportedError,
+    );
   });
 }

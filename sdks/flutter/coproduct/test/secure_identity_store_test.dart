@@ -31,7 +31,9 @@ void main() {
   test('reads and writes through the backing store', () async {
     final backing = _FakeStore();
     final store = SecureIdentityStore(
-        backing: backing, operationTimeout: const Duration(seconds: 1));
+      backing: backing,
+      operationTimeout: const Duration(seconds: 1),
+    );
     await store.write('coproduct.anonymous_id', 'anon-1');
     expect(backing.values['coproduct.anonymous_id'], 'anon-1');
     expect(await store.read('coproduct.anonymous_id'), 'anon-1');
@@ -41,15 +43,17 @@ void main() {
     // The gate never completes, so only the timeout resolves the read, and the
     // core falls back to a session-only id
     final store = SecureIdentityStore(
-        backing: _FakeStore(gate: Completer<void>().future),
-        operationTimeout: const Duration(milliseconds: 20));
+      backing: _FakeStore(gate: Completer<void>().future),
+      operationTimeout: const Duration(milliseconds: 20),
+    );
     await expectLater(store.read('k'), throwsA(isA<TimeoutException>()));
   });
 
   test('a failing read propagates as an error', () async {
     final store = SecureIdentityStore(
-        backing: _FakeStore(throwOnRead: true),
-        operationTimeout: const Duration(seconds: 1));
+      backing: _FakeStore(throwOnRead: true),
+      operationTimeout: const Duration(seconds: 1),
+    );
     await expectLater(store.read('k'), throwsA(isA<StateError>()));
   });
 
@@ -57,15 +61,17 @@ void main() {
     // The core stops awaiting durability and proceeds session-only, though the
     // underlying platform write is not cancelled and may still land later
     final store = SecureIdentityStore(
-        backing: _FakeStore(gate: Completer<void>().future),
-        operationTimeout: const Duration(milliseconds: 20));
+      backing: _FakeStore(gate: Completer<void>().future),
+      operationTimeout: const Duration(milliseconds: 20),
+    );
     await expectLater(store.write('k', 'v'), throwsA(isA<TimeoutException>()));
   });
 
   test('a failing write propagates as an error', () async {
     final store = SecureIdentityStore(
-        backing: _FakeStore(throwOnWrite: true),
-        operationTimeout: const Duration(seconds: 1));
+      backing: _FakeStore(throwOnWrite: true),
+      operationTimeout: const Duration(seconds: 1),
+    );
     await expectLater(store.write('k', 'v'), throwsA(isA<StateError>()));
   });
 }

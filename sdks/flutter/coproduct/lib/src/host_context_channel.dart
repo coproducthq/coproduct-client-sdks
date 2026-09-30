@@ -14,8 +14,10 @@ class HostContextChannel {
   static const _channel = MethodChannel('app.coproduct.flutter/host_context');
   static const _networkChannelName = 'app.coproduct.flutter/network_type';
   static const _networkCodec = StandardMethodCodec();
-  static const _networkMethods =
-      MethodChannel(_networkChannelName, _networkCodec);
+  static const _networkMethods = MethodChannel(
+    _networkChannelName,
+    _networkCodec,
+  );
 
   Future<String?> readDeviceType() async {
     try {
@@ -37,11 +39,13 @@ class HostContextChannel {
       // A native store that threw has failed as surely as one that reported
       // failure, and the developer should see the same diagnostic for both
       throw const SessionAttributesUnavailable(
-          SessionAttributesUnavailableCause.storageFailure);
+        SessionAttributesUnavailableCause.storageFailure,
+      );
     }
     if (raw == null) {
       throw const SessionAttributesUnavailable(
-          SessionAttributesUnavailableCause.storageFailure);
+        SessionAttributesUnavailableCause.storageFailure,
+      );
     }
     return SessionPair.fromChannel(raw);
   }

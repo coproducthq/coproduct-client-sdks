@@ -61,8 +61,10 @@ Future<R> buildRuntime<H extends Object, R extends Object>({
   }
 }
 
-Future<void> _guard(Future<void> Function() cleanup,
-    void Function(Object, StackTrace) onCleanupError) async {
+Future<void> _guard(
+  Future<void> Function() cleanup,
+  void Function(Object, StackTrace) onCleanupError,
+) async {
   try {
     await cleanup();
   } catch (error, stack) {

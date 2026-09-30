@@ -23,8 +23,11 @@ void main() {
       // Iteration walks only the left side, so without the length check a left
       // map that is a strict subset of the right compares equal, and a flag
       // that gained a key would read as unchanged and keep serving stale JSON
-      expect(jsonValuesEqual({'a': 1}, {'a': 1, 'b': 2}), isFalse,
-          reason: 'the left map is missing a key the right one has');
+      expect(
+        jsonValuesEqual({'a': 1}, {'a': 1, 'b': 2}),
+        isFalse,
+        reason: 'the left map is missing a key the right one has',
+      );
       expect(jsonValuesEqual({'a': 1, 'b': 2}, {'a': 1}), isFalse);
     });
 
@@ -34,14 +37,20 @@ void main() {
       // key reads back null, which is indistinguishable from a null value
       // unless membership is checked
       expect(
-          jsonValuesEqual(jsonDecode('{"a":null}'), jsonDecode('{"b":null}')),
-          isFalse);
-      expect(jsonValuesEqual(jsonDecode('{"a":null}'), jsonDecode('{}')),
-          isFalse);
+        jsonValuesEqual(jsonDecode('{"a":null}'), jsonDecode('{"b":null}')),
+        isFalse,
+      );
+      expect(
+        jsonValuesEqual(jsonDecode('{"a":null}'), jsonDecode('{}')),
+        isFalse,
+      );
     });
 
     test('distinguishes list order and length', () {
-      expect(jsonValuesEqual(jsonDecode('[1,2]'), jsonDecode('[2,1]')), isFalse);
+      expect(
+        jsonValuesEqual(jsonDecode('[1,2]'), jsonDecode('[2,1]')),
+        isFalse,
+      );
       expect(jsonValuesEqual(jsonDecode('[1]'), jsonDecode('[1,1]')), isFalse);
     });
 
@@ -53,8 +62,10 @@ void main() {
 
     test('reports two NaN values as the same value', () {
       expect(jsonValuesEqual(double.nan, double.nan), isTrue);
-      expect(jsonValuesEqual(0.0 / 0.0, double.infinity - double.infinity),
-          isTrue);
+      expect(
+        jsonValuesEqual(0.0 / 0.0, double.infinity - double.infinity),
+        isTrue,
+      );
       expect(jsonValuesEqual(double.nan, 1.0), isFalse);
       expect(jsonValuesEqual([double.nan], [double.nan]), isTrue);
     });
@@ -95,9 +106,9 @@ void main() {
 
     test('treats structurally identical literals as the same default', () {
       expect(
-          jsonDefaultsEqual(
-              {'a': 1, 'b': 2}, <String, Object?>{'b': 2, 'a': 1}),
-          isTrue);
+        jsonDefaultsEqual({'a': 1, 'b': 2}, <String, Object?>{'b': 2, 'a': 1}),
+        isTrue,
+      );
       expect(jsonDefaultsEqual({'a': 1}, {'a': 2}), isFalse);
     });
 
@@ -113,11 +124,15 @@ void main() {
   group('unmodifiableJson', () {
     test('rejects mutation of a decoded map and its nested containers', () {
       final wrapped =
-          unmodifiableJson(jsonDecode('{"a":{"b":[1]}}')) as Map<String, Object?>;
+          unmodifiableJson(jsonDecode('{"a":{"b":[1]}}'))
+              as Map<String, Object?>;
       expect(() => wrapped['c'] = 1, throwsUnsupportedError);
       final inner = wrapped['a']! as Map<String, Object?>;
       expect(() => inner['b'] = 2, throwsUnsupportedError);
-      expect(() => (inner['b']! as List<Object?>).add(2), throwsUnsupportedError);
+      expect(
+        () => (inner['b']! as List<Object?>).add(2),
+        throwsUnsupportedError,
+      );
     });
 
     test('preserves the value it wraps', () {

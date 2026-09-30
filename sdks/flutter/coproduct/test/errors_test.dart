@@ -4,32 +4,45 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('generated InitError variants translate to public types', () {
-    expect(translateInitError(const frb.InitError.missingSdkKey()),
-        isA<MissingSdkKey>());
     expect(
-        translateInitError(
-            const frb.InitError.invalidKeyType(prefix: '(redacted)')),
-        const InvalidKeyType());
-    expect(translateInitError(const frb.InitError.malformedSdkKey(reason: 'bad')),
-        isA<MalformedSdkKey>());
+      translateInitError(const frb.InitError.missingSdkKey()),
+      isA<MissingSdkKey>(),
+    );
     expect(
-        translateInitError(
-            const frb.InitError.invalidConfig(field: 'endpoint', reason: 'x')),
-        isA<InvalidConfig>());
+      translateInitError(
+        const frb.InitError.invalidKeyType(prefix: '(redacted)'),
+      ),
+      const InvalidKeyType(),
+    );
     expect(
-        translateInitError(
-            const frb.InitError.unsupportedSchemaVersion(actual: 9, supported: 1)),
-        isA<UnsupportedSchemaVersion>());
+      translateInitError(const frb.InitError.malformedSdkKey(reason: 'bad')),
+      isA<MalformedSdkKey>(),
+    );
+    expect(
+      translateInitError(
+        const frb.InitError.invalidConfig(field: 'endpoint', reason: 'x'),
+      ),
+      isA<InvalidConfig>(),
+    );
+    expect(
+      translateInitError(
+        const frb.InitError.unsupportedSchemaVersion(actual: 9, supported: 1),
+      ),
+      isA<UnsupportedSchemaVersion>(),
+    );
   });
 
   test('a wrong key type never carries the prefix it was given', () {
     // Whatever the prefix field holds, the public error carries none of it
     final error = translateInitError(
-        const frb.InitError.invalidKeyType(prefix: 'password_hunter2'));
+      const frb.InitError.invalidKeyType(prefix: 'password_hunter2'),
+    );
     expect(error, isA<InvalidKeyType>());
     expect(error, const InvalidKeyType());
-    expect(error.toString(),
-        'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)');
+    expect(
+      error.toString(),
+      'Invalid SDK key type: expected a Coproduct mobile SDK key (cpk_mob_)',
+    );
     expect(error.toString(), isNot(contains('hunter2')));
     expect(error.toString(), isNot(contains('password')));
   });
@@ -44,8 +57,9 @@ void main() {
   test('a malformed key reason passes through translation unchanged', () {
     const reason =
         'invalid character at position 39, expected lowercase Crockford base32';
-    final error =
-        translateInitError(const frb.InitError.malformedSdkKey(reason: reason));
+    final error = translateInitError(
+      const frb.InitError.malformedSdkKey(reason: reason),
+    );
     expect(error, const MalformedSdkKey(reason));
     expect((error as MalformedSdkKey).reason, reason);
   });
@@ -56,12 +70,17 @@ void main() {
   });
 
   test('field-bearing errors have value equality and hide the key', () {
-    expect(const InvalidConfig('pollInterval', 'too small'),
-        const InvalidConfig('pollInterval', 'too small'));
+    expect(
+      const InvalidConfig('pollInterval', 'too small'),
+      const InvalidConfig('pollInterval', 'too small'),
+    );
     expect(const MissingSdkKey(), const MissingSdkKey());
     // Non-const instances to exercise the operator, not const canonicalization
     expect(InvalidTargetingKey(), InvalidTargetingKey());
-    expect(const CoproductAlreadyInitialized().toString(), isNot(contains('cpk_')));
+    expect(
+      const CoproductAlreadyInitialized().toString(),
+      isNot(contains('cpk_')),
+    );
   });
 
   test('the session diagnostic names both attributes and never a key', () {
@@ -80,35 +99,49 @@ void main() {
 
   test('the session diagnostic sentence carries the cause description', () {
     expect(
-        SessionAttributesUnavailable(
-                SessionAttributesUnavailableCause.storageFailure)
-            .toString(),
-        contains('launch record could not be read reliably'));
+      SessionAttributesUnavailable(
+        SessionAttributesUnavailableCause.storageFailure,
+      ).toString(),
+      contains('launch record could not be read reliably'),
+    );
     expect(
-        SessionAttributesUnavailable(
-                SessionAttributesUnavailableCause.malformedResponse)
-            .toString(),
-        contains('launch record the SDK could not read'));
+      SessionAttributesUnavailable(
+        SessionAttributesUnavailableCause.malformedResponse,
+      ).toString(),
+      contains('launch record the SDK could not read'),
+    );
   });
 
   test('session diagnostic equality and hashCode are keyed on the cause', () {
     // Non-const instances to exercise the operator, not const canonicalization
     const storage = SessionAttributesUnavailableCause.storageFailure;
     const malformed = SessionAttributesUnavailableCause.malformedResponse;
-    expect(SessionAttributesUnavailable(storage),
-        SessionAttributesUnavailable(storage));
-    expect(SessionAttributesUnavailable(storage),
-        isNot(SessionAttributesUnavailable(malformed)));
-    expect(SessionAttributesUnavailable(storage).hashCode,
-        SessionAttributesUnavailable(storage).hashCode);
-    expect(SessionAttributesUnavailable(storage).hashCode,
-        isNot(SessionAttributesUnavailable(malformed).hashCode));
+    expect(
+      SessionAttributesUnavailable(storage),
+      SessionAttributesUnavailable(storage),
+    );
+    expect(
+      SessionAttributesUnavailable(storage),
+      isNot(SessionAttributesUnavailable(malformed)),
+    );
+    expect(
+      SessionAttributesUnavailable(storage).hashCode,
+      SessionAttributesUnavailable(storage).hashCode,
+    );
+    expect(
+      SessionAttributesUnavailable(storage).hashCode,
+      isNot(SessionAttributesUnavailable(malformed).hashCode),
+    );
   });
 
   test('a cause prints its name', () {
-    expect(SessionAttributesUnavailableCause.storageFailure.toString(),
-        'storageFailure');
-    expect(SessionAttributesUnavailableCause.malformedResponse.toString(),
-        'malformedResponse');
+    expect(
+      SessionAttributesUnavailableCause.storageFailure.toString(),
+      'storageFailure',
+    );
+    expect(
+      SessionAttributesUnavailableCause.malformedResponse.toString(),
+      'malformedResponse',
+    );
   });
 }

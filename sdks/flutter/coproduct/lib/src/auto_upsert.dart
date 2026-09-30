@@ -13,10 +13,10 @@ class AutoUpsert {
     required bool Function() isCurrent,
     required Future<void> Function(Map<String, frb.FrbContextValue>) send,
     required void Function(Object error, StackTrace stack) onError,
-  })  : _queue = queue,
-        _isCurrent = isCurrent,
-        _send = send,
-        _onError = onError;
+  }) : _queue = queue,
+       _isCurrent = isCurrent,
+       _send = send,
+       _onError = onError;
 
   final SerialQueue _queue;
   final bool Function() _isCurrent;
@@ -60,12 +60,14 @@ class AutoUpsert {
   }
 
   void _enqueue(Future<void> Function() operation) {
-    unawaited(_queue.add(operation).catchError((Object error, StackTrace stack) {
-      try {
-        _onError(error, stack);
-      } catch (_) {
-        // A reporter that itself throws must not escape as a second error
-      }
-    }));
+    unawaited(
+      _queue.add(operation).catchError((Object error, StackTrace stack) {
+        try {
+          _onError(error, stack);
+        } catch (_) {
+          // A reporter that itself throws must not escape as a second error
+        }
+      }),
+    );
   }
 }

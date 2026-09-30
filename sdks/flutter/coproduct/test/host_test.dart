@@ -83,11 +83,11 @@ class _RecordingForeground {
   int disposes = 0;
   void Function()? onForeground;
   ForegroundBinder get binder => (callback) {
-        binds++;
-        if (throwsOnBind) throw StateError('bind failed');
-        onForeground = callback;
-        return () => disposes++;
-      };
+    binds++;
+    if (throwsOnBind) throw StateError('bind failed');
+    onForeground = callback;
+    return () => disposes++;
+  };
 }
 
 /// A network source that never reports, for tests not about the network. It
@@ -101,8 +101,7 @@ class _NetworkListen {
   final int epoch;
   final StreamController<Object?> controller;
 
-  void emit(String value) =>
-      controller.add({'epoch': epoch, 'value': value});
+  void emit(String value) => controller.add({'epoch': epoch, 'value': value});
 }
 
 /// Stands in for the platform event channel, recording listens and cancels.
@@ -112,8 +111,9 @@ class _FakeNetworkEvents {
   int cancels = 0;
 
   Stream<Object?> call(int epoch) {
-    final controller =
-        StreamController<Object?>.broadcast(onCancel: () => cancels++);
+    final controller = StreamController<Object?>.broadcast(
+      onCancel: () => cancels++,
+    );
     listens.add(_NetworkListen(epoch, controller));
     return controller.stream;
   }
@@ -153,7 +153,7 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   // A late write alongside the handle id it targeted, so a test can tell
   // which runtime generation a write was aimed at
   final List<({int handleId, Map<String, frb.FrbContextValue> attributes})>
-      lateWrites = [];
+  lateWrites = [];
   int setAutoPopulatedCalls = 0;
   Completer<void>? publishGate; // suspends the initial publication
   final Completer<void> publishEntered = Completer<void>(); // entry handshake
@@ -169,7 +169,8 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   final Completer<void> ensureInitializedEntered = Completer<void>();
   Completer<void>? cacheDirectoryGate; // suspends the cache lookup
   final Completer<void> cacheDirectoryEntered = Completer<void>();
-  Completer<void>? initGate; // suspends the FRB initialize so a test can race it
+  // Suspends the FRB initialize so a test can race it
+  Completer<void>? initGate;
   final Completer<void> initializeEntered = Completer<void>();
   Object? initError; // thrown from the FRB initialize
   bool publishThrows = false; // fails setAutoPopulatedAttributes
@@ -177,7 +178,9 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   @override
   Future<void> ensureInitialized() async {
     ensureInitializedCalls++;
-    if (!ensureInitializedEntered.isCompleted) ensureInitializedEntered.complete();
+    if (!ensureInitializedEntered.isCompleted) {
+      ensureInitializedEntered.complete();
+    }
     if (ensureInitializedGate != null) await ensureInitializedGate!.future;
   }
 
@@ -195,7 +198,8 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
     required String userAgent,
     required frb.FfiConfig config,
     required String cacheDir,
-    required FutureOr<frb.HttpResponse> Function(frb.HttpRequest) transportRequest,
+    required FutureOr<frb.HttpResponse> Function(frb.HttpRequest)
+    transportRequest,
     required FutureOr<String?> Function(String) secureRead,
     required FutureOr<void> Function(String, String) secureWrite,
   }) async {
@@ -214,7 +218,9 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 
   @override
   Future<void> setAutoPopulatedAttributes(
-      _FakeHandle handle, Map<String, frb.FrbContextValue> attributes) async {
+    _FakeHandle handle,
+    Map<String, frb.FrbContextValue> attributes,
+  ) async {
     setAutoPopulatedCalls++;
     final isBatch = setAutoPopulatedCalls == 1;
     if (!publishEntered.isCompleted) publishEntered.complete();
@@ -263,16 +269,15 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 MetadataProviders _providers({
   MetadataProvider? timezone,
   MetadataProvider? deviceType,
-}) =>
-    MetadataProviders(
-      deviceType: deviceType ?? stringProvider(() async => 'phone'),
-      platform: stringProvider(() async => 'android'),
-      osVersion: stringProvider(() async => '14'),
-      appVersion: stringProvider(() async => '1.2.3'),
-      appBuild: stringProvider(() async => '42'),
-      locale: stringProvider(() async => 'en-US'),
-      timezone: timezone ?? stringProvider(() async => 'America/New_York'),
-    );
+}) => MetadataProviders(
+  deviceType: deviceType ?? stringProvider(() async => 'phone'),
+  platform: stringProvider(() async => 'android'),
+  osVersion: stringProvider(() async => '14'),
+  appVersion: stringProvider(() async => '1.2.3'),
+  appBuild: stringProvider(() async => '42'),
+  locale: stringProvider(() async => 'en-US'),
+  timezone: timezone ?? stringProvider(() async => 'America/New_York'),
+);
 
 CoproductHost<_FakeHandle, _FakeClient> _host(
   _FakeBridge bridge, {
@@ -291,12 +296,14 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
     bridge: bridge,
     userAgent: 'coproduct-flutter/test',
     createTransport: (requestTimeout) => HttpTransport(
-        client: transportClient ??
-            MockClient((_) async => http.Response('{}', 200)),
-        requestTimeout: requestTimeout),
+      client:
+          transportClient ?? MockClient((_) async => http.Response('{}', 200)),
+      requestTimeout: requestTimeout,
+    ),
     secureStore: SecureIdentityStore(
-        backing: store ?? _MemoryStore(),
-        operationTimeout: const Duration(seconds: 1)),
+      backing: store ?? _MemoryStore(),
+      operationTimeout: const Duration(seconds: 1),
+    ),
     metadataProviders: providers ?? _providers(),
     createClient: (h, identityQueue) {
       bridge.clientsCreated++;
@@ -314,23 +321,29 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
 
 void main() {
   group('host context diagnostics', () {
-    test('an unreachable host-context plugin reports once and still initializes',
-        () async {
-      final errors = <Object>[];
-      final host = _host(
-        _FakeBridge(),
-        providers:
-            _providers(deviceType: () => throw const HostContextUnavailable()),
-        reportError: (error, _) => errors.add(error),
-      );
+    test(
+      'an unreachable host-context plugin reports once and still initializes',
+      () async {
+        final errors = <Object>[];
+        final host = _host(
+          _FakeBridge(),
+          providers: _providers(
+            deviceType: () => throw const HostContextUnavailable(),
+          ),
+          reportError: (error, _) => errors.add(error),
+        );
 
-      final client = await host.initialize(sdkKey: _key);
-      expect(client, isNotNull, reason: 'flag evaluation is unaffected');
-      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
-          reason: 'release visible, and exactly once per initialization');
-      expect(errors.single.toString(), isNot(contains(_key)));
-      await host.shutdown();
-    });
+        final client = await host.initialize(sdkKey: _key);
+        expect(client, isNotNull, reason: 'flag evaluation is unaffected');
+        expect(
+          errors.whereType<HostContextUnavailable>(),
+          hasLength(1),
+          reason: 'release visible, and exactly once per initialization',
+        );
+        expect(errors.single.toString(), isNot(contains(_key)));
+        await host.shutdown();
+      },
+    );
 
     test('a device that declines to classify itself reports nothing', () async {
       final errors = <Object>[];
@@ -341,34 +354,44 @@ void main() {
       );
 
       await host.initialize(sdkKey: _key);
-      expect(errors, isEmpty,
-          reason: 'an omitted value is a device fact, not a misconfiguration');
+      expect(
+        errors,
+        isEmpty,
+        reason: 'an omitted value is a device fact, not a misconfiguration',
+      );
       await host.shutdown();
     });
 
-    test('a throwing error reporter does not fail an exhausted budget either',
-        () async {
-      // The exhausted-budget path starts its providers without awaiting them, so
-      // a reporter that throws there has no caller to surface through. The
-      // collector's per-field handling is what absorbs it
-      final host = _host(
-        _FakeBridge(),
-        providers:
-            _providers(deviceType: () => throw const HostContextUnavailable()),
-        reportError: (_, _) => throw StateError('reporter exploded'),
-      );
-      await host.initialize(
+    test(
+      'a throwing error reporter does not fail an exhausted budget either',
+      () async {
+        // The exhausted-budget path starts its providers without awaiting them, so
+        // a reporter that throws there has no caller to surface through. The
+        // collector's per-field handling is what absorbs it
+        final host = _host(
+          _FakeBridge(),
+          providers: _providers(
+            deviceType: () => throw const HostContextUnavailable(),
+          ),
+          reportError: (_, _) => throw StateError('reporter exploded'),
+        );
+        await host.initialize(
           sdkKey: _key,
-          config: const CoproductConfig(startupTimeout: Duration(milliseconds: 1)));
-      await pumpEventQueue();
-      await host.shutdown();
-    });
+          config: const CoproductConfig(
+            startupTimeout: Duration(milliseconds: 1),
+          ),
+        );
+        await pumpEventQueue();
+        await host.shutdown();
+      },
+    );
 
     test('a throwing error reporter does not fail initialization', () async {
       final host = _host(
         _FakeBridge(),
-        providers:
-            _providers(deviceType: () => throw const HostContextUnavailable()),
+        providers: _providers(
+          deviceType: () => throw const HostContextUnavailable(),
+        ),
         reportError: (_, _) => throw StateError('reporter exploded'),
       );
       await host.initialize(sdkKey: _key);
@@ -377,172 +400,224 @@ void main() {
   });
 
   group('late publication', () {
-    const shortBudget =
-        CoproductConfig(startupTimeout: Duration(milliseconds: 50));
+    const shortBudget = CoproductConfig(
+      startupTimeout: Duration(milliseconds: 50),
+    );
 
-    test('a late provider publishes after the initial batch, in order',
-        () async {
-      final bridge = _FakeBridge();
-      final completer = Completer<frb.FrbContextValue?>();
-      final host =
-          _host(bridge, providers: _providers(timezone: () => completer.future));
+    test(
+      'a late provider publishes after the initial batch, in order',
+      () async {
+        final bridge = _FakeBridge();
+        final completer = Completer<frb.FrbContextValue?>();
+        final host = _host(
+          bridge,
+          providers: _providers(timezone: () => completer.future),
+        );
 
-      await host.initialize(sdkKey: _key, config: shortBudget);
-      expect(bridge.installedAttributes!.containsKey('timezone'), isFalse);
-      expect(bridge.setAutoPopulatedCalls, 1);
+        await host.initialize(sdkKey: _key, config: shortBudget);
+        expect(bridge.installedAttributes!.containsKey('timezone'), isFalse);
+        expect(bridge.setAutoPopulatedCalls, 1);
 
-      completer.complete(const frb.FrbContextValue.string('UTC'));
-      await pumpEventQueue();
+        completer.complete(const frb.FrbContextValue.string('UTC'));
+        await pumpEventQueue();
 
-      expect(bridge.setAutoPopulatedCalls, 2);
-      expect(bridge.lateAttributes.single['timezone'],
-          const frb.FrbContextValue.string('UTC'));
-      await host.shutdown();
-    });
+        expect(bridge.setAutoPopulatedCalls, 2);
+        expect(
+          bridge.lateAttributes.single['timezone'],
+          const frb.FrbContextValue.string('UTC'),
+        );
+        await host.shutdown();
+      },
+    );
 
-    test('a late result arriving during the build waits for the initial batch',
-        () async {
-      final bridge = _FakeBridge()..publishGate = Completer<void>();
-      final completer = Completer<frb.FrbContextValue?>();
-      final host =
-          _host(bridge, providers: _providers(timezone: () => completer.future));
+    test(
+      'a late result arriving during the build waits for the initial batch',
+      () async {
+        final bridge = _FakeBridge()..publishGate = Completer<void>();
+        final completer = Completer<frb.FrbContextValue?>();
+        final host = _host(
+          bridge,
+          providers: _providers(timezone: () => completer.future),
+        );
 
-      final init = host.initialize(sdkKey: _key, config: shortBudget);
-      // Wait for the publication to be in flight rather than pumping and
-      // hoping: on a fast run the value would otherwise join the initial batch
-      await bridge.publishEntered.future;
-      completer.complete(const frb.FrbContextValue.string('UTC'));
-      await pumpEventQueue();
-      expect(bridge.orderedCalls, isEmpty, reason: 'nothing published yet');
+        final init = host.initialize(sdkKey: _key, config: shortBudget);
+        // Wait for the publication to be in flight rather than pumping and
+        // hoping: on a fast run the value would otherwise join the initial batch
+        await bridge.publishEntered.future;
+        completer.complete(const frb.FrbContextValue.string('UTC'));
+        await pumpEventQueue();
+        expect(bridge.orderedCalls, isEmpty, reason: 'nothing published yet');
 
-      bridge.publishGate!.complete();
-      await init;
-      await pumpEventQueue();
+        bridge.publishGate!.complete();
+        await init;
+        await pumpEventQueue();
 
-      expect(bridge.orderedCalls, ['batch', 'late'],
-          reason: 'a late write must never precede the batch it amends');
-      await host.shutdown();
-    });
+        expect(
+          bridge.orderedCalls,
+          ['batch', 'late'],
+          reason: 'a late write must never precede the batch it amends',
+        );
+        await host.shutdown();
+      },
+    );
 
-    test('a late result arriving before the handle exists still publishes',
-        () async {
-      final bridge = _FakeBridge()..initGate = Completer<void>();
-      // Settles after the deadline but while the native initialize is still
-      // suspended, so it is late and there is no handle to write through yet
-      final host = _host(bridge,
+    test(
+      'a late result arriving before the handle exists still publishes',
+      () async {
+        final bridge = _FakeBridge()..initGate = Completer<void>();
+        // Settles after the deadline but while the native initialize is still
+        // suspended, so it is late and there is no handle to write through yet
+        final host = _host(
+          bridge,
           providers: _providers(
-              timezone: () => Future<frb.FrbContextValue?>.delayed(
-                  const Duration(milliseconds: 40),
-                  () => const frb.FrbContextValue.string('UTC'))));
+            timezone: () => Future<frb.FrbContextValue?>.delayed(
+              const Duration(milliseconds: 40),
+              () => const frb.FrbContextValue.string('UTC'),
+            ),
+          ),
+        );
 
-      final init = host.initialize(
+        final init = host.initialize(
           sdkKey: _key,
-          config: const CoproductConfig(startupTimeout: Duration(milliseconds: 20)));
-      await bridge.initializeEntered.future;
-      await Future<void>.delayed(const Duration(milliseconds: 60));
+          config: const CoproductConfig(
+            startupTimeout: Duration(milliseconds: 20),
+          ),
+        );
+        await bridge.initializeEntered.future;
+        await Future<void>.delayed(const Duration(milliseconds: 60));
 
-      bridge.initGate!.complete();
-      await init;
-      await pumpEventQueue();
+        bridge.initGate!.complete();
+        await init;
+        await pumpEventQueue();
 
-      expect(bridge.lateAttributes.single['timezone'],
-          const frb.FrbContextValue.string('UTC'));
-      await host.shutdown();
-    });
+        expect(
+          bridge.lateAttributes.single['timezone'],
+          const frb.FrbContextValue.string('UTC'),
+        );
+        await host.shutdown();
+      },
+    );
 
-    test('a late upsert orders behind identity work on the client queue',
-        () async {
-      final bridge = _FakeBridge();
-      final completer = Completer<frb.FrbContextValue?>();
-      final host =
-          _host(bridge, providers: _providers(timezone: () => completer.future));
+    test(
+      'a late upsert orders behind identity work on the client queue',
+      () async {
+        final bridge = _FakeBridge();
+        final completer = Completer<frb.FrbContextValue?>();
+        final host = _host(
+          bridge,
+          providers: _providers(timezone: () => completer.future),
+        );
 
-      final client = await host.initialize(sdkKey: _key, config: shortBudget);
+        final client = await host.initialize(sdkKey: _key, config: shortBudget);
 
-      final release = Completer<void>();
-      final identity = client.identify(() async {
-        await release.future;
-        bridge.orderedCalls.add('identify');
-      });
-      completer.complete(const frb.FrbContextValue.string('UTC'));
-      await pumpEventQueue();
+        final release = Completer<void>();
+        final identity = client.identify(() async {
+          await release.future;
+          bridge.orderedCalls.add('identify');
+        });
+        completer.complete(const frb.FrbContextValue.string('UTC'));
+        await pumpEventQueue();
 
-      release.complete();
-      await identity;
-      await pumpEventQueue();
+        release.complete();
+        await identity;
+        await pumpEventQueue();
 
-      expect(bridge.orderedCalls, ['batch', 'identify', 'late'],
-          reason: 'one shared queue is the point, a second would reorder these');
-      await host.shutdown();
-    });
+        expect(
+          bridge.orderedCalls,
+          ['batch', 'identify', 'late'],
+          reason: 'one shared queue is the point, a second would reorder these',
+        );
+        await host.shutdown();
+      },
+    );
 
-    test('a late result is dropped when the build fails after publication',
-        () async {
-      // Publication succeeds, then readiness throws because its injected state
-      // closure does. An ordinary build failure does not advance the manager's
-      // generation, so only the gate's placement prevents a write to a handle
-      // whose runtime was torn down
-      final bridge = _FakeBridge()..stateThrows = true;
-      final completer = Completer<frb.FrbContextValue?>();
-      final host =
-          _host(bridge, providers: _providers(timezone: () => completer.future));
+    test(
+      'a late result is dropped when the build fails after publication',
+      () async {
+        // Publication succeeds, then readiness throws because its injected state
+        // closure does. An ordinary build failure does not advance the manager's
+        // generation, so only the gate's placement prevents a write to a handle
+        // whose runtime was torn down
+        final bridge = _FakeBridge()..stateThrows = true;
+        final completer = Completer<frb.FrbContextValue?>();
+        final host = _host(
+          bridge,
+          providers: _providers(timezone: () => completer.future),
+        );
 
-      await expectLater(
-          host.initialize(sdkKey: _key, config: shortBudget), throwsA(anything));
-      completer.complete(const frb.FrbContextValue.string('UTC'));
-      await pumpEventQueue();
+        await expectLater(
+          host.initialize(sdkKey: _key, config: shortBudget),
+          throwsA(anything),
+        );
+        completer.complete(const frb.FrbContextValue.string('UTC'));
+        await pumpEventQueue();
 
-      expect(bridge.lateAttributes, isEmpty);
-    });
+        expect(bridge.lateAttributes, isEmpty);
+      },
+    );
 
-    test('a late result is dropped when shutdown supersedes the runtime',
-        () async {
-      final bridge = _FakeBridge();
-      final completer = Completer<frb.FrbContextValue?>();
-      final host =
-          _host(bridge, providers: _providers(timezone: () => completer.future));
+    test(
+      'a late result is dropped when shutdown supersedes the runtime',
+      () async {
+        final bridge = _FakeBridge();
+        final completer = Completer<frb.FrbContextValue?>();
+        final host = _host(
+          bridge,
+          providers: _providers(timezone: () => completer.future),
+        );
 
-      await host.initialize(sdkKey: _key, config: shortBudget);
-      await host.shutdown();
-      completer.complete(const frb.FrbContextValue.string('UTC'));
-      await pumpEventQueue();
+        await host.initialize(sdkKey: _key, config: shortBudget);
+        await host.shutdown();
+        completer.complete(const frb.FrbContextValue.string('UTC'));
+        await pumpEventQueue();
 
-      expect(bridge.lateAttributes, isEmpty);
-    });
+        expect(bridge.lateAttributes, isEmpty);
+      },
+    );
   });
 
   group('isolate support', () {
-    test('initialize on a non-root isolate is rejected before any native work',
-        () async {
-      final bridge = _FakeBridge();
-      final host = _host(bridge, isRootIsolate: () => false);
+    test(
+      'initialize on a non-root isolate is rejected before any native work',
+      () async {
+        final bridge = _FakeBridge();
+        final host = _host(bridge, isRootIsolate: () => false);
 
-      await expectLater(
-        host.initialize(sdkKey: _key),
-        throwsA(isA<CoproductUnsupportedIsolate>()),
-      );
+        await expectLater(
+          host.initialize(sdkKey: _key),
+          throwsA(isA<CoproductUnsupportedIsolate>()),
+        );
 
-      expect(bridge.ensureInitializedCalls, 0,
-          reason: 'the gate must precede native library loading');
-      expect(bridge.initializeEntered.isCompleted, isFalse);
-    });
+        expect(
+          bridge.ensureInitializedCalls,
+          0,
+          reason: 'the gate must precede native library loading',
+        );
+        expect(bridge.initializeEntered.isCompleted, isFalse);
+      },
+    );
 
-    test('a rejected background isolate produces no host-context diagnostic',
-        () async {
-      final errors = <Object>[];
-      final host = _host(_FakeBridge(),
-          isRootIsolate: () => false, reportError: (e, _) => errors.add(e));
+    test(
+      'a rejected background isolate produces no host-context diagnostic',
+      () async {
+        final errors = <Object>[];
+        final host = _host(
+          _FakeBridge(),
+          isRootIsolate: () => false,
+          reportError: (e, _) => errors.add(e),
+        );
 
-      await expectLater(
-        host.initialize(sdkKey: _key),
-        throwsA(isA<CoproductUnsupportedIsolate>()),
-      );
+        await expectLater(
+          host.initialize(sdkKey: _key),
+          throwsA(isA<CoproductUnsupportedIsolate>()),
+        );
 
-      // The two failures are distinct and must stay distinct: an unsupported
-      // isolate is a support boundary, an unregistered plugin is a
-      // misconfiguration
-      expect(errors, isEmpty);
-    });
+        // The two failures are distinct and must stay distinct: an unsupported
+        // isolate is a support boundary, an unregistered plugin is a
+        // misconfiguration
+        expect(errors, isEmpty);
+      },
+    );
 
     test('initialize on a root isolate proceeds', () async {
       final host = _host(_FakeBridge(), isRootIsolate: () => true);
@@ -551,50 +626,58 @@ void main() {
     });
   });
 
-  test('initialize wires the config, User-Agent, cache dir, and host closures',
-      () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = _host(bridge);
+  test(
+    'initialize wires the config, User-Agent, cache dir, and host closures',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(bridge);
 
-    final client = await host.initialize(
-      sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
-      config: const CoproductConfig(
-        pollInterval: Duration(seconds: 45),
-        startupTimeout: Duration(seconds: 2),
-      ),
-    );
+      final client = await host.initialize(
+        sdkKey: 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww',
+        config: const CoproductConfig(
+          pollInterval: Duration(seconds: 45),
+          startupTimeout: Duration(seconds: 2),
+        ),
+      );
 
-    expect(client.handle.id, 1);
-    expect(bridge.ensureInitializedCalls, 1);
-    expect(bridge.sdkKey, 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
-    expect(bridge.userAgent, 'coproduct-flutter/test');
-    expect(bridge.cacheDir, '/fake/cache');
-    expect(bridge.config!.pollIntervalUs, 45 * 1000 * 1000);
-    expect(bridge.config!.startupTimeoutUs, 2 * 1000 * 1000);
-    expect(bridge.secureRead, isNotNull);
-    expect(bridge.secureWrite, isNotNull);
-    expect(bridge.transportRequest, isNotNull);
+      expect(client.handle.id, 1);
+      expect(bridge.ensureInitializedCalls, 1);
+      expect(bridge.sdkKey, 'cpk_mob_wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww');
+      expect(bridge.userAgent, 'coproduct-flutter/test');
+      expect(bridge.cacheDir, '/fake/cache');
+      expect(bridge.config!.pollIntervalUs, 45 * 1000 * 1000);
+      expect(bridge.config!.startupTimeoutUs, 2 * 1000 * 1000);
+      expect(bridge.secureRead, isNotNull);
+      expect(bridge.secureWrite, isNotNull);
+      expect(bridge.transportRequest, isNotNull);
 
-    await host.shutdown();
-  });
+      await host.shutdown();
+    },
+  );
 
-  test('auto-populated attributes are installed before initialize returns',
-      () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = _host(bridge);
+  test(
+    'auto-populated attributes are installed before initialize returns',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(bridge);
 
-    await host.initialize(sdkKey: 'cpk_mob_a');
+      await host.initialize(sdkKey: 'cpk_mob_a');
 
-    // The install completed before initialize returned, so an immediate read on
-    // the returned client sees the automatic context
-    expect(bridge.installedAttributes, isNotNull);
-    expect(bridge.installedAttributes!['platform'],
-        const frb.FrbContextValue.string('android'));
-    expect(bridge.installedAttributes!['timezone'],
-        const frb.FrbContextValue.string('America/New_York'));
+      // The install completed before initialize returned, so an immediate read on
+      // the returned client sees the automatic context
+      expect(bridge.installedAttributes, isNotNull);
+      expect(
+        bridge.installedAttributes!['platform'],
+        const frb.FrbContextValue.string('android'),
+      );
+      expect(
+        bridge.installedAttributes!['timezone'],
+        const frb.FrbContextValue.string('America/New_York'),
+      );
 
-    await host.shutdown();
-  });
+      await host.shutdown();
+    },
+  );
 
   test('the first poll overlaps metadata collection', () async {
     // Park a metadata provider and prove the first poll fires while collection
@@ -664,57 +747,62 @@ void main() {
     await host.shutdown();
   });
 
-  test('the native library loads before any transport or metadata work',
-      () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
-      ..ensureInitializedGate = Completer<void>();
-    var transportsCreated = 0;
-    final metadataStarted = Completer<void>();
-    final host = CoproductHost<_FakeHandle, _FakeClient>(
-      bridge: bridge,
-      isRootIsolate: () => true,
-      beginSession: _immediateSession,
-      userAgent: 'coproduct-flutter/test',
-      createTransport: (t) {
-        transportsCreated++;
-        return HttpTransport(
+  test(
+    'the native library loads before any transport or metadata work',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..ensureInitializedGate = Completer<void>();
+      var transportsCreated = 0;
+      final metadataStarted = Completer<void>();
+      final host = CoproductHost<_FakeHandle, _FakeClient>(
+        bridge: bridge,
+        isRootIsolate: () => true,
+        beginSession: _immediateSession,
+        userAgent: 'coproduct-flutter/test',
+        createTransport: (t) {
+          transportsCreated++;
+          return HttpTransport(
             client: MockClient((_) async => http.Response('{}', 200)),
-            requestTimeout: t);
-      },
-      secureStore: SecureIdentityStore(
-          backing: _MemoryStore(), operationTimeout: const Duration(seconds: 1)),
-      metadataProviders: MetadataProviders(
-        deviceType: stringProvider(() async => 'phone'),
-        platform: () async {
-          if (!metadataStarted.isCompleted) metadataStarted.complete();
-          return const frb.FrbContextValue.string('android');
+            requestTimeout: t,
+          );
         },
-        osVersion: stringProvider(() async => '14'),
-        appVersion: stringProvider(() async => '1.2.3'),
-        appBuild: stringProvider(() async => '42'),
-        locale: stringProvider(() async => 'en-US'),
-        timezone: stringProvider(() async => 'America/New_York'),
-      ),
-      createClient: (h, identityQueue) => _FakeClient(h, identityQueue),
-      bindForeground: (onForeground) => null,
-      reportError: (e, s) {},
-      networkTypeEvents: _silentNetwork,
-      bindNetworkResume: (onResume) => null,
-    );
+        secureStore: SecureIdentityStore(
+          backing: _MemoryStore(),
+          operationTimeout: const Duration(seconds: 1),
+        ),
+        metadataProviders: MetadataProviders(
+          deviceType: stringProvider(() async => 'phone'),
+          platform: () async {
+            if (!metadataStarted.isCompleted) metadataStarted.complete();
+            return const frb.FrbContextValue.string('android');
+          },
+          osVersion: stringProvider(() async => '14'),
+          appVersion: stringProvider(() async => '1.2.3'),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
+        ),
+        createClient: (h, identityQueue) => _FakeClient(h, identityQueue),
+        bindForeground: (onForeground) => null,
+        reportError: (e, s) {},
+        networkTypeEvents: _silentNetwork,
+        bindNetworkResume: (onResume) => null,
+      );
 
-    final pending = host.initialize(sdkKey: 'cpk_mob_a');
-    await bridge.ensureInitializedEntered.future;
-    // While the library load is gated, no transport is opened and no metadata
-    // provider has run
-    expect(transportsCreated, 0);
-    expect(metadataStarted.isCompleted, isFalse);
-    bridge.ensureInitializedGate!.complete();
-    await pending;
-    // The later phases ran once the library was ready
-    expect(transportsCreated, 1);
-    expect(metadataStarted.isCompleted, isTrue);
-    await host.shutdown();
-  });
+      final pending = host.initialize(sdkKey: 'cpk_mob_a');
+      await bridge.ensureInitializedEntered.future;
+      // While the library load is gated, no transport is opened and no metadata
+      // provider has run
+      expect(transportsCreated, 0);
+      expect(metadataStarted.isCompleted, isFalse);
+      bridge.ensureInitializedGate!.complete();
+      await pending;
+      // The later phases ran once the library was ready
+      expect(transportsCreated, 1);
+      expect(metadataStarted.isCompleted, isTrue);
+      await host.shutdown();
+    },
+  );
 
   test('the scheduler polls immediately on start', () async {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
@@ -727,44 +815,52 @@ void main() {
     await host.shutdown();
   });
 
-  test('a matching concurrent initialize joins one build and one native init',
-      () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    var begun = 0;
-    final host = _host(bridge, beginSession: () {
-      begun++;
-      return _immediateSession();
-    });
+  test(
+    'a matching concurrent initialize joins one build and one native init',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      var begun = 0;
+      final host = _host(
+        bridge,
+        beginSession: () {
+          begun++;
+          return _immediateSession();
+        },
+      );
 
-    final a = host.initialize(sdkKey: 'cpk_mob_a');
-    final b = host.initialize(sdkKey: 'cpk_mob_a');
-    final ca = await a;
-    final cb = await b;
-    expect(identical(ca, cb), isTrue);
-    expect(begun, 1); // one session transaction for the joined build
-    expect(bridge.handleCounter, 1); // one FRB initialize
-    expect(bridge.ensureInitializedCalls, 1); // library loaded once
-    expect(bridge.cacheDirectoryCalls, 1); // cache dir resolved once
+      final a = host.initialize(sdkKey: 'cpk_mob_a');
+      final b = host.initialize(sdkKey: 'cpk_mob_a');
+      final ca = await a;
+      final cb = await b;
+      expect(identical(ca, cb), isTrue);
+      expect(begun, 1); // one session transaction for the joined build
+      expect(bridge.handleCounter, 1); // one FRB initialize
+      expect(bridge.ensureInitializedCalls, 1); // library loaded once
+      expect(bridge.cacheDirectoryCalls, 1); // cache dir resolved once
 
-    await host.shutdown();
-  });
+      await host.shutdown();
+    },
+  );
 
-  test('a mismatching initialize is rejected without leaking the key', () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = _host(bridge);
+  test(
+    'a mismatching initialize is rejected without leaking the key',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(bridge);
 
-    await host.initialize(sdkKey: 'cpk_mob_a');
-    Object? caught;
-    try {
-      await host.initialize(sdkKey: 'cpk_mob_b');
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught, isA<CoproductAlreadyInitialized>());
-    expect(caught.toString().contains('cpk_mob_b'), isFalse);
+      await host.initialize(sdkKey: 'cpk_mob_a');
+      Object? caught;
+      try {
+        await host.initialize(sdkKey: 'cpk_mob_b');
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught, isA<CoproductAlreadyInitialized>());
+      expect(caught.toString().contains('cpk_mob_b'), isFalse);
 
-    await host.shutdown();
-  });
+      await host.shutdown();
+    },
+  );
 
   test('shutdown disposes the foreground listener and clears the runtime, so a '
       'fresh initialize builds again', () async {
@@ -789,100 +885,132 @@ void main() {
     final host = _host(bridge, foreground: foreground);
 
     await host.initialize(
-        sdkKey: 'cpk_mob_a',
-        config: const CoproductConfig(pollOnForeground: false));
+      sdkKey: 'cpk_mob_a',
+      config: const CoproductConfig(pollOnForeground: false),
+    );
     expect(foreground.binds, 0);
 
     await host.shutdown();
   });
 
-  test('an FRB init failure disposes the transport and surfaces the public error',
-      () async {
-    final transport = _RecordingClient();
-    final bridge = _FakeBridge()..initError = const frb.InitError.missingSdkKey();
-    final host = _host(bridge, transportClient: transport);
+  test(
+    'an FRB init failure disposes the transport and surfaces the public error',
+    () async {
+      final transport = _RecordingClient();
+      final bridge = _FakeBridge()
+        ..initError = const frb.InitError.missingSdkKey();
+      final host = _host(bridge, transportClient: transport);
 
-    await expectLater(
-        host.initialize(sdkKey: ''), throwsA(isA<MissingSdkKey>()));
-    expect(transport.closed, isTrue);
-  });
+      await expectLater(
+        host.initialize(sdkKey: ''),
+        throwsA(isA<MissingSdkKey>()),
+      );
+      expect(transport.closed, isTrue);
+    },
+  );
 
-  test('an attribute publish failure shuts down the handle and transport',
-      () async {
-    final transport = _RecordingClient();
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
-      ..publishThrows = true;
-    final host = _host(bridge, transportClient: transport);
+  test(
+    'an attribute publish failure shuts down the handle and transport',
+    () async {
+      final transport = _RecordingClient();
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..publishThrows = true;
+      final host = _host(bridge, transportClient: transport);
 
-    // A non-init error propagates unchanged (translation is narrow). The runtime
-    // is created before attributes are published, so the created runtime owns the
-    // teardown and shuts down both the core handle and the transport
-    await expectLater(
-        host.initialize(sdkKey: 'cpk_mob_a'), throwsA(isA<StateError>()));
-    expect(bridge.shutdownCalls, greaterThan(0));
-    expect(transport.closed, isTrue);
-  });
+      // A non-init error propagates unchanged (translation is narrow). The runtime
+      // is created before attributes are published, so the created runtime owns the
+      // teardown and shuts down both the core handle and the transport
+      await expectLater(
+        host.initialize(sdkKey: 'cpk_mob_a'),
+        throwsA(isA<StateError>()),
+      );
+      expect(bridge.shutdownCalls, greaterThan(0));
+      expect(transport.closed, isTrue);
+    },
+  );
 
-  test('a client construction failure installs no listener and cleans up',
-      () async {
-    final transport = _RecordingClient();
-    final foreground = _RecordingForeground();
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = CoproductHost<_FakeHandle, _FakeClient>(
-      bridge: bridge,
-      isRootIsolate: () => true,
-      beginSession: _immediateSession,
-      userAgent: 'coproduct-flutter/test',
-      createTransport: (t) => HttpTransport(client: transport, requestTimeout: t),
-      secureStore: SecureIdentityStore(
-          backing: _MemoryStore(), operationTimeout: const Duration(seconds: 1)),
-      metadataProviders: _providers(),
-      createClient: (h, identityQueue) => throw StateError('client boom'),
-      bindForeground: foreground.binder,
-      reportError: (e, s) {},
-      networkTypeEvents: _silentNetwork,
-      bindNetworkResume: (onResume) => null,
-    );
+  test(
+    'a client construction failure installs no listener and cleans up',
+    () async {
+      final transport = _RecordingClient();
+      final foreground = _RecordingForeground();
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = CoproductHost<_FakeHandle, _FakeClient>(
+        bridge: bridge,
+        isRootIsolate: () => true,
+        beginSession: _immediateSession,
+        userAgent: 'coproduct-flutter/test',
+        createTransport: (t) =>
+            HttpTransport(client: transport, requestTimeout: t),
+        secureStore: SecureIdentityStore(
+          backing: _MemoryStore(),
+          operationTimeout: const Duration(seconds: 1),
+        ),
+        metadataProviders: _providers(),
+        createClient: (h, identityQueue) => throw StateError('client boom'),
+        bindForeground: foreground.binder,
+        reportError: (e, s) {},
+        networkTypeEvents: _silentNetwork,
+        bindNetworkResume: (onResume) => null,
+      );
 
-    await expectLater(
-        host.initialize(sdkKey: 'cpk_mob_a'), throwsA(isA<StateError>()));
-    expect(foreground.binds, 0); // createClient threw before any bind
-    expect(bridge.shutdownCalls, greaterThan(0)); // handle shut down
-    expect(transport.closed, isTrue); // transport disposed
-  });
+      await expectLater(
+        host.initialize(sdkKey: 'cpk_mob_a'),
+        throwsA(isA<StateError>()),
+      );
+      expect(foreground.binds, 0); // createClient threw before any bind
+      expect(bridge.shutdownCalls, greaterThan(0)); // handle shut down
+      expect(transport.closed, isTrue); // transport disposed
+    },
+  );
 
-  test('the deadline is captured before native setup, so it consumes the budget',
-      () {
-    fakeAsync((async) {
-      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady)
-        ..ensureInitializedGate = Completer<void>();
-      final host = _host(bridge, initClock: () => async.elapsed);
-      var returned = false;
-      host
-          .initialize(
-            sdkKey: 'cpk_mob_a',
-            config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
-          )
-          .then((_) => returned = true);
-      async.flushMicrotasks();
-      async.elapse(const Duration(seconds: 2)); // native load burns the budget
-      expect(returned, isFalse, reason: 'still blocked on mandatory native setup');
-      bridge.ensureInitializedGate!.complete();
-      async.flushMicrotasks();
-      expect(returned, isTrue); // no budget remains, so no further wait
-      host.shutdown();
-      async.flushMicrotasks();
-    });
-  });
+  test(
+    'the deadline is captured before native setup, so it consumes the budget',
+    () {
+      fakeAsync((async) {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady)
+          ..ensureInitializedGate = Completer<void>();
+        final host = _host(bridge, initClock: () => async.elapsed);
+        var returned = false;
+        host
+            .initialize(
+              sdkKey: 'cpk_mob_a',
+              config: const CoproductConfig(
+                startupTimeout: Duration(seconds: 1),
+              ),
+            )
+            .then((_) => returned = true);
+        async.flushMicrotasks();
+        async.elapse(
+          const Duration(seconds: 2),
+        ); // native load burns the budget
+        expect(
+          returned,
+          isFalse,
+          reason: 'still blocked on mandatory native setup',
+        );
+        bridge.ensureInitializedGate!.complete();
+        async.flushMicrotasks();
+        expect(returned, isTrue); // no budget remains, so no further wait
+        host.shutdown();
+        async.flushMicrotasks();
+      });
+    },
+  );
 
-  test('automatic attributes are installed before initialize returns', () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = _host(bridge);
-    await host.initialize(sdkKey: 'cpk_mob_a');
-    expect(bridge.installedAttributes!['platform'],
-        const frb.FrbContextValue.string('android'));
-    await host.shutdown();
-  });
+  test(
+    'automatic attributes are installed before initialize returns',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(bridge);
+      await host.initialize(sdkKey: 'cpk_mob_a');
+      expect(
+        bridge.installedAttributes!['platform'],
+        const frb.FrbContextValue.string('android'),
+      );
+      await host.shutdown();
+    },
+  );
 
   test('native setup consuming part of the budget still delivers attributes', () {
     fakeAsync((async) {
@@ -899,8 +1027,10 @@ void main() {
       async.elapse(const Duration(milliseconds: 400)); // partial budget spent
       bridge.ensureInitializedGate!.complete();
       async.flushMicrotasks();
-      expect(bridge.installedAttributes!['platform'],
-          const frb.FrbContextValue.string('android'));
+      expect(
+        bridge.installedAttributes!['platform'],
+        const frb.FrbContextValue.string('android'),
+      );
       host.shutdown();
       async.flushMicrotasks();
     });
@@ -940,36 +1070,40 @@ void main() {
     });
   });
 
-  test('an in-flight first poll stays scheduler-owned and completes after return',
-      () {
-    fakeAsync((async) {
-      // The first poll is held in flight while readiness times out, so initialize
-      // returns NotReady with the poll still running. Releasing it proves the
-      // scheduler still owns and completes the poll after initialize returned,
-      // rather than abandoning it at the deadline
-      final pollGate = Completer<void>();
-      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady)
-        ..pollGate = pollGate;
-      final host = _host(bridge, initClock: () => async.elapsed);
-      var returned = false;
-      host
-          .initialize(
-            sdkKey: 'cpk_mob_a',
-            config: const CoproductConfig(startupTimeout: Duration(milliseconds: 100)),
-          )
-          .then((_) => returned = true);
-      async.elapse(const Duration(milliseconds: 100)); // readiness deadline
-      async.flushMicrotasks();
-      expect(returned, isTrue);
-      expect(bridge.pollEntered.isCompleted, isTrue);
-      expect(bridge.pollFinished, isFalse); // still in flight at return
-      pollGate.complete();
-      async.flushMicrotasks();
-      expect(bridge.pollFinished, isTrue); // completed after return
-      host.shutdown();
-      async.flushMicrotasks();
-    });
-  });
+  test(
+    'an in-flight first poll stays scheduler-owned and completes after return',
+    () {
+      fakeAsync((async) {
+        // The first poll is held in flight while readiness times out, so initialize
+        // returns NotReady with the poll still running. Releasing it proves the
+        // scheduler still owns and completes the poll after initialize returned,
+        // rather than abandoning it at the deadline
+        final pollGate = Completer<void>();
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady)
+          ..pollGate = pollGate;
+        final host = _host(bridge, initClock: () => async.elapsed);
+        var returned = false;
+        host
+            .initialize(
+              sdkKey: 'cpk_mob_a',
+              config: const CoproductConfig(
+                startupTimeout: Duration(milliseconds: 100),
+              ),
+            )
+            .then((_) => returned = true);
+        async.elapse(const Duration(milliseconds: 100)); // readiness deadline
+        async.flushMicrotasks();
+        expect(returned, isTrue);
+        expect(bridge.pollEntered.isCompleted, isTrue);
+        expect(bridge.pollFinished, isFalse); // still in flight at return
+        pollGate.complete();
+        async.flushMicrotasks();
+        expect(bridge.pollFinished, isTrue); // completed after return
+        host.shutdown();
+        async.flushMicrotasks();
+      });
+    },
+  );
 
   test('joined callers share one deadline rather than restarting it', () {
     fakeAsync((async) {
@@ -978,12 +1112,16 @@ void main() {
       var secondReturned = false;
       const config = CoproductConfig(startupTimeout: Duration(seconds: 2));
       final host = _host(bridge, initClock: () => async.elapsed);
-      host.initialize(sdkKey: 'cpk_mob_a', config: config)
+      host
+          .initialize(sdkKey: 'cpk_mob_a', config: config)
           .then((_) => firstReturned = true);
       async.elapse(const Duration(seconds: 1)); // first build is 1s in
-      host.initialize(sdkKey: 'cpk_mob_a', config: config)
+      host
+          .initialize(sdkKey: 'cpk_mob_a', config: config)
           .then((_) => secondReturned = true);
-      async.elapse(const Duration(seconds: 1)); // the original 2s deadline elapses
+      async.elapse(
+        const Duration(seconds: 1),
+      ); // the original 2s deadline elapses
       async.flushMicrotasks();
       expect(firstReturned, isTrue);
       expect(secondReturned, isTrue); // joined, not restarted at 3s
@@ -992,70 +1130,85 @@ void main() {
     });
   });
 
-  test('a shutdown during metadata collection throws with no unhandled error',
-      () async {
-    final gate = Completer<frb.FrbContextValue?>();
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
-    final host = _host(
-      bridge,
-      providers: MetadataProviders(
-        deviceType: stringProvider(() async => 'phone'),
-        platform: () => gate.future,
-        osVersion: stringProvider(() async => '14'),
-        appVersion: stringProvider(() async => '1.2.3'),
-        appBuild: stringProvider(() async => '42'),
-        locale: stringProvider(() async => 'en-US'),
-        timezone: stringProvider(() async => 'America/New_York'),
-      ),
-    );
-    final pending = host.initialize(
-      sdkKey: 'cpk_mob_a',
-      config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
-    );
-    await bridge.initializeEntered.future;
-    final shutdown = host.shutdown();
-    await expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
-    await shutdown;
-    // No unhandled async error: flutter_test would fail this test if the abandoned
-    // metadata future's cancellation escaped
-  });
+  test(
+    'a shutdown during metadata collection throws with no unhandled error',
+    () async {
+      final gate = Completer<frb.FrbContextValue?>();
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.notReady);
+      final host = _host(
+        bridge,
+        providers: MetadataProviders(
+          deviceType: stringProvider(() async => 'phone'),
+          platform: () => gate.future,
+          osVersion: stringProvider(() async => '14'),
+          appVersion: stringProvider(() async => '1.2.3'),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
+        ),
+      );
+      final pending = host.initialize(
+        sdkKey: 'cpk_mob_a',
+        config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
+      );
+      await bridge.initializeEntered.future;
+      final shutdown = host.shutdown();
+      await expectLater(
+        pending,
+        throwsA(isA<CoproductInitializationCancelled>()),
+      );
+      await shutdown;
+      // No unhandled async error: flutter_test would fail this test if the abandoned
+      // metadata future's cancellation escaped
+    },
+  );
 
-  test('metadata cancellation before any handle exists does not leak an error',
-      () async {
-    // Park in the cache lookup with wedged metadata, then shut down before a handle
-    // exists, so the collector is cancelled and abandoned before publishAttributes
-    // ever runs. The outcome wrapper must absorb its cancellation. Without the
-    // wrapper the collector would throw with no listener and flutter_test would
-    // fail this test on the unhandled async error
-    final cacheGate = Completer<void>();
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
-      ..cacheDirectoryGate = cacheGate;
-    final host = _host(
-      bridge,
-      providers: MetadataProviders(
-        deviceType: stringProvider(() async => 'phone'),
-        platform: () => Completer<frb.FrbContextValue?>().future, // wedged
-        osVersion: stringProvider(() async => '14'),
-        appVersion: stringProvider(() async => '1.2.3'),
-        appBuild: stringProvider(() async => '42'),
-        locale: stringProvider(() async => 'en-US'),
-        timezone: stringProvider(() async => 'America/New_York'),
-      ),
-    );
-    final pending = host.initialize(
-      sdkKey: 'cpk_mob_a',
-      config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
-    );
-    await bridge.cacheDirectoryEntered.future; // parked in cache lookup, no handle
-    final shutdown = host.shutdown(); // bumps generation, cancels synchronously
-    cacheGate.complete(); // cache lookup finishes, then isCurrent is false
-    await expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
-    await shutdown;
-    expect(bridge.initializeEntered.isCompleted, isFalse); // no handle was built
-  });
+  test(
+    'metadata cancellation before any handle exists does not leak an error',
+    () async {
+      // Park in the cache lookup with wedged metadata, then shut down before a handle
+      // exists, so the collector is cancelled and abandoned before publishAttributes
+      // ever runs. The outcome wrapper must absorb its cancellation. Without the
+      // wrapper the collector would throw with no listener and flutter_test would
+      // fail this test on the unhandled async error
+      final cacheGate = Completer<void>();
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..cacheDirectoryGate = cacheGate;
+      final host = _host(
+        bridge,
+        providers: MetadataProviders(
+          deviceType: stringProvider(() async => 'phone'),
+          platform: () => Completer<frb.FrbContextValue?>().future, // wedged
+          osVersion: stringProvider(() async => '14'),
+          appVersion: stringProvider(() async => '1.2.3'),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
+        ),
+      );
+      final pending = host.initialize(
+        sdkKey: 'cpk_mob_a',
+        config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
+      );
+      await bridge
+          .cacheDirectoryEntered
+          .future; // parked in cache lookup, no handle
+      final shutdown = host
+          .shutdown(); // bumps generation, cancels synchronously
+      cacheGate.complete(); // cache lookup finishes, then isCurrent is false
+      await expectLater(
+        pending,
+        throwsA(isA<CoproductInitializationCancelled>()),
+      );
+      await shutdown;
+      expect(
+        bridge.initializeEntered.isCompleted,
+        isFalse,
+      ); // no handle was built
+    },
+  );
 
-  test('a shutdown during the readiness wait cancels through the runtime teardown',
-      () {
+  test('a shutdown during the readiness wait cancels through the runtime teardown', () {
     fakeAsync((async) {
       // State never leaves notReady and the deadline stays ahead, so readiness
       // loops. Gate the shutdown on readiness having actually read state, so the
@@ -1071,7 +1224,9 @@ void main() {
       host
           .initialize(
             sdkKey: 'cpk_mob_a',
-            config: const CoproductConfig(startupTimeout: Duration(seconds: 30)),
+            config: const CoproductConfig(
+              startupTimeout: Duration(seconds: 30),
+            ),
           )
           .then<void>((_) {}, onError: (Object e, StackTrace _) => error = e);
       async.elapse(const Duration(milliseconds: 50));
@@ -1088,71 +1243,83 @@ void main() {
     });
   });
 
-  test('a shutdown during the cache lookup cancels before the native initialize',
-      () async {
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
-      ..cacheDirectoryGate = Completer<void>();
-    final host = _host(bridge);
+  test(
+    'a shutdown during the cache lookup cancels before the native initialize',
+    () async {
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+        ..cacheDirectoryGate = Completer<void>();
+      final host = _host(bridge);
 
-    final pending = host.initialize(sdkKey: 'cpk_mob_a');
-    await bridge.cacheDirectoryEntered.future;
-    // Supersede while the cache lookup is pending. shutdown bumps the generation
-    // and cancels synchronously, so it is captured but not awaited yet
-    final shutdown = host.shutdown();
-    bridge.cacheDirectoryGate!.complete();
-    await expectLater(
-        pending, throwsA(isA<CoproductInitializationCancelled>()));
-    await shutdown;
-    expect(bridge.initializeEntered.isCompleted, isFalse);
-  });
+      final pending = host.initialize(sdkKey: 'cpk_mob_a');
+      await bridge.cacheDirectoryEntered.future;
+      // Supersede while the cache lookup is pending. shutdown bumps the generation
+      // and cancels synchronously, so it is captured but not awaited yet
+      final shutdown = host.shutdown();
+      bridge.cacheDirectoryGate!.complete();
+      await expectLater(
+        pending,
+        throwsA(isA<CoproductInitializationCancelled>()),
+      );
+      await shutdown;
+      expect(bridge.initializeEntered.isCompleted, isFalse);
+    },
+  );
 
-  test('a shutdown during metadata collection cancels before attributes install',
-      () async {
-    final metadataGate = Completer<void>();
-    final metadataStarted = Completer<void>();
-    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-    final host = _host(
-      bridge,
-      providers: MetadataProviders(
-        deviceType: stringProvider(() async => 'phone'),
-        platform: () async {
-          if (!metadataStarted.isCompleted) metadataStarted.complete();
-          await metadataGate.future;
-          return const frb.FrbContextValue.string('android');
-        },
-        osVersion: stringProvider(() async => '14'),
-        appVersion: stringProvider(() async => '1.2.3'),
-        appBuild: stringProvider(() async => '42'),
-        locale: stringProvider(() async => 'en-US'),
-        timezone: stringProvider(() async => 'America/New_York'),
-      ),
-    );
+  test(
+    'a shutdown during metadata collection cancels before attributes install',
+    () async {
+      final metadataGate = Completer<void>();
+      final metadataStarted = Completer<void>();
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(
+        bridge,
+        providers: MetadataProviders(
+          deviceType: stringProvider(() async => 'phone'),
+          platform: () async {
+            if (!metadataStarted.isCompleted) metadataStarted.complete();
+            await metadataGate.future;
+            return const frb.FrbContextValue.string('android');
+          },
+          osVersion: stringProvider(() async => '14'),
+          appVersion: stringProvider(() async => '1.2.3'),
+          appBuild: stringProvider(() async => '42'),
+          locale: stringProvider(() async => 'en-US'),
+          timezone: stringProvider(() async => 'America/New_York'),
+        ),
+      );
 
-    final pending = host.initialize(sdkKey: 'cpk_mob_a');
-    await metadataStarted.future;
-    await bridge.initializeEntered.future;
-    // Drain past the native initialize and the pre-publish generation check, so the
-    // build is genuinely parked at the metadata await and only the intra-publish
-    // recheck can catch the shutdown. handleCounter confirms the handle was built
-    await Future<void>.delayed(Duration.zero);
-    expect(bridge.handleCounter, 1);
-    final shutdown = host.shutdown();
-    metadataGate.complete();
-    await expectLater(
-        pending, throwsA(isA<CoproductInitializationCancelled>()));
-    await shutdown;
-    expect(bridge.installedAttributes, isNull);
-  });
+      final pending = host.initialize(sdkKey: 'cpk_mob_a');
+      await metadataStarted.future;
+      await bridge.initializeEntered.future;
+      // Drain past the native initialize and the pre-publish generation check, so the
+      // build is genuinely parked at the metadata await and only the intra-publish
+      // recheck can catch the shutdown. handleCounter confirms the handle was built
+      await Future<void>.delayed(Duration.zero);
+      expect(bridge.handleCounter, 1);
+      final shutdown = host.shutdown();
+      metadataGate.complete();
+      await expectLater(
+        pending,
+        throwsA(isA<CoproductInitializationCancelled>()),
+      );
+      await shutdown;
+      expect(bridge.installedAttributes, isNull);
+    },
+  );
 
   group('session attributes', () {
     test('the pair is published in the initial batch as numbers', () async {
       final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
       final host = _host(bridge);
       await host.initialize(sdkKey: _key);
-      expect(bridge.installedAttributes!['first_seen_at'],
-          const frb.FrbContextValue.number(1767225600));
-      expect(bridge.installedAttributes!['session_count'],
-          const frb.FrbContextValue.number(3));
+      expect(
+        bridge.installedAttributes!['first_seen_at'],
+        const frb.FrbContextValue.number(1767225600),
+      );
+      expect(
+        bridge.installedAttributes!['session_count'],
+        const frb.FrbContextValue.number(3),
+      );
       expect(bridge.lateAttributes, isEmpty);
       await host.shutdown();
     });
@@ -1161,13 +1328,20 @@ void main() {
       final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
         ..initGate = Completer<void>();
       final handlesAtStart = <int>[];
-      final host = _host(bridge, beginSession: () {
-        handlesAtStart.add(bridge.handleCounter);
-        return _immediateSession();
-      });
+      final host = _host(
+        bridge,
+        beginSession: () {
+          handlesAtStart.add(bridge.handleCounter);
+          return _immediateSession();
+        },
+      );
       final pending = host.initialize(sdkKey: _key);
       await bridge.initializeEntered.future;
-      expect(handlesAtStart, isEmpty, reason: 'no handle, so nothing counted yet');
+      expect(
+        handlesAtStart,
+        isEmpty,
+        reason: 'no handle, so nothing counted yet',
+      );
       bridge.initGate!.complete();
       await pending;
       expect(handlesAtStart, [1], reason: 'exactly once, after the handle');
@@ -1178,81 +1352,118 @@ void main() {
       final bridge = _FakeBridge()
         ..initError = const frb.InitError.invalidKeyType(prefix: 'cpk_web_');
       var begun = 0;
-      final host = _host(bridge, beginSession: () {
-        begun++;
-        return _immediateSession();
-      });
+      final host = _host(
+        bridge,
+        beginSession: () {
+          begun++;
+          return _immediateSession();
+        },
+      );
       await expectLater(host.initialize(sdkKey: _key), throwsA(anything));
       expect(begun, 0);
     });
 
     test('a background isolate never counts a session', () async {
       var begun = 0;
-      final host = _host(_FakeBridge(), isRootIsolate: () => false,
+      final host = _host(
+        _FakeBridge(),
+        isRootIsolate: () => false,
+        beginSession: () {
+          begun++;
+          return _immediateSession();
+        },
+      );
+      await expectLater(
+        host.initialize(sdkKey: _key),
+        throwsA(isA<CoproductUnsupportedIsolate>()),
+      );
+      expect(begun, 0);
+    });
+
+    test(
+      'a shutdown before the handle exists means no session is counted',
+      () async {
+        final bridge = _FakeBridge()..initGate = Completer<void>();
+        var begun = 0;
+        final host = _host(
+          bridge,
           beginSession: () {
-        begun++;
-        return _immediateSession();
-      });
-      await expectLater(host.initialize(sdkKey: _key),
-          throwsA(isA<CoproductUnsupportedIsolate>()));
-      expect(begun, 0);
-    });
+            begun++;
+            return _immediateSession();
+          },
+        );
+        final pending = host.initialize(sdkKey: _key);
+        await bridge.initializeEntered.future;
+        final stopping = host.shutdown();
+        bridge.initGate!.complete();
+        await expectLater(
+          pending,
+          throwsA(isA<CoproductInitializationCancelled>()),
+        );
+        await stopping;
+        expect(begun, 0);
+      },
+    );
 
-    test('a shutdown before the handle exists means no session is counted',
-        () async {
-      final bridge = _FakeBridge()..initGate = Completer<void>();
-      var begun = 0;
-      final host = _host(bridge, beginSession: () {
-        begun++;
-        return _immediateSession();
-      });
-      final pending = host.initialize(sdkKey: _key);
-      await bridge.initializeEntered.future;
-      final stopping = host.shutdown();
-      bridge.initGate!.complete();
-      await expectLater(pending, throwsA(isA<CoproductInitializationCancelled>()));
-      await stopping;
-      expect(begun, 0);
-    });
-
-    test('a pair missing the budget publishes late, both values in one upsert',
-        () {
-      fakeAsync((async) {
-        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-        final gate = Completer<SessionPair>();
-        final host = _host(bridge,
-            initClock: () => async.elapsed, beginSession: () => gate.future);
-        var returned = false;
-        host
-            .initialize(
-              sdkKey: _key,
-              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
-            )
-            .then((_) => returned = true);
-        async.elapse(const Duration(seconds: 1));
-        expect(returned, isTrue, reason: 'initialize waits only for the budget');
-        expect(bridge.installedAttributes!.containsKey('first_seen_at'), isFalse);
-        expect(bridge.installedAttributes!.containsKey('session_count'), isFalse);
-        gate.complete(_sessionPair);
-        async.flushMicrotasks();
-        expect(bridge.lateAttributes, [_sessionPair.attributes]);
-        host.shutdown();
-        async.flushMicrotasks();
-      });
-    });
+    test(
+      'a pair missing the budget publishes late, both values in one upsert',
+      () {
+        fakeAsync((async) {
+          final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+          final gate = Completer<SessionPair>();
+          final host = _host(
+            bridge,
+            initClock: () => async.elapsed,
+            beginSession: () => gate.future,
+          );
+          var returned = false;
+          host
+              .initialize(
+                sdkKey: _key,
+                config: const CoproductConfig(
+                  startupTimeout: Duration(seconds: 1),
+                ),
+              )
+              .then((_) => returned = true);
+          async.elapse(const Duration(seconds: 1));
+          expect(
+            returned,
+            isTrue,
+            reason: 'initialize waits only for the budget',
+          );
+          expect(
+            bridge.installedAttributes!.containsKey('first_seen_at'),
+            isFalse,
+          );
+          expect(
+            bridge.installedAttributes!.containsKey('session_count'),
+            isFalse,
+          );
+          gate.complete(_sessionPair);
+          async.flushMicrotasks();
+          expect(bridge.lateAttributes, [_sessionPair.attributes]);
+          host.shutdown();
+          async.flushMicrotasks();
+        });
+      },
+    );
 
     test('a wedged transaction holds neither initialize nor shutdown', () {
       fakeAsync((async) {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-        final host = _host(bridge,
-            initClock: () => async.elapsed,
-            beginSession: () => Completer<SessionPair>().future);
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          beginSession: () => Completer<SessionPair>().future,
+        );
         var returned = false;
         var stopped = false;
         host
             .initialize(
               sdkKey: _key,
-              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+              config: const CoproductConfig(
+                startupTimeout: Duration(seconds: 1),
+              ),
             )
             .then((_) => returned = true);
         async.elapse(const Duration(seconds: 1));
@@ -1266,28 +1477,38 @@ void main() {
     test('a shutdown while initialize waits on the transaction cancels it', () {
       fakeAsync((async) {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-        final host = _host(bridge,
-            initClock: () => async.elapsed,
-            beginSession: () => Completer<SessionPair>().future);
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          beginSession: () => Completer<SessionPair>().future,
+        );
         Object? thrown;
         var stopped = false;
         host
             .initialize(
               sdkKey: _key,
-              config: const CoproductConfig(startupTimeout: Duration(seconds: 10)),
+              config: const CoproductConfig(
+                startupTimeout: Duration(seconds: 10),
+              ),
             )
             .catchError((Object error) {
-          thrown = error;
-          return _FakeClient(_FakeHandle(0), SerialQueue());
-        });
+              thrown = error;
+              return _FakeClient(_FakeHandle(0), SerialQueue());
+            });
         async.elapse(const Duration(milliseconds: 100));
         host.shutdown().then((_) => stopped = true);
         async.elapse(const Duration(milliseconds: 100));
-        expect(thrown, isA<CoproductInitializationCancelled>(),
-            reason: 'the wait ends on shutdown, not on the ten-second budget');
+        expect(
+          thrown,
+          isA<CoproductInitializationCancelled>(),
+          reason: 'the wait ends on shutdown, not on the ten-second budget',
+        );
         expect(stopped, isTrue);
-        expect(bridge.setAutoPopulatedCalls, 0,
-            reason: 'nothing is published into a runtime being torn down');
+        expect(
+          bridge.setAutoPopulatedCalls,
+          0,
+          reason: 'nothing is published into a runtime being torn down',
+        );
       });
     });
 
@@ -1295,8 +1516,11 @@ void main() {
       fakeAsync((async) {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
         final gate = Completer<SessionPair>();
-        final host = _host(bridge,
-            initClock: () => async.elapsed, beginSession: () => gate.future);
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          beginSession: () => gate.future,
+        );
         host.initialize(
           sdkKey: _key,
           config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
@@ -1306,53 +1530,77 @@ void main() {
         async.flushMicrotasks();
         gate.complete(_sessionPair);
         async.flushMicrotasks();
-        expect(bridge.lateAttributes, isEmpty,
-            reason: 'the runtime it belonged to is gone');
+        expect(
+          bridge.lateAttributes,
+          isEmpty,
+          reason: 'the runtime it belonged to is gone',
+        );
       });
     });
 
-    test('a storage failure omits both, reports once, and initializes', () async {
-      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-      final errors = <Object>[];
-      final host = _host(bridge,
+    test(
+      'a storage failure omits both, reports once, and initializes',
+      () async {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final errors = <Object>[];
+        final host = _host(
+          bridge,
           reportError: (error, _) => errors.add(error),
           beginSession: () async => throw const SessionAttributesUnavailable(
-              SessionAttributesUnavailableCause.storageFailure));
-      final client = await host.initialize(sdkKey: _key);
-      expect(client, isNotNull);
-      expect(bridge.installedAttributes!.containsKey('first_seen_at'), isFalse);
-      expect(bridge.installedAttributes!.containsKey('session_count'), isFalse);
-      expect(errors, [
-        const SessionAttributesUnavailable(
-            SessionAttributesUnavailableCause.storageFailure)
-      ]);
-      expect(errors.single.toString(), isNot(contains(_key)));
-      await host.shutdown();
-    });
+            SessionAttributesUnavailableCause.storageFailure,
+          ),
+        );
+        final client = await host.initialize(sdkKey: _key);
+        expect(client, isNotNull);
+        expect(
+          bridge.installedAttributes!.containsKey('first_seen_at'),
+          isFalse,
+        );
+        expect(
+          bridge.installedAttributes!.containsKey('session_count'),
+          isFalse,
+        );
+        expect(errors, [
+          const SessionAttributesUnavailable(
+            SessionAttributesUnavailableCause.storageFailure,
+          ),
+        ]);
+        expect(errors.single.toString(), isNot(contains(_key)));
+        await host.shutdown();
+      },
+    );
 
-    test('a reporter that throws on a session failure does not fail initialize',
-        () async {
-      final host = _host(_FakeBridge(stateValue: frb.ProviderState.ready),
+    test(
+      'a reporter that throws on a session failure does not fail initialize',
+      () async {
+        final host = _host(
+          _FakeBridge(stateValue: frb.ProviderState.ready),
           reportError: (_, _) => throw StateError('reporter exploded'),
           beginSession: () async => throw const SessionAttributesUnavailable(
-              SessionAttributesUnavailableCause.storageFailure));
-      await host.initialize(sdkKey: _key);
-      await host.shutdown();
-    });
+            SessionAttributesUnavailableCause.storageFailure,
+          ),
+        );
+        await host.initialize(sdkKey: _key);
+        await host.shutdown();
+      },
+    );
 
     test('a session failure arriving after shutdown reports nothing', () {
       fakeAsync((async) {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
         final gate = Completer<void>();
         final errors = <Object>[];
-        final host = _host(bridge,
-            initClock: () => async.elapsed,
-            reportError: (error, _) => errors.add(error),
-            beginSession: () async {
-              await gate.future;
-              throw const SessionAttributesUnavailable(
-                  SessionAttributesUnavailableCause.storageFailure);
-            });
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          reportError: (error, _) => errors.add(error),
+          beginSession: () async {
+            await gate.future;
+            throw const SessionAttributesUnavailable(
+              SessionAttributesUnavailableCause.storageFailure,
+            );
+          },
+        );
         host.initialize(
           sdkKey: _key,
           config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
@@ -1362,8 +1610,11 @@ void main() {
         async.flushMicrotasks();
         gate.complete();
         async.flushMicrotasks();
-        expect(errors, isEmpty,
-            reason: 'a stale failure would read as the next runtime\'s error');
+        expect(
+          errors,
+          isEmpty,
+          reason: 'a stale failure would read as the next runtime\'s error',
+        );
       });
     });
 
@@ -1374,13 +1625,17 @@ void main() {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
         final gate = Completer<void>();
         final errors = <Object>[];
-        final host = _host(bridge,
-            initClock: () => async.elapsed,
-            reportError: (error, _) => errors.add(error),
-            providers: _providers(deviceType: () async {
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          reportError: (error, _) => errors.add(error),
+          providers: _providers(
+            deviceType: () async {
               await gate.future;
               throw const HostContextUnavailable();
-            }));
+            },
+          ),
+        );
         host.initialize(
           sdkKey: _key,
           config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
@@ -1390,8 +1645,11 @@ void main() {
         async.flushMicrotasks();
         gate.complete();
         async.flushMicrotasks();
-        expect(errors, isEmpty,
-            reason: 'a stale failure would read as the next runtime\'s error');
+        expect(
+          errors,
+          isEmpty,
+          reason: 'a stale failure would read as the next runtime\'s error',
+        );
       });
     });
 
@@ -1400,13 +1658,15 @@ void main() {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
         final gate = Completer<void>();
         final errors = <Object>[];
-        final host = _host(bridge,
-            initClock: () => async.elapsed,
-            reportError: (error, _) => errors.add(error),
-            beginSession: () async {
-              await gate.future;
-              throw const HostContextUnavailable();
-            });
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          reportError: (error, _) => errors.add(error),
+          beginSession: () async {
+            await gate.future;
+            throw const HostContextUnavailable();
+          },
+        );
         host.initialize(
           sdkKey: _key,
           config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
@@ -1416,36 +1676,49 @@ void main() {
         async.flushMicrotasks();
         gate.complete();
         async.flushMicrotasks();
-        expect(errors, isEmpty,
-            reason: 'a stale failure would read as the next runtime\'s error');
+        expect(
+          errors,
+          isEmpty,
+          reason: 'a stale failure would read as the next runtime\'s error',
+        );
       });
     });
 
-    test('a late pair never publishes into a runtime whose readiness failed',
-        () {
-      fakeAsync((async) {
-        final bridge = _FakeBridge()..stateThrows = true;
-        final gate = Completer<SessionPair>();
-        final host = _host(bridge,
-            initClock: () => async.elapsed, beginSession: () => gate.future);
-        Object? thrown;
-        host
-            .initialize(
-              sdkKey: _key,
-              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
-            )
-            .catchError((Object error) {
-          thrown = error;
-          return _FakeClient(_FakeHandle(0), SerialQueue());
+    test(
+      'a late pair never publishes into a runtime whose readiness failed',
+      () {
+        fakeAsync((async) {
+          final bridge = _FakeBridge()..stateThrows = true;
+          final gate = Completer<SessionPair>();
+          final host = _host(
+            bridge,
+            initClock: () => async.elapsed,
+            beginSession: () => gate.future,
+          );
+          Object? thrown;
+          host
+              .initialize(
+                sdkKey: _key,
+                config: const CoproductConfig(
+                  startupTimeout: Duration(seconds: 1),
+                ),
+              )
+              .catchError((Object error) {
+                thrown = error;
+                return _FakeClient(_FakeHandle(0), SerialQueue());
+              });
+          async.elapse(const Duration(seconds: 1));
+          expect(thrown, isNotNull, reason: 'readiness failed the build');
+          gate.complete(_sessionPair);
+          async.flushMicrotasks();
+          expect(
+            bridge.lateAttributes,
+            isEmpty,
+            reason: 'a failed build opens no gate for a late pair',
+          );
         });
-        async.elapse(const Duration(seconds: 1));
-        expect(thrown, isNotNull, reason: 'readiness failed the build');
-        gate.complete(_sessionPair);
-        async.flushMicrotasks();
-        expect(bridge.lateAttributes, isEmpty,
-            reason: 'a failed build opens no gate for a late pair');
-      });
-    });
+      },
+    );
 
     test('the transaction starts even when the budget is already spent', () {
       fakeAsync((async) {
@@ -1454,16 +1727,21 @@ void main() {
         final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
           ..initGate = Completer<void>();
         var begun = 0;
-        final host = _host(bridge, initClock: () => async.elapsed,
-            beginSession: () {
-          begun++;
-          return _immediateSession();
-        });
+        final host = _host(
+          bridge,
+          initClock: () => async.elapsed,
+          beginSession: () {
+            begun++;
+            return _immediateSession();
+          },
+        );
         var returned = false;
         host
             .initialize(
               sdkKey: _key,
-              config: const CoproductConfig(startupTimeout: Duration(seconds: 1)),
+              config: const CoproductConfig(
+                startupTimeout: Duration(seconds: 1),
+              ),
             )
             .then((_) => returned = true);
         async.elapse(const Duration(seconds: 2));
@@ -1471,57 +1749,70 @@ void main() {
         async.flushMicrotasks();
         expect(returned, isTrue);
         expect(begun, 1);
-        expect(bridge.installedAttributes!['session_count'],
-            const frb.FrbContextValue.number(3));
+        expect(
+          bridge.installedAttributes!['session_count'],
+          const frb.FrbContextValue.number(3),
+        );
         host.shutdown();
         async.flushMicrotasks();
       });
     });
 
-    test('an unreachable plugin reports once when beginSession fails first',
-        () async {
-      // In a real app the device read can be the slow one, so the session
-      // failure arrives first and the device failure must be the duplicate
-      final errors = <Object>[];
-      final firstReport = Completer<void>();
-      final deviceGate = Completer<void>();
-      final host = _host(
-        _FakeBridge(stateValue: frb.ProviderState.ready),
-        providers: _providers(deviceType: () async {
-          await deviceGate.future;
-          throw const HostContextUnavailable();
-        }),
-        beginSession: () async => throw const HostContextUnavailable(),
-        reportError: (error, _) {
-          errors.add(error);
-          if (!firstReport.isCompleted) firstReport.complete();
-        },
-      );
-      final pending = host.initialize(
-        sdkKey: _key,
-        config: const CoproductConfig(startupTimeout: Duration(seconds: 5)),
-      );
-      await firstReport.future;
-      deviceGate.complete();
-      await pending;
-      await pumpEventQueue();
-      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
-          reason: 'one misconfiguration reads as one error in either order');
-      await host.shutdown();
-    });
+    test(
+      'an unreachable plugin reports once when beginSession fails first',
+      () async {
+        // In a real app the device read can be the slow one, so the session
+        // failure arrives first and the device failure must be the duplicate
+        final errors = <Object>[];
+        final firstReport = Completer<void>();
+        final deviceGate = Completer<void>();
+        final host = _host(
+          _FakeBridge(stateValue: frb.ProviderState.ready),
+          providers: _providers(
+            deviceType: () async {
+              await deviceGate.future;
+              throw const HostContextUnavailable();
+            },
+          ),
+          beginSession: () async => throw const HostContextUnavailable(),
+          reportError: (error, _) {
+            errors.add(error);
+            if (!firstReport.isCompleted) firstReport.complete();
+          },
+        );
+        final pending = host.initialize(
+          sdkKey: _key,
+          config: const CoproductConfig(startupTimeout: Duration(seconds: 5)),
+        );
+        await firstReport.future;
+        deviceGate.complete();
+        await pending;
+        await pumpEventQueue();
+        expect(
+          errors.whereType<HostContextUnavailable>(),
+          hasLength(1),
+          reason: 'one misconfiguration reads as one error in either order',
+        );
+        await host.shutdown();
+      },
+    );
 
     test('an unreachable plugin reports once when both methods fail', () async {
       final errors = <Object>[];
       final host = _host(
         _FakeBridge(stateValue: frb.ProviderState.ready),
-        providers:
-            _providers(deviceType: () => throw const HostContextUnavailable()),
+        providers: _providers(
+          deviceType: () => throw const HostContextUnavailable(),
+        ),
         beginSession: () async => throw const HostContextUnavailable(),
         reportError: (error, _) => errors.add(error),
       );
       await host.initialize(sdkKey: _key);
-      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
-          reason: 'one misconfiguration reads as one error');
+      expect(
+        errors.whereType<HostContextUnavailable>(),
+        hasLength(1),
+        reason: 'one misconfiguration reads as one error',
+      );
       await host.shutdown();
     });
 
@@ -1546,8 +1837,11 @@ void main() {
       final network = _FakeNetworkEvents();
       final host = _host(bridge, networkTypeEvents: network.call);
       await host.initialize(sdkKey: _key);
-      expect(network.listens, hasLength(1),
-          reason: 'observation starts with the runtime');
+      expect(
+        network.listens,
+        hasLength(1),
+        reason: 'observation starts with the runtime',
+      );
       network.latest.emit('wifi');
       await pumpEventQueue();
       expect(bridge.installedAttributes!.containsKey('network_type'), isFalse);
@@ -1555,25 +1849,27 @@ void main() {
       await host.shutdown();
     });
 
-    test('a value observed during initialize waits for the initial batch',
-        () async {
-      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
-        ..publishGate = Completer<void>();
-      final network = _FakeNetworkEvents();
-      final host = _host(bridge, networkTypeEvents: network.call);
-      final init = host.initialize(sdkKey: _key);
-      await bridge.publishEntered.future;
-      await pumpEventQueue();
-      network.latest.emit('wifi');
-      await pumpEventQueue();
-      expect(bridge.orderedCalls, isEmpty);
-      bridge.publishGate!.complete();
-      await init;
-      await pumpEventQueue();
-      expect(bridge.orderedCalls, ['batch', 'late']);
-      expect(bridge.lateAttributes, [wifi]);
-      await host.shutdown();
-    });
+    test(
+      'a value observed during initialize waits for the initial batch',
+      () async {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready)
+          ..publishGate = Completer<void>();
+        final network = _FakeNetworkEvents();
+        final host = _host(bridge, networkTypeEvents: network.call);
+        final init = host.initialize(sdkKey: _key);
+        await bridge.publishEntered.future;
+        await pumpEventQueue();
+        network.latest.emit('wifi');
+        await pumpEventQueue();
+        expect(bridge.orderedCalls, isEmpty);
+        bridge.publishGate!.complete();
+        await init;
+        await pumpEventQueue();
+        expect(bridge.orderedCalls, ['batch', 'late']);
+        expect(bridge.lateAttributes, [wifi]);
+        await host.shutdown();
+      },
+    );
 
     test('shutdown cancels observation, and a value queued behind identify '
         'when it begins is dropped', () async {
@@ -1602,29 +1898,34 @@ void main() {
       expect(network.live, 0);
     });
 
-    test('resume resubscribes whether or not polling on foreground is on',
-        () async {
-      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
-      final network = _FakeNetworkEvents();
-      final foreground = _RecordingForeground();
-      final networkResume = _RecordingForeground();
-      final host = _host(bridge,
+    test(
+      'resume resubscribes whether or not polling on foreground is on',
+      () async {
+        final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+        final network = _FakeNetworkEvents();
+        final foreground = _RecordingForeground();
+        final networkResume = _RecordingForeground();
+        final host = _host(
+          bridge,
           networkTypeEvents: network.call,
           foreground: foreground,
-          networkResume: networkResume);
-      await host.initialize(
+          networkResume: networkResume,
+        );
+        await host.initialize(
           sdkKey: _key,
-          config: const CoproductConfig(pollOnForeground: false));
-      await pumpEventQueue();
-      expect(foreground.binds, 0);
-      expect(networkResume.binds, 1);
-      networkResume.onForeground!();
-      await pumpEventQueue();
-      expect(network.listens, hasLength(2));
-      expect(network.live, 1);
-      await host.shutdown();
-      expect(networkResume.disposes, 1);
-    });
+          config: const CoproductConfig(pollOnForeground: false),
+        );
+        await pumpEventQueue();
+        expect(foreground.binds, 0);
+        expect(networkResume.binds, 1);
+        networkResume.onForeground!();
+        await pumpEventQueue();
+        expect(network.listens, hasLength(2));
+        expect(network.live, 1);
+        await host.shutdown();
+        expect(networkResume.disposes, 1);
+      },
+    );
 
     test('a re-initialized runtime publishes network_type again', () async {
       final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
@@ -1642,8 +1943,9 @@ void main() {
       // lifetime as the batch, so the second runtime's own initial batch lands
       // here as a 'late' entry too. Scope the assertion to network_type
       expect(
-          bridge.lateAttributes.where((a) => a.containsKey('network_type')),
-          [wifi, wifi]);
+        bridge.lateAttributes.where((a) => a.containsKey('network_type')),
+        [wifi, wifi],
+      );
       await host.shutdown();
     });
 
@@ -1654,12 +1956,14 @@ void main() {
       final opened = <int>[];
       final host = _host(
         _FakeBridge(stateValue: frb.ProviderState.ready),
-        providers:
-            _providers(deviceType: () => throw const HostContextUnavailable()),
+        providers: _providers(
+          deviceType: () => throw const HostContextUnavailable(),
+        ),
         networkTypeEvents: (epoch) {
           opened.add(epoch);
-          return Stream<Object?>.error(const HostContextUnavailable())
-              .asBroadcastStream();
+          return Stream<Object?>.error(
+            const HostContextUnavailable(),
+          ).asBroadcastStream();
         },
         networkResume: networkResume,
         reportError: (error, _) => errors.add(error),
@@ -1670,35 +1974,42 @@ void main() {
       await pumpEventQueue();
       networkResume.onForeground!();
       await pumpEventQueue();
-      expect(errors.whereType<HostContextUnavailable>(), hasLength(1),
-          reason: 'one misconfiguration reads as one error');
+      expect(
+        errors.whereType<HostContextUnavailable>(),
+        hasLength(1),
+        reason: 'one misconfiguration reads as one error',
+      );
       expect(opened, hasLength(1), reason: 'a resume opens no new listen');
       await host.shutdown();
     });
 
-    test('a native side missing only the network channel still reports',
-        () async {
-      final errors = <Object>[];
-      final host = _host(
-        _FakeBridge(stateValue: frb.ProviderState.ready),
-        networkTypeEvents: (epoch) =>
-            Stream<Object?>.error(const HostContextUnavailable())
-                .asBroadcastStream(),
-        reportError: (error, _) => errors.add(error),
-      );
-      await host.initialize(sdkKey: _key);
-      await pumpEventQueue();
-      expect(errors, [const HostContextUnavailable()]);
-      await host.shutdown();
-    });
+    test(
+      'a native side missing only the network channel still reports',
+      () async {
+        final errors = <Object>[];
+        final host = _host(
+          _FakeBridge(stateValue: frb.ProviderState.ready),
+          networkTypeEvents: (epoch) => Stream<Object?>.error(
+            const HostContextUnavailable(),
+          ).asBroadcastStream(),
+          reportError: (error, _) => errors.add(error),
+        );
+        await host.initialize(sdkKey: _key);
+        await pumpEventQueue();
+        expect(errors, [const HostContextUnavailable()]);
+        await host.shutdown();
+      },
+    );
 
     test('a networkResume binder that throws still lets initialize succeed '
         'and reports the error', () async {
       final errors = <Object>[];
       final networkResume = _RecordingForeground(throwsOnBind: true);
-      final host = _host(_FakeBridge(stateValue: frb.ProviderState.ready),
-          networkResume: networkResume,
-          reportError: (error, _) => errors.add(error));
+      final host = _host(
+        _FakeBridge(stateValue: frb.ProviderState.ready),
+        networkResume: networkResume,
+        reportError: (error, _) => errors.add(error),
+      );
 
       final client = await host.initialize(sdkKey: _key);
       expect(client, isNotNull);
@@ -1727,12 +2038,19 @@ void main() {
       gate.complete();
       await pumpEventQueue();
 
-      final networkWrites =
-          bridge.lateWrites.where((w) => w.attributes.containsKey('network_type'));
-      expect(networkWrites.where((w) => w.handleId == firstHandleId), isEmpty,
-          reason: 'the write never reaches the first runtime after shutdown');
-      expect(networkWrites.where((w) => w.handleId == secondHandleId), isEmpty,
-          reason: 'the first runtime\'s event never reaches the replacement');
+      final networkWrites = bridge.lateWrites.where(
+        (w) => w.attributes.containsKey('network_type'),
+      );
+      expect(
+        networkWrites.where((w) => w.handleId == firstHandleId),
+        isEmpty,
+        reason: 'the write never reaches the first runtime after shutdown',
+      );
+      expect(
+        networkWrites.where((w) => w.handleId == secondHandleId),
+        isEmpty,
+        reason: 'the first runtime\'s event never reaches the replacement',
+      );
       await host.shutdown();
     });
 
@@ -1744,8 +2062,10 @@ void main() {
 
       // The matcher attaches to the future immediately, so a rejection that
       // settles during the pump below is never briefly unhandled
-      final expectation =
-          expectLater(host.initialize(sdkKey: _key), throwsA(anything));
+      final expectation = expectLater(
+        host.initialize(sdkKey: _key),
+        throwsA(anything),
+      );
       await pumpEventQueue();
       // Best-effort: emit only if the listen has already started by the time
       // readiness has had a chance to fail
@@ -1757,8 +2077,9 @@ void main() {
 
       expect(network.live, 0);
       expect(
-          bridge.lateAttributes.where((a) => a.containsKey('network_type')),
-          isEmpty);
+        bridge.lateAttributes.where((a) => a.containsKey('network_type')),
+        isEmpty,
+      );
     });
   });
 }

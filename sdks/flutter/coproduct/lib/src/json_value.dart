@@ -81,8 +81,9 @@ Object? unmodifiableJson(Object? value) {
     });
   }
   if (value is List) {
-    return UnmodifiableListView<Object?>(
-        [for (final element in value) unmodifiableJson(element)]);
+    return UnmodifiableListView<Object?>([
+      for (final element in value) unmodifiableJson(element),
+    ]);
   }
   return value;
 }

@@ -31,11 +31,7 @@ import 'package:coproduct/coproduct.dart';
 /// there instead and pass `client:` explicitly, and then needs no scope
 final class CoproductScope extends InheritedWidget {
   /// Makes [client] available to [child] and every widget below it
-  const CoproductScope({
-    super.key,
-    required this.client,
-    required super.child,
-  });
+  const CoproductScope({super.key, required this.client, required super.child});
 
   /// The client that [of] returns to every widget below this scope
   final CoproductClient client;

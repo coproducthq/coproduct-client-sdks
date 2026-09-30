@@ -1,4 +1,5 @@
-import 'package:flutter/widgets.dart' show AppLifecycleListener, AppLifecycleState;
+import 'package:flutter/widgets.dart'
+    show AppLifecycleListener, AppLifecycleState;
 
 import 'host.dart' show ForegroundBinder;
 

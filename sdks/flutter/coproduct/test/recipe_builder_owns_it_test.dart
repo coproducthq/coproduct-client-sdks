@@ -13,17 +13,19 @@ void main() {
     final harness = CoproductTestHarness()..setBool('new-checkout', false);
     addTearDown(harness.shutdown);
 
-    await tester.pumpWidget(MaterialApp(
-      home: CoproductScope(
-        client: harness.client,
-        child: CoproductFlagBuilder.boolFlag(
-          flagKey: 'new-checkout',
-          defaultValue: false,
-          builder: (context, enabled, child) =>
-              enabled ? const NewCheckout() : const OldCheckout(),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CoproductScope(
+          client: harness.client,
+          child: CoproductFlagBuilder.boolFlag(
+            flagKey: 'new-checkout',
+            defaultValue: false,
+            builder: (context, enabled, child) =>
+                enabled ? const NewCheckout() : const OldCheckout(),
+          ),
         ),
       ),
-    ));
+    );
 
     expect(find.byType(OldCheckout), findsOneWidget);
 
