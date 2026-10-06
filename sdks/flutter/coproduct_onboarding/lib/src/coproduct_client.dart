@@ -1,27 +1,26 @@
 import 'models/onboarding_flow_graph.dart';
 
-/// The minimum this package needs from the base Coproduct Flutter SDK
-/// (flag evaluation, sdkContext, an onboarding-flow-content fetch) to drive
-/// an onboarding flow.
+/// This package needs flag evaluation, sdkContext, and an onboarding-flow
+/// fetch from the base Coproduct Flutter SDK. This contract defines that
+/// minimum surface.
 ///
-/// The base SDK (`package:coproduct`) does not implement this contract
-/// today: its own `CoproductClient` exposes typed flag getters
-/// (`getString`, `getJson`, ...) but no onboarding-flow fetch and no direct
-/// read of the device's attributes/segment memberships. A host app wires
-/// this package to the base SDK through an adapter that implements
-/// [CoproductClient] in terms of the base SDK's public API (for example,
-/// implementing [fetchOnboardingFlow] as an authenticated HTTP GET against
-/// edge-worker's `/v1/onboarding-flows/:flowId`, using whatever SDK key and
-/// base URL the base SDK already holds for its own snapshot polling, and
-/// reading [sdkContextAttributes]/[sdkContextSegmentKeys] from whatever the
-/// base SDK exposes for the evaluated context). That adapter is not built
-/// by this package.
+/// The base SDK does not implement this contract. Its `CoproductClient`
+/// (in `package:coproduct`) has typed flag getters like `getString` and
+/// `getJson`. It has no onboarding-flow fetch. It has no direct read of
+/// device attributes or segment memberships.
 ///
-/// This type's name intentionally matches the base SDK's own
-/// `CoproductClient` class, since both describe the same underlying
-/// concept from each package's own vantage point. A file importing both
-/// packages needs an import alias to disambiguate
-/// (`import 'package:coproduct/coproduct.dart' as base;`).
+/// A host app bridges the gap with an adapter. The adapter implements
+/// [CoproductClient] using the base SDK's public API. For example,
+/// [fetchOnboardingFlow] can call edge-worker's
+/// `/v1/onboarding-flows/:flowId` over HTTP. It can reuse the base SDK's
+/// SDK key and base URL. [sdkContextAttributes] and
+/// [sdkContextSegmentKeys] can read from the base SDK's evaluated context.
+/// This package does not ship that adapter.
+///
+/// This type's name matches the base SDK's `CoproductClient` class. Both
+/// describe the same concept from a different vantage point. A file that
+/// imports both packages needs an import alias, such as
+/// `import 'package:coproduct/coproduct.dart' as base;`.
 abstract interface class CoproductClient {
   /// Resolves an ordinary flag to its current variation value for this
   /// device, exactly the way any other flag resolves. For an onboarding
