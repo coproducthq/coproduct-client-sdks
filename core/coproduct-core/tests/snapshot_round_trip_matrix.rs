@@ -173,6 +173,7 @@ fn snapshot_envelope_minimal_then_full() {
         version: 1,
         flags: vec![],
         segments: vec![],
+        onboarding_flows: vec![],
     });
     round_trip(&Snapshot {
         schema_version: 1,
@@ -196,6 +197,7 @@ fn snapshot_envelope_minimal_then_full() {
             experiment: None,
         }],
         segments: vec![],
+        onboarding_flows: vec![],
     });
 }
 

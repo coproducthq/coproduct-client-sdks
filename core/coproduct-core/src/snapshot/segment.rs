@@ -69,6 +69,15 @@ where
     deserialize_tolerant_vec(deserializer)
 }
 
+fn deserialize_tolerant_onboarding_flows<'de, D>(
+    deserializer: D,
+) -> Result<Vec<OnboardingFlowEntry>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_tolerant_vec(deserializer)
+}
+
 /// A reusable group of users targetable by name from any flag's
 /// `Condition::Segment { segment_key }`. `name` is carried in the SDK-facing
 /// snapshot because tooling can surface the human-readable label on matches
@@ -94,6 +103,22 @@ pub struct SegmentRule {
     pub values: Vec<String>,
 }
 
+/// One resolved onboarding flow's content, as it reaches a device: the
+/// flowId a pointer flag's variation resolves to, the graph for whichever
+/// version this environment is pinned to (or HEAD, unpinned), and that
+/// version number. `graph` stays opaque JSON here rather than a typed
+/// screen/transition graph -- the core has no business logic over an
+/// onboarding flow's content, it only carries it from the snapshot to
+/// whichever host wrapper renders it (see coproduct_onboarding's own typed
+/// `OnboardingFlowGraph` on the Dart/TS side)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OnboardingFlowEntry {
+    #[serde(rename = "flowId")]
+    pub flow_id: String,
+    pub graph: serde_json::Value,
+    pub version: u64,
+}
+
 /// Snapshot body. The server wraps this in an outer
 /// `{ snapshot, sdkContext }` envelope. The version fence reads the inner
 /// `schemaVersion` before paying the full deserialization cost (see
@@ -113,6 +138,12 @@ pub struct Snapshot {
     pub flags: Vec<Flag>,
     #[serde(default, deserialize_with = "deserialize_tolerant_segments")]
     pub segments: Vec<Segment>,
+    #[serde(
+        rename = "onboardingFlows",
+        default,
+        deserialize_with = "deserialize_tolerant_onboarding_flows"
+    )]
+    pub onboarding_flows: Vec<OnboardingFlowEntry>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,6 +174,7 @@ pub struct IndexedSnapshot {
     pub environment: EnvironmentMetadata,
     pub flags: std::collections::HashMap<String, Flag>,
     pub segments: std::collections::HashMap<String, Segment>,
+    pub onboarding_flows: std::collections::HashMap<String, OnboardingFlowEntry>,
 }
 
 impl IndexedSnapshot {
@@ -157,6 +189,7 @@ impl IndexedSnapshot {
             environment: self.environment.clone(),
             flags: self.flags.values().cloned().collect(),
             segments: self.segments.values().cloned().collect(),
+            onboarding_flows: self.onboarding_flows.values().cloned().collect(),
         }
     }
 }
@@ -183,6 +216,11 @@ impl From<Snapshot> for IndexedSnapshot {
     fn from(wire: Snapshot) -> Self {
         let flags = index_by_key(wire.flags, |f| f.key.clone(), "flag");
         let segments = index_by_key(wire.segments, |s| s.key.clone(), "segment");
+        let onboarding_flows = index_by_key(
+            wire.onboarding_flows,
+            |f| f.flow_id.clone(),
+            "onboarding_flow",
+        );
         Self {
             schema_version: wire.schema_version,
             generated_at: wire.generated_at,
@@ -190,6 +228,7 @@ impl From<Snapshot> for IndexedSnapshot {
             environment: wire.environment,
             flags,
             segments,
+            onboarding_flows,
         }
     }
 }

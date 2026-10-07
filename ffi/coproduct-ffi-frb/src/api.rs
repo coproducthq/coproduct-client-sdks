@@ -181,6 +181,23 @@ pub fn get_json(client: &CoproductClientHandle, key: String, default_value_json:
     client.inner.get_json(key, default).to_string()
 }
 
+// The onboarding flow graph a `flowId` resolves to in the cached snapshot's
+// onboardingFlows section, JSON-encoded like get_json above. Unlike get_json
+// this is a direct snapshot lookup, not a flag evaluation -- there is no
+// caller default, since an absent flowId is a real "not present" case a host
+// wrapper must handle (not-ready, wrong flowId, or shut down), not a value to
+// paper over
+#[frb(sync)]
+pub fn get_onboarding_flow_graph(
+    client: &CoproductClientHandle,
+    flow_id: String,
+) -> Option<String> {
+    client
+        .inner
+        .get_onboarding_flow_graph(&flow_id)
+        .map(|graph| graph.to_string())
+}
+
 // Identity mutators for the evaluation context. These are async because an
 // identity change fires identity-lifecycle events, and the sign-out path awaits
 // the persistence attempt for the restored anonymous identity, though a

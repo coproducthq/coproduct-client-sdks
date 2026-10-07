@@ -1188,6 +1188,23 @@ impl CoproductClient {
             _ => None,
         })
     }
+
+    /// Returns the onboarding flow graph for `flow_id` from the cached
+    /// snapshot's `onboardingFlows` section, or `None` when not ready, not
+    /// present in the snapshot (unresolved flowId, or shut down). Unlike
+    /// `get_json` and its siblings, this is a direct snapshot lookup, not a
+    /// flag evaluation: no hooks fire and no evaluation event is emitted,
+    /// since a flow graph is content, not a targeted value
+    pub fn get_onboarding_flow_graph(&self, flow_id: &str) -> Option<serde_json::Value> {
+        if self.is_shutdown() {
+            return None;
+        }
+        let snapshot = self.current_snapshot()?;
+        snapshot
+            .onboarding_flows
+            .get(flow_id)
+            .map(|entry| entry.graph.clone())
+    }
 }
 
 impl CoproductClient {

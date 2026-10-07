@@ -524,4 +524,14 @@ void main() {
       }
     });
   });
+
+  group('pollNow', () {
+    test('records each call, for a caller to assert an on-demand poll happened', () async {
+      expect(backend.pollNowCallCount, 0);
+      await backend.pollNow();
+      expect(backend.pollNowCallCount, 1);
+      await backend.pollNow();
+      expect(backend.pollNowCallCount, 2);
+    });
+  });
 }

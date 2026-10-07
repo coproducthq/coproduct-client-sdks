@@ -43,6 +43,10 @@ abstract interface class CoproductClientBackend {
   /// Decoding happens above this boundary
   String getJson(String key, {required String defaultValueJson});
 
+  /// Returns the encoded JSON text for [flowId]'s onboarding flow graph in the
+  /// cached snapshot, or null if absent. Decoding happens above this boundary
+  String? getOnboardingFlowGraph(String flowId);
+
   ObservationHandle<bool> observeBool(String key);
   ObservationHandle<String> observeString(String key);
   ObservationHandle<int> observeInt(String key);
@@ -63,6 +67,11 @@ abstract interface class CoproductClientBackend {
   });
   Future<void> updateAttributes(Map<String, AttributeValue> attributes);
   Future<void> removeAttributes(List<String> names);
+
+  /// Polls immediately, independent of the scheduler's own timer. The core
+  /// dedupes an overlapping in-flight poll (PollOutcome.dedupedSkipped), so
+  /// this is safe to call even while a scheduled poll is already in flight
+  Future<void> pollNow();
 
   String? get previousAnonymousId;
   ProviderState get state;

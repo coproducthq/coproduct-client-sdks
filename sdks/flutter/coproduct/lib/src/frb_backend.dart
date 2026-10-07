@@ -39,6 +39,10 @@ final class FrbBackend implements CoproductClientBackend {
       frb.getJson(client: handle, key: key, defaultValueJson: defaultValueJson);
 
   @override
+  String? getOnboardingFlowGraph(String flowId) =>
+      frb.getOnboardingFlowGraph(client: handle, flowId: flowId);
+
+  @override
   ObservationHandle<bool> observeBool(String key) {
     final session = frb.observeBool(client: handle, key: key);
     return ObservationHandle<bool>(
@@ -127,6 +131,11 @@ final class FrbBackend implements CoproductClientBackend {
   @override
   Future<void> removeAttributes(List<String> names) =>
       frb.removeAttributes(handle: handle, names: names);
+
+  @override
+  Future<void> pollNow() async {
+    await frb.pollNow(client: handle);
+  }
 
   @override
   String? get previousAnonymousId => frb.previousAnonymousId(handle: handle);

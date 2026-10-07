@@ -158,6 +158,7 @@ fn a_rejected_clear_leaves_the_disk_cache_and_the_provider_alone() {
             environment: Default::default(),
             flags: vec![],
             segments: vec![],
+            onboarding_flows: vec![],
         },
     )))));
     let ctx = context_with(

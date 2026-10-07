@@ -124,6 +124,7 @@ pub mod test_support {
             environment: Default::default(),
             flags: map,
             segments: HashMap::new(),
+            onboarding_flows: HashMap::new(),
         }
     }
 
@@ -137,6 +138,7 @@ pub mod test_support {
             environment: Default::default(),
             flags: vec![],
             segments: vec![],
+            onboarding_flows: vec![],
         }
         .into()
     }
