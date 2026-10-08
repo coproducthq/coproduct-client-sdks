@@ -35,6 +35,14 @@ class CoproductPaywall extends StatefulWidget {
   final void Function(PaywallLoadError error)? onLoadError;
   final void Function()? onDismiss;
 
+  /// When set, and [client] is not overridden, the default HttpPaywallClient
+  /// fetches straight from the R2-backed content CDN for this environment
+  /// instead of the edge-worker api, with no fallback between the two. Omit
+  /// this to keep using the api, unconditionally -- the safe default for a
+  /// paywall that may not have been redeployed since this content-CDN path
+  /// shipped (see coproduct-platform's R2 content delivery work).
+  final String? envSlug;
+
   /// Overridable for tests. Defaults to the real HTTP client and the real
   /// StoreKit2 MethodChannel bridge.
   final PaywallClient? client;
@@ -46,6 +54,7 @@ class CoproductPaywall extends StatefulWidget {
     required this.appUserId,
     required this.sdkKey,
     required this.platformScriptJs,
+    this.envSlug,
     this.onPurchaseResult,
     this.onPurchaseError,
     this.onLoadError,
@@ -58,8 +67,9 @@ class CoproductPaywall extends StatefulWidget {
   /// app calls this once and passes the result into [platformScriptJs]
   /// rather than knowing the asset path itself -- mirrors
   /// CoproductOnboardingFlow.loadPlatformScript.
-  static Future<String> loadPlatformScript() =>
-      rootBundle.loadString('packages/coproduct_paywall/assets/paywall-platform-script.js');
+  static Future<String> loadPlatformScript() => rootBundle.loadString(
+    'packages/coproduct_paywall/assets/paywall-platform-script.js',
+  );
 
   @override
   State<CoproductPaywall> createState() => _CoproductPaywallState();
@@ -76,7 +86,9 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
   }
 
   Future<void> _boot() async {
-    final client = widget.client ?? HttpPaywallClient(sdkKey: widget.sdkKey);
+    final client =
+        widget.client ??
+        HttpPaywallClient(sdkKey: widget.sdkKey, envSlug: widget.envSlug);
     final bridge = widget.bridge ?? const MethodChannelPaywallBridge();
 
     PaywallSnapshot? snapshot;
@@ -87,7 +99,9 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       return;
     }
     if (snapshot == null) {
-      widget.onLoadError?.call(const PaywallLoadError('Paywall not found for this environment.'));
+      widget.onLoadError?.call(
+        const PaywallLoadError('Paywall not found for this environment.'),
+      );
       return;
     }
     // A local var's null-promotion doesn't persist into a closure declared
@@ -101,7 +115,9 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       appUserId: widget.appUserId,
       setPrices: (prices) async {
         try {
-          await _controller?.runJavaScript('window.__coproductSetPrices__(${jsonEncode(prices)})');
+          await _controller?.runJavaScript(
+            'window.__coproductSetPrices__(${jsonEncode(prices)})',
+          );
         } catch (_) {
           // The WebView may already be torn down by the time prices
           // resolve -- nothing to do
@@ -119,23 +135,25 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
 
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest: (request) async {
-          final decision = await runtime.handleNavigationRequest(request.url);
-          return decision == PaywallNavigationDecision.prevent
-              ? NavigationDecision.prevent
-              : NavigationDecision.navigate;
-        },
-        // Price injection runs JS against the page's own global, so it must
-        // wait for the inline <script> to have actually executed -- firing
-        // it right after loadHtmlString's Future completes (which only
-        // means the load was *initiated*) races a cold WebView's first
-        // paint and can silently miss, especially since a cached StoreKit
-        // price can resolve faster than that paint
-        onPageFinished: (_) {
-          unawaited(runtime.onSnapshotLoaded(resolvedSnapshot));
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) async {
+            final decision = await runtime.handleNavigationRequest(request.url);
+            return decision == PaywallNavigationDecision.prevent
+                ? NavigationDecision.prevent
+                : NavigationDecision.navigate;
+          },
+          // Price injection runs JS against the page's own global, so it must
+          // wait for the inline <script> to have actually executed -- firing
+          // it right after loadHtmlString's Future completes (which only
+          // means the load was *initiated*) races a cold WebView's first
+          // paint and can silently miss, especially since a cached StoreKit
+          // price can resolve faster than that paint
+          onPageFinished: (_) {
+            unawaited(runtime.onSnapshotLoaded(resolvedSnapshot));
+          },
+        ),
+      )
       ..loadHtmlString(html);
 
     if (!mounted) return;
