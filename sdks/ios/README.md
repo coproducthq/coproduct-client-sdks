@@ -2,7 +2,7 @@
 
 Swift SDK for [Coproduct](https://coproduct.app), a feature management platform. It downloads your flags, evaluates them on the device, and keeps them up to date, so reading a flag is an instant call that works offline.
 
-> **Pre-release.** This SDK is not published yet, so you cannot install it from a package URL. The installation steps below describe how it will work once it is released. The API can still change before then. To try it now, build it from source (see [Building from source](#building-from-source)).
+> **Releasing soon.** You can build this SDK from source, and [Building from source](#building-from-source) shows how. Installing it from a package URL arrives at release, and the API can still change before then.
 >
 > This SDK covers feature flags only: downloading them, evaluating them on the device, targeting them at users, and reacting to changes. It does not record which value a user saw and sends no analytics events.
 
@@ -126,7 +126,7 @@ That is a working integration. Flag changes you make in Coproduct reach the runn
 
 ## Installation
 
-> The SDK is not published yet. The package URL and version are set at release, so the lines below use placeholders and cannot be copied as is.
+> Releasing soon. The package URL and version are set at release, so the lines below show the shape of the dependency rather than values you can copy. To use the SDK now, see [Building from source](#building-from-source).
 
 In Xcode, choose **File > Add Package Dependencies**, enter the package URL, and add the `Coproduct` library to your app target.
 
@@ -729,7 +729,7 @@ The user id you pass to `identify` and the attributes you set are held in memory
 
 ### Privacy manifest
 
-The package does not yet include a privacy manifest (`PrivacyInfo.xcprivacy`), and one is required before it is released. The SDK reads and writes `UserDefaults`, which Apple lists as a required-reason API. If you ship an app build with this pre-release SDK, declare that access in your app's own `PrivacyInfo.xcprivacy`, under `NSPrivacyAccessedAPITypes`, with the category `NSPrivacyAccessedAPICategoryUserDefaults` and the reason `CA92.1`. The SDK's code is linked into your app's binary, so your app's manifest covers it. Add the same entry to any app extension that uses the SDK. The SDK has not yet been checked for every required-reason API it uses. If App Store Connect reports another missing reason after you upload a build, declare the reason that matches the SDK's use.
+The package does not yet include a privacy manifest (`PrivacyInfo.xcprivacy`), and one is required before it is released. The SDK reads and writes `UserDefaults`, which Apple lists as a required-reason API. If you ship an app build with this SDK, declare that access in your app's own `PrivacyInfo.xcprivacy`, under `NSPrivacyAccessedAPITypes`, with the category `NSPrivacyAccessedAPICategoryUserDefaults` and the reason `CA92.1`. The SDK's code is linked into your app's binary, so your app's manifest covers it. Add the same entry to any app extension that uses the SDK. The SDK has not yet been checked for every required-reason API it uses. If App Store Connect reports another missing reason after you upload a build, declare the reason that matches the SDK's use.
 
 Google Play's Data safety form and Apple's App Privacy details can treat the approximate location above as collected data. Check both against Coproduct's data retention policy before you submit your app.
 
