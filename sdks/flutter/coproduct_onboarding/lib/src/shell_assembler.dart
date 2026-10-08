@@ -43,6 +43,7 @@ class ShellAssembler {
                 'id': s.id,
                 'transitions': s.transitions.map((t) => t.toJson()).toList(),
                 'defaultNext': s.defaultNext.toJson(),
+                if (s.onLoad != null) 'onLoad': s.onLoad!.toJson(),
               })
           .toList(),
       'sdkContext': {
