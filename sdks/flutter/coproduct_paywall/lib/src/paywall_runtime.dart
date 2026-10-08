@@ -9,7 +9,7 @@ import 'paywall_client.dart';
 /// testable without importing a plugin that needs a real platform channel.
 enum PaywallNavigationDecision { prevent, navigate }
 
-enum PaywallPurchaseErrorReason { unresolvedProduct, serverRejected }
+enum PaywallPurchaseErrorReason { unresolvedProduct, serverRejected, networkError }
 
 class PaywallPurchaseError {
   final PaywallPurchaseErrorReason reason;
@@ -109,6 +109,12 @@ class PaywallRuntime {
       onPurchaseResult?.call(result);
     } on PaywallServerError catch (e) {
       onPurchaseError?.call(PaywallPurchaseError(PaywallPurchaseErrorReason.serverRejected, serverCode: e.code));
+    } catch (_) {
+      // StoreKit already charged the user by this point (outcome ==
+      // success, above) -- a transport failure reporting that purchase
+      // must still surface a terminal callback, not propagate uncaught and
+      // leave the paywall UI with no signal after a real charge
+      onPurchaseError?.call(const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError));
     }
   }
 
@@ -124,9 +130,10 @@ class PaywallRuntime {
           purchaseDate: tx.purchaseDate,
           expiresDate: tx.expirationDate,
         );
-      } on PaywallServerError {
-        // One restored transaction failing server-side validation doesn't
-        // abort the rest -- each is reported independently
+      } catch (_) {
+        // One restored transaction failing (server rejection or a
+        // transport error) doesn't abort the rest -- each is reported
+        // independently
         continue;
       }
     }
