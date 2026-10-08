@@ -63,8 +63,8 @@ class PaywallPackageRef {
 
 /// The resolved paywall a device fetches from GET /paywalls/:paywallId,
 /// mirroring @coproduct/snapshot-spec's PaywallSnapshot exactly, field for
-/// field, including the packages map that spec's own Backend addition task
-/// adds alongside content and html.
+/// field, including the packages map the resolve step projects from the
+/// offering alongside content and html.
 class PaywallSnapshot {
   final String paywallId;
   final int version;

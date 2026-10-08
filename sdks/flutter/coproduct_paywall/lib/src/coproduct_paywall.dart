@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -89,6 +90,10 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       widget.onLoadError?.call(const PaywallLoadError('Paywall not found for this environment.'));
       return;
     }
+    // A local var's null-promotion doesn't persist into a closure declared
+    // later in this scope (the onPageFinished callback below) -- binding it
+    // to a final makes the non-null type available there too
+    final PaywallSnapshot resolvedSnapshot = snapshot;
 
     final runtime = PaywallRuntime(
       bridge: bridge,
@@ -121,6 +126,15 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
               ? NavigationDecision.prevent
               : NavigationDecision.navigate;
         },
+        // Price injection runs JS against the page's own global, so it must
+        // wait for the inline <script> to have actually executed -- firing
+        // it right after loadHtmlString's Future completes (which only
+        // means the load was *initiated*) races a cold WebView's first
+        // paint and can silently miss, especially since a cached StoreKit
+        // price can resolve faster than that paint
+        onPageFinished: (_) {
+          unawaited(runtime.onSnapshotLoaded(resolvedSnapshot));
+        },
       ))
       ..loadHtmlString(html);
 
@@ -129,8 +143,6 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       _controller = controller;
       _ready = true;
     });
-
-    await runtime.onSnapshotLoaded(snapshot);
   }
 
   @override

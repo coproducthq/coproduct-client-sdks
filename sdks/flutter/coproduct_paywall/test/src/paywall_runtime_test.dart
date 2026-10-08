@@ -129,12 +129,16 @@ void main() {
     );
     final client = FakePaywallClient();
     PurchaseResult? capturedResult;
+    List<Entitlement>? capturedEntitlements;
     final runtime = PaywallRuntime(
       bridge: bridge,
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) {
+        capturedResult = result;
+        capturedEntitlements = entitlements;
+      },
     );
     await runtime.onSnapshotLoaded(buildSnapshot(
       packages: {'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly')},
@@ -146,6 +150,7 @@ void main() {
     expect(bridge.purchaseCalls, ['premium_monthly']);
     expect(client.recordedTransactionIds, ['tx-1']);
     expect(capturedResult?.outcome, PurchaseOutcome.success);
+    expect(capturedEntitlements?.single.entitlementId, 'premium');
   });
 
   test('a purchase tap for an unresolved packageKey reports unresolvedProduct without calling native', () async {
@@ -178,7 +183,7 @@ void main() {
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) { capturedResult = result; },
     );
     await runtime.onSnapshotLoaded(buildSnapshot(
       packages: {'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly')},
@@ -201,7 +206,7 @@ void main() {
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) { capturedResult = result; },
     );
     await runtime.onSnapshotLoaded(buildSnapshot(
       packages: {'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly')},
@@ -230,7 +235,7 @@ void main() {
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) { capturedResult = result; },
       onPurchaseError: (error) { capturedError = error; },
     );
     await runtime.onSnapshotLoaded(buildSnapshot(
@@ -261,7 +266,7 @@ void main() {
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) { capturedResult = result; },
       onPurchaseError: (error) { capturedError = error; },
     );
     await runtime.onSnapshotLoaded(buildSnapshot(
@@ -283,12 +288,16 @@ void main() {
     );
     final client = FakePaywallClient();
     PurchaseResult? capturedResult;
+    List<Entitlement>? capturedEntitlements;
     final runtime = PaywallRuntime(
       bridge: bridge,
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) {
+        capturedResult = result;
+        capturedEntitlements = entitlements;
+      },
     );
 
     final decision = await runtime.handleNavigationRequest('coproduct-action:restore');
@@ -296,6 +305,7 @@ void main() {
     expect(decision, PaywallNavigationDecision.prevent);
     expect(client.recordedTransactionIds, ['tx-1', 'tx-2']);
     expect(capturedResult?.outcome, PurchaseOutcome.success);
+    expect(capturedEntitlements?.single.entitlementId, 'premium');
   });
 
   test('restore keeps reporting remaining transactions when one throws (server or transport)', () async {
@@ -312,7 +322,7 @@ void main() {
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
-      onPurchaseResult: (result) { capturedResult = result; },
+      onPurchaseResult: (result, entitlements) { capturedResult = result; },
     );
 
     final decision = await runtime.handleNavigationRequest('coproduct-action:restore');

@@ -1,3 +1,4 @@
+import 'models/entitlement.dart';
 import 'models/paywall_snapshot.dart';
 import 'native_paywall_bridge.dart';
 import 'paywall_action.dart';
@@ -18,7 +19,9 @@ class PaywallPurchaseError {
 }
 
 typedef SetPricesCallback = Future<void> Function(Map<String, String> pricesByPackageKey);
-typedef PurchaseResultCallback = void Function(PurchaseResult result);
+// entitlements is the resolved set after this purchase/restore landed --
+// empty for a cancelled/pending outcome, since nothing was recorded server-side
+typedef PurchaseResultCallback = void Function(PurchaseResult result, List<Entitlement> entitlements);
 typedef PurchaseErrorCallback = void Function(PaywallPurchaseError error);
 
 /// Owns everything native does for one paywall session: resolving and
@@ -93,12 +96,13 @@ class PaywallRuntime {
 
     final result = await bridge.purchase(productId);
     if (result.outcome != PurchaseOutcome.success) {
-      onPurchaseResult?.call(result);
+      onPurchaseResult?.call(result, const []);
       return;
     }
 
+    final List<Entitlement> entitlements;
     try {
-      await client.recordPurchase(
+      entitlements = await client.recordPurchase(
         appUserId: appUserId,
         platform: platform,
         storeProductId: productId,
@@ -106,23 +110,33 @@ class PaywallRuntime {
         purchaseDate: result.purchaseDate!,
         expiresDate: result.expirationDate,
       );
-      onPurchaseResult?.call(result);
     } on PaywallServerError catch (e) {
       onPurchaseError?.call(PaywallPurchaseError(PaywallPurchaseErrorReason.serverRejected, serverCode: e.code));
+      return;
     } catch (_) {
       // StoreKit already charged the user by this point (outcome ==
       // success, above) -- a transport failure reporting that purchase
       // must still surface a terminal callback, not propagate uncaught and
       // leave the paywall UI with no signal after a real charge
       onPurchaseError?.call(const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError));
+      return;
     }
+    // Outside the try: a throwing onPurchaseResult callback must never be
+    // misattributed as a networkError by the catch above
+    onPurchaseResult?.call(result, entitlements);
   }
 
   Future<void> _handleRestore() async {
     final transactions = await bridge.restore();
+    // recordPurchase recomputes and returns this appUserId's FULL
+    // entitlement set from every active transaction on each call (not an
+    // incremental diff), so the last successful call's result already
+    // reflects every transaction recorded earlier in this loop -- no
+    // merging across calls needed
+    List<Entitlement> entitlements = const [];
     for (final tx in transactions) {
       try {
-        await client.recordPurchase(
+        entitlements = await client.recordPurchase(
           appUserId: appUserId,
           platform: platform,
           storeProductId: tx.productId,
@@ -137,6 +151,6 @@ class PaywallRuntime {
         continue;
       }
     }
-    onPurchaseResult?.call(const PurchaseResult(outcome: PurchaseOutcome.success));
+    onPurchaseResult?.call(const PurchaseResult(outcome: PurchaseOutcome.success), entitlements);
   }
 }
