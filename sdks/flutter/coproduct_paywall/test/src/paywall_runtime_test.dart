@@ -9,18 +9,23 @@ import 'package:coproduct_paywall/src/models/entitlement.dart';
 
 class FakeNativePaywallBridge implements NativePaywallBridge {
   final Map<String, String> pricesByProductId;
+  final Set<String> productIdsThatThrow;
   PurchaseResult nextPurchaseResult;
   List<RestoredTransaction> restoredTransactions;
   final List<String> purchaseCalls = [];
 
   FakeNativePaywallBridge({
     this.pricesByProductId = const {},
+    this.productIdsThatThrow = const {},
     this.nextPurchaseResult = const PurchaseResult(outcome: PurchaseOutcome.cancelled),
     this.restoredTransactions = const [],
   });
 
   @override
   Future<String> priceFor(String productId) async {
+    if (productIdsThatThrow.contains(productId)) {
+      throw Exception('STOREKIT_ERROR: unknown product $productId');
+    }
     final price = pricesByProductId[productId];
     if (price == null) throw const PaywallBridgeUnavailable();
     return price;
@@ -39,6 +44,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
 class FakePaywallClient implements PaywallClient {
   bool rejectNextPurchase = false;
   bool throwNetworkErrorNextPurchase = false;
+  Set<String> transactionIdsThatThrow = const {};
   final List<String> recordedTransactionIds = [];
 
   @override
@@ -56,7 +62,7 @@ class FakePaywallClient implements PaywallClient {
     if (rejectNextPurchase) {
       throw const PaywallServerError(statusCode: 404, code: 'unknown_product', message: 'Unknown product.');
     }
-    if (throwNetworkErrorNextPurchase) {
+    if (throwNetworkErrorNextPurchase || transactionIdsThatThrow.contains(storeTransactionId)) {
       throw const SocketException('Connection failed');
     }
     recordedTransactionIds.add(storeTransactionId);
@@ -116,6 +122,46 @@ void main() {
     await runtime.onSnapshotLoaded(buildSnapshot());
 
     expect(setPricesCalled, isFalse);
+  });
+
+  test('onSnapshotLoaded skips a product whose priceFor throws a non-PaywallBridgeUnavailable error', () async {
+    final bridge = FakeNativePaywallBridge(
+      pricesByProductId: {'premium_annual': '\$89.99/yr'},
+      productIdsThatThrow: {'premium_monthly'},
+    );
+    final client = FakePaywallClient();
+    Map<String, String>? capturedPrices;
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: client,
+      appUserId: 'user-1',
+      setPrices: (prices) async { capturedPrices = prices; },
+    );
+
+    final snapshot = PaywallSnapshot(
+      paywallId: 'p-1',
+      version: 1,
+      templateType: 'hero_single_offer',
+      content: const PaywallContent(
+        headline: 'Go Premium',
+        offeringKey: 'default',
+        ctas: [
+          PaywallCta(packageKey: 'monthly', label: 'Subscribe monthly'),
+          PaywallCta(packageKey: 'annual', label: 'Subscribe annually'),
+        ],
+      ),
+      packages: {
+        'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly'),
+        'annual': const PaywallPackageRef(iosProductId: 'premium_annual'),
+      },
+      html: '<section></section>',
+    );
+
+    // Must not throw out of onSnapshotLoaded even though one product's
+    // priceFor call throws a generic (non-PaywallBridgeUnavailable) error
+    await runtime.onSnapshotLoaded(snapshot);
+
+    expect(capturedPrices, {'annual': '\$89.99/yr'});
   });
 
   test('a purchase tap resolves the product id, purchases, and reports the result', () async {
@@ -315,24 +361,85 @@ void main() {
         RestoredTransaction(transactionId: 'tx-2', productId: 'premium_annual', purchaseDate: DateTime.utc(2026, 1, 1)),
       ],
     );
+    // Only tx-1 fails -- tx-2 still records, so this is a partial failure,
+    // intentionally still reported as overall success with tx-2's entitlements
+    final client = FakePaywallClient()..transactionIdsThatThrow = {'tx-1'};
+    PurchaseResult? capturedResult;
+    List<Entitlement>? capturedEntitlements;
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: client,
+      appUserId: 'user-1',
+      setPrices: (_) async {},
+      onPurchaseResult: (result, entitlements) {
+        capturedResult = result;
+        capturedEntitlements = entitlements;
+      },
+    );
+
+    final decision = await runtime.handleNavigationRequest('coproduct-action:restore');
+
+    // tx-1 throws and is skipped, but tx-2 still lands and the loop still
+    // completes for both without propagating, reporting a terminal success
+    expect(decision, PaywallNavigationDecision.prevent);
+    expect(client.recordedTransactionIds, ['tx-2']);
+    expect(capturedResult?.outcome, PurchaseOutcome.success);
+    expect(capturedEntitlements?.single.entitlementId, 'premium');
+  });
+
+  test('restore reports onPurchaseError, not a fabricated success, when every recordPurchase call fails', () async {
+    final bridge = FakeNativePaywallBridge(
+      restoredTransactions: [
+        RestoredTransaction(transactionId: 'tx-1', productId: 'premium_monthly', purchaseDate: DateTime.utc(2026, 1, 1)),
+        RestoredTransaction(transactionId: 'tx-2', productId: 'premium_annual', purchaseDate: DateTime.utc(2026, 1, 1)),
+      ],
+    );
     final client = FakePaywallClient()..throwNetworkErrorNextPurchase = true;
     PurchaseResult? capturedResult;
+    PaywallPurchaseError? capturedError;
     final runtime = PaywallRuntime(
       bridge: bridge,
       client: client,
       appUserId: 'user-1',
       setPrices: (_) async {},
       onPurchaseResult: (result, entitlements) { capturedResult = result; },
+      onPurchaseError: (error) { capturedError = error; },
     );
 
     final decision = await runtime.handleNavigationRequest('coproduct-action:restore');
 
-    // Every recordPurchase call throws, so neither transaction lands in
-    // recordedTransactionIds -- the point is that the loop still completes
-    // for both without propagating, and still reports a terminal result
+    // Every recordPurchase call throws -- a real prior purchase whose restore
+    // never reached the server must not look identical to "nothing to restore"
     expect(decision, PaywallNavigationDecision.prevent);
     expect(client.recordedTransactionIds, isEmpty);
+    expect(capturedResult, isNull);
+    expect(capturedError?.reason, PaywallPurchaseErrorReason.networkError);
+  });
+
+  test('restore with no transactions found reports success with empty entitlements', () async {
+    final bridge = FakeNativePaywallBridge(restoredTransactions: const []);
+    final client = FakePaywallClient();
+    PurchaseResult? capturedResult;
+    List<Entitlement>? capturedEntitlements;
+    PaywallPurchaseError? capturedError;
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: client,
+      appUserId: 'user-1',
+      setPrices: (_) async {},
+      onPurchaseResult: (result, entitlements) {
+        capturedResult = result;
+        capturedEntitlements = entitlements;
+      },
+      onPurchaseError: (error) { capturedError = error; },
+    );
+
+    final decision = await runtime.handleNavigationRequest('coproduct-action:restore');
+
+    expect(decision, PaywallNavigationDecision.prevent);
+    expect(capturedError, isNull);
     expect(capturedResult?.outcome, PurchaseOutcome.success);
+    expect(capturedEntitlements, isEmpty);
   });
 
   test('dismiss calls onDismiss and returns prevent', () async {

@@ -65,7 +65,10 @@ class PaywallRuntime {
       if (productId == null) continue;
       try {
         prices[cta.packageKey] = await bridge.priceFor(productId);
-      } on PaywallBridgeUnavailable {
+      } catch (_) {
+        // One product's pricing failure (plugin unavailable, or a native
+        // StoreKit error for this specific product such as UNKNOWN_PRODUCT)
+        // must not abort pricing for the rest of the ctas in this snapshot
         continue;
       }
     }
@@ -128,12 +131,19 @@ class PaywallRuntime {
 
   Future<void> _handleRestore() async {
     final transactions = await bridge.restore();
+    if (transactions.isEmpty) {
+      // Nothing to restore is a legitimate, successful outcome -- distinct
+      // from every found transaction failing to record, below
+      onPurchaseResult?.call(const PurchaseResult(outcome: PurchaseOutcome.success), const []);
+      return;
+    }
     // recordPurchase recomputes and returns this appUserId's FULL
     // entitlement set from every active transaction on each call (not an
     // incremental diff), so the last successful call's result already
     // reflects every transaction recorded earlier in this loop -- no
     // merging across calls needed
     List<Entitlement> entitlements = const [];
+    var anyRecorded = false;
     for (final tx in transactions) {
       try {
         entitlements = await client.recordPurchase(
@@ -144,12 +154,21 @@ class PaywallRuntime {
           purchaseDate: tx.purchaseDate,
           expiresDate: tx.expirationDate,
         );
+        anyRecorded = true;
       } catch (_) {
         // One restored transaction failing (server rejection or a
         // transport error) doesn't abort the rest -- each is reported
         // independently
         continue;
       }
+    }
+    if (!anyRecorded) {
+      // Transactions existed but none recorded -- reporting success with an
+      // empty entitlement list here would be indistinguishable from a user
+      // who genuinely has nothing to restore, hiding a real prior purchase
+      // whose restore never reached the server
+      onPurchaseError?.call(const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError));
+      return;
     }
     onPurchaseResult?.call(const PurchaseResult(outcome: PurchaseOutcome.success), entitlements);
   }
