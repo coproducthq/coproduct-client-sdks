@@ -1,3 +1,4 @@
+import 'native_on_load_request.dart';
 import 'next_target.dart';
 import 'transition.dart';
 
@@ -9,12 +10,14 @@ class Screen {
   final String html;
   final List<Transition> transitions;
   final NextTarget defaultNext;
+  final NativeOnLoadRequest? onLoad;
 
   const Screen({
     required this.id,
     required this.html,
     required this.transitions,
     required this.defaultNext,
+    this.onLoad,
   });
 
   factory Screen.fromJson(Map<String, dynamic> json) => Screen(
@@ -24,5 +27,8 @@ class Screen {
             .map((t) => Transition.fromJson(t as Map<String, dynamic>))
             .toList(),
         defaultNext: NextTarget.fromJson(json['defaultNext'] as Map<String, dynamic>),
+        onLoad: json['onLoad'] == null
+            ? null
+            : NativeOnLoadRequest.fromJson(json['onLoad'] as Map<String, dynamic>),
       );
 }
