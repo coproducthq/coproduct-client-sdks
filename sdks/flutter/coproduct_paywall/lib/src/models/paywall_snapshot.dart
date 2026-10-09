@@ -15,31 +15,28 @@ class PaywallCta {
 }
 
 /// A paywall's authored content, mirroring @coproduct/snapshot-spec's
-/// PaywallContent. imageAssetId and body are optional because a paywall's
-/// hero_single_offer template doesn't require either.
+/// PaywallContent. html is author-written markup (the same model
+/// coproduct_onboarding's Screen.html already uses), not assembled from
+/// structured fields -- this package never reads content.html directly,
+/// since PaywallSnapshot.html already carries the identical string at the
+/// top level for the WebView to load.
 class PaywallContent {
-  final String headline;
-  final String? body;
-  final String? imageAssetId;
   final String offeringKey;
   final List<PaywallCta> ctas;
+  final String html;
 
   const PaywallContent({
-    required this.headline,
-    this.body,
-    this.imageAssetId,
     required this.offeringKey,
     required this.ctas,
+    required this.html,
   });
 
   factory PaywallContent.fromJson(Map<String, dynamic> json) => PaywallContent(
-    headline: json['headline'] as String,
-    body: json['body'] as String?,
-    imageAssetId: json['imageAssetId'] as String?,
     offeringKey: json['offeringKey'] as String,
     ctas: (json['ctas'] as List)
         .map((cta) => PaywallCta.fromJson(cta as Map<String, dynamic>))
         .toList(),
+    html: json['html'] as String,
   );
 }
 
@@ -52,13 +49,18 @@ class PaywallPackageRef {
   final String? androidProductId;
   final String? webProductId;
 
-  const PaywallPackageRef({this.iosProductId, this.androidProductId, this.webProductId});
+  const PaywallPackageRef({
+    this.iosProductId,
+    this.androidProductId,
+    this.webProductId,
+  });
 
-  factory PaywallPackageRef.fromJson(Map<String, dynamic> json) => PaywallPackageRef(
-    iosProductId: json['iosProductId'] as String?,
-    androidProductId: json['androidProductId'] as String?,
-    webProductId: json['webProductId'] as String?,
-  );
+  factory PaywallPackageRef.fromJson(Map<String, dynamic> json) =>
+      PaywallPackageRef(
+        iosProductId: json['iosProductId'] as String?,
+        androidProductId: json['androidProductId'] as String?,
+        webProductId: json['webProductId'] as String?,
+      );
 }
 
 /// The resolved paywall a device fetches from GET /paywalls/:paywallId,
@@ -82,14 +84,20 @@ class PaywallSnapshot {
     required this.html,
   });
 
-  factory PaywallSnapshot.fromJson(Map<String, dynamic> json) => PaywallSnapshot(
-    paywallId: json['paywallId'] as String,
-    version: json['version'] as int,
-    templateType: json['templateType'] as String,
-    content: PaywallContent.fromJson(json['content'] as Map<String, dynamic>),
-    packages: (json['packages'] as Map<String, dynamic>).map(
-      (key, value) => MapEntry(key, PaywallPackageRef.fromJson(value as Map<String, dynamic>)),
-    ),
-    html: json['html'] as String,
-  );
+  factory PaywallSnapshot.fromJson(Map<String, dynamic> json) =>
+      PaywallSnapshot(
+        paywallId: json['paywallId'] as String,
+        version: json['version'] as int,
+        templateType: json['templateType'] as String,
+        content: PaywallContent.fromJson(
+          json['content'] as Map<String, dynamic>,
+        ),
+        packages: (json['packages'] as Map<String, dynamic>).map(
+          (key, value) => MapEntry(
+            key,
+            PaywallPackageRef.fromJson(value as Map<String, dynamic>),
+          ),
+        ),
+        html: json['html'] as String,
+      );
 }

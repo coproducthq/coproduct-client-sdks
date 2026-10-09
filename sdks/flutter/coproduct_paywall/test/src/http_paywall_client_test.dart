@@ -11,11 +11,11 @@ Map<String, dynamic> _paywallJson() => {
   'version': 1,
   'templateType': 'hero_single_offer',
   'content': {
-    'headline': 'Go Premium',
     'offeringKey': 'default',
     'ctas': [
       {'packageKey': 'monthly', 'label': 'Subscribe'},
     ],
+    'html': '<section><h1>Go Premium</h1></section>',
   },
   'packages': {
     'monthly': {'iosProductId': 'premium_monthly'},
