@@ -26,6 +26,7 @@ you choose and `false` to everyone else.
 - [Automatic attributes](#automatic-attributes)
 - [Configuration](#configuration)
 - [Checking for updates](#checking-for-updates)
+- [Onboarding and paywall](#onboarding-and-paywall)
 - [SDK status](#sdk-status)
 - [Errors](#errors)
 - [Privacy and data](#privacy-and-data)
@@ -847,6 +848,10 @@ shows a getter read beside it so you can see that the builder follows changes
 and the getter does not. It renders its first frame before initializing,
 the opposite of the quick start. Both approaches are supported. See
 [example/README.md](example/README.md) for how to run it.
+
+## Onboarding and paywall
+
+This package also includes an agentic onboarding flow runtime (`package:coproduct/onboarding.dart`) and a paywall/Apple Pay surface (`package:coproduct/paywall.dart`), both rendering platform-authored, WebView-driven content with no screen-building code in your app. See [`docs/flutter-onboarding-and-paywall.md`](../../../docs/flutter-onboarding-and-paywall.md) at the repository root for the full integration guide.
 
 ## Building from source
 

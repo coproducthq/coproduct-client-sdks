@@ -30,6 +30,8 @@ const _required = <String>[
   'doc/state_management_recipes.md',
   'doc/testing.md',
   'lib/coproduct.dart',
+  'lib/onboarding.dart',
+  'lib/paywall.dart',
   'lib/testing.dart',
   'example/README.md',
   'example/analysis_options.yaml',
@@ -43,6 +45,7 @@ const _required = <String>[
 /// unexpected ABI, or a stale binary.
 const _platformExact = <String>[
   'ios/Classes/CoproductHostContextPlugin.swift',
+  'ios/Classes/CoproductPaywallPlugin.swift',
   'ios/Classes/DeviceClassifier.swift',
   'ios/Classes/NetworkTypeClassifier.swift',
   'ios/Classes/NetworkTypeObserver.swift',
@@ -72,7 +75,7 @@ const _platformExact = <String>[
 const _exactRoots = <String>['ios/', 'android/'];
 
 /// Prefixes whose contents are permitted without enumeration.
-const _allowedPrefixes = <String>['lib/', 'doc/', 'example/lib/', 'example/assets/'];
+const _allowedPrefixes = <String>['assets/', 'lib/', 'doc/', 'example/lib/', 'example/assets/'];
 
 /// Nothing matching these may ship.
 const _forbidden = <String>[

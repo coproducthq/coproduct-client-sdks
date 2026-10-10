@@ -1,6 +1,6 @@
 name: coproduct
 description: "Flutter SDK for Coproduct, a feature management and experimentation platform."
-version: 1.0.0
+version: 1.1.0
 homepage: https://coproduct.app
 repository: https://github.com/coproducthq/coproduct-client-sdks/tree/main/sdks/flutter/coproduct
 issue_tracker: https://github.com/coproducthq/coproduct-client-sdks/issues
@@ -25,7 +25,10 @@ dependencies:
   http: ^1.6.0
   package_info_plus: ^10.2.1
   path_provider: ^2.1.5
+  permission_handler: ^13.0.2
   plugin_platform_interface: ^2.0.2
+  shared_preferences: ^2.5.5
+  webview_flutter: ^4.14.1
 
 dev_dependencies:
   flutter_test:
@@ -61,6 +64,11 @@ flutter:
       ios:
         ffiPlugin: true
         pluginClass: CoproductHostContextPlugin
+
+  assets:
+    - assets/onboarding/platform-script.js
+    - assets/onboarding/coproduct_fallback_splash.png
+    - assets/paywall/paywall-platform-script.js
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:

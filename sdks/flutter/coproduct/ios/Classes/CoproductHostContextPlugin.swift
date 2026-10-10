@@ -37,6 +37,7 @@ public class CoproductHostContextPlugin: NSObject, FlutterPlugin {
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
+        CoproductPaywallPlugin.register(with: registrar)
         install(
             CoproductHostContextPlugin(),
             messenger: registrar.messenger(),
