@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_paywall/src/paywall_shell_assembler.dart';
+import 'package:coproduct/src/paywall/paywall_shell_assembler.dart';
 
 void main() {
   test('wraps the body html and inlines the platform script', () {

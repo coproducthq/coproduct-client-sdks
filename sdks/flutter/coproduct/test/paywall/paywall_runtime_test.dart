@@ -1,11 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_paywall/src/paywall_runtime.dart';
-import 'package:coproduct_paywall/src/paywall_client.dart';
-import 'package:coproduct_paywall/src/native_paywall_bridge.dart';
-import 'package:coproduct_paywall/src/models/paywall_snapshot.dart';
-import 'package:coproduct_paywall/src/models/entitlement.dart';
+import 'package:coproduct/src/paywall/paywall_runtime.dart';
+import 'package:coproduct/src/paywall/paywall_client.dart';
+import 'package:coproduct/src/paywall/native_paywall_bridge.dart';
+import 'package:coproduct/src/paywall/models/paywall_snapshot.dart';
+import 'package:coproduct/src/paywall/models/entitlement.dart';
 
 class FakeNativePaywallBridge implements NativePaywallBridge {
   final Map<String, String> pricesByProductId;

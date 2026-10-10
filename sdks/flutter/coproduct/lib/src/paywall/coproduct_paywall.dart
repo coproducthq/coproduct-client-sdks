@@ -68,7 +68,7 @@ class CoproductPaywall extends StatefulWidget {
   /// rather than knowing the asset path itself -- mirrors
   /// CoproductOnboardingFlow.loadPlatformScript.
   static Future<String> loadPlatformScript() => rootBundle.loadString(
-    'packages/coproduct_paywall/assets/paywall-platform-script.js',
+    'packages/coproduct/assets/paywall/paywall-platform-script.js',
   );
 
   @override

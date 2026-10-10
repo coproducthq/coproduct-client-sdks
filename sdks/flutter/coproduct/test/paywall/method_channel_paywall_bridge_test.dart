@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_paywall/src/method_channel_paywall_bridge.dart';
-import 'package:coproduct_paywall/src/native_paywall_bridge.dart';
+import 'package:coproduct/src/paywall/method_channel_paywall_bridge.dart';
+import 'package:coproduct/src/paywall/native_paywall_bridge.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

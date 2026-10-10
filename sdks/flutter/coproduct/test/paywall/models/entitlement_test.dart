@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_paywall/src/models/entitlement.dart';
+import 'package:coproduct/src/paywall/models/entitlement.dart';
 
 void main() {
   test('parses an active, renewing entitlement with an expiry', () {

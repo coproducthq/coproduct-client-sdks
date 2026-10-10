@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_paywall/src/paywall_action.dart';
+import 'package:coproduct/src/paywall/paywall_action.dart';
 
 void main() {
   group('PaywallAction.parse', () {

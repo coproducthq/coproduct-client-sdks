@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:coproduct_paywall/src/http_paywall_client.dart';
-import 'package:coproduct_paywall/src/paywall_client.dart';
+import 'package:coproduct/src/paywall/http_paywall_client.dart';
+import 'package:coproduct/src/paywall/paywall_client.dart';
 
 Map<String, dynamic> _paywallJson() => {
   'paywallId': 'p-1',

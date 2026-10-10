@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_paywall/src/models/paywall_snapshot.dart';
+import 'package:coproduct/src/paywall/models/paywall_snapshot.dart';
 
 void main() {
   test('parses a full snapshot, including packages', () {
