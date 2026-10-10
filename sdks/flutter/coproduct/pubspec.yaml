@@ -1,6 +1,6 @@
 name: coproduct
 description: "Flutter SDK for Coproduct, a feature management and experimentation platform."
-version: 1.0.0
+version: 1.1.0
 homepage: https://coproduct.app
 repository: https://github.com/coproducthq/coproduct-client-sdks/tree/main/sdks/flutter/coproduct
 issue_tracker: https://github.com/coproducthq/coproduct-client-sdks/issues
