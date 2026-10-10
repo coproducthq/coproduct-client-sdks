@@ -23,7 +23,7 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
   s.dependency 'Flutter'
   # NWPathMonitor, for network_type. Declared rather than left to Swift
   # autolinking, which a consumer's linkage settings can defeat
-  s.frameworks = 'Network'
+  s.frameworks = 'Network', 'StoreKit'
   s.platform = :ios, '15.0'
 
   s.swift_version = '5.0'
