@@ -60,3 +60,7 @@ example/integration_test/
 
 # The staging script self-test is development tooling
 ios/stage_prebuilt.test.sh
+
+# Maintainer-only tooling to sync the bundled platform scripts from a sibling
+# coproduct-platform checkout; irrelevant to a consumer of the package
+scripts/

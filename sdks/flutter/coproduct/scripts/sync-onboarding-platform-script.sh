@@ -25,5 +25,5 @@ if [ ! -d "$PLATFORM_SCRIPT_PKG" ]; then
 fi
 
 (cd "$PLATFORM_SCRIPT_REPO" && pnpm --filter @coproduct/onboarding-platform-script run build)
-cp "$PLATFORM_SCRIPT_PKG/dist/platform-script.js" "$PACKAGE_DIR/assets/platform-script.js"
+cp "$PLATFORM_SCRIPT_PKG/dist/platform-script.js" "$PACKAGE_DIR/assets/onboarding/platform-script.js"
 echo "Synced platform-script.js"

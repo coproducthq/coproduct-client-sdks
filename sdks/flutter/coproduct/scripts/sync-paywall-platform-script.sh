@@ -25,5 +25,5 @@ if [ ! -d "$PLATFORM_SCRIPT_PKG" ]; then
 fi
 
 (cd "$PLATFORM_SCRIPT_REPO" && pnpm --filter @coproduct/paywall-platform-script run build)
-cp "$PLATFORM_SCRIPT_PKG/dist/paywall-platform-script.js" "$PACKAGE_DIR/assets/paywall-platform-script.js"
+cp "$PLATFORM_SCRIPT_PKG/dist/paywall-platform-script.js" "$PACKAGE_DIR/assets/paywall/paywall-platform-script.js"
 echo "Synced paywall-platform-script.js"
