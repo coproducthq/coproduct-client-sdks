@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_onboarding/src/shell_assembler.dart';
-import 'package:coproduct_onboarding/src/models/onboarding_flow_graph.dart';
+import 'package:coproduct/src/onboarding/shell_assembler.dart';
+import 'package:coproduct/src/onboarding/models/onboarding_flow_graph.dart';
 
 void main() {
   test('wraps every screen fragment in a data-screen-id section', () {

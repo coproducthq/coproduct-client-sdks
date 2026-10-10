@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:coproduct_onboarding/src/flow_runtime.dart';
-import 'package:coproduct_onboarding/src/local_progress_store.dart';
-import 'package:coproduct_onboarding/src/models/onboarding_flow_graph.dart';
-import 'package:coproduct_onboarding/src/coproduct_client.dart';
+import 'package:coproduct/src/onboarding/flow_runtime.dart';
+import 'package:coproduct/src/onboarding/local_progress_store.dart';
+import 'package:coproduct/src/onboarding/models/onboarding_flow_graph.dart';
+import 'package:coproduct/src/onboarding/coproduct_client.dart';
 
 class FakeCoproductClient implements CoproductClient {
   final Map<String, String> flags;

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_onboarding/src/splash_screen_widget.dart';
+import 'package:coproduct/src/onboarding/splash_screen_widget.dart';
 
 void main() {
   testWidgets('renders the bundled fallback asset', (tester) async {

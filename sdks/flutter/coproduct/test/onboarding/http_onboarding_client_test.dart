@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:coproduct_onboarding/src/http_onboarding_client.dart';
+import 'package:coproduct/src/onboarding/http_onboarding_client.dart';
 
 Map<String, dynamic> _graphJson() => {
   'startScreenId': 'start',

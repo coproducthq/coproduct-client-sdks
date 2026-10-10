@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:coproduct_onboarding/src/local_progress_store.dart';
+import 'package:coproduct/src/onboarding/local_progress_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

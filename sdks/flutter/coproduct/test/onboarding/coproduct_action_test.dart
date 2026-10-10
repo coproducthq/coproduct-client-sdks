@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_onboarding/src/coproduct_action.dart';
+import 'package:coproduct/src/onboarding/coproduct_action.dart';
 
 void main() {
   group('CoproductAction.parse', () {

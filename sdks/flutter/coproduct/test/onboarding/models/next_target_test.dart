@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:coproduct_onboarding/src/models/next_target.dart';
+import 'package:coproduct/src/onboarding/models/next_target.dart';
 
 void main() {
   group('NextTarget', () {

@@ -32,7 +32,7 @@ class CoproductOnboardingFlow extends StatefulWidget {
     required this.flagKey,
     required this.client,
     required this.platformScriptJs,
-    this.fallbackSplashAssetPath = 'packages/coproduct_onboarding/assets/coproduct_fallback_splash.png',
+    this.fallbackSplashAssetPath = 'packages/coproduct/assets/onboarding/coproduct_fallback_splash.png',
     this.onEvent,
     this.onRequestPermission,
     this.onOpenUrl,
@@ -44,7 +44,7 @@ class CoproductOnboardingFlow extends StatefulWidget {
   /// app calls this once and passes the result into [platformScriptJs]
   /// rather than knowing the asset path itself.
   static Future<String> loadPlatformScript() =>
-      rootBundle.loadString('packages/coproduct_onboarding/assets/platform-script.js');
+      rootBundle.loadString('packages/coproduct/assets/onboarding/platform-script.js');
 
   @override
   State<CoproductOnboardingFlow> createState() => _CoproductOnboardingFlowState();
