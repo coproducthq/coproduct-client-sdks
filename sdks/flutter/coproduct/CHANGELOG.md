@@ -1,3 +1,17 @@
+## 1.1.0 - 2026-10-09
+
+Onboarding and paywall, previously separate unpublished packages
+(`coproduct_onboarding`, `coproduct_paywall`), are now part of this package.
+One `flutter pub add coproduct` is enough for all three features.
+
+- **Onboarding.** `package:coproduct/onboarding.dart` exports
+  `CoproductOnboardingFlow` and its supporting types, unchanged from the
+  standalone package.
+- **Paywall.** `package:coproduct/paywall.dart` exports `CoproductPaywall`
+  and its supporting types, unchanged from the standalone package. Still
+  iOS-only (StoreKit2 / Apple Pay); there is no Android implementation.
+- No change to this package's existing flag-reading API.
+
 ## 1.0.0 - 2026-09-30
 
 First stable release of the Coproduct Flutter SDK. It downloads your feature
