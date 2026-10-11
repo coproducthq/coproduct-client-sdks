@@ -82,7 +82,7 @@ class HttpPaywallClient implements PaywallClient {
   }
 
   Future<PaywallSnapshot?> _fetchPaywallFromApi(String paywallId) async {
-    final uri = edgeBaseUrl.replace(path: '/paywalls/$paywallId');
+    final uri = edgeBaseUrl.replace(path: '/v1/paywalls/$paywallId');
     final response = await _client.get(uri, headers: _headers);
     if (response.statusCode == 404) return null;
     _throwIfError(response);

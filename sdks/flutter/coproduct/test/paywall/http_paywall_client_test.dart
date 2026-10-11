@@ -33,7 +33,7 @@ void main() {
           expect(request.method, 'GET');
           expect(
             request.url.toString(),
-            'https://sdk.coproduct.app/paywalls/p-1',
+            'https://sdk.coproduct.app/v1/paywalls/p-1',
           );
           expect(request.headers['Authorization'], 'Bearer cpk_mob_test');
           return http.Response(jsonEncode({'paywall': _paywallJson()}), 200);
