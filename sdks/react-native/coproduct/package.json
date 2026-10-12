@@ -87,6 +87,7 @@
     "react-native-builder-bob": "^0.41.0",
     "react-native-device-info": "^14.0.0",
     "react-native-fs": "^2.20.0",
+    "react-native-keychain": "^10.0.0",
     "turbo": "^2.8.21",
     "typescript": "^6.0.2"
   },
@@ -95,7 +96,8 @@
     "react": "*",
     "react-native": "*",
     "react-native-device-info": "^14.0.0",
-    "react-native-fs": "^2.20.0"
+    "react-native-fs": "^2.20.0",
+    "react-native-keychain": "^10.0.0"
   },
   "workspaces": [
     "example"

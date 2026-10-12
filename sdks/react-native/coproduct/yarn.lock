@@ -7935,6 +7935,7 @@ __metadata:
     react-native-builder-bob: "npm:^0.41.0"
     react-native-device-info: "npm:^14.0.0"
     react-native-fs: "npm:^2.20.0"
+    react-native-keychain: "npm:^10.0.0"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
     uniffi-bindgen-react-native: "npm:0.31.0-3"
@@ -7944,6 +7945,7 @@ __metadata:
     react-native: "*"
     react-native-device-info: ^14.0.0
     react-native-fs: ^2.20.0
+    react-native-keychain: ^10.0.0
   languageName: unknown
   linkType: soft
 
@@ -7969,6 +7971,13 @@ __metadata:
     react-native-windows:
       optional: true
   checksum: 10c0/3722b5568610cd72f319c90f60ba8b019a005d015f27e49017ddd0ea314d1ea6991f79288c28549fdc2964dc81c0fa24f8a5f87a4a6283c97c6ea88d4caa6851
+  languageName: node
+  linkType: hard
+
+"react-native-keychain@npm:^10.0.0":
+  version: 10.0.0
+  resolution: "react-native-keychain@npm:10.0.0"
+  checksum: 10c0/a632ad27e58264506d2b373d329a867f042fb014e8a78db3a63031e953d61b5c98066eed1be238ee6c186d3f213d0efaa2a26526fb3a1d36a624c4460e982230
   languageName: node
   linkType: hard
 
