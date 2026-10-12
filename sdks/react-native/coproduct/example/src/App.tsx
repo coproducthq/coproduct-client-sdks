@@ -43,12 +43,19 @@ export default function App() {
     let active = true;
 
     async function runDemo(): Promise<void> {
-      const client = await Coproduct.initialize('cpk_mob_test_scaffold');
+      const client = await Coproduct.initialize('cpk_mob_test_scaffold', {
+        transport: mockTransport,
+        secureStore: mockSecureStore,
+      });
       clientRef.current = client;
 
       const flagValue = client.getBool('test-flag', false);
 
-      subscriptionRef.current = client.observe('test-flag', false, () => {});
+      subscriptionRef.current = client.observeBool(
+        'test-flag',
+        false,
+        () => {}
+      );
 
       const nextStatus: DemoStatus = {
         ready: true,
