@@ -1,18 +1,23 @@
-import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
+import NetInfo, { NetInfoStateType } from '@react-native-community/netinfo';
+import type { NetInfoState } from '@react-native-community/netinfo';
 
 // Live network_type classification. Absent until the first reading, then
 // republishes on every change, mirroring NetworkMonitor.swift's
-// live-fact-not-polled contract. Unrecognized types are omitted rather than
-// invented, matching deviceContext.ts's device_type contract.
+// live-fact-not-polled contract. Always emits a value ("none" when
+// disconnected, "other" for unrecognized-but-connected types) and
+// deduplicates consecutive identical classifications, matching
+// NetworkTypeClassifier/deliver() in NetworkMonitor.swift.
 export class NetworkMonitor {
   private unsubscribe: (() => void) | null = null;
+  private lastReported: string | undefined = undefined;
 
   constructor(private readonly onChange: (networkType: string) => void) {}
 
   start(): void {
     this.unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-      const networkType = mapNetworkType(state.type);
-      if (networkType) {
+      const networkType = classifyNetworkType(state);
+      if (networkType !== this.lastReported) {
+        this.lastReported = networkType;
         this.onChange(networkType);
       }
     });
@@ -24,15 +29,18 @@ export class NetworkMonitor {
   }
 }
 
-function mapNetworkType(type: string): string | undefined {
-  switch (type) {
-    case 'wifi':
-      return 'wifi';
-    case 'cellular':
-      return 'cellular';
-    case 'ethernet':
-      return 'ethernet';
-    default:
-      return undefined;
+function classifyNetworkType(state: NetInfoState): string {
+  if (state.isConnected === false || state.type === NetInfoStateType.none) {
+    return 'none';
   }
+  if (state.type === NetInfoStateType.wifi) {
+    return 'wifi';
+  }
+  if (state.type === NetInfoStateType.cellular) {
+    return 'cellular';
+  }
+  if (state.type === NetInfoStateType.ethernet) {
+    return 'ethernet';
+  }
+  return 'other';
 }
