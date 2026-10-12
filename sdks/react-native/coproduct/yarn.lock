@@ -2300,6 +2300,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-community/netinfo@npm:^11.4.0":
+  version: 11.5.2
+  resolution: "@react-native-community/netinfo@npm:11.5.2"
+  peerDependencies:
+    react: "*"
+    react-native: ">=0.59"
+  checksum: 10c0/d5301d7d8b363753b6980f5d17dc47ad4933fc46e4010aceb937c0f673b35a6648f259df930b2b48d99344a90ff7a187344486100c4874462d88545f1647bef5
+  languageName: node
+  linkType: hard
+
 "@react-native/assets-registry@npm:0.82.1":
   version: 0.82.1
   resolution: "@react-native/assets-registry@npm:0.82.1"
@@ -7907,6 +7917,7 @@ __metadata:
     "@eslint/eslintrc": "npm:^3.3.5"
     "@eslint/js": "npm:^10.0.1"
     "@react-native-community/cli": "npm:20.0.0"
+    "@react-native-community/netinfo": "npm:^11.4.0"
     "@react-native/babel-preset": "npm:0.82.1"
     "@react-native/eslint-config": "npm:0.85.0"
     "@types/jest": "npm:^29.5.14"
@@ -7928,6 +7939,7 @@ __metadata:
     typescript: "npm:^6.0.2"
     uniffi-bindgen-react-native: "npm:0.31.0-3"
   peerDependencies:
+    "@react-native-community/netinfo": ^11.4.0
     react: "*"
     react-native: "*"
     react-native-device-info: ^14.0.0
