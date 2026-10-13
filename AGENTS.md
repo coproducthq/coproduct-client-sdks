@@ -82,7 +82,7 @@ Write it down when scaffolding a new package: two packages have already carried 
 
 ## Current Dependency Choices
 
-- UniFFI: use `uniffi = "0.31.1"` unless a concrete integration failure requires falling back.
+- UniFFI: use `uniffi = "0.31.2"` unless a concrete integration failure requires falling back.
 - Flutter Rust Bridge: use `flutter_rust_bridge = "2.12.0"`.
 - Core dependencies are kept lean. The current set is `async-trait`, `http`, `parking_lot`, `semver`, `serde`, `serde_json`, `sha2`, `thiserror`, `time`, `tracing`, `tracing-subscriber`, and `uuid`. Add a dependency only when a capability genuinely warrants it.
 

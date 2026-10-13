@@ -1584,7 +1584,7 @@ __metadata:
     "@react-native/eslint-config": "npm:0.85.0"
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.1.1"
-    "@ubjs/core": "npm:0.31.0-3"
+    "@ubjs/core": "npm:0.31.0-6"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.4"
     eslint-config-prettier: "npm:^10.1.8"
@@ -1604,7 +1604,7 @@ __metadata:
     react-native-webview: "npm:^13.16.0"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
-    uniffi-bindgen-react-native: "npm:0.31.0-3"
+    uniffi-bindgen-react-native: "npm:0.31.0-6"
   peerDependencies:
     "@react-native-async-storage/async-storage": ^2.2.0
     "@react-native-community/netinfo": ^11.4.0
@@ -3074,10 +3074,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ubjs/core@npm:0.31.0-3":
-  version: 0.31.0-3
-  resolution: "@ubjs/core@npm:0.31.0-3"
-  checksum: 10c0/3e658aec5a71b418e496928565ba9383f18d5cee47b8b12f1b5985dcfc6b3221340b1b5a7b5436816e6e097113056e74cc324c803bdb8959d73401cef25dca8c
+"@ubjs/core@npm:0.31.0-6":
+  version: 0.31.0-6
+  resolution: "@ubjs/core@npm:0.31.0-6"
+  checksum: 10c0/b13587bd45d2bafb8ae210b8f94a179b1f3785f4214b6e55e94df0feda31c86d3bc9a7b39a0d7b2c67be4a55277da052f783b6de3deaf4b4123d0d3b45fa8192
   languageName: node
   linkType: hard
 
@@ -9374,13 +9374,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uniffi-bindgen-react-native@npm:0.31.0-3":
-  version: 0.31.0-3
-  resolution: "uniffi-bindgen-react-native@npm:0.31.0-3"
+"uniffi-bindgen-react-native@npm:0.31.0-6":
+  version: 0.31.0-6
+  resolution: "uniffi-bindgen-react-native@npm:0.31.0-6"
   bin:
     ubrn: bin/cli.cjs
     uniffi-bindgen-react-native: bin/cli.cjs
-  checksum: 10c0/6b61a7affb83f89f50170c8729e1477ffbc38fd6cbb6fa69a3ecf39da53dfc922f6e3376b3b77ca4170dd6a615d632208dae0ed8410333ff34e6b6081217fbee
+  checksum: 10c0/0366eac1ebf82a38b09d73fbf60f94e78ee3ce32c059dbb28a604188715a582287fa917f1479b88b95a4550212c4d0ddc4f4fb6adb39ecb96236a7b9f197a220
   languageName: node
   linkType: hard
 
