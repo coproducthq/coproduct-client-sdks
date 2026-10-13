@@ -15,7 +15,7 @@
     "@react-native/new-app-screen": "0.82.1",
     "react": "19.1.1",
     "react-native": "0.82.1",
-    "react-native-coproduct": "file:./.sdk-pack.tgz",
+    "@coproduct/react-native-sdk": "file:./.sdk-pack.tgz",
     "react-native-fs": "^2.20.0",
     "react-native-safe-area-context": "^5.5.2"
   },

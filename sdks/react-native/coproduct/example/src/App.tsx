@@ -6,7 +6,7 @@ import {
   type CoproductClient,
   mockSecureStore,
   mockTransport,
-} from 'react-native-coproduct';
+} from '@coproduct/react-native-sdk';
 
 type DemoStatus = {
   ready: boolean;

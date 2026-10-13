@@ -4,7 +4,7 @@ import type { OnboardingFlowGraph } from './models/onboardingFlowGraph';
 // fetch from the base Coproduct React Native SDK. This contract defines
 // that minimum surface.
 //
-// The base SDK's CoproductClient (in 'react-native-coproduct') has typed
+// The base SDK's CoproductClient (in '@coproduct/react-native-sdk') has typed
 // flag getters like getString and getJson. It has no onboarding-flow
 // fetch. It has no direct read of device attributes or segment
 // memberships.
@@ -19,7 +19,7 @@ import type { OnboardingFlowGraph } from './models/onboardingFlowGraph';
 // This type's name matches the base SDK's CoproductClient class. Both
 // describe the same concept from a different vantage point. A file that
 // imports both needs an import alias, such as
-// `import { CoproductClient as BaseCoproductClient } from 'react-native-coproduct';`.
+// `import { CoproductClient as BaseCoproductClient } from '@coproduct/react-native-sdk';`.
 // Mirrors sdks/flutter/coproduct/lib/src/onboarding/coproduct_client.dart.
 export interface CoproductClient {
   // Resolves an ordinary flag to its current variation value for this

@@ -1,9 +1,9 @@
 # React Native: Paywall
 
-An optional feature of the `react-native-coproduct` package — the same `yarn add react-native-coproduct` that gets you feature flags also gets you this. It renders one resolved, platform-authored paywall in a WebView, injects live StoreKit2 prices, and completes a purchase or restore.
+An optional feature of the `@coproduct/react-native-sdk` package — the same `yarn add @coproduct/react-native-sdk` that gets you feature flags also gets you this. It renders one resolved, platform-authored paywall in a WebView, injects live StoreKit2 prices, and completes a purchase or restore.
 
 ```ts
-import { CoproductPaywall } from 'react-native-coproduct/paywall';
+import { CoproductPaywall } from '@coproduct/react-native-sdk/paywall';
 ```
 
 **iOS only for now.** Android (Google Play Billing) is `react-native-iap`'s to support later; this feature does not implement or test it yet.
@@ -13,7 +13,7 @@ import { CoproductPaywall } from 'react-native-coproduct/paywall';
 Initialize the base SDK once, before using paywall:
 
 ```ts
-import { Coproduct } from 'react-native-coproduct';
+import { Coproduct } from '@coproduct/react-native-sdk';
 
 const client = await Coproduct.initialize(sdkKey); // a mobile key, cpk_mob_...
 ```
@@ -23,7 +23,7 @@ New peer dependencies: `react-native-webview` (shared with onboarding), `react-n
 ## Usage
 
 ```tsx
-import { CoproductPaywall } from 'react-native-coproduct/paywall';
+import { CoproductPaywall } from '@coproduct/react-native-sdk/paywall';
 
 const platformScript = await CoproductPaywall.loadPlatformScript();
 

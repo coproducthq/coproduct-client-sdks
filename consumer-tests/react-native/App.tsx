@@ -6,8 +6,8 @@ import {
   type CoproductClient,
   mockSecureStore,
   mockTransport,
-} from 'react-native-coproduct';
-import { bucketForVectors } from 'react-native-coproduct/internal';
+} from '@coproduct/react-native-sdk';
+import { bucketForVectors } from '@coproduct/react-native-sdk/internal';
 import bucketingVectors from '../../tests/bucketing_vectors.json';
 
 type BucketingVector = {
