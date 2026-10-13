@@ -69,6 +69,7 @@
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/cli": "20.0.0",
     "@react-native-community/netinfo": "^11.4.0",
     "@react-native/babel-preset": "0.82.1",
@@ -92,6 +93,7 @@
     "typescript": "^6.0.2"
   },
   "peerDependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "^11.4.0",
     "react": "*",
     "react-native": "*",
