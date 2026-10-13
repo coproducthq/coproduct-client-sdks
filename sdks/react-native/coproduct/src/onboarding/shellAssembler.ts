@@ -36,11 +36,20 @@ function escapeAttr(value: string): string {
 // once per flow-start. Mirrors
 // sdks/flutter/coproduct/lib/src/onboarding/shell_assembler.dart.
 export function assembleShell(args: AssembleShellArgs): string {
-  const { graph, sdkContextAttributes, sdkContextSegmentKeys, initialAnswers, initialScreenId, platformScriptJs } =
-    args;
+  const {
+    graph,
+    sdkContextAttributes,
+    sdkContextSegmentKeys,
+    initialAnswers,
+    initialScreenId,
+    platformScriptJs,
+  } = args;
 
   const sections = graph.screens
-    .map((s) => `<section data-screen-id="${escapeAttr(s.id)}" hidden>${s.html}</section>`)
+    .map(
+      (s) =>
+        `<section data-screen-id="${escapeAttr(s.id)}" hidden>${s.html}</section>`
+    )
     .join('\n');
 
   const data = {

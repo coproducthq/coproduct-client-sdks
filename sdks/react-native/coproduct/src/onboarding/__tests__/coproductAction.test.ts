@@ -2,22 +2,35 @@ import { parseCoproductAction } from '../coproductAction';
 
 describe('parseCoproductAction', () => {
   it('parses requestPermission', () => {
-    const action = parseCoproductAction('coproduct-action:requestPermission?permission=notifications');
-    expect(action).toEqual({ type: 'requestPermission', permission: 'notifications' });
+    const action = parseCoproductAction(
+      'coproduct-action:requestPermission?permission=notifications'
+    );
+    expect(action).toEqual({
+      type: 'requestPermission',
+      permission: 'notifications',
+    });
   });
 
   it('parses openUrl', () => {
-    const action = parseCoproductAction('coproduct-action:openUrl?url=https%3A%2F%2Fexample.com');
+    const action = parseCoproductAction(
+      'coproduct-action:openUrl?url=https%3A%2F%2Fexample.com'
+    );
     expect(action).toEqual({ type: 'openUrl', url: 'https://example.com' });
   });
 
   it('parses dismiss and complete', () => {
-    expect(parseCoproductAction('coproduct-action:dismiss')).toEqual({ type: 'dismiss' });
-    expect(parseCoproductAction('coproduct-action:complete')).toEqual({ type: 'complete' });
+    expect(parseCoproductAction('coproduct-action:dismiss')).toEqual({
+      type: 'dismiss',
+    });
+    expect(parseCoproductAction('coproduct-action:complete')).toEqual({
+      type: 'complete',
+    });
   });
 
   it('parses showPaywall', () => {
-    const action = parseCoproductAction('coproduct-action:showPaywall?paywallId=premium_offer');
+    const action = parseCoproductAction(
+      'coproduct-action:showPaywall?paywallId=premium_offer'
+    );
     expect(action).toEqual({ type: 'showPaywall', paywallId: 'premium_offer' });
   });
 
@@ -52,7 +65,14 @@ describe('parseCoproductAction', () => {
   });
 
   it('parses request with no params at all', () => {
-    const action = parseCoproductAction('coproduct-action:request?operation=fetchPlan&requestId=xyz');
-    expect(action).toEqual({ type: 'request', operation: 'fetchPlan', requestId: 'xyz', params: {} });
+    const action = parseCoproductAction(
+      'coproduct-action:request?operation=fetchPlan&requestId=xyz'
+    );
+    expect(action).toEqual({
+      type: 'request',
+      operation: 'fetchPlan',
+      requestId: 'xyz',
+      params: {},
+    });
   });
 });

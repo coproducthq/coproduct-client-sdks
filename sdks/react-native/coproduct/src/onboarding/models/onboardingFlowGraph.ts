@@ -5,7 +5,9 @@ export interface OnboardingFlowGraph {
   screens: Screen[];
 }
 
-export function parseOnboardingFlowGraph(json: Record<string, unknown>): OnboardingFlowGraph {
+export function parseOnboardingFlowGraph(
+  json: Record<string, unknown>
+): OnboardingFlowGraph {
   const screens = json.screens as unknown[];
   return {
     startScreenId: json.startScreenId as string,
@@ -13,6 +15,9 @@ export function parseOnboardingFlowGraph(json: Record<string, unknown>): Onboard
   };
 }
 
-export function screenById(graph: OnboardingFlowGraph, id: string): Screen | undefined {
+export function screenById(
+  graph: OnboardingFlowGraph,
+  id: string
+): Screen | undefined {
   return graph.screens.find((screen) => screen.id === id);
 }

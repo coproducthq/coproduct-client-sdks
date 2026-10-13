@@ -12,6 +12,8 @@ describe('parseNextTarget', () => {
   });
 
   it('throws on an unknown type', () => {
-    expect(() => parseNextTarget({ type: 'explode' })).toThrow('Unknown NextTarget type: explode');
+    expect(() => parseNextTarget({ type: 'explode' })).toThrow(
+      'Unknown NextTarget type: explode'
+    );
   });
 });

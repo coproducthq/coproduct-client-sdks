@@ -1,4 +1,7 @@
-import { parseNativeOnLoadRequest, type NativeOnLoadRequest } from './nativeOnLoadRequest';
+import {
+  parseNativeOnLoadRequest,
+  type NativeOnLoadRequest,
+} from './nativeOnLoadRequest';
 import { parseNextTarget, type NextTarget } from './nextTarget';
 import { parseTransition, type Transition } from './transition';
 
@@ -21,8 +24,13 @@ export function parseScreen(json: Record<string, unknown>): Screen {
   return {
     id: json.id as string,
     html: json.html as string,
-    transitions: transitions.map((t) => parseTransition(t as Record<string, unknown>)),
+    transitions: transitions.map((t) =>
+      parseTransition(t as Record<string, unknown>)
+    ),
     defaultNext: parseNextTarget(json.defaultNext as Record<string, unknown>),
-    onLoad: json.onLoad == null ? undefined : parseNativeOnLoadRequest(json.onLoad as Record<string, unknown>),
+    onLoad:
+      json.onLoad == null
+        ? undefined
+        : parseNativeOnLoadRequest(json.onLoad as Record<string, unknown>),
   };
 }

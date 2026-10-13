@@ -8,7 +8,9 @@ export interface NativeOnLoadRequest {
   timeoutMs: number;
 }
 
-export function parseNativeOnLoadRequest(json: Record<string, unknown>): NativeOnLoadRequest {
+export function parseNativeOnLoadRequest(
+  json: Record<string, unknown>
+): NativeOnLoadRequest {
   return {
     operation: json.operation as string,
     params: json.params as Record<string, string>,

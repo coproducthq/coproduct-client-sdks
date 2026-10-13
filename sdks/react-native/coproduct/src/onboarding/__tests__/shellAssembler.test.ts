@@ -6,8 +6,18 @@ describe('assembleShell', () => {
     const graph = parseOnboardingFlowGraph({
       startScreenId: 'welcome',
       screens: [
-        { id: 'welcome', html: '<p>Hi</p>', transitions: [], defaultNext: { type: 'complete' } },
-        { id: 'goal', html: '<p>?</p>', transitions: [], defaultNext: { type: 'complete' } },
+        {
+          id: 'welcome',
+          html: '<p>Hi</p>',
+          transitions: [],
+          defaultNext: { type: 'complete' },
+        },
+        {
+          id: 'goal',
+          html: '<p>?</p>',
+          transitions: [],
+          defaultNext: { type: 'complete' },
+        },
       ],
     });
 
@@ -31,7 +41,14 @@ describe('assembleShell', () => {
   it('embeds the injected data blob as inert JSON, escaping </script sequences', () => {
     const graph = parseOnboardingFlowGraph({
       startScreenId: 'welcome',
-      screens: [{ id: 'welcome', html: '<p>Hi</p>', transitions: [], defaultNext: { type: 'complete' } }],
+      screens: [
+        {
+          id: 'welcome',
+          html: '<p>Hi</p>',
+          transitions: [],
+          defaultNext: { type: 'complete' },
+        },
+      ],
     });
 
     const html = assembleShell({

@@ -8,8 +8,18 @@ export type CoproductAction =
   | { type: 'dismiss' }
   | { type: 'complete' }
   | { type: 'showPaywall'; paywallId: string }
-  | { type: 'request'; operation: string; requestId: string; params: Record<string, string> }
-  | { type: 'track'; event: string; screenId: string; answers: Record<string, string[]> };
+  | {
+      type: 'request';
+      operation: string;
+      requestId: string;
+      params: Record<string, string>;
+    }
+  | {
+      type: 'track';
+      event: string;
+      screenId: string;
+      answers: Record<string, string[]>;
+    };
 
 export function parseCoproductAction(url: string): CoproductAction | undefined {
   if (!url.startsWith('coproduct-action:')) return undefined;
@@ -20,7 +30,10 @@ export function parseCoproductAction(url: string): CoproductAction | undefined {
 
   switch (action) {
     case 'requestPermission':
-      return { type: 'requestPermission', permission: params.get('permission') ?? '' };
+      return {
+        type: 'requestPermission',
+        permission: params.get('permission') ?? '',
+      };
     case 'openUrl':
       return { type: 'openUrl', url: params.get('url') ?? '' };
     case 'dismiss':
@@ -32,7 +45,8 @@ export function parseCoproductAction(url: string): CoproductAction | undefined {
     case 'request': {
       const requestParams: Record<string, string> = {};
       for (const [key, value] of params.entries()) {
-        if (key.startsWith('param_')) requestParams[key.slice('param_'.length)] = value;
+        if (key.startsWith('param_'))
+          requestParams[key.slice('param_'.length)] = value;
       }
       return {
         type: 'request',
@@ -43,7 +57,8 @@ export function parseCoproductAction(url: string): CoproductAction | undefined {
     }
     case 'track': {
       const rawAnswers = params.get('answers');
-      const answers: Record<string, string[]> = rawAnswers == null ? {} : JSON.parse(rawAnswers);
+      const answers: Record<string, string[]> =
+        rawAnswers == null ? {} : JSON.parse(rawAnswers);
       return {
         type: 'track',
         event: params.get('event') ?? '',
