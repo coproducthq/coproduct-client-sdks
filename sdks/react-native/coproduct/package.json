@@ -20,6 +20,11 @@
       "types": "./lib/typescript/src/onboarding/index.d.ts",
       "default": "./lib/module/onboarding/index.js"
     },
+    "./paywall": {
+      "source": "./src/paywall/index.ts",
+      "types": "./lib/typescript/src/paywall/index.d.ts",
+      "default": "./lib/module/paywall/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
