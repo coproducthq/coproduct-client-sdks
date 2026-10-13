@@ -354,9 +354,7 @@ describe('CoproductClient observation, handlers, state', () => {
   });
 
   it('observeJson delivers the seed, then a decoded JsonDelivery.Value', async () => {
-    const observation = createFakeObservation<JsonDelivery, string>(
-      '{"a":1}'
-    );
+    const observation = createFakeObservation<JsonDelivery, string>('{"a":1}');
     const native = fakeNativeClient({
       observeJson: jest.fn().mockReturnValue(observation),
     });

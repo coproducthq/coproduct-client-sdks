@@ -2,7 +2,9 @@ import { ContextValue } from './generated/coproduct_ffi_uniffi';
 
 export type AttributeValue = string | number | boolean | string[] | null;
 
-export function attributeValueToContextValue(value: AttributeValue): ContextValue {
+export function attributeValueToContextValue(
+  value: AttributeValue
+): ContextValue {
   if (value === null) {
     return ContextValue.Null.new();
   }

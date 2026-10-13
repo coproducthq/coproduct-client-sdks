@@ -6,7 +6,9 @@ jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,
   default: {
     addEventListener: jest.fn(
-      (listener: (state: { type: string; isConnected: boolean | null }) => void) => {
+      (
+        listener: (state: { type: string; isConnected: boolean | null }) => void
+      ) => {
         listeners.push(listener);
         return jest.fn(() => {
           const index = listeners.indexOf(listener);

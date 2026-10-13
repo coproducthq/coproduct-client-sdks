@@ -67,6 +67,7 @@ export function observeDrain<TDelivery, TValue>(
   // the caller receives the returned Cancellable (an async function runs
   // synchronously up to its first await).
   Promise.resolve().then(() => {
+    // eslint-disable-next-line no-void
     void drain();
   });
 
