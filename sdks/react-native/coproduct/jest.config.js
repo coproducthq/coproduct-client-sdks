@@ -2,6 +2,6 @@ module.exports = {
   preset: 'react-native',
   testPathIgnorePatterns: ['/node_modules/', '/lib/', '/example/', '/example-expo/'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-native-async-storage|react-native-permissions)/)',
   ],
 };

@@ -7964,6 +7964,7 @@ __metadata:
     react-native-device-info: "npm:^14.0.0"
     react-native-fs: "npm:^2.20.0"
     react-native-keychain: "npm:^10.0.0"
+    react-native-permissions: "npm:^5.4.2"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
     uniffi-bindgen-react-native: "npm:0.31.0-3"
@@ -7975,6 +7976,7 @@ __metadata:
     react-native-device-info: ^14.0.0
     react-native-fs: ^2.20.0
     react-native-keychain: ^10.0.0
+    react-native-permissions: ^5.4.2
   languageName: unknown
   linkType: soft
 
@@ -8017,6 +8019,20 @@ __metadata:
     escape-string-regexp: "npm:^5.0.0"
     fast-glob: "npm:^3.3.3"
   checksum: 10c0/e0343807046c16d5fb5999b966e0a70fd8a757d658f58f10bee830485fa600ffb8de9100dea1cdead36a639c3e18a0f697b35e22a5564cb74e437d8aeca30d87
+  languageName: node
+  linkType: hard
+
+"react-native-permissions@npm:^5.4.2":
+  version: 5.6.2
+  resolution: "react-native-permissions@npm:5.6.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-windows: "*"
+  peerDependenciesMeta:
+    react-native-windows:
+      optional: true
+  checksum: 10c0/af2a27a76fe3a866b8e33b1f5b049965110fc0f840df71c02422b2b4be3abc3f70c8ef4af6c97137098913f9c62bd07274202a5da76f6f73a746071e67a87c3f
   languageName: node
   linkType: hard
 
