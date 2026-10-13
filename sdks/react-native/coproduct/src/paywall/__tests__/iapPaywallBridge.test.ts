@@ -40,13 +40,13 @@ beforeEach(() => {
 
 describe('IapPaywallBridge', () => {
   describe('priceFor', () => {
-    it("resolves the first matching product's displayPrice", async () => {
+    it("resolves the first matching product's displayPrice for a subscription", async () => {
       mockFetchProducts.mockResolvedValue([
         { id: 'premium_monthly', displayPrice: '$9.99/mo' },
       ]);
 
       const bridge = new IapPaywallBridge();
-      const price = await bridge.priceFor('premium_monthly');
+      const price = await bridge.priceFor('premium_monthly', 'subscription');
 
       expect(mockFetchProducts).toHaveBeenCalledWith({
         skus: ['premium_monthly'],
@@ -55,11 +55,41 @@ describe('IapPaywallBridge', () => {
       expect(price).toBe('$9.99/mo');
     });
 
+    it("resolves a consumable product's displayPrice using type:'in-app'", async () => {
+      mockFetchProducts.mockResolvedValue([
+        { id: 'points_pack_300', displayPrice: '$4.99' },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const price = await bridge.priceFor('points_pack_300', 'consumable');
+
+      expect(mockFetchProducts).toHaveBeenCalledWith({
+        skus: ['points_pack_300'],
+        type: 'in-app',
+      });
+      expect(price).toBe('$4.99');
+    });
+
+    it("resolves a lifetime product's displayPrice using type:'in-app'", async () => {
+      mockFetchProducts.mockResolvedValue([
+        { id: 'remove_ads', displayPrice: '$19.99' },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const price = await bridge.priceFor('remove_ads', 'lifetime');
+
+      expect(mockFetchProducts).toHaveBeenCalledWith({
+        skus: ['remove_ads'],
+        type: 'in-app',
+      });
+      expect(price).toBe('$19.99');
+    });
+
     it('throws when no product is found', async () => {
       mockFetchProducts.mockResolvedValue([]);
 
       const bridge = new IapPaywallBridge();
-      await expect(bridge.priceFor('unknown')).rejects.toThrow(
+      await expect(bridge.priceFor('unknown', 'subscription')).rejects.toThrow(
         'No product found'
       );
     });
@@ -68,7 +98,7 @@ describe('IapPaywallBridge', () => {
   describe('purchase', () => {
     it('resolves success after finishing the transaction, for the matching product only', async () => {
       const bridge = new IapPaywallBridge();
-      const resultPromise = bridge.purchase('premium_monthly');
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
 
       // An update for a DIFFERENT product first must be ignored
       purchaseUpdateListeners[0]?.({
@@ -85,6 +115,10 @@ describe('IapPaywallBridge', () => {
 
       const result = await resultPromise;
 
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: { apple: { sku: 'premium_monthly' } },
+        type: 'subs',
+      });
       expect(mockFinishTransaction).toHaveBeenCalledWith({
         purchase: expect.objectContaining({ productId: 'premium_monthly' }),
         isConsumable: false,
@@ -100,9 +134,53 @@ describe('IapPaywallBridge', () => {
       expect(removedErrorListeners).toHaveLength(1);
     });
 
+    it("requests type:'in-app' and finishes as consumable for a consumable product", async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('points_pack_300', 'consumable');
+
+      purchaseUpdateListeners[0]?.({
+        productId: 'points_pack_300',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+
+      await resultPromise;
+
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: { apple: { sku: 'points_pack_300' } },
+        type: 'in-app',
+      });
+      expect(mockFinishTransaction).toHaveBeenCalledWith({
+        purchase: expect.objectContaining({ productId: 'points_pack_300' }),
+        isConsumable: true,
+      });
+    });
+
+    it("requests type:'in-app' and finishes as non-consumable for a lifetime product", async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('remove_ads', 'lifetime');
+
+      purchaseUpdateListeners[0]?.({
+        productId: 'remove_ads',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+
+      await resultPromise;
+
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: { apple: { sku: 'remove_ads' } },
+        type: 'in-app',
+      });
+      expect(mockFinishTransaction).toHaveBeenCalledWith({
+        purchase: expect.objectContaining({ productId: 'remove_ads' }),
+        isConsumable: false,
+      });
+    });
+
     it('resolves cancelled without finishing a transaction', async () => {
       const bridge = new IapPaywallBridge();
-      const resultPromise = bridge.purchase('premium_monthly');
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
 
       purchaseErrorListeners[0]?.({
         code: 'user-cancelled',
@@ -118,7 +196,7 @@ describe('IapPaywallBridge', () => {
 
     it('resolves pending without finishing a transaction', async () => {
       const bridge = new IapPaywallBridge();
-      const resultPromise = bridge.purchase('premium_monthly');
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
 
       purchaseErrorListeners[0]?.({
         code: 'pending',
@@ -133,7 +211,7 @@ describe('IapPaywallBridge', () => {
 
     it('rejects on a genuine purchase error', async () => {
       const bridge = new IapPaywallBridge();
-      const resultPromise = bridge.purchase('premium_monthly');
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
 
       purchaseErrorListeners[0]?.({
         code: 'network-error',
@@ -148,7 +226,7 @@ describe('IapPaywallBridge', () => {
 
     it('removes both listeners on every settled path, so a later purchase never receives a stale event', async () => {
       const bridge = new IapPaywallBridge();
-      const first = bridge.purchase('premium_monthly');
+      const first = bridge.purchase('premium_monthly', 'subscription');
       purchaseUpdateListeners[0]?.({
         productId: 'premium_monthly',
         transactionId: 'tx-1',
@@ -157,7 +235,7 @@ describe('IapPaywallBridge', () => {
       await first;
 
       const listenerCountBefore = purchaseUpdateListeners.length;
-      const second = bridge.purchase('premium_annual');
+      const second = bridge.purchase('premium_annual', 'subscription');
       expect(purchaseUpdateListeners.length).toBe(listenerCountBefore + 1);
       purchaseUpdateListeners[purchaseUpdateListeners.length - 1]?.({
         productId: 'premium_annual',

@@ -1,3 +1,5 @@
+import type { PackageKind } from '../nativePaywallBridge';
+
 // One purchase option a paywall offers, e.g. monthly or annual. packageKey
 // matches the backend's abstract key; native resolves it to a real store
 // product id via the sibling PaywallPackageRef map, never from this type
@@ -31,14 +33,23 @@ function parsePaywallContent(json: Record<string, unknown>): PaywallContent {
   };
 }
 
+function parsePackageKind(value: unknown): PackageKind {
+  return value === 'consumable' || value === 'lifetime'
+    ? value
+    : 'subscription';
+}
+
 // One packageKey's store product ids, as resolved server-side from the
-// offering the paywall's content.offeringKey points at. Every field is
-// optional -- an offering may only have an iOS product configured, which
-// this P1 is the only platform that reads.
+// offering the paywall's content.offeringKey points at. Every product id
+// field is optional -- an offering may only have an iOS product configured,
+// which this P1 is the only platform that reads. kind is absent on a server
+// that predates consumable support, which defaults it to 'subscription',
+// preserving this feature's original subscription-only behavior exactly.
 export interface PaywallPackageRef {
   iosProductId?: string;
   androidProductId?: string;
   webProductId?: string;
+  kind?: PackageKind;
 }
 
 function parsePaywallPackageRef(
@@ -48,6 +59,7 @@ function parsePaywallPackageRef(
     iosProductId: json.iosProductId as string | undefined,
     androidProductId: json.androidProductId as string | undefined,
     webProductId: json.webProductId as string | undefined,
+    kind: parsePackageKind(json.kind),
   };
 }
 

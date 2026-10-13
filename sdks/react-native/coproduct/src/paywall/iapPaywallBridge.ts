@@ -10,9 +10,18 @@ import {
 import type { Purchase, PurchaseError, PurchaseIOS } from 'react-native-iap';
 import type {
   NativePaywallBridge,
+  PackageKind,
   PurchaseResult,
   RestoredTransaction,
 } from './nativePaywallBridge';
+
+// react-native-iap's own request/fetch type: 'subs' for a subscription,
+// 'in-app' for every one-time product (consumable or lifetime) -- there is
+// no third store-side type for "lifetime", StoreKit2 only distinguishes
+// subscription vs. one-time purchase.
+function storeTypeFor(kind: PackageKind): 'subs' | 'in-app' {
+  return kind === 'subscription' ? 'subs' : 'in-app';
+}
 
 // react-native-iap-backed NativePaywallBridge. Owns the one genuinely new
 // piece of logic this port needs beyond a straight line-for-line Flutter
@@ -38,16 +47,23 @@ function expirationDateFor(purchase: Purchase): Date | undefined {
 }
 
 export class IapPaywallBridge implements NativePaywallBridge {
-  async priceFor(productId: string): Promise<string> {
+  async priceFor(productId: string, kind: PackageKind): Promise<string> {
     const products =
-      (await fetchProducts({ skus: [productId], type: 'subs' })) ?? [];
+      (await fetchProducts({
+        skus: [productId],
+        type: storeTypeFor(kind),
+      })) ?? [];
     const price = products[0]?.displayPrice;
     if (price == null)
       throw new Error(`No product found for id "${productId}"`);
     return price;
   }
 
-  async purchase(productId: string): Promise<PurchaseResult> {
+  async purchase(
+    productId: string,
+    kind: PackageKind
+  ): Promise<PurchaseResult> {
+    const isConsumable = kind === 'consumable';
     return new Promise<PurchaseResult>((resolve, reject) => {
       const updatedSubscription = purchaseUpdatedListener(
         (purchase: Purchase) => {
@@ -57,7 +73,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
           // awaited by its caller, so there's nothing to block on besides
           // the .finally() below, which resolves the outer Promise either way.
           // eslint-disable-next-line no-void
-          void finishTransaction({ purchase, isConsumable: false })
+          void finishTransaction({ purchase, isConsumable })
             .catch(() => {
               // Finishing an already-finished transaction, or a transient
               // native failure to finish, must not block reporting the
@@ -96,7 +112,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
 
       requestPurchase({
         request: { apple: { sku: productId } },
-        type: 'subs',
+        type: storeTypeFor(kind),
       }).catch((error: unknown) => {
         cleanup();
         reject(error instanceof Error ? error : new Error(String(error)));

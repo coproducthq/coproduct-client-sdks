@@ -20,6 +20,10 @@ describe('parsePaywallSnapshot', () => {
           iosProductId: 'premium_annual',
           androidProductId: 'premium_annual_android',
         },
+        points_pack: {
+          iosProductId: 'points_pack_300',
+          kind: 'consumable',
+        },
       },
       html: '<section><h1>Go Premium</h1></section>',
     });
@@ -39,6 +43,10 @@ describe('parsePaywallSnapshot', () => {
       'premium_annual_android'
     );
     expect(snapshot.html).toBe('<section><h1>Go Premium</h1></section>');
+    // A package with no kind on the wire defaults to subscription,
+    // preserving this feature's original subscription-only behavior
+    expect(snapshot.packages.monthly?.kind).toBe('subscription');
+    expect(snapshot.packages.points_pack?.kind).toBe('consumable');
   });
 
   it('parses a snapshot with an empty packages map', () => {

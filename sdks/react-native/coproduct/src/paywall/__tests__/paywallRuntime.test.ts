@@ -2,6 +2,7 @@ import { PaywallRuntime, type PaywallPurchaseError } from '../paywallRuntime';
 import { PaywallServerError, type PaywallClient } from '../paywallClient';
 import type {
   NativePaywallBridge,
+  PackageKind,
   PurchaseResult,
   RestoredTransaction,
 } from '../nativePaywallBridge';
@@ -17,6 +18,8 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   nextPurchaseResult: PurchaseResult;
   restoredTransactions: RestoredTransaction[];
   purchaseCalls: string[] = [];
+  priceForCalls: Array<{ productId: string; kind: PackageKind }> = [];
+  purchaseKinds: Array<{ productId: string; kind: PackageKind }> = [];
 
   constructor(
     args: {
@@ -34,7 +37,8 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
     this.restoredTransactions = args.restoredTransactions ?? [];
   }
 
-  async priceFor(productId: string): Promise<string> {
+  async priceFor(productId: string, kind: PackageKind): Promise<string> {
+    this.priceForCalls.push({ productId, kind });
     if (this.productIdsThatThrow.has(productId)) {
       throw new Error(`STOREKIT_ERROR: unknown product ${productId}`);
     }
@@ -43,8 +47,12 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
     return price;
   }
 
-  async purchase(productId: string): Promise<PurchaseResult> {
+  async purchase(
+    productId: string,
+    kind: PackageKind
+  ): Promise<PurchaseResult> {
     this.purchaseCalls.push(productId);
+    this.purchaseKinds.push({ productId, kind });
     return this.nextPurchaseResult;
   }
 
@@ -142,6 +150,50 @@ describe('PaywallRuntime', () => {
     expect(capturedPrices).toEqual({ monthly: '$9.99/mo' });
   });
 
+  it("onSnapshotLoaded passes each package's kind through to priceFor, defaulting to subscription when unset", async () => {
+    const bridge = new FakeNativePaywallBridge({
+      pricesByProductId: {
+        premium_monthly: '$9.99/mo',
+        points_pack_300: '$4.99',
+      },
+    });
+    const client = new FakePaywallClient();
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      setPrices: async () => {},
+    });
+
+    const snapshot: PaywallSnapshot = {
+      paywallId: 'p-1',
+      version: 1,
+      templateType: 'hero_single_offer',
+      content: {
+        offeringKey: 'default',
+        ctas: [
+          { packageKey: 'monthly', label: 'Subscribe monthly' },
+          { packageKey: 'points_pack', label: 'Buy points' },
+        ],
+        html: '<section></section>',
+      },
+      packages: {
+        monthly: { iosProductId: 'premium_monthly' },
+        points_pack: { iosProductId: 'points_pack_300', kind: 'consumable' },
+      },
+      html: '<section></section>',
+    };
+
+    await runtime.onSnapshotLoaded(snapshot);
+
+    expect(bridge.priceForCalls).toEqual(
+      expect.arrayContaining([
+        { productId: 'premium_monthly', kind: 'subscription' },
+        { productId: 'points_pack_300', kind: 'consumable' },
+      ])
+    );
+  });
+
   it('onSnapshotLoaded does not call setPrices when no cta resolves a product id', async () => {
     const bridge = new FakeNativePaywallBridge();
     const client = new FakePaywallClient();
@@ -235,6 +287,37 @@ describe('PaywallRuntime', () => {
     expect(client.recordedTransactionIds).toEqual(['tx-1']);
     expect(capturedResult?.outcome).toBe('success');
     expect(capturedEntitlements?.[0]?.entitlementId).toBe('premium');
+  });
+
+  it('a purchase tap for a consumable package passes kind through to bridge.purchase', async () => {
+    const bridge = new FakeNativePaywallBridge({
+      nextPurchaseResult: {
+        outcome: 'success',
+        transactionId: 'tx-1',
+        productId: 'points_pack_300',
+        purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    });
+    const client = new FakePaywallClient();
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      setPrices: async () => {},
+    });
+    await runtime.onSnapshotLoaded(
+      buildSnapshot({
+        points_pack: { iosProductId: 'points_pack_300', kind: 'consumable' },
+      })
+    );
+
+    await runtime.handleNavigationRequest(
+      'coproduct-action:purchase?packageKey=points_pack'
+    );
+
+    expect(bridge.purchaseKinds).toEqual([
+      { productId: 'points_pack_300', kind: 'consumable' },
+    ]);
   });
 
   it('a purchase tap for an unresolved packageKey reports unresolvedProduct without calling native', async () => {

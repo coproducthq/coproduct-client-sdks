@@ -74,10 +74,14 @@ export class PaywallRuntime {
     this.snapshot = snapshot;
     const prices: Record<string, string> = {};
     for (const cta of snapshot.content.ctas) {
-      const productId = snapshot.packages[cta.packageKey]?.iosProductId;
+      const packageRef = snapshot.packages[cta.packageKey];
+      const productId = packageRef?.iosProductId;
       if (productId == null) continue;
       try {
-        prices[cta.packageKey] = await this.bridge.priceFor(productId);
+        prices[cta.packageKey] = await this.bridge.priceFor(
+          productId,
+          packageRef?.kind ?? 'subscription'
+        );
       } catch {
         continue;
       }
@@ -106,13 +110,17 @@ export class PaywallRuntime {
   }
 
   private async handlePurchase(packageKey: string): Promise<void> {
-    const productId = this.snapshot?.packages[packageKey]?.iosProductId;
+    const packageRef = this.snapshot?.packages[packageKey];
+    const productId = packageRef?.iosProductId;
     if (productId == null) {
       this.onPurchaseError?.({ reason: 'unresolvedProduct' });
       return;
     }
 
-    const result = await this.bridge.purchase(productId);
+    const result = await this.bridge.purchase(
+      productId,
+      packageRef?.kind ?? 'subscription'
+    );
     if (result.outcome !== 'success') {
       this.onPurchaseResult?.(result, []);
       return;
