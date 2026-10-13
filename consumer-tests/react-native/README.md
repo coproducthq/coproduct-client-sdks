@@ -1,6 +1,6 @@
 # consumer-tests/react-native
 
-Fresh React Native app installing `react-native-coproduct` as a packaged tarball, not as a workspace source-link. Exists to catch issues only visible at publish/install time (autolinking, peer-deps, podspec quirks) that `sdks/react-native/coproduct/example/` cannot surface because it source-links the SDK.
+Fresh React Native app installing `@coproduct/react-native-sdk` as a packaged tarball, not as a workspace source-link. Exists to catch issues only visible at publish/install time (autolinking, peer-deps, podspec quirks) that `sdks/react-native/coproduct/example/` cannot surface because it source-links the SDK.
 
 ## Toolchain
 

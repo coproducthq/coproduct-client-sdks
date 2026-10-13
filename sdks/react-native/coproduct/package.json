@@ -1,6 +1,6 @@
 {
-  "name": "react-native-coproduct",
-  "version": "0.1.0",
+  "name": "@coproduct/react-native-sdk",
+  "version": "1.0.0",
   "description": "Coproduct React Native SDK scaffold",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -14,6 +14,16 @@
       "source": "./src/internal.ts",
       "types": "./lib/typescript/src/internal.d.ts",
       "default": "./lib/module/internal.js"
+    },
+    "./onboarding": {
+      "source": "./src/onboarding/index.ts",
+      "types": "./lib/typescript/src/onboarding/index.d.ts",
+      "default": "./lib/module/onboarding/index.js"
+    },
+    "./paywall": {
+      "source": "./src/paywall/index.ts",
+      "types": "./lib/typescript/src/paywall/index.d.ts",
+      "default": "./lib/module/paywall/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -43,6 +53,7 @@
     "build": "bob build --target module && bob build --target typescript && yarn codegen",
     "prepare": "yarn build",
     "prepack": "yarn build",
+    "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\""
   },
@@ -62,32 +73,52 @@
   },
   "homepage": "https://github.com/coproducthq/coproduct-client-sdks#readme",
   "publishConfig": {
+    "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/cli": "20.0.0",
+    "@react-native-community/netinfo": "^11.4.0",
     "@react-native/babel-preset": "0.82.1",
     "@react-native/eslint-config": "0.85.0",
+    "@types/jest": "^29.5.14",
     "@types/react": "^19.1.1",
     "del-cli": "^7.0.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-ft-flow": "^3.0.11",
     "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^29.7.0",
     "prettier": "^3.8.1",
     "react": "19.1.1",
     "react-native": "0.82.1",
     "react-native-builder-bob": "^0.41.0",
+    "react-native-device-info": "^14.0.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-iap": "^17.0.1",
+    "react-native-keychain": "^10.0.0",
+    "react-native-nitro-modules": ">=0.36.5",
+    "react-native-permissions": "^5.4.2",
+    "react-native-webview": "^13.16.0",
     "turbo": "^2.8.21",
     "typescript": "^6.0.2"
   },
   "peerDependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/netinfo": "^11.4.0",
     "react": "*",
     "react-native": "*",
-    "react-native-fs": "^2.20.0"
+    "react-native-device-info": "^14.0.0",
+    "react-native-fs": "^2.20.0",
+    "react-native-iap": "^17.0.1",
+    "react-native-keychain": "^10.0.0",
+    "react-native-nitro-modules": ">=0.36.5",
+    "react-native-permissions": "^5.4.2",
+    "react-native-webview": "^13.16.0"
   },
   "workspaces": [
     "example"
@@ -141,7 +172,7 @@
     "version": "0.62.0"
   },
   "dependencies": {
-    "@ubjs/core": "0.31.0-3",
-    "uniffi-bindgen-react-native": "0.31.0-3"
+    "@ubjs/core": "0.31.0-6",
+    "uniffi-bindgen-react-native": "0.31.0-6"
   }
 }
