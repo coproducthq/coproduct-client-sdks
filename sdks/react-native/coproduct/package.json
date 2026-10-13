@@ -15,6 +15,11 @@
       "types": "./lib/typescript/src/internal.d.ts",
       "default": "./lib/module/internal.js"
     },
+    "./onboarding": {
+      "source": "./src/onboarding/index.ts",
+      "types": "./lib/typescript/src/onboarding/index.d.ts",
+      "default": "./lib/module/onboarding/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -90,6 +95,7 @@
     "react-native-fs": "^2.20.0",
     "react-native-keychain": "^10.0.0",
     "react-native-permissions": "^5.4.2",
+    "react-native-webview": "^13.16.0",
     "turbo": "^2.8.21",
     "typescript": "^6.0.2"
   },
@@ -101,7 +107,8 @@
     "react-native-device-info": "^14.0.0",
     "react-native-fs": "^2.20.0",
     "react-native-keychain": "^10.0.0",
-    "react-native-permissions": "^5.4.2"
+    "react-native-permissions": "^5.4.2",
+    "react-native-webview": "^13.16.0"
   },
   "workspaces": [
     "example"
