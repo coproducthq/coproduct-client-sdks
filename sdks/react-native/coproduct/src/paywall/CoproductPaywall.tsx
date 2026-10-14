@@ -71,6 +71,19 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
       return;
     }
 
+    const reportResultToWebView = (
+      state: 'success' | 'cancel' | 'fail',
+      message?: string
+    ) => {
+      try {
+        webViewRef.current?.injectJavaScript(
+          `window.__coproductOnPurchaseResult__(${JSON.stringify(state)}, ${JSON.stringify(message ?? null)}); true;`
+        );
+      } catch {
+        // The WebView may already be torn down by the time this fires
+      }
+    };
+
     const runtime = new PaywallRuntime({
       bridge,
       client,
@@ -84,8 +97,25 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
           // The WebView may already be torn down by the time prices resolve
         }
       },
-      onPurchaseResult,
-      onPurchaseError,
+      // The default [data-cp-result] sections (success/cancel/fail) own
+      // showing the outcome and, for cancel/fail, waiting for the user's own
+      // dismiss tap -- success auto-dismisses itself after a brief hold.
+      // onDismiss (not onPurchaseResult/onPurchaseError) is therefore the
+      // single place a host app should navigate away from the paywall.
+      onPurchaseResult: (result, entitlements) => {
+        if (result.outcome === 'success') {
+          reportResultToWebView('success');
+        } else if (result.outcome === 'pending') {
+          reportResultToWebView('cancel', 'Waiting for approval.');
+        } else {
+          reportResultToWebView('cancel');
+        }
+        onPurchaseResult?.(result, entitlements);
+      },
+      onPurchaseError: (error) => {
+        reportResultToWebView('fail');
+        onPurchaseError?.(error);
+      },
       onDismiss,
     });
     runtimeRef.current = runtime;
