@@ -7,9 +7,11 @@ const mockRequestPurchase = jest.fn().mockResolvedValue(undefined);
 const mockFinishTransaction = jest.fn().mockResolvedValue(undefined);
 const mockFetchProducts = jest.fn();
 const mockGetAvailablePurchases = jest.fn();
+const mockInitConnection = jest.fn().mockResolvedValue(true);
 
 jest.mock('react-native-iap', () => ({
   ErrorCode: { UserCancelled: 'user-cancelled', Pending: 'pending' },
+  initConnection: (...args: unknown[]) => mockInitConnection(...args),
   requestPurchase: (...args: unknown[]) => mockRequestPurchase(...args),
   finishTransaction: (...args: unknown[]) => mockFinishTransaction(...args),
   fetchProducts: (...args: unknown[]) => mockFetchProducts(...args),
@@ -32,6 +34,7 @@ beforeEach(() => {
   purchaseErrorListeners.length = 0;
   removedUpdateListeners.length = 0;
   removedErrorListeners.length = 0;
+  mockInitConnection.mockClear();
   mockRequestPurchase.mockClear().mockResolvedValue(undefined);
   mockFinishTransaction.mockClear().mockResolvedValue(undefined);
   mockFetchProducts.mockClear();
