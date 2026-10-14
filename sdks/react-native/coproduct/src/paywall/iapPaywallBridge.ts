@@ -3,6 +3,7 @@ import {
   fetchProducts,
   finishTransaction,
   getAvailablePurchases,
+  initConnection,
   purchaseErrorListener,
   purchaseUpdatedListener,
   requestPurchase,
@@ -46,8 +47,22 @@ function expirationDateFor(purchase: Purchase): Date | undefined {
   return expirationDateIOS != null ? new Date(expirationDateIOS) : undefined;
 }
 
+// react-native-iap requires initConnection() before any other call in this
+// module (fetchProducts, requestPurchase, getAvailablePurchases all reject
+// with a native "not prepared" error otherwise). The connection is a
+// process-wide native resource meant to stay open for the app's lifetime
+// (react-native-iap's own docs: "keeps the native connection open across
+// screens"), so this is memoized once per JS runtime rather than
+// opened/closed per paywall session.
+let connectionReady: Promise<boolean> | undefined;
+function ensureConnection(): Promise<boolean> {
+  if (connectionReady == null) connectionReady = initConnection();
+  return connectionReady;
+}
+
 export class IapPaywallBridge implements NativePaywallBridge {
   async priceFor(productId: string, kind: PackageKind): Promise<string> {
+    await ensureConnection();
     const products =
       (await fetchProducts({
         skus: [productId],
@@ -64,6 +79,12 @@ export class IapPaywallBridge implements NativePaywallBridge {
     kind: PackageKind
   ): Promise<PurchaseResult> {
     const isConsumable = kind === 'consumable';
+    // Listener registration below must stay synchronous with this call (no
+    // await ahead of it): requestPurchase is fire-and-forget and its outcome
+    // only ever arrives through these listeners, so if a caller's purchase
+    // event could in principle fire before they're attached, it would be
+    // missed. Connection readiness is therefore awaited further down, just
+    // ahead of the native requestPurchase call, not here.
     return new Promise<PurchaseResult>((resolve, reject) => {
       const updatedSubscription = purchaseUpdatedListener(
         (purchase: Purchase) => {
@@ -110,17 +131,22 @@ export class IapPaywallBridge implements NativePaywallBridge {
         errorSubscription.remove();
       }
 
-      requestPurchase({
-        request: { apple: { sku: productId } },
-        type: storeTypeFor(kind),
-      }).catch((error: unknown) => {
-        cleanup();
-        reject(error instanceof Error ? error : new Error(String(error)));
-      });
+      ensureConnection()
+        .then(() =>
+          requestPurchase({
+            request: { apple: { sku: productId } },
+            type: storeTypeFor(kind),
+          })
+        )
+        .catch((error: unknown) => {
+          cleanup();
+          reject(error instanceof Error ? error : new Error(String(error)));
+        });
     });
   }
 
   async restore(): Promise<RestoredTransaction[]> {
+    await ensureConnection();
     const purchases = await getAvailablePurchases();
     const restored: RestoredTransaction[] = [];
     for (const purchase of purchases) {
