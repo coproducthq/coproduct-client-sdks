@@ -1,3 +1,7 @@
+## 1.1.1 - 2026-10-14
+
+Issue resolved for purchase results.
+
 ## 1.1.0 - 2026-10-09
 
 Onboarding and paywall, previously separate unpublished packages
