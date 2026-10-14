@@ -109,6 +109,16 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
     // to a final makes the non-null type available there too
     final PaywallSnapshot resolvedSnapshot = snapshot;
 
+    Future<void> reportResultToWebView(String state, [String? message]) async {
+      try {
+        await _controller?.runJavaScript(
+          'window.__coproductOnPurchaseResult__(${jsonEncode(state)}, ${jsonEncode(message)})',
+        );
+      } catch (_) {
+        // The WebView may already be torn down by the time this fires
+      }
+    }
+
     final runtime = PaywallRuntime(
       bridge: bridge,
       client: client,
@@ -123,8 +133,26 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
           // resolve -- nothing to do
         }
       },
-      onPurchaseResult: widget.onPurchaseResult,
-      onPurchaseError: widget.onPurchaseError,
+      // The default [data-cp-result] sections (success/cancel/fail) own
+      // showing the outcome and, for cancel/fail, waiting for the user's own
+      // dismiss tap -- success auto-dismisses itself after a brief hold.
+      // onDismiss (not onPurchaseResult/onPurchaseError) is therefore the
+      // single place a host app should navigate away from the paywall.
+      onPurchaseResult: (result, entitlements) {
+        switch (result.outcome) {
+          case PurchaseOutcome.success:
+            unawaited(reportResultToWebView('success'));
+          case PurchaseOutcome.pending:
+            unawaited(reportResultToWebView('cancel', 'Waiting for approval.'));
+          case PurchaseOutcome.cancelled:
+            unawaited(reportResultToWebView('cancel'));
+        }
+        widget.onPurchaseResult?.call(result, entitlements);
+      },
+      onPurchaseError: (error) {
+        unawaited(reportResultToWebView('fail'));
+        widget.onPurchaseError?.call(error);
+      },
       onDismiss: widget.onDismiss,
     );
 
