@@ -19,40 +19,47 @@ This guide is organized around this agentic mindset: hand the prompts to your ag
 ### **Connecting Coproduct to your AI coding tool**
 
 Connect Coproduct as an MCP server and your agent can manage flags, targeting rules, and environments directly from chat.  
-In Claude Code, run this from your terminal:  
-claude mcp add \--transport http coproduct https\://mcp.coproduct.app/mcp  
-Or add it manually in your MCP settings:  
-{  
-  "mcpServers": {  
-    "coproduct": {  
-      "url": "https\://mcp.coproduct.app/mcp"  
-    }  
-  }  
+In Claude Code, run this from your terminal:
+
+```bash
+claude mcp add --transport http coproduct https://mcp.coproduct.app/mcp
+```
+
+Or add it manually in your MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "coproduct": {
+      "url": "https://mcp.coproduct.app/mcp"
+    }
+  }
 }
+```
 
 In Claude Desktop, you can download it from the Claude Connectors directory:  
 ![][image2]
 
-For other MCP-compatible tools (Cursor, Codex, etc.), add https\://mcp.coproduct.app/mcp as an HTTP MCP server in your tool’s configuration.  
+For other MCP-compatible tools (Cursor, Codex, etc.), add https://mcp.coproduct.app/mcp as an HTTP MCP server in your tool’s configuration.  
 When you first use a Coproduct tool, your agent will prompt you to sign in and grant access. Approve the request in the browser — you’ll be redirected back automatically.
 
 ### **Getting your SDK key & environments**
 
-Each environment in Coproduct has its own mobile SDK key — formatted as cpk\_mob\_.... SDK keys are generated exclusively through your AI coding tool via the Coproduct MCP integration — there is no manual button to generate keys in the dashboard.
+Each environment in Coproduct has its own mobile SDK key — formatted as cpk_mob_.... SDK keys are generated exclusively through your AI coding tool via the Coproduct MCP integration — there is no manual button to generate keys in the dashboard.
 
-#### **1\. Prompt your agent to generate the key**
+#### **1. Prompt your agent to generate the key**
 
 Ask your agent to issue a key for the environment you are integrating:  
 Generate a mobile SDK key for the development environment.  
-Your agent calls create\_sdk\_key and provides your environment key (cpk\_mob\_...).  
+Your agent calls create_sdk_key and provides your environment key (cpk_mob_...).  
 IMPORTANT  
 The SDK key is revealed only once upon generation. Save it immediately in a private location (such as a local .env file that is in your .gitignore, or your team’s secrets manager). Coproduct never stores or displays the raw secret again.
 
-#### **2\. If you forgot or lost the key**
+#### **2. If you forgot or lost the key**
 
 Raw keys cannot be retrieved after generation. If you lose or forget your key, prompt your agent to rotate or reset it:  
 Rotate my mobile SDK key for the development environment.  
-Tools invoked: rotate\_sdk\_key  
+Tools invoked: rotate_sdk_key  
 Your agent initiates a rotation and returns a one-time confirmation link. Opening the link confirms the action, invalidates the old key across all active sessions, and reveals the new replacement key.
 
 #### **Separate keys per environment**
@@ -83,24 +90,33 @@ Ask your agent to install the packages and sync iOS dependencies:
 
 ### **Manual reference**
 
-npm install @coproduct/react-native-sdk react-native-fs react-native-webview @react-native-async-storage/async-storage react-native-iap  
-*\# or*  
-yarn add @coproduct/react-native-sdk react-native-fs react-native-webview @react-native-async-storage/async-storage react-native-iap  
-For iOS, run pod install:  
+```bash
+npm install @coproduct/react-native-sdk react-native-fs react-native-webview @react-native-async-storage/async-storage react-native-iap
+# or
+yarn add @coproduct/react-native-sdk react-native-fs react-native-webview @react-native-async-storage/async-storage react-native-iap
+```
+
+For iOS, run pod install:
+
+```bash
 cd ios && pod install
+```
 
 #### **Xcode 26 compatibility note**
 
-If you are building with Xcode 26+ and React Native 0.82+, you may hit a C++ standard mismatch in the fmt pod target. Add this to your ios/Podfile:  
-post\_install do |installer|  
-  installer.pods\_project.targets.each do |target|  
-    if target.name \== "fmt"  
-      target.build\_configurations.each do |config|  
-        config.build\_settings\["CLANG\_CXX\_LANGUAGE\_STANDARD"\] \= "c++17"  
-      end  
-    end  
-  end  
+If you are building with Xcode 26+ and React Native 0.82+, you may hit a C++ standard mismatch in the fmt pod target. Add this to your ios/Podfile:
+
+```ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    if target.name == "fmt"
+      target.build_configurations.each do |config|
+        config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"
+      end
+    end
+  end
 end
+```
 
 ## **Basic integration**
 
@@ -108,12 +124,15 @@ Initialize the SDK once at app startup — typically in your root component or a
 
 ### **Prompting your agent**
 
-Initialize the Coproduct client at app startup using the SDK key from process.env.COPRODUCT\_SDK\_KEY. Hold the initialized client in a ref or global provider so the rest of the app can read flags.
+Initialize the Coproduct client at app startup using the SDK key from process.env.COPRODUCT_SDK_KEY. Hold the initialized client in a ref or global provider so the rest of the app can read flags.
 
 ### **Code reference**
 
-import Coproduct from '@coproduct/react-native-sdk';  
-const client \= await Coproduct.initialize('cpk\_mob\_...');  
+```typescript
+import Coproduct from '@coproduct/react-native-sdk';
+const client = await Coproduct.initialize('cpk_mob_...');
+```
+
 The SDK loads your flags from the platform-local cache immediately so the client is ready to use as soon as initialize resolves. Flag evaluations and updates run against cached snapshots with background polling.
 
 ## **Onboarding flows**
@@ -124,14 +143,15 @@ Coproduct allows authoring and publishing interactive, multi-step onboarding flo
 
 Here is a realistic prompt asking your agent to integrate a 4-screen onboarding flow and wire up each screen’s native interactions:
 
-| *Create an OnboardingScreen component in React Native using CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the string flag welcome-onboarding, load the platform script with CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our 4-step flow: Screen 1 \- Welcome & Value Proposition (welcome): Shows hero branding and feature overview. User taps Get Started to advance… Screen 2 \- Persona Questionnaire (user-goals): Asks the user their primary objective (e.g. Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen 3 \- Notifications Opt-In (notifications-optin): Prompts the user to enable alerts. Wire up onRequestPermission(notifications) to request native OS notification permissions… Screen 4 \- Tailored Plan (plan-reveal): An author-configured wait for API screen with an onLoad hook. Wire up onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier from the Screen 2 answers, and call onFinish() when onEvent receives flow\_completed.* |
+| *Create an OnboardingScreen component in React Native using CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the string flag welcome-onboarding, load the platform script with CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our 4-step flow: Screen 1 - Welcome & Value Proposition (welcome): Shows hero branding and feature overview. User taps Get Started to advance… Screen 2 - Persona Questionnaire (user-goals): Asks the user their primary objective (e.g. Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen 3 - Notifications Opt-In (notifications-optin): Prompts the user to enable alerts. Wire up onRequestPermission(notifications) to request native OS notification permissions… Screen 4 - Tailored Plan (plan-reveal): An author-configured wait for API screen with an onLoad hook. Wire up onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier from the Screen 2 answers, and call onFinish() when onEvent receives flow_completed.* |
 | :---- |
 
 ### **Code reference**
 
-import React, { useEffect, useState } from 'react';  
-import { View, ActivityIndicator, StyleSheet } from 'react-native';  
-import type { CoproductClient as BaseCoproductClient } from '@coproduct/react-native-sdk';  
+```tsx
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import type { CoproductClient as BaseCoproductClient } from '@coproduct/react-native-sdk';
 import {  
   CoproductOnboardingFlow,  
   HttpOnboardingClient,  
@@ -140,115 +160,116 @@ import {
 interface OnboardingScreenProps {  
   baseClient: BaseCoproductClient;  
   envSlug: string;  
-  onFinish: () \=\> void;  
+  onFinish: () => void;  
 }  
 export function OnboardingScreen({ baseClient, envSlug, onFinish }: OnboardingScreenProps) {  
-  const \[platformScript, setPlatformScript\] \= useState\<string | null\>(null\>;  
-  useEffect(() \=\> {  
+  const [platformScript, setPlatformScript] = useState<string | null>(null);  
+  useEffect(() => {  
     CoproductOnboardingFlow.loadPlatformScript().then(setPlatformScript);  
-  }, \[\]);  
-  if (\!platformScript) {  
+  }, []);  
+  if (!platformScript) {  
     return (  
-      \<View style\={styles.center}\>  
-        \<ActivityIndicator size\="large" /\>  
-      \</View\>  
+      <View style={styles.center}>  
+        <ActivityIndicator size="large" />  
+      </View>  
     );  
   }  
-*// Create the onboarding adapter connecting the base SDK with flow fetching*  
-  const onboardingClient: OnboardingAdapterClient \= {  
-    resolveStringFlag: (flagKey) \=\> baseClient.getString(flagKey, '') || undefined,  
-    fetchOnboardingFlow: (flowId) \=\>  
+  // Create the onboarding adapter connecting the base SDK with flow fetching  
+  const onboardingClient: OnboardingAdapterClient = {  
+    resolveStringFlag: (flagKey) => baseClient.getString(flagKey, '') || undefined,  
+    fetchOnboardingFlow: (flowId) =>  
       new HttpOnboardingClient({ envSlug }).fetchOnboardingFlow(flowId),  
     sdkContextAttributes: { platform: 'ios' },  
     sdkContextSegmentKeys: new Set(),  
-    refresh: async () \=\> {},  
+    refresh: async () => {},  
   };  
   return (  
-    \<View style\={styles.container}\>  
-      \<CoproductOnboardingFlow  
-        flagKey\="welcome-onboarding" // String flag that resolves to the target flowId  
-        client\={onboardingClient}  
-        platformScriptJs\={platformScript}  
-        onEvent\={(event, screenId, answers) \=\> {  
+    <View style={styles.container}>  
+      <CoproductOnboardingFlow  
+        flagKey="welcome-onboarding" // String flag that resolves to the target flowId  
+        client={onboardingClient}  
+        platformScriptJs={platformScript}  
+        onEvent={(event, screenId, answers) => {  
           // Tracks progression through screens:  
-          // 'welcome' \-\> 'user-goals' \-\> 'notifications-optin' \-\> 'plan-reveal'  
-          console.log(\`\[Onboarding\] eventonscreen'{screenId}'\`, answers);  
-          if (event \=== 'flow\_completed' || event \=== 'flow\_dismissed') {  
+          // 'welcome' -> 'user-goals' -> 'notifications-optin' -> 'plan-reveal'  
+          console.log(`[Onboarding] ${event} on screen '${screenId}'`, answers);  
+          if (event === 'flow_completed' || event === 'flow_dismissed') {  
             onFinish();  
           }  
         }}  
-        onRequestPermission={async (permission) \=\> {  
+        onRequestPermission={async (permission) => {  
           // Screen 3: Native OS permission request triggered by user action  
-          if (permission \=== 'notifications') {  
+          if (permission === 'notifications') {  
             console.log('Requesting native push notification permission...');  
             // Call your app's notification permission logic here  
             return true;  
           }  
           return false;  
         }}  
-        onNativeOperation={async (operation, params) \=\> {  
+        onNativeOperation={async (operation, params) => {  
           // Screen 4: Handles 'onLoad' operations ("wait for API" before showing screen)  
-          if (operation \=== 'fetchRecommendedPlan') {  
+          if (operation === 'fetchRecommendedPlan') {  
             console.log('Calculating personalized plan with answers:', params);  
             // Example response injected back into the flow's answers  
             return {  
-              tier: 'pro\_annual',  
+              tier: 'pro_annual',  
               discountCode: 'WELCOME20',  
               headline: 'Recommended for Growing Teams',  
             };  
           }  
-          return { status: 'error', message: \`Unhandled operation: \${operation}\` };  
+          return { status: 'error', message: `Unhandled operation: ${operation}` };  
         }}  
-      /\>  
-    \</View\>  
+      />  
+    </View>  
   );  
 }  
-const styles \= StyleSheet.create({  
-  container: { flex: 1 },  
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },  
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
+```
 
 * Runtime content loading — the flow graph is retrieved from the edge CDN via HttpOnboardingClient based on the flow ID pointed to by flagKey.  
 * Automatic progress persistence — answers and the current screen are preserved in on-device storage; resuming an interrupted flow happens seamlessly.  
-* Debug drawer — in \_\_DEV\_\_ builds, a built-in overlay allows refreshing content or resetting progress to test the experience end-to-end.
+* Debug drawer — in __DEV__ builds, a built-in overlay allows refreshing content or resetting progress to test the experience end-to-end.
 
 ### **Native interactions & lifecycle callbacks**
 
 The WebView renders platform-authored UI, but all device capabilities and native events are handed back to your React Native app through typed callbacks:
 
-#### **1\. Asking for permissions (onRequestPermission)**
+#### **1. Asking for permissions (onRequestPermission)**
 
 Authored screens can prompt the user for native OS permissions (e.g. a push notification opt-in screen, camera upload screen, or location permissions):
 
 * Built-in capability: When a user taps a CTA configured to request a permission, the runtime translates it to an OS request. Under the hood, Coproduct maps standard permissions (notifications, camera, photos, location, microphone) directly to native platform permission dialogs.  
-* Custom handling: Supply onRequestPermission: (permission: string) \=\> Promise\<boolean\> to coordinate permission requests with your app’s existing permission state or third-party wrappers (like react-native-permissions).  
+* Custom handling: Supply onRequestPermission: (permission: string) => Promise<boolean> to coordinate permission requests with your app’s existing permission state or third-party wrappers (like react-native-permissions).  
 * Conditional branching: Subsequent screens or transitions can branch based on whether the permission was granted or denied.
 
-#### **2\. Waiting for API calls (onNativeOperation & onLoad)**
+#### **2. Waiting for API calls (onNativeOperation & onLoad)**
 
 Onboarding screens frequently need data that doesn’t exist until the user answers prior questions — such as computing a custom diet plan, querying a credit limit, or reserving a username.
 
 * The onLoad hook: In the Coproduct dashboard, any screen can be configured with an onLoad operation name (e.g. operation: "fetchRecommendedPlan", timeoutMs: 5000).  
 * Instant suspension: The moment the user navigates to that screen, the flow pauses and presents a native loading spinner while calling your app’s onNativeOperation(operation, params).  
-* Answers returned to the flow: Your handler returns a key-value dictionary (e.g. { tier: "pro\_annual", discount: "20%" }). The SDK resolves the request, and the values are injected into the flow’s state under answers.  
-* Dynamic screen rendering: The loaded screen and all subsequent screens can display the returned values dynamically using data bindings (such as \<span data-cp-answer="tier"\>\</span\>), or route users down different paths based on the returned values.
+* Answers returned to the flow: Your handler returns a key-value dictionary (e.g. { tier: "pro_annual", discount: "20%" }). The SDK resolves the request, and the values are injected into the flow’s state under answers.  
+* Dynamic screen rendering: The loaded screen and all subsequent screens can display the returned values dynamically using data bindings (such as <span data-cp-answer="tier"></span>), or route users down different paths based on the returned values.
 
-#### **3\. Event callbacks & analytics (onEvent)**
+#### **3. Event callbacks & analytics (onEvent)**
 
 Every screen transition and user interaction emits a lifecycle event through onEvent(event, screenId, answers):
 
 * Events emitted:  
-  * screen\_viewed — fires whenever a screen is rendered.  
-  * action\_tapped — fires when buttons, choice cards, or inputs are tapped.  
-  * flow\_completed — fires when the user successfully reaches the end of the onboarding flow.  
-  * flow\_dismissed — fires when the user taps a close or skip button.  
+  * screen_viewed — fires whenever a screen is rendered.  
+  * action_tapped — fires when buttons, choice cards, or inputs are tapped.  
+  * flow_completed — fires when the user successfully reaches the end of the onboarding flow.  
+  * flow_dismissed — fires when the user taps a close or skip button.  
 * Cumulative answers dictionary: Every event carries all answers collected up to that moment (form inputs, choice selections, and native API responses).  
 * Analytics integration: Plug onEvent directly into your analytics pipeline (PostHog, Segment, Mixpanel, Firebase) to track conversion funnels without manual instrumentation across individual screens.
 
-#### **4\. URL and paywall transitions**
+#### **4. URL and paywall transitions**
 
 * onOpenUrl(url): Triggered when users tap external links (such as Privacy Policy or Terms of Service URLs), allowing you to open them in an in-app browser or native modal.  
-* onShowPaywall(paywallId): Triggered when an onboarding flow finishes with a purchase CTA, letting you immediately transition the user into \<CoproductPaywall paywallId={paywallId} ... /\>.
+* onShowPaywall(paywallId): Triggered when an onboarding flow finishes with a purchase CTA, letting you immediately transition the user into <CoproductPaywall paywallId={paywallId} ... />.
 
 ### **Viewing and inspecting in the dashboard**
 
@@ -271,7 +292,7 @@ Because an onboarding flag (e.g. welcome-onboarding) is a standard Coproduct str
 | *Configure our string flag welcome-onboarding with two variations: short-flow (value: flow-quick-v1) and deep-flow (value: flow-interactive-v2). Split rollout 50/50 across both variations in production.* |
 | :---- |
 
-Tools invoked: create\_flag → add\_targeting\_rule (50% rollout split) → publish\_environment
+Tools invoked: create_flag → add_targeting_rule (50% rollout split) → publish_environment
 
 ## **Paywalls**
 
@@ -287,15 +308,15 @@ The agent defines entitlements, configures offerings across subscription tiers, 
 | *Design a high-converting annual subscription paywall for pro access in project my-app. Use a feature comparison layout comparing Free and Pro tiers, highlight a 7-day free trial on the annual plan with a 40 percent savings badge, set up an alternative monthly option, and include restore purchases and terms links.* |
 | :---- |
 
-Tools invoked: create\_entitlement → create\_product → create\_offering → create\_paywall\_template → update\_paywall\_content → deploy\_paywall\_template
+Tools invoked: create_entitlement → create_product → create_offering → create_paywall_template → update_paywall_content → deploy_paywall_template
 
 #### **Paywall templates and data attributes**
 
 Your agent can scaffold paywalls using conversion-tested templates or generate completely custom layouts:
 
-* Hero single offer (hero\_single\_offer): Focuses user attention on a single high-value tier, ideal for direct trial-to-paid conversions.  
-* Feature comparison (feature\_comparison): Side-by-side comparison matrix highlighting differences between Free and Pro tiers.  
-* Plan grid (plan\_grid): Multi-card layout presenting monthly, annual, and lifetime tiers side by side.
+* Hero single offer (hero_single_offer): Focuses user attention on a single high-value tier, ideal for direct trial-to-paid conversions.  
+* Feature comparison (feature_comparison): Side-by-side comparison matrix highlighting differences between Free and Pro tiers.  
+* Plan grid (plan_grid): Multi-card layout presenting monthly, annual, and lifetime tiers side by side.
 
 Interactive paywall behaviors (purchases, restores, dismissals) and live price placements are wired using standard Coproduct data attributes. When the paywall renders in React Native, the SDK automatically connects native StoreKit 2 and Google Play Billing to these elements:
 
@@ -314,7 +335,7 @@ To enable server-driven paywalls with automated product syncing and receipt vali
 * Link your Issuer ID, Key ID, and downloaded private key (.p8), or ask your agent:
 
 Connect our App Store Connect credentials using our Issuer ID, Key ID, and private key for project my-app.  
-Tools invoked: connect\_app\_store\_credentials → select\_app\_store\_app  
+Tools invoked: connect_app_store_credentials → select_app_store_app  
 Once authorized, Coproduct can create and sync subscription products, validate transactions, and record entitlement grants directly with Apple and Google Play.
 
 ### **Changing pricing from prompts & dashboard (syncs to App Store Connect)**
@@ -328,7 +349,7 @@ You can instruct your AI coding tool to change product prices in chat:
 | *Update the price of our iOS subscription product com.myapp.pro.annual to 49.99 USD in project my-app.* |
 | :---- |
 
-Tools invoked: update\_product
+Tools invoked: update_product
 
 When App Store Connect is connected, Coproduct pushes the new reference price directly to Apple via the App Store Connect API. Because price changes to existing approved subscriptions do not require a new app review, the updated price tier reflects in App Store Connect near-instantly.
 
@@ -337,8 +358,8 @@ When App Store Connect is connected, Coproduct pushes the new reference price di
 You can also adjust prices, add promotional discounts, or swap packages visually in the [Coproduct dashboard](https://app.coproduct.app) under Paywalls → Products & Offerings:
 
 * Zero App Store resubmissions: Change monthly or annual subscription prices, introduce lifetime tiers, or adjust free-trial durations without submitting an app update.  
-* Dynamic StoreKit 2 price injection: When \<CoproductPaywall /\> renders on-device, it automatically queries native StoreKit 2 and Google Play Billing for the user’s localized currency prices and trial terms, then injects them into the paywall UI. Users worldwide always see prices formatted in their local currency.  
-* Price elasticity & A/B testing: Test different price points (e.g. \$4.99/mo vs. \$6.99/mo) or swap offering layouts between user segments using Coproduct targeting rules.
+* Dynamic StoreKit 2 price injection: When <CoproductPaywall /> renders on-device, it automatically queries native StoreKit 2 and Google Play Billing for the user’s localized currency prices and trial terms, then injects them into the paywall UI. Users worldwide always see prices formatted in their local currency.  
+* Price elasticity & A/B testing: Test different price points (e.g. $4.99/mo vs. $6.99/mo) or swap offering layouts between user segments using Coproduct targeting rules.
 
 ### **Prompting your agent for React Native integration**
 
@@ -347,16 +368,17 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 
 ### **Code reference**
 
-import React, { useEffect, useState } from 'react';  
-import { View, ActivityIndicator, StyleSheet, Modal } from 'react-native';  
-import { CoproductPaywall } from '@coproduct/react-native-sdk';  
+```tsx
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, Modal } from 'react-native';
+import { CoproductPaywall } from '@coproduct/react-native-sdk';
 interface PaywallModalProps {  
   visible: boolean;  
   paywallId: string;  
   appUserId: string;  
   sdkKey: string;  
-  onSuccess: () \=\> void;  
-  onClose: () \=\> void;  
+  onSuccess: () => void;  
+  onClose: () => void;  
 }  
 export function PaywallModal({  
   visible,  
@@ -366,44 +388,45 @@ export function PaywallModal({
   onSuccess,  
   onClose,  
 }: PaywallModalProps) {  
-  const \[platformScript, setPlatformScript\] \= useState\<string | null\>(null\>;  
-  useEffect(() \=\> {  
+  const [platformScript, setPlatformScript] = useState<string | null>(null);  
+  useEffect(() => {  
     CoproductPaywall.loadPlatformScript().then(setPlatformScript);  
-  }, \[\]);  
-  if (\!visible || \!platformScript) return null;  
+  }, []);  
+  if (!visible || !platformScript) return null;  
   return (  
-    \<Modal visible\={visible} animationType\="slide" onRequestClose\={onClose}\>  
-      \<View style\={styles.container}\>  
-        \<CoproductPaywall  
-          paywallId\={paywallId}  
-          appUserId\={appUserId}  
-          sdkKey\={sdkKey}  
-          platformScriptJs\={platformScript}  
-          onPurchaseResult\={(result, entitlements) \=\> {  
-            if (result.outcome \=== 'success') {  
-              console.log('Purchase succeeded\! Granted entitlements:', entitlements);  
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>  
+      <View style={styles.container}>  
+        <CoproductPaywall  
+          paywallId={paywallId}  
+          appUserId={appUserId}  
+          sdkKey={sdkKey}  
+          platformScriptJs={platformScript}  
+          onPurchaseResult={(result, entitlements) => {  
+            if (result.outcome === 'success') {  
+              console.log('Purchase succeeded! Granted entitlements:', entitlements);  
               onSuccess();  
               onClose();  
-            } else if (result.outcome \=== 'pending') {  
+            } else if (result.outcome === 'pending') {  
               console.log('Purchase pending (e.g. Ask to Buy parent approval)');  
             }  
           }}  
-          onPurchaseError={(error) \=\> {  
+          onPurchaseError={(error) => {  
             console.error('Purchase failed:', error.reason, error.message);  
           }}  
           onDismiss={onClose}  
-          onLoadError={(error) \=\> {  
+          onLoadError={(error) => {  
             console.error('Failed to load paywall:', error.message);  
             onClose();  
           }}  
-        /\>  
-View\>  
-Modal\>  
+        />  
+      </View>  
+    </Modal>  
   );  
 }  
-const styles \= StyleSheet.create({  
-  container: { flex: 1 },  
+const styles = StyleSheet.create({
+  container: { flex: 1 },
 });
+```
 
 * Live StoreKit 2 & Google Play pricing — local currency formats, subscription period terms, and trial labels are resolved natively and injected into the paywall automatically.  
 * Built-in purchase bridge — uses IapPaywallBridge (backed by react-native-iap) out of the box, with automatic transaction recording and backend entitlement synchronization.
@@ -418,29 +441,29 @@ const styles \= StyleSheet.create({
 | *Create a boolean flag called onboarding-v2 in my development environment, off by default. Turn it on for 10% of users.* |
 | :---- |
 
-Tools invoked: create\_flag → add\_targeting\_rule (10% rollout coverage) → publish\_environment
+Tools invoked: create_flag → add_targeting_rule (10% rollout coverage) → publish_environment
 
 #### **Set up a paywall or subscription feature**
 
 | *Create a flag called pro-features that is on for any user with a plan attribute of pro or enterprise, off for everyone else.* |
 | :---- |
 
-Tools invoked: create\_flag → add\_targeting\_rule (attribute condition: plan in \[pro, enterprise\]) → set\_variation\_defaults → publish\_environment
+Tools invoked: create_flag → add_targeting_rule (attribute condition: plan in [pro, enterprise]) → set_variation_defaults → publish_environment
 
 #### **Roll out a new feature gradually**
 
 | *Roll out new-checkout to 20% of users in production. Increase it to 50% once I say so.* |
 | :---- |
 
-Tools invoked: create\_flag → add\_targeting\_rule (coverage: 20%) → publish\_environment  
-Then on follow-up: update\_targeting\_rule (coverage: 50%) → publish\_environment
+Tools invoked: create_flag → add_targeting_rule (coverage: 20%) → publish_environment  
+Then on follow-up: update_targeting_rule (coverage: 50%) → publish_environment
 
 #### **Target a specific group**
 
-| *Create a segment called beta-testers for users where is\_beta is true. Enable new-ui for that segment only.* |
+| *Create a segment called beta-testers for users where is_beta is true. Enable new-ui for that segment only.* |
 | :---- |
 
-Tools invoked: create\_segment → create\_flag → add\_targeting\_rule (segment condition) → publish\_environment
+Tools invoked: create_segment → create_flag → add_targeting_rule (segment condition) → publish_environment
 
 #### **Toggle a flag**
 
@@ -452,28 +475,28 @@ Or:
 | *Turn onboarding-v2 off in production.* |
 | :---- |
 
-Tools invoked: toggle\_flag → *(auto-publishes the environment)*
+Tools invoked: toggle_flag → *(auto-publishes the environment)*
 
 #### **Emergency kill switch**
 
 | *Kill new-checkout everywhere immediately – something is broken.* |
 | :---- |
 
-Tools invoked: kill\_flag → *(auto-publishes every environment)*
+Tools invoked: kill_flag → *(auto-publishes every environment)*
 
 To undo:
 
 | *Revive new-checkout.* |
 | :---- |
 
-Tools invoked: revive\_flag
+Tools invoked: revive_flag
 
 #### **Audit recent changes**
 
 | *What changed in production in the last 24 hours?* |
 | :---- |
 
-Tools invoked: read\_audit\_log
+Tools invoked: read_audit_log
 
 ### **Reading a flag**
 
@@ -487,13 +510,19 @@ Tools invoked: read\_audit\_log
 
 ### **Code reference**
 
-const newCheckoutEnabled \= client.getBool('new-checkout', false);  
-The second argument is the fallback value returned if the flag is missing, still loading from cold cache, or evaluated to a different type.  
-The client also provides typed getters for other value types:  
-const heroTitle \= client.getString('hero-title', 'Welcome');  
-const maxUploadMb \= client.getInt('max-upload-mb', 10);  
-const discountPercent \= client.getNumber('discount-percent', 0.0);  
-const promoJson \= client.getJson('promo-config', '{}');
+```typescript
+const newCheckoutEnabled = client.getBool('new-checkout', false);
+```
+
+The second argument is the fallback value returned if the flag is missing, still loading from cold cache, or evaluated to a different type.
+The client also provides typed getters for other value types:
+
+```typescript
+const heroTitle = client.getString('hero-title', 'Welcome');
+const maxUploadMb = client.getInt('max-upload-mb', 10);
+const discountPercent = client.getNumber('discount-percent', 0.0);
+const promoJson = client.getJson('promo-config', '{}');
+```
 
 ### **Reacting to flag changes**
 
@@ -505,26 +534,32 @@ Create a useFlag(client, key, defaultValue) custom React hook that observes flag
 
 ### **Code reference**
 
-import { useEffect, useState } from 'react';  
-import type { CoproductClient } from '@coproduct/react-native-sdk';  
-export function useFlag(  
-  client: CoproductClient | null,  
-  key: string,  
-  defaultValue: boolean  
-): boolean {  
-  const \[value, setValue\] \= useState(defaultValue);  
-  useEffect(() \=\> {  
-    if (\!client) return;  
-    const sub \= client.observe(key, defaultValue, setValue);  
-    return () \=\> sub.cancel();  
-  }, \[client, key, defaultValue\]);  
-  return value;  
-}  
-Using the hook in a screen:  
-function CheckoutScreen({ client }: { client: CoproductClient }) {  
-  const newCheckout \= useFlag(client, 'new-checkout', false);  
-  return newCheckout ? \<NewCheckoutFlow /\> : \<LegacyCheckoutFlow /\>;  
+```typescript
+import { useEffect, useState } from 'react';
+import type { CoproductClient } from '@coproduct/react-native-sdk';
+export function useFlag(
+  client: CoproductClient | null,
+  key: string,
+  defaultValue: boolean
+): boolean {
+  const [value, setValue] = useState(defaultValue);
+  useEffect(() => {
+    if (!client) return;
+    const sub = client.observe(key, defaultValue, setValue);
+    return () => sub.cancel();
+  }, [client, key, defaultValue]);
+  return value;
 }
+```
+
+Using the hook in a screen:
+
+```tsx
+function CheckoutScreen({ client }: { client: CoproductClient }) {
+  const newCheckout = useFlag(client, 'new-checkout', false);
+  return newCheckout ? <NewCheckoutFlow /> : <LegacyCheckoutFlow />;
+}
+```
 
 ### **Targeting your users**
 
@@ -536,24 +571,29 @@ When a user signs in, identify them with client.identify(‘user-123’) and set
 
 ### **Code reference**
 
-*// On user sign-in*  
-client.identify('user-123', {  
-  plan: 'pro',  
-  country: 'US',  
-});  
-*// Update specific attributes as state changes*  
-client.updateAttributes({  
-  cartItemCount: 3,  
-  isSubscriber: true,  
-});  
-*// On sign-out*  
-client.signOut();  
-To replace targeting key and attributes in one atomic call:  
-client.setContext('user-123', {  
-  plan: 'pro',  
-  country: 'US',  
-});  
+```typescript
+// On user sign-in
+client.identify('user-123', {
+  plan: 'pro',
+  country: 'US',
+});
+// Update specific attributes as state changes
+client.updateAttributes({
+  cartItemCount: 3,
+  isSubscriber: true,
+});
+// On sign-out
+client.signOut();
+```
 
+To replace targeting key and attributes in one atomic call:
+
+```typescript
+client.setContext('user-123', {
+  plan: 'pro',
+  country: 'US',
+});
+```
 
 [image1]: <data:image/png;base64,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>
 

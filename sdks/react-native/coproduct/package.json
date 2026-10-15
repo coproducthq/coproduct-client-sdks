@@ -1,7 +1,7 @@
 {
   "name": "@coproduct/react-native-sdk",
   "version": "1.0.1",
-  "description": "Coproduct React Native SDK scaffold",
+  "description": "Coproduct React Native SDK",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -152,7 +152,7 @@
       "android": "android/generated"
     },
     "android": {
-      "javaPackageName": "com.coproduct"
+      "javaPackageName": "app.coproduct"
     },
     "includesGeneratedCode": true
   },
