@@ -51,7 +51,7 @@ def supportsNamespace() {
 
 android {
   if (supportsNamespace()) {
-    namespace "com.coproduct"
+    namespace "app.coproduct"
 
     sourceSets {
       main {
@@ -139,6 +139,6 @@ if (isNewArchitectureEnabled()) {
   react {
     jsRootDir = file("../src/")
     libraryName = "Coproduct"
-    codegenJavaPackageName = "com.coproduct"
+    codegenJavaPackageName = "app.coproduct"
   }
 }

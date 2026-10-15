@@ -1,5 +1,16 @@
 ## Unreleased
 
+## 1.0.2
+
+Reformatted the SDK README: every code sample is now in a fenced code
+block, and paste corruption from the original draft (a broken `useState`
+call, a mangled template literal, and two missing JSX closing tags) is
+fixed.
+
+Renamed the Android module's package from the scaffold default
+`com.coproduct` to `app.coproduct`, matching the project's reverse-DNS
+namespace convention (`coproduct.app`).
+
 ## 1.0.1
 
 Paywall purchase/restore taps now reach StoreKit: the embedded platform

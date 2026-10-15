@@ -73,7 +73,7 @@ This convention applies ONLY to apps under `examples/` and `consumer-tests/`. SD
 
 One deliberate exception: key strings the Rust core owns are defined once there and are **not** per-platform namespaced, because every SDK shares them. `ANONYMOUS_ID_STORAGE_KEY` is `coproduct.anonymous_id` in `core/coproduct-core/src/identity.rs`, and the host stores are pass-through. Renaming one to fit this convention would break keychain and `SharedPreferences` compatibility across the SDKs that share the core.
 
-Write it down when scaffolding a new package: two packages have already carried a template default into the repository, React Native's `com.coproduct` and the Flutter plugin's former `com.flutter_rust_bridge.coproduct`.
+Write it down when scaffolding a new package: two packages have already carried a template default into the repository, React Native's former `com.coproduct` and the Flutter plugin's former `com.flutter_rust_bridge.coproduct`.
 
 ## Toolchain
 

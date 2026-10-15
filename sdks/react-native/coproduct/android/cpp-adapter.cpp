@@ -7,10 +7,10 @@
 namespace jsi = facebook::jsi;
 namespace react = facebook::react;
 
-// Automated testing checks Java_com_coproduct_CoproductModule and coproduct
+// Automated testing checks Java_app_coproduct_CoproductModule and coproduct
 // by comparing the whole line here.
 /*
-Java_com_coproduct_CoproductModule_nativeMultiply(JNIEnv *env, jclass type, jdouble a, jdouble b) {
+Java_app_coproduct_CoproductModule_nativeMultiply(JNIEnv *env, jclass type, jdouble a, jdouble b) {
     return coproduct::multiply(a, b);
 }
 */
@@ -18,7 +18,7 @@ Java_com_coproduct_CoproductModule_nativeMultiply(JNIEnv *env, jclass type, jdou
 // Installer coming from CoproductModule
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_coproduct_CoproductModule_nativeInstallRustCrate(
+Java_app_coproduct_CoproductModule_nativeInstallRustCrate(
     JNIEnv *env,
     jclass type,
     jlong rtPtr,
@@ -37,7 +37,7 @@ Java_com_coproduct_CoproductModule_nativeInstallRustCrate(
 
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_com_coproduct_CoproductModule_nativeCleanupRustCrate(JNIEnv *env, jclass type, jlong rtPtr) {
+Java_app_coproduct_CoproductModule_nativeCleanupRustCrate(JNIEnv *env, jclass type, jlong rtPtr) {
     auto runtime = reinterpret_cast<jsi::Runtime *>(rtPtr);
     return coproduct::cleanupRustCrate(*runtime);
 }
