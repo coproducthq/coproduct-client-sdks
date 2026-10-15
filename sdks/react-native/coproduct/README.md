@@ -16,6 +16,18 @@ Coproduct is designed for developers using AI coding agents, including Claude Co
 
 This guide is organized around this agentic mindset: hand the prompts to your agent, let it configure remote state and write the client integration, and use the code references to review and verify.
 
+### **Get started in 2 minutes (do not skip)**
+
+1. **Sign up** at [coproduct.app](https://coproduct.app).
+2. **Configure MCP** in Claude Code:
+   ```bash
+   claude mcp add --transport http coproduct https://mcp.coproduct.app/mcp
+   ```
+3. **Prompt** your agent: `Integrate @coproduct/react-native-sdk`
+   - Generates your project key and wires the SDK into your app.
+4. **Prompt** your agent: `Create a new onboarding with 5 steps`
+5. **Prompt** your agent: `Rebuild and open the app`
+
 ### **Connecting Coproduct to your AI coding tool**
 
 Connect Coproduct as an MCP server and your agent can manage flags, targeting rules, and environments directly from chat.  
@@ -49,16 +61,24 @@ Each environment in Coproduct has its own mobile SDK key — formatted as cpk_mo
 
 #### **1. Prompt your agent to generate the key**
 
-Ask your agent to issue a key for the environment you are integrating:  
-Generate a mobile SDK key for the development environment.  
+Ask your agent to issue a key for the environment you are integrating:
+
+```prompt
+Generate a mobile SDK key for the development environment.
+```
+
 Your agent calls create_sdk_key and provides your environment key (cpk_mob_...).  
 IMPORTANT  
 The SDK key is revealed only once upon generation. Save it immediately in a private location (such as a local .env file that is in your .gitignore, or your team’s secrets manager). Coproduct never stores or displays the raw secret again.
 
 #### **2. If you forgot or lost the key**
 
-Raw keys cannot be retrieved after generation. If you lose or forget your key, prompt your agent to rotate or reset it:  
-Rotate my mobile SDK key for the development environment.  
+Raw keys cannot be retrieved after generation. If you lose or forget your key, prompt your agent to rotate or reset it:
+
+```prompt
+Rotate my mobile SDK key for the development environment.
+```
+
 Tools invoked: rotate_sdk_key  
 Your agent initiates a rotation and returns a one-time confirmation link. Opening the link confirms the action, invalidates the old key across all active sessions, and reveals the new replacement key.
 
@@ -85,8 +105,9 @@ Never hardcode or commit keys into source control. Always inject them via enviro
 
 Ask your agent to install the packages and sync iOS dependencies:
 
-| *Install the `@coproduct/react-native-sdk` package from npm. Then run pod install for iOS.* |
-| :---- |
+```prompt
+Install the @coproduct/react-native-sdk package from npm. Then run pod install for iOS.
+```
 
 ### **Manual reference**
 
@@ -124,7 +145,9 @@ Initialize the SDK once at app startup — typically in your root component or a
 
 ### **Prompting your agent**
 
+```prompt
 Initialize the Coproduct client at app startup using the SDK key from process.env.COPRODUCT_SDK_KEY. Hold the initialized client in a ref or global provider so the rest of the app can read flags.
+```
 
 ### **Code reference**
 
@@ -143,8 +166,9 @@ Coproduct allows authoring and publishing interactive, multi-step onboarding flo
 
 Here is a realistic prompt asking your agent to integrate a 4-screen onboarding flow and wire up each screen’s native interactions:
 
-| *Create an OnboardingScreen component in React Native using CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the string flag welcome-onboarding, load the platform script with CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our 4-step flow: Screen 1 - Welcome & Value Proposition (welcome): Shows hero branding and feature overview. User taps Get Started to advance… Screen 2 - Persona Questionnaire (user-goals): Asks the user their primary objective (e.g. Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen 3 - Notifications Opt-In (notifications-optin): Prompts the user to enable alerts. Wire up onRequestPermission(notifications) to request native OS notification permissions… Screen 4 - Tailored Plan (plan-reveal): An author-configured wait for API screen with an onLoad hook. Wire up onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier from the Screen 2 answers, and call onFinish() when onEvent receives flow_completed.* |
-| :---- |
+```prompt
+Create an OnboardingScreen component in React Native using CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the string flag welcome-onboarding, load the platform script with CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our 4-step flow: Screen 1 - Welcome & Value Proposition (welcome): Shows hero branding and feature overview. User taps Get Started to advance… Screen 2 - Persona Questionnaire (user-goals): Asks the user their primary objective (e.g. Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen 3 - Notifications Opt-In (notifications-optin): Prompts the user to enable alerts. Wire up onRequestPermission(notifications) to request native OS notification permissions… Screen 4 - Tailored Plan (plan-reveal): An author-configured wait for API screen with an onLoad hook. Wire up onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier from the Screen 2 answers, and call onFinish() when onEvent receives flow_completed.
+```
 
 ### **Code reference**
 
@@ -289,8 +313,9 @@ Because an onboarding flag (e.g. welcome-onboarding) is a standard Coproduct str
 
 #### **Prompting your agent for variant testing**
 
-| *Configure our string flag welcome-onboarding with two variations: short-flow (value: flow-quick-v1) and deep-flow (value: flow-interactive-v2). Split rollout 50/50 across both variations in production.* |
-| :---- |
+```prompt
+Configure our string flag welcome-onboarding with two variations: short-flow (value: flow-quick-v1) and deep-flow (value: flow-interactive-v2). Split rollout 50/50 across both variations in production.
+```
 
 Tools invoked: create_flag → add_targeting_rule (50% rollout split) → publish_environment
 
@@ -305,8 +330,9 @@ The agent defines entitlements, configures offerings across subscription tiers, 
 
 #### **Prompting your agent to design a paywall**
 
-| *Design a high-converting annual subscription paywall for pro access in project my-app. Use a feature comparison layout comparing Free and Pro tiers, highlight a 7-day free trial on the annual plan with a 40 percent savings badge, set up an alternative monthly option, and include restore purchases and terms links.* |
-| :---- |
+```prompt
+Design a high-converting annual subscription paywall for pro access in project my-app. Use a feature comparison layout comparing Free and Pro tiers, highlight a 7-day free trial on the annual plan with a 40 percent savings badge, set up an alternative monthly option, and include restore purchases and terms links.
+```
 
 Tools invoked: create_entitlement → create_product → create_offering → create_paywall_template → update_paywall_content → deploy_paywall_template
 
@@ -334,7 +360,10 @@ To enable server-driven paywalls with automated product syncing and receipt vali
 * In App Store Connect (Users and Access → Integrations → App Store Connect API), create an API Key with App Manager permissions.  
 * Link your Issuer ID, Key ID, and downloaded private key (.p8), or ask your agent:
 
-Connect our App Store Connect credentials using our Issuer ID, Key ID, and private key for project my-app.  
+```prompt
+Connect our App Store Connect credentials using our Issuer ID, Key ID, and private key for project my-app.
+```
+
 Tools invoked: connect_app_store_credentials → select_app_store_app  
 Once authorized, Coproduct can create and sync subscription products, validate transactions, and record entitlement grants directly with Apple and Google Play.
 
@@ -346,8 +375,9 @@ With Coproduct paywalls, subscription pricing and package configurations are com
 
 You can instruct your AI coding tool to change product prices in chat:
 
-| *Update the price of our iOS subscription product com.myapp.pro.annual to 49.99 USD in project my-app.* |
-| :---- |
+```prompt
+Update the price of our iOS subscription product com.myapp.pro.annual to 49.99 USD in project my-app.
+```
 
 Tools invoked: update_product
 
@@ -363,8 +393,9 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 
 ### **Prompting your agent for React Native integration**
 
-| *Create a PaywallModal component using CoproductPaywall from @coproduct/react-native-sdk. Pass the paywall ID premium-annual, current user ID, and SDK key. Handle onPurchaseResult to unlock pro access when result.outcome is success, and handle onDismiss.* |
-| :---- |
+```prompt
+Create a PaywallModal component using CoproductPaywall from @coproduct/react-native-sdk. Pass the paywall ID premium-annual, current user ID, and SDK key. Handle onPurchaseResult to unlock pro access when result.outcome is success, and handle onDismiss.
+```
 
 ### **Code reference**
 
@@ -438,75 +469,84 @@ const styles = StyleSheet.create({
 
 #### **Gate an onboarding flow**
 
-| *Create a boolean flag called onboarding-v2 in my development environment, off by default. Turn it on for 10% of users.* |
-| :---- |
+```prompt
+Create a boolean flag called onboarding-v2 in my development environment, off by default. Turn it on for 10% of users.
+```
 
 Tools invoked: create_flag → add_targeting_rule (10% rollout coverage) → publish_environment
 
 #### **Set up a paywall or subscription feature**
 
-| *Create a flag called pro-features that is on for any user with a plan attribute of pro or enterprise, off for everyone else.* |
-| :---- |
+```prompt
+Create a flag called pro-features that is on for any user with a plan attribute of pro or enterprise, off for everyone else.
+```
 
 Tools invoked: create_flag → add_targeting_rule (attribute condition: plan in [pro, enterprise]) → set_variation_defaults → publish_environment
 
 #### **Roll out a new feature gradually**
 
-| *Roll out new-checkout to 20% of users in production. Increase it to 50% once I say so.* |
-| :---- |
+```prompt
+Roll out new-checkout to 20% of users in production. Increase it to 50% once I say so.
+```
 
 Tools invoked: create_flag → add_targeting_rule (coverage: 20%) → publish_environment  
 Then on follow-up: update_targeting_rule (coverage: 50%) → publish_environment
 
 #### **Target a specific group**
 
-| *Create a segment called beta-testers for users where is_beta is true. Enable new-ui for that segment only.* |
-| :---- |
+```prompt
+Create a segment called beta-testers for users where is_beta is true. Enable new-ui for that segment only.
+```
 
 Tools invoked: create_segment → create_flag → add_targeting_rule (segment condition) → publish_environment
 
 #### **Toggle a flag**
 
-| *Turn onboarding-v2 on in production.* |
-| :---- |
+```prompt
+Turn onboarding-v2 on in production.
+```
 
 Or:
 
-| *Turn onboarding-v2 off in production.* |
-| :---- |
+```prompt
+Turn onboarding-v2 off in production.
+```
 
 Tools invoked: toggle_flag → *(auto-publishes the environment)*
 
 #### **Emergency kill switch**
 
-| *Kill new-checkout everywhere immediately – something is broken.* |
-| :---- |
+```prompt
+Kill new-checkout everywhere immediately – something is broken.
+```
 
 Tools invoked: kill_flag → *(auto-publishes every environment)*
 
 To undo:
 
-| *Revive new-checkout.* |
-| :---- |
+```prompt
+Revive new-checkout.
+```
 
 Tools invoked: revive_flag
 
 #### **Audit recent changes**
 
-| *What changed in production in the last 24 hours?* |
-| :---- |
+```prompt
+What changed in production in the last 24 hours?
+```
 
 Tools invoked: read_audit_log
 
 ### **Reading a flag**
 
-| Flag reads are instant and synchronous. There is no network latency or await needed. |
-| :---- |
+Flag reads are instant and synchronous. There is no network latency or await needed.
 
 ### **Prompting your agent**
 
-| Read the boolean flag new-checkout synchronously using client.getBool with a fallback of false. |
-| :---- |
+```prompt
+Read the boolean flag new-checkout synchronously using client.getBool with a fallback of false.
+```
 
 ### **Code reference**
 
@@ -530,7 +570,9 @@ When targeting rules change or a flag is toggled remotely, client.observe emits 
 
 ### **Prompting your agent**
 
+```prompt
 Create a useFlag(client, key, defaultValue) custom React hook that observes flag updates via client.observe and returns the live value, cancelling the subscription on unmount.
+```
 
 ### **Code reference**
 
@@ -567,7 +609,9 @@ Pass user identity and contextual attributes to Coproduct so targeting rules, pe
 
 ### **Prompting your agent**
 
-When a user signs in, identify them with client.identify(‘user-123’) and set their attributes (plan: ‘pro’, country: ‘US’). On logout, call client.signOut().
+```prompt
+When a user signs in, identify them with client.identify('user-123') and set their attributes (plan: 'pro', country: 'US'). On logout, call client.signOut().
+```
 
 ### **Code reference**
 
