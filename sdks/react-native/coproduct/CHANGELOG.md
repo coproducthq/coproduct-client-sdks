@@ -1,5 +1,9 @@
 ## Unreleased
 
+## 1.0.2
+
+Formatted the README, with a quick start.
+
 ## 1.0.1
 
 Paywall purchase/restore taps now reach StoreKit: the embedded platform
