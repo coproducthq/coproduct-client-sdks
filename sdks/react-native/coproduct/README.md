@@ -4,18 +4,6 @@
 
 ## **For Humans to Get Started**
 
-### **Agentic integration mindset**
-
-Coproduct is built from the ground up for agentic coding.  
-Traditional developer platforms expect humans to manually click through web dashboards: opening a browser, generating API keys in settings, creating feature flags in an admin UI, copying and pasting secrets into code, and toggling release percentages by hand.  
-Coproduct is designed for developers using AI coding agents, including Claude Code, Codex, Cursor, and any MCP-compatible assistant connected to the Coproduct MCP server:
-
-* Zero dashboard context switching: Your AI agent creates feature flags, sets targeting rules, generates environment SDK keys, authors multi-step onboarding flows, and configures paywalls directly from conversational prompts in your editor.  
-* Synchronized remote and local development: While your agent executes remote platform actions via Coproduct MCP tools, it simultaneously writes, wires, and verifies the corresponding React Native client code in your project.  
-* Ship without leaving your workspace: You define intent in plain English, your agent invokes the required MCP tools and modifies your codebase, and changes are ready to test immediately.
-
-This guide is organized around this agentic mindset: hand the prompts to your agent, let it configure remote state and write the client integration, and use the code references to review and verify.
-
 ### **Get started in 2 minutes (do not skip)**
 
 1. **Sign up** at [coproduct.app](https://coproduct.app).
@@ -27,6 +15,18 @@ This guide is organized around this agentic mindset: hand the prompts to your ag
    - Generates your project key and wires the SDK into your app.
 4. **Prompt** your agent: `Create a new onboarding with 5 steps`
 5. **Prompt** your agent: `Rebuild and open the app`
+
+### **Agentic integration mindset**
+
+Coproduct is built from the ground up for agentic coding.  
+Traditional developer platforms expect humans to manually click through web dashboards: opening a browser, generating API keys in settings, creating feature flags in an admin UI, copying and pasting secrets into code, and toggling release percentages by hand.  
+Coproduct is designed for developers using AI coding agents, including Claude Code, Codex, Cursor, and any MCP-compatible assistant connected to the Coproduct MCP server:
+
+* Zero dashboard context switching: Your AI agent creates feature flags, sets targeting rules, generates environment SDK keys, authors multi-step onboarding flows, and configures paywalls directly from conversational prompts in your editor.  
+* Synchronized remote and local development: While your agent executes remote platform actions via Coproduct MCP tools, it simultaneously writes, wires, and verifies the corresponding React Native client code in your project.  
+* Ship without leaving your workspace: You define intent in plain English, your agent invokes the required MCP tools and modifies your codebase, and changes are ready to test immediately.
+
+This guide is organized around this agentic mindset: hand the prompts to your agent, let it configure remote state and write the client integration, and use the code references to review and verify.
 
 ### **Connecting Coproduct to your AI coding tool**
 
@@ -106,7 +106,8 @@ Never hardcode or commit keys into source control. Always inject them via enviro
 Ask your agent to install the packages and sync iOS dependencies:
 
 ```prompt
-Install the @coproduct/react-native-sdk package from npm. Then run pod install for iOS.
+Install the @coproduct/react-native-sdk package from npm. Then run pod install
+for iOS.
 ```
 
 ### **Manual reference**
@@ -146,7 +147,9 @@ Initialize the SDK once at app startup — typically in your root component or a
 ### **Prompting your agent**
 
 ```prompt
-Initialize the Coproduct client at app startup using the SDK key from process.env.COPRODUCT_SDK_KEY. Hold the initialized client in a ref or global provider so the rest of the app can read flags.
+Initialize the Coproduct client at app startup using the SDK key from
+process.env.COPRODUCT_SDK_KEY. Hold the initialized client in a ref or global
+provider so the rest of the app can read flags.
 ```
 
 ### **Code reference**
@@ -167,7 +170,21 @@ Coproduct allows authoring and publishing interactive, multi-step onboarding flo
 Here is a realistic prompt asking your agent to integrate a 4-screen onboarding flow and wire up each screen’s native interactions:
 
 ```prompt
-Create an OnboardingScreen component in React Native using CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the string flag welcome-onboarding, load the platform script with CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our 4-step flow: Screen 1 - Welcome & Value Proposition (welcome): Shows hero branding and feature overview. User taps Get Started to advance… Screen 2 - Persona Questionnaire (user-goals): Asks the user their primary objective (e.g. Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen 3 - Notifications Opt-In (notifications-optin): Prompts the user to enable alerts. Wire up onRequestPermission(notifications) to request native OS notification permissions… Screen 4 - Tailored Plan (plan-reveal): An author-configured wait for API screen with an onLoad hook. Wire up onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier from the Screen 2 answers, and call onFinish() when onEvent receives flow_completed.
+Create an OnboardingScreen component in React Native using
+CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the
+string flag welcome-onboarding, load the platform script with
+CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our
+4-step flow: Screen 1 - Welcome & Value Proposition (welcome): Shows hero
+branding and feature overview. User taps Get Started to advance… Screen 2 -
+Persona Questionnaire (user-goals): Asks the user their primary objective (e.g.
+Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen
+3 - Notifications Opt-In (notifications-optin): Prompts the user to enable
+alerts. Wire up onRequestPermission(notifications) to request native OS
+notification permissions… Screen 4 - Tailored Plan (plan-reveal): An
+author-configured wait for API screen with an onLoad hook. Wire up
+onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier
+from the Screen 2 answers, and call onFinish() when onEvent receives
+flow_completed.
 ```
 
 ### **Code reference**
@@ -314,7 +331,9 @@ Because an onboarding flag (e.g. welcome-onboarding) is a standard Coproduct str
 #### **Prompting your agent for variant testing**
 
 ```prompt
-Configure our string flag welcome-onboarding with two variations: short-flow (value: flow-quick-v1) and deep-flow (value: flow-interactive-v2). Split rollout 50/50 across both variations in production.
+Configure our string flag welcome-onboarding with two variations: short-flow
+(value: flow-quick-v1) and deep-flow (value: flow-interactive-v2). Split rollout
+50/50 across both variations in production.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (50% rollout split) → publish_environment
@@ -331,7 +350,10 @@ The agent defines entitlements, configures offerings across subscription tiers, 
 #### **Prompting your agent to design a paywall**
 
 ```prompt
-Design a high-converting annual subscription paywall for pro access in project my-app. Use a feature comparison layout comparing Free and Pro tiers, highlight a 7-day free trial on the annual plan with a 40 percent savings badge, set up an alternative monthly option, and include restore purchases and terms links.
+Design a high-converting annual subscription paywall for pro access in project
+my-app. Use a feature comparison layout comparing Free and Pro tiers, highlight
+a 7-day free trial on the annual plan with a 40 percent savings badge, set up an
+alternative monthly option, and include restore purchases and terms links.
 ```
 
 Tools invoked: create_entitlement → create_product → create_offering → create_paywall_template → update_paywall_content → deploy_paywall_template
@@ -361,7 +383,8 @@ To enable server-driven paywalls with automated product syncing and receipt vali
 * Link your Issuer ID, Key ID, and downloaded private key (.p8), or ask your agent:
 
 ```prompt
-Connect our App Store Connect credentials using our Issuer ID, Key ID, and private key for project my-app.
+Connect our App Store Connect credentials using our Issuer ID, Key ID, and
+private key for project my-app.
 ```
 
 Tools invoked: connect_app_store_credentials → select_app_store_app  
@@ -376,7 +399,8 @@ With Coproduct paywalls, subscription pricing and package configurations are com
 You can instruct your AI coding tool to change product prices in chat:
 
 ```prompt
-Update the price of our iOS subscription product com.myapp.pro.annual to 49.99 USD in project my-app.
+Update the price of our iOS subscription product com.myapp.pro.annual to 49.99
+USD in project my-app.
 ```
 
 Tools invoked: update_product
@@ -394,7 +418,10 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 ### **Prompting your agent for React Native integration**
 
 ```prompt
-Create a PaywallModal component using CoproductPaywall from @coproduct/react-native-sdk. Pass the paywall ID premium-annual, current user ID, and SDK key. Handle onPurchaseResult to unlock pro access when result.outcome is success, and handle onDismiss.
+Create a PaywallModal component using CoproductPaywall from
+@coproduct/react-native-sdk. Pass the paywall ID premium-annual, current user
+ID, and SDK key. Handle onPurchaseResult to unlock pro access when
+result.outcome is success, and handle onDismiss.
 ```
 
 ### **Code reference**
@@ -470,7 +497,8 @@ const styles = StyleSheet.create({
 #### **Gate an onboarding flow**
 
 ```prompt
-Create a boolean flag called onboarding-v2 in my development environment, off by default. Turn it on for 10% of users.
+Create a boolean flag called onboarding-v2 in my development environment, off by
+default. Turn it on for 10% of users.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (10% rollout coverage) → publish_environment
@@ -478,7 +506,8 @@ Tools invoked: create_flag → add_targeting_rule (10% rollout coverage) → pub
 #### **Set up a paywall or subscription feature**
 
 ```prompt
-Create a flag called pro-features that is on for any user with a plan attribute of pro or enterprise, off for everyone else.
+Create a flag called pro-features that is on for any user with a plan attribute
+of pro or enterprise, off for everyone else.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (attribute condition: plan in [pro, enterprise]) → set_variation_defaults → publish_environment
@@ -486,7 +515,8 @@ Tools invoked: create_flag → add_targeting_rule (attribute condition: plan in 
 #### **Roll out a new feature gradually**
 
 ```prompt
-Roll out new-checkout to 20% of users in production. Increase it to 50% once I say so.
+Roll out new-checkout to 20% of users in production. Increase it to 50% once I
+say so.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (coverage: 20%) → publish_environment  
@@ -495,7 +525,8 @@ Then on follow-up: update_targeting_rule (coverage: 50%) → publish_environment
 #### **Target a specific group**
 
 ```prompt
-Create a segment called beta-testers for users where is_beta is true. Enable new-ui for that segment only.
+Create a segment called beta-testers for users where is_beta is true. Enable
+new-ui for that segment only.
 ```
 
 Tools invoked: create_segment → create_flag → add_targeting_rule (segment condition) → publish_environment
@@ -545,7 +576,8 @@ Flag reads are instant and synchronous. There is no network latency or await nee
 ### **Prompting your agent**
 
 ```prompt
-Read the boolean flag new-checkout synchronously using client.getBool with a fallback of false.
+Read the boolean flag new-checkout synchronously using client.getBool with a
+fallback of false.
 ```
 
 ### **Code reference**
@@ -571,7 +603,9 @@ When targeting rules change or a flag is toggled remotely, client.observe emits 
 ### **Prompting your agent**
 
 ```prompt
-Create a useFlag(client, key, defaultValue) custom React hook that observes flag updates via client.observe and returns the live value, cancelling the subscription on unmount.
+Create a useFlag(client, key, defaultValue) custom React hook that observes flag
+updates via client.observe and returns the live value, cancelling the
+subscription on unmount.
 ```
 
 ### **Code reference**
@@ -610,7 +644,8 @@ Pass user identity and contextual attributes to Coproduct so targeting rules, pe
 ### **Prompting your agent**
 
 ```prompt
-When a user signs in, identify them with client.identify('user-123') and set their attributes (plan: 'pro', country: 'US'). On logout, call client.signOut().
+When a user signs in, identify them with client.identify('user-123') and set
+their attributes (plan: 'pro', country: 'US'). On logout, call client.signOut().
 ```
 
 ### **Code reference**
