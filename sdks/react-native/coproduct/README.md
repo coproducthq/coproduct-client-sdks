@@ -106,8 +106,9 @@ Never hardcode or commit keys into source control. Always inject them via enviro
 Ask your agent to install the packages and sync iOS dependencies:
 
 ```prompt
-Install the @coproduct/react-native-sdk package from npm. Then run pod install
-for iOS.
+Install the @coproduct/react-native-sdk package from npm.
+
+Then run pod install for iOS.
 ```
 
 ### **Manual reference**
@@ -148,8 +149,10 @@ Initialize the SDK once at app startup — typically in your root component or a
 
 ```prompt
 Initialize the Coproduct client at app startup using the SDK key from
-process.env.COPRODUCT_SDK_KEY. Hold the initialized client in a ref or global
-provider so the rest of the app can read flags.
+process.env.COPRODUCT_SDK_KEY.
+
+Hold the initialized client in a ref or global provider so the rest of the app
+can read flags.
 ```
 
 ### **Code reference**
@@ -171,20 +174,27 @@ Here is a realistic prompt asking your agent to integrate a 4-screen onboarding 
 
 ```prompt
 Create an OnboardingScreen component in React Native using
-CoproductOnboardingFlow from @coproduct/react-native-sdk. Connect it to the
-string flag welcome-onboarding, load the platform script with
+CoproductOnboardingFlow from @coproduct/react-native-sdk.
+
+Connect it to the string flag welcome-onboarding, load the platform script with
 CoproductOnboardingFlow.loadPlatformScript(), and handle each screen of our
-4-step flow: Screen 1 - Welcome & Value Proposition (welcome): Shows hero
-branding and feature overview. User taps Get Started to advance… Screen 2 -
-Persona Questionnaire (user-goals): Asks the user their primary objective (e.g.
-Freelancer, Small Team, Enterprise). Answers are recorded automatically… Screen
-3 - Notifications Opt-In (notifications-optin): Prompts the user to enable
-alerts. Wire up onRequestPermission(notifications) to request native OS
-notification permissions… Screen 4 - Tailored Plan (plan-reveal): An
-author-configured wait for API screen with an onLoad hook. Wire up
-onNativeOperation(fetchRecommendedPlan, params) to compute a personalized tier
-from the Screen 2 answers, and call onFinish() when onEvent receives
-flow_completed.
+4-step flow:
+
+Screen 1 - Welcome & Value Proposition (welcome): Shows hero branding and
+feature overview. User taps Get Started to advance…
+
+Screen 2 - Persona Questionnaire (user-goals): Asks the user their primary
+objective (e.g. Freelancer, Small Team, Enterprise). Answers are recorded
+automatically…
+
+Screen 3 - Notifications Opt-In (notifications-optin): Prompts the user to
+enable alerts. Wire up onRequestPermission(notifications) to request native OS
+notification permissions…
+
+Screen 4 - Tailored Plan (plan-reveal): An author-configured wait for API screen
+with an onLoad hook. Wire up onNativeOperation(fetchRecommendedPlan, params) to
+compute a personalized tier from the Screen 2 answers, and call onFinish() when
+onEvent receives flow_completed.
 ```
 
 ### **Code reference**
@@ -332,8 +342,9 @@ Because an onboarding flag (e.g. welcome-onboarding) is a standard Coproduct str
 
 ```prompt
 Configure our string flag welcome-onboarding with two variations: short-flow
-(value: flow-quick-v1) and deep-flow (value: flow-interactive-v2). Split rollout
-50/50 across both variations in production.
+(value: flow-quick-v1) and deep-flow (value: flow-interactive-v2).
+
+Split rollout 50/50 across both variations in production.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (50% rollout split) → publish_environment
@@ -351,8 +362,10 @@ The agent defines entitlements, configures offerings across subscription tiers, 
 
 ```prompt
 Design a high-converting annual subscription paywall for pro access in project
-my-app. Use a feature comparison layout comparing Free and Pro tiers, highlight
-a 7-day free trial on the annual plan with a 40 percent savings badge, set up an
+my-app.
+
+Use a feature comparison layout comparing Free and Pro tiers, highlight a 7-day
+free trial on the annual plan with a 40 percent savings badge, set up an
 alternative monthly option, and include restore purchases and terms links.
 ```
 
@@ -419,9 +432,12 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 
 ```prompt
 Create a PaywallModal component using CoproductPaywall from
-@coproduct/react-native-sdk. Pass the paywall ID premium-annual, current user
-ID, and SDK key. Handle onPurchaseResult to unlock pro access when
-result.outcome is success, and handle onDismiss.
+@coproduct/react-native-sdk.
+
+Pass the paywall ID premium-annual, current user ID, and SDK key.
+
+Handle onPurchaseResult to unlock pro access when result.outcome is success, and
+handle onDismiss.
 ```
 
 ### **Code reference**
@@ -498,7 +514,9 @@ const styles = StyleSheet.create({
 
 ```prompt
 Create a boolean flag called onboarding-v2 in my development environment, off by
-default. Turn it on for 10% of users.
+default.
+
+Turn it on for 10% of users.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (10% rollout coverage) → publish_environment
@@ -515,8 +533,9 @@ Tools invoked: create_flag → add_targeting_rule (attribute condition: plan in 
 #### **Roll out a new feature gradually**
 
 ```prompt
-Roll out new-checkout to 20% of users in production. Increase it to 50% once I
-say so.
+Roll out new-checkout to 20% of users in production.
+
+Increase it to 50% once I say so.
 ```
 
 Tools invoked: create_flag → add_targeting_rule (coverage: 20%) → publish_environment  
@@ -525,8 +544,9 @@ Then on follow-up: update_targeting_rule (coverage: 50%) → publish_environment
 #### **Target a specific group**
 
 ```prompt
-Create a segment called beta-testers for users where is_beta is true. Enable
-new-ui for that segment only.
+Create a segment called beta-testers for users where is_beta is true.
+
+Enable new-ui for that segment only.
 ```
 
 Tools invoked: create_segment → create_flag → add_targeting_rule (segment condition) → publish_environment
@@ -645,7 +665,9 @@ Pass user identity and contextual attributes to Coproduct so targeting rules, pe
 
 ```prompt
 When a user signs in, identify them with client.identify('user-123') and set
-their attributes (plan: 'pro', country: 'US'). On logout, call client.signOut().
+their attributes (plan: 'pro', country: 'US').
+
+On logout, call client.signOut().
 ```
 
 ### **Code reference**
