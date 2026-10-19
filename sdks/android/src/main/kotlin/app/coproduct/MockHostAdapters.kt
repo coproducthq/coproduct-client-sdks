@@ -59,16 +59,19 @@ object MockSecureStore {
     }
 }
 
-// Kotlin's top-level `private` is file-private, not package-private, so these
-// must be `internal` (not `private`) to remain resolvable from Coproduct.kt's
-// initialize() after this relocation.
-internal object AndroidHostTransport : HostTransport {
+// These are `public` (not `internal`) because the source-linked demo app
+// (examples/android-demo's :app module) references them from a separate
+// Gradle module to inject the validation transport/secure-store into
+// Coproduct.initialize(..., config = CoproductConfig(transport = ..., secureStore = ...)).
+// Kotlin's `internal` is scoped per compilation unit (per Gradle module), so
+// it is not visible across the :coproduct-android / :app module boundary.
+object AndroidHostTransport : HostTransport {
     override suspend fun request(req: uniffi.coproduct_ffi_uniffi.HttpRequest): HttpResponse {
         return MockTransport.request()
     }
 }
 
-internal object AndroidHostSecureStore : HostSecureStore {
+object AndroidHostSecureStore : HostSecureStore {
     override suspend fun read(key: String): String? {
         return MockSecureStore.read(key)
     }
