@@ -452,14 +452,14 @@ final class Instances: @unchecked Sendable {
     /// timer and the network monitor are retained here so they live exactly as
     /// long as the instance and are cancelled when the instance shuts down
     private struct Stored {
-        let client: CoproductClient
+        let client: CoproductFFI.CoproductClient
         let sdkKey: String
         let timer: HostTimer?
         let networkMonitor: NetworkMonitor?
     }
 
     private var _defaultInstance: Stored?
-    private var inFlight: Task<CoproductClient, Error>?
+    private var inFlight: Task<CoproductFFI.CoproductClient, Error>?
 
     // The sdk key of the in-flight initialize, kept so a concurrent initialize
     // that joins it can warn on a key mismatch, matching the post-init warning
@@ -470,20 +470,20 @@ final class Instances: @unchecked Sendable {
     // shutdown intervened and must not store or resurrect the instance
     private var generation = 0
 
-    func defaultInstance() -> CoproductClient? {
+    func defaultInstance() -> CoproductFFI.CoproductClient? {
         lock.lock()
         defer { lock.unlock() }
         return _defaultInstance?.client
     }
 
-    func requireDefault() -> CoproductClient {
+    func requireDefault() -> CoproductFFI.CoproductClient {
         guard let inner = defaultInstance() else {
             fatalError("[Coproduct] Coproduct API called before initialize(sdkKey:). Call initialize first.")
         }
         return inner
     }
 
-    func initialize(sdkKey: String, config: CoproductConfig) async throws -> CoproductClient {
+    func initialize(sdkKey: String, config: CoproductConfig) async throws -> CoproductFFI.CoproductClient {
         // Resolve under the lock in a synchronous helper: an existing instance or
         // the single claimed Task. Owner and waiters both just await that task,
         // which owns the full initialize, so the side effects run exactly once
@@ -510,8 +510,8 @@ final class Instances: @unchecked Sendable {
         sdkKey: String,
         config: CoproductConfig,
         generation claimedGeneration: Int
-    ) async throws -> CoproductClient {
-        let inner: CoproductClient
+    ) async throws -> CoproductFFI.CoproductClient {
+        let inner: CoproductFFI.CoproductClient
         do {
             inner = try await Self.doInitialize(sdkKey: sdkKey, config: config)
         } catch {
@@ -587,7 +587,7 @@ final class Instances: @unchecked Sendable {
     // shutdown replaced or cleared the instance during the wait. Uses a monotonic
     // deadline so a wall-clock jump during launch does not stretch or truncate it.
     // Reads served during and after the wait fall back to cache or developer defaults
-    private func waitForFirstPoll(_ client: CoproductClient, startupTimeout: TimeInterval) async -> Bool {
+    private func waitForFirstPoll(_ client: CoproductFFI.CoproductClient, startupTimeout: TimeInterval) async -> Bool {
         guard startupTimeout > 0, startupTimeout.isFinite else { return true }
         let deadline = DispatchTime.now() + startupTimeout
         while client.state() == .notReady, DispatchTime.now() < deadline {
@@ -604,7 +604,7 @@ final class Instances: @unchecked Sendable {
     private static func doInitialize(
         sdkKey: String,
         config: CoproductConfig
-    ) async throws -> CoproductClient {
+    ) async throws -> CoproductFFI.CoproductClient {
         let cacheDir = FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)
             .first!
@@ -644,7 +644,7 @@ final class Instances: @unchecked Sendable {
     // mismatch warning is informational only, re-initialize with a different key
     // returns the original instance. The comparison uses the stored Swift-side
     // key, never an FFI call
-    private func lookupLocked(sdkKey: String) -> CoproductClient? {
+    private func lookupLocked(sdkKey: String) -> CoproductFFI.CoproductClient? {
         guard let existing = _defaultInstance else { return nil }
         if existing.sdkKey != sdkKey {
             NSLog("[Coproduct] initialize called with different sdkKey; returning existing instance")
@@ -654,8 +654,8 @@ final class Instances: @unchecked Sendable {
 
     // Result of claiming the initialize slot under the lock
     private enum InitClaim {
-        case existing(CoproductClient)
-        case pending(Task<CoproductClient, Error>)
+        case existing(CoproductFFI.CoproductClient)
+        case pending(Task<CoproductFFI.CoproductClient, Error>)
     }
 
     // Synchronous, lock-held resolution of an initialize call: an existing
@@ -717,7 +717,7 @@ final class Instances: @unchecked Sendable {
 
     // Bump the generation to fence any in-flight initialize, then take the stored
     // instance and the in-flight task so the caller can tear them down
-    private func teardownLocked() -> (stored: Stored?, pending: Task<CoproductClient, Error>?) {
+    private func teardownLocked() -> (stored: Stored?, pending: Task<CoproductFFI.CoproductClient, Error>?) {
         lock.lock()
         defer { lock.unlock() }
         generation += 1
@@ -762,7 +762,7 @@ private func coreInitialize(
     config: CoproductConfig,
     transport: any HostTransport,
     secureStore: any HostSecureStore
-) async throws -> CoproductClient {
+) async throws -> CoproductFFI.CoproductClient {
     try await initialize(
         sdkKey: sdkKey,
         userAgent: coproductUserAgent,
@@ -842,13 +842,13 @@ final class IdentitySerializer: @unchecked Sendable {
 }
 
 // The identity API is exposed on the static Coproduct surface. These bridges are
-// internal on purpose: the generated CoproductClient is reachable if a consumer
+// internal on purpose: the generated CoproductFFI.CoproductClient is reachable if a consumer
 // imports the CoproductFFI target directly, and a public extension here would
 // hand them a blessed-looking API that bypasses the registry, the ordered
 // identity queue, and the host timer. Each call is enqueued on a single ordered
 // queue and any thrown error is logged, so it is fire-and-forget yet still
 // applied in call order
-extension CoproductClient {
+extension CoproductFFI.CoproductClient {
     func identify(userId: String, attributes: [String: AttributeValue], linkAnonymous: Bool) {
         let context = attributes.contextValues
         IdentitySerializer.shared.enqueue { [self] in
