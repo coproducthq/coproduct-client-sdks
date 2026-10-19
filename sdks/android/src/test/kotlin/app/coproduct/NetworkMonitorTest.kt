@@ -6,8 +6,10 @@ import org.junit.Test
 private class FakeNetworkPathSource : NetworkPathSource {
     private var onUpdate: ((NetworkPathFacts) -> Unit)? = null
     var cancelled = false
+    var startCalled = false
 
     override fun start(onUpdate: (NetworkPathFacts) -> Unit) {
+        startCalled = true
         this.onUpdate = onUpdate
     }
 
@@ -50,5 +52,21 @@ class NetworkMonitorTest {
         val monitor = NetworkMonitor(source) {}
         monitor.cancel()
         assertEquals(true, source.cancelled)
+    }
+
+    // Reproduces the raced-shutdown window described in the Task 13 review: a
+    // cancel() that lands before start() registers anything must permanently
+    // poison the monitor, so a start() that follows does not leak a live
+    // callback registration. Without the stopped-latch, start() would
+    // unconditionally call source.start(...) here
+    @Test
+    fun startDoesNotRegisterAfterCancelRanFirst() {
+        val source = FakeNetworkPathSource()
+        val monitor = NetworkMonitor(source) {}
+
+        monitor.cancel()
+        monitor.start()
+
+        assertEquals(false, source.startCalled)
     }
 }
