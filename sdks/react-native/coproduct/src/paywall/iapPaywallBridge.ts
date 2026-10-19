@@ -1,13 +1,4 @@
-import {
-  ErrorCode,
-  fetchProducts,
-  finishTransaction,
-  getAvailablePurchases,
-  initConnection,
-  purchaseErrorListener,
-  purchaseUpdatedListener,
-  requestPurchase,
-} from 'react-native-iap';
+import type * as ReactNativeIap from 'react-native-iap';
 import type { Purchase, PurchaseError, PurchaseIOS } from 'react-native-iap';
 import type {
   NativePaywallBridge,
@@ -15,6 +6,30 @@ import type {
   PurchaseResult,
   RestoredTransaction,
 } from './nativePaywallBridge';
+
+/** What a paywall reports when the app has not installed react-native-iap */
+export const MISSING_IAP_MESSAGE =
+  'Paywalls need react-native-iap and react-native-nitro-modules, which the ' +
+  'Coproduct SDK lists as optional peer dependencies. Install them with ' +
+  '"npm install react-native-iap react-native-nitro-modules", then run ' +
+  '"pod install" in ios/ and rebuild the app.';
+
+// Loaded on first use rather than imported, so an app that never shows a
+// paywall need not install react-native-iap, which also adds Google Play's
+// billing permission to every Android app that links it. Metro treats a
+// require inside try as an optional dependency, so a missing package reaches
+// the catch below instead of failing the bundle
+let iapModule: typeof ReactNativeIap | undefined;
+function iap(): typeof ReactNativeIap {
+  if (iapModule == null) {
+    try {
+      iapModule = require('react-native-iap') as typeof ReactNativeIap;
+    } catch {
+      throw new Error(MISSING_IAP_MESSAGE);
+    }
+  }
+  return iapModule;
+}
 
 // react-native-iap's own request/fetch type: 'subs' for a subscription,
 // 'in-app' for every one-time product (consumable or lifetime) -- there is
@@ -56,15 +71,21 @@ function expirationDateFor(purchase: Purchase): Date | undefined {
 // opened/closed per paywall session.
 let connectionReady: Promise<boolean> | undefined;
 function ensureConnection(): Promise<boolean> {
-  if (connectionReady == null) connectionReady = initConnection();
+  if (connectionReady == null) connectionReady = iap().initConnection();
   return connectionReady;
 }
 
 export class IapPaywallBridge implements NativePaywallBridge {
+  // Loads react-native-iap when a paywall mounts, so a missing install fails
+  // with an actionable message before any purchase is attempted
+  constructor() {
+    iap();
+  }
+
   async priceFor(productId: string, kind: PackageKind): Promise<string> {
     await ensureConnection();
     const products =
-      (await fetchProducts({
+      (await iap().fetchProducts({
         skus: [productId],
         type: storeTypeFor(kind),
       })) ?? [];
@@ -86,7 +107,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
     // missed. Connection readiness is therefore awaited further down, just
     // ahead of the native requestPurchase call, not here.
     return new Promise<PurchaseResult>((resolve, reject) => {
-      const updatedSubscription = purchaseUpdatedListener(
+      const updatedSubscription = iap().purchaseUpdatedListener(
         (purchase: Purchase) => {
           if (purchase.productId !== productId) return;
           cleanup();
@@ -94,7 +115,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
           // awaited by its caller, so there's nothing to block on besides
           // the .finally() below, which resolves the outer Promise either way.
           // eslint-disable-next-line no-void
-          void finishTransaction({ purchase, isConsumable })
+          void iap().finishTransaction({ purchase, isConsumable })
             .catch(() => {
               // Finishing an already-finished transaction, or a transient
               // native failure to finish, must not block reporting the
@@ -112,13 +133,13 @@ export class IapPaywallBridge implements NativePaywallBridge {
         }
       );
 
-      const errorSubscription = purchaseErrorListener(
+      const errorSubscription = iap().purchaseErrorListener(
         (error: PurchaseError) => {
           if (error.productId != null && error.productId !== productId) return;
           cleanup();
-          if (error.code === ErrorCode.UserCancelled) {
+          if (error.code === iap().ErrorCode.UserCancelled) {
             resolve({ outcome: 'cancelled' });
-          } else if (error.code === ErrorCode.Pending) {
+          } else if (error.code === iap().ErrorCode.Pending) {
             resolve({ outcome: 'pending' });
           } else {
             reject(new Error(error.message));
@@ -133,7 +154,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
 
       ensureConnection()
         .then(() =>
-          requestPurchase({
+          iap().requestPurchase({
             request: { apple: { sku: productId } },
             type: storeTypeFor(kind),
           })
@@ -147,11 +168,11 @@ export class IapPaywallBridge implements NativePaywallBridge {
 
   async restore(): Promise<RestoredTransaction[]> {
     await ensureConnection();
-    const purchases = await getAvailablePurchases();
+    const purchases = await iap().getAvailablePurchases();
     const restored: RestoredTransaction[] = [];
     for (const purchase of purchases) {
       try {
-        await finishTransaction({ purchase, isConsumable: false });
+        await iap().finishTransaction({ purchase, isConsumable: false });
       } catch {
         // Already-finished or a transient native failure to finish must
         // not drop this transaction from the restored set

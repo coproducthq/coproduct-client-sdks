@@ -16,15 +16,15 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Freshness precondition: the packed .tgz bundles the committed jniLibs, so fail
-# fast if any committed ABI is stale relative to the FFI surface rather than
+# Freshness precondition: the packed .tgz bundles the built jniLibs, so fail
+# fast if any built ABI is stale relative to the FFI surface rather than
 # shipping stale bytes to the test.
 "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
     "Rebuild the jniLibs: run scripts/package/rn-build-native.sh android (see AGENTS.md)" \
-    "sdks/react-native/coproduct/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_uniffi.a" \
-    "sdks/react-native/coproduct/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_uniffi.a" \
-    "sdks/react-native/coproduct/android/src/main/jniLibs/x86/libcoproduct_ffi_uniffi.a" \
-    "sdks/react-native/coproduct/android/src/main/jniLibs/x86_64/libcoproduct_ffi_uniffi.a"
+    "sdks/react-native/coproduct/android/src/main/jniLibs/arm64-v8a/libcoproduct_ffi_uniffi.so" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/armeabi-v7a/libcoproduct_ffi_uniffi.so" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/x86/libcoproduct_ffi_uniffi.so" \
+    "sdks/react-native/coproduct/android/src/main/jniLibs/x86_64/libcoproduct_ffi_uniffi.so"
 
 # Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
 # script passes --filename so the archive lands where package.json references it,

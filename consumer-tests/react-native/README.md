@@ -14,7 +14,7 @@ cd ios && pod install && cd ..
 npm run android       # or: npm run ios
 ```
 
-The Podfile carries a `post_install` hook that pins `fmt`'s `CLANG_CXX_LANGUAGE_STANDARD = c++17`, working around an upstream RN 0.82 + Xcode 26 consteval failure in `fmt::basic_format_string`. Not a Coproduct bug; do not remove.
+The app runs React Native 0.88. Under Xcode 26, React Native 0.82 fails to compile `fmt` once the SDK's `react-native-nitro-modules` peer is installed, because Swift's C++ interop builds it as C++20, and a Podfile override of the `fmt` pod's language standard does not reach that import.
 
 ## Verifying green
 

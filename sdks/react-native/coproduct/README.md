@@ -89,11 +89,11 @@ Use the key corresponding to the environment you want flags evaluated against:
 * Development or Staging — use while building features, debugging locally, and running test suites.  
 * Production — use in release builds published to TestFlight, the App Store, or Google Play.
 
-Never hardcode or commit keys into source control. Always inject them via environment variables or native build configurations (e.g. react-native-config, Expo secrets, or CI build flags).
+Never hardcode or commit keys into source control. Keep the key in a `.env` file that is in your `.gitignore` and read it at build time: in Expo as `EXPO_PUBLIC_COPRODUCT_SDK_KEY`, or in a bare React Native app through [react-native-config](https://github.com/lugg/react-native-config). A plain `process.env.COPRODUCT_SDK_KEY` is undefined at runtime in both. A mobile key ships inside your app, so this keeps it out of source control rather than secret.
 
 ## **Requirements**
 
-| React Native | 0.80+ |
+| React Native | 0.84+ |
 | :---- | :---- |
 | Architecture | New Architecture (TurboModules / Bridgeless) |
 | iOS | 15.0+ |
@@ -106,40 +106,34 @@ Never hardcode or commit keys into source control. Always inject them via enviro
 Ask your agent to install the packages and sync iOS dependencies:
 
 ```prompt
-Install the @coproduct/react-native-sdk package from npm.
+Install @coproduct/react-native-sdk and its required native packages from npm,
+using the command in the SDK's manual reference. If the app will show
+paywalls, also install the paywall packages listed there.
 
 Then run pod install for iOS.
 ```
 
 ### **Manual reference**
 
+Install the SDK with the native packages it requires. React Native links native code only for packages listed in your app's own `package.json`, so each one is installed explicitly:
+
 ```bash
-npm install @coproduct/react-native-sdk react-native-fs react-native-webview @react-native-async-storage/async-storage react-native-iap
-# or
-yarn add @coproduct/react-native-sdk react-native-fs react-native-webview @react-native-async-storage/async-storage react-native-iap
+npm install @coproduct/react-native-sdk @react-native-async-storage/async-storage @react-native-community/netinfo react-native-device-info react-native-fs react-native-keychain react-native-permissions react-native-webview
 ```
 
-For iOS, run pod install:
+If your app shows paywalls, also install the purchase packages. An app that uses only flags or onboarding can leave them out, which also keeps Google Play's billing permission out of your Android app:
+
+```bash
+npm install react-native-iap react-native-nitro-modules
+```
+
+Then install the iOS pods:
 
 ```bash
 cd ios && pod install
 ```
 
-#### **Xcode 26 compatibility note**
-
-If you are building with Xcode 26+ and React Native 0.82+, you may hit a C++ standard mismatch in the fmt pod target. Add this to your ios/Podfile:
-
-```ruby
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    if target.name == "fmt"
-      target.build_configurations.each do |config|
-        config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"
-      end
-    end
-  end
-end
-```
+The SDK requires React Native 0.84 or later. In an app on an earlier release, npm stops the install with a peer dependency conflict, and Yarn and pnpm warn. Earlier releases fail to build under Xcode 26 once the paywall's purchase packages are installed.
 
 ## **Basic integration**
 
@@ -148,8 +142,9 @@ Initialize the SDK once at app startup — typically in your root component or a
 ### **Prompting your agent**
 
 ```prompt
-Initialize the Coproduct client at app startup using the SDK key from
-process.env.COPRODUCT_SDK_KEY.
+Initialize the Coproduct client at app startup, reading the SDK key from the
+app's build configuration: EXPO_PUBLIC_COPRODUCT_SDK_KEY in Expo, or
+Config.COPRODUCT_SDK_KEY from react-native-config in a bare React Native app.
 
 Hold the initialized client in a ref or global provider so the rest of the app
 can read flags.
@@ -159,7 +154,15 @@ can read flags.
 
 ```typescript
 import Coproduct from '@coproduct/react-native-sdk';
-const client = await Coproduct.initialize('cpk_mob_...');
+import Config from 'react-native-config';
+
+// In Expo, use process.env.EXPO_PUBLIC_COPRODUCT_SDK_KEY instead, written out
+// in full: Expo replaces only that exact expression at build time
+const sdkKey = Config.COPRODUCT_SDK_KEY;
+if (!sdkKey) {
+  throw new Error('COPRODUCT_SDK_KEY is not set in .env');
+}
+const client = await Coproduct.initialize(sdkKey);
 ```
 
 The SDK loads your flags from the platform-local cache immediately so the client is ready to use as soon as initialize resolves. Flag evaluations and updates run against cached snapshots with background polling.
@@ -207,7 +210,7 @@ import {
   CoproductOnboardingFlow,  
   HttpOnboardingClient,  
   type CoproductClient as OnboardingAdapterClient,  
-} from '@coproduct/react-native-sdk';  
+} from '@coproduct/react-native-sdk/onboarding';  
 interface OnboardingScreenProps {  
   baseClient: BaseCoproductClient;  
   envSlug: string;  
@@ -240,7 +243,7 @@ export function OnboardingScreen({ baseClient, envSlug, onFinish }: OnboardingSc
         flagKey="welcome-onboarding" // String flag that resolves to the target flowId  
         client={onboardingClient}  
         platformScriptJs={platformScript}  
-        onEvent={(event, screenId, answers) => {  
+        onEvent={async (event, screenId, answers) => {  
           // Tracks progression through screens:  
           // 'welcome' -> 'user-goals' -> 'notifications-optin' -> 'plan-reveal'  
           console.log(`[Onboarding] ${event} on screen '${screenId}'`, answers);  
@@ -249,15 +252,13 @@ export function OnboardingScreen({ baseClient, envSlug, onFinish }: OnboardingSc
           }  
         }}  
         onRequestPermission={async (permission) => {  
-          // Screen 3: Native OS permission request triggered by user action  
+          // Screen 3: called when the user taps the opt-in. The SDK shows the
+          // OS permission dialog itself, so use this to sync your app's state
           if (permission === 'notifications') {  
-            console.log('Requesting native push notification permission...');  
-            // Call your app's notification permission logic here  
-            return true;  
+            console.log('Notification permission requested from onboarding');  
           }  
-          return false;  
         }}  
-        onNativeOperation={async (operation, params) => {  
+        onNativeOperation={async (operation, params): Promise<Record<string, string>> => {  
           // Screen 4: Handles 'onLoad' operations ("wait for API" before showing screen)  
           if (operation === 'fetchRecommendedPlan') {  
             console.log('Calculating personalized plan with answers:', params);  
@@ -293,8 +294,8 @@ The WebView renders platform-authored UI, but all device capabilities and native
 Authored screens can prompt the user for native OS permissions (e.g. a push notification opt-in screen, camera upload screen, or location permissions):
 
 * Built-in capability: When a user taps a CTA configured to request a permission, the runtime translates it to an OS request. Under the hood, Coproduct maps standard permissions (notifications, camera, photos, location, microphone) directly to native platform permission dialogs.  
-* Custom handling: Supply onRequestPermission: (permission: string) => Promise<boolean> to coordinate permission requests with your app’s existing permission state or third-party wrappers (like react-native-permissions).  
-* Conditional branching: Subsequent screens or transitions can branch based on whether the permission was granted or denied.
+* Custom handling: Supply onRequestPermission: (permission: string) => Promise<void>, which is called when a screen asks for a permission, to keep your app’s own permission state or third-party wrappers (like react-native-permissions) in step.  
+* Conditional branching: Subsequent screens or transitions can branch on the result of the SDK’s built-in permission request, granted or denied.
 
 #### **2. Waiting for API calls (onNativeOperation & onLoad)**
 
@@ -432,7 +433,8 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 
 ```prompt
 Create a PaywallModal component using CoproductPaywall from
-@coproduct/react-native-sdk.
+@coproduct/react-native-sdk/paywall. Make sure react-native-iap and
+react-native-nitro-modules are installed first.
 
 Pass the paywall ID premium-annual, current user ID, and SDK key.
 
@@ -445,7 +447,7 @@ handle onDismiss.
 ```tsx
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Modal } from 'react-native';
-import { CoproductPaywall } from '@coproduct/react-native-sdk';
+import { CoproductPaywall } from '@coproduct/react-native-sdk/paywall';
 interface PaywallModalProps {  
   visible: boolean;  
   paywallId: string;  
@@ -485,7 +487,7 @@ export function PaywallModal({
             }  
           }}  
           onPurchaseError={(error) => {  
-            console.error('Purchase failed:', error.reason, error.message);  
+            console.error('Purchase failed:', error.reason, error.serverCode);  
           }}  
           onDismiss={onClose}  
           onLoadError={(error) => {  
@@ -503,7 +505,7 @@ const styles = StyleSheet.create({
 ```
 
 * Live StoreKit 2 & Google Play pricing — local currency formats, subscription period terms, and trial labels are resolved natively and injected into the paywall automatically.  
-* Built-in purchase bridge — uses IapPaywallBridge (backed by react-native-iap) out of the box, with automatic transaction recording and backend entitlement synchronization.
+* Built-in purchase bridge — uses IapPaywallBridge (backed by react-native-iap) out of the box, with automatic transaction recording and backend entitlement synchronization. It needs react-native-iap and react-native-nitro-modules installed, and a paywall in an app without them fails with the command that installs them.
 
 
 ## **Feature flags**
@@ -618,13 +620,13 @@ const promoJson = client.getJson('promo-config', '{}');
 
 ### **Reacting to flag changes**
 
-When targeting rules change or a flag is toggled remotely, client.observe emits the new value immediately to subscribed listeners.
+When targeting rules change or a flag is toggled remotely, the typed observers (client.observeBool, observeString, observeInt, observeNumber, and observeJson) deliver the new value to subscribed listeners.
 
 ### **Prompting your agent**
 
 ```prompt
 Create a useFlag(client, key, defaultValue) custom React hook that observes flag
-updates via client.observe and returns the live value, cancelling the
+updates via client.observeBool and returns the live value, cancelling the
 subscription on unmount.
 ```
 
@@ -641,7 +643,7 @@ export function useFlag(
   const [value, setValue] = useState(defaultValue);
   useEffect(() => {
     if (!client) return;
-    const sub = client.observe(key, defaultValue, setValue);
+    const sub = client.observeBool(key, defaultValue, setValue);
     return () => sub.cancel();
   }, [client, key, defaultValue]);
   return value;

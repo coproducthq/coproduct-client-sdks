@@ -48,7 +48,7 @@ fi
 echo "Waiting up to ${timeout_seconds}s for COPRODUCT_RN_VECTOR_STATUS..."
 status_line=""
 for ((i = 0; i < timeout_seconds; i++)); do
-  status_line="$("$adb" -s "$emulator" logcat -d | grep "COPRODUCT_RN_VECTOR_STATUS" | tail -1 || true)"
+  status_line="$("$adb" -s "$emulator" logcat -d | grep -E "COPRODUCT_RN_VECTOR_STATUS pass=(true|false) count=[0-9]+" | tail -1 || true)"
   if [[ -n "$status_line" ]]; then break; fi
   sleep 1
 done
@@ -59,7 +59,11 @@ if [[ -z "$status_line" ]]; then
 fi
 
 echo "$status_line"
-if [[ "$status_line" =~ pass=true ]]; then
+# The app checks the triple-form vectors only, so the count must equal how many
+# the fixture holds. A smaller count means vectors were skipped
+expected="$(node -e 'const v=require(process.argv[1]); console.log(v.filter((x) => typeof x.rule_id === "string").length)' "$repo_root/tests/bucketing_vectors.json")"
+if [[ "$status_line" =~ pass=true\ count=([0-9]+) && "${BASH_REMATCH[1]}" == "$expected" && "$expected" -gt 0 ]]; then
   exit 0
 fi
+echo "FAIL: expected pass=true count=$expected" >&2
 exit 1

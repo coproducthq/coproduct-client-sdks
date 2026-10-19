@@ -29,6 +29,9 @@ add_library(react-native-coproduct            SHARED
     cpp-adapter.cpp
 )
 
+# Public so the app's autolinking.cpp, which includes CoproductImpl.h, inherits them
+target_include_directories(react-native-coproduct PUBLIC ../cpp ../cpp/generated ${UNIFFI_BINDGEN_PATH}/cpp/includes)
+
 target_compile_definitions(
   react-native-coproduct
   PRIVATE
@@ -56,10 +59,10 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,max-page-size
 
 cmake_path(
   SET MY_RUST_LIB
-  ${CMAKE_CURRENT_LIST_DIR}/src/main/jniLibs/${ANDROID_ABI}/libcoproduct_ffi_uniffi.a
+  ${CMAKE_CURRENT_LIST_DIR}/src/main/jniLibs/${ANDROID_ABI}/libcoproduct_ffi_uniffi.so
   NORMALIZE
 )
-add_library(my_rust_lib STATIC IMPORTED)
+add_library(my_rust_lib SHARED IMPORTED)
 set_target_properties(my_rust_lib PROPERTIES IMPORTED_LOCATION ${MY_RUST_LIB})
 
 # Add ReactAndroid libraries, being careful to account for different versions.

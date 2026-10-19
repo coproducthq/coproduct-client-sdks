@@ -16,13 +16,16 @@ ios:
     - aarch64-apple-ios
     - aarch64-apple-ios-sim
     - x86_64-apple-ios
+  # scripts/package/rn-build-native.sh builds the shipped dynamic framework
+  # with cargo, because ubrn builds only a static one. This path is where a
+  # direct ubrn build writes, and nothing packs it
   frameworkName: build/CoproductFFI
 
 android:
   directory: android
   targets:
     - arm64-v8a
-  useSharedLibrary: false
+  useSharedLibrary: true
 
 turboModule:
   cpp: cpp
@@ -32,3 +35,4 @@ turboModule:
 
 noOverwrite:
   - src/index.tsx
+  - android/CMakeLists.txt

@@ -15,7 +15,7 @@ This repository builds Coproduct's mobile SDKs (iOS, Android, React Native, Flut
 - `consumer-tests/<platform>/` — **artifact-linked** verification apps. Install the SDK as a packaged release artifact (`.tgz`, `path:` to the SDK that mimics a published copy, SPM file: dep to a packaged zip, mavenLocal). Catch publish/install/autolink bugs that source-linked examples cannot. Release gate.
 - `tests/` — cross-cutting fixtures (e.g. `bucketing_vectors.json`).
 
-A bug like the RN 0.82 + Xcode 26 `fmt` consteval failure, or a Gradle plugin that a new major version drops, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
+A bug like Xcode 26 failing to compile React Native 0.82's `fmt` headers once `react-native-nitro-modules` is installed, which set the RN SDK's 0.84 floor, or a Gradle plugin that a new major version drops, surfaces only in `consumer-tests/` because the existing `example/` Podfile/Gradle settings are pre-pinned to known-good versions.
 
 ## Building
 
@@ -304,26 +304,66 @@ wrapped public APIs on each platform shield ordinary consumers.
   ```
   The RN native ABI changes whenever the FFI surface does, so verify with a
   native build (`scripts/build/source-linked-rn-demo-android.sh`), not just a
-  typecheck. Before that build, refresh the gitignored static libraries the
+  typecheck. Before that build, refresh the gitignored shared libraries the
   example links against. Stale local copies surface as undefined `uniffi_*`
   symbols at link time:
   ```bash
   scripts/package/rn-build-native.sh android
   ```
-  This rebuilds the four jniLibs. It needs only `ANDROID_NDK_HOME` and `cargo-ndk`,
+  This rebuilds the four jniLibs as release `.so` files linked for 16 KB pages,
+  which Google Play requires. It needs only `ANDROID_NDK_HOME` and `cargo-ndk`,
   a deliberately narrower requirement than the Android consumer gate.
-  The RN iOS framework is a separate gitignored artifact. `ubrn build` writes it
-  to `build/CoproductFFI.xcframework`, but the podspec vendors and `yarn pack`
-  bundles `ios/CoproductFFI.xcframework`, so the build output must be copied into
-  place. Refresh it after an FFI surface change by running, from the repo root:
+  The RN iOS framework is a separate gitignored artifact: a dynamic
+  `CoproductFFI.framework` per slice inside `ios/CoproductFFI.xcframework`, which
+  the podspec vendors and `yarn pack` bundles. `ubrn` builds only static
+  archives, so the script builds the release dylibs with cargo and assembles the
+  xcframework itself. Refresh it after an FFI surface change by running, from the
+  repo root:
   ```bash
   scripts/package/rn-build-native.sh ios
   ```
-  This runs the ubrn build and copies the result into place, and builds both the
-  device and universal simulator slices.
+  This builds both the device and universal simulator slices.
+  Both platforms ship shared libraries rather than static archives. A static
+  archive carries the whole Rust standard library and every dependency until
+  the app's own link discards them, which made the npm package dozens of times
+  larger. `android/CMakeLists.txt` is listed in `ubrn.config.yaml`'s
+  `noOverwrite`, so regenerating the bindings keeps its shared-library import
+  and its public include directories.
+  `yarn pack` and `npm publish` run `prepack`, which refuses to pack when any of
+  these libraries is missing, because a package without them builds in no app.
   The artifact-linked RN consumer-test gates fail fast through
-  `scripts/audit/ffi-symbol-freshness.sh` when these committed libraries are
-  stale relative to the FFI surface, rather than rebuilding them inside the gate.
+  `scripts/audit/ffi-symbol-freshness.sh` when these libraries are stale
+  relative to the FFI surface, rather than rebuilding them inside the gate.
+- The RN SDK requires React Native 0.84 or later, stated in its
+  `peerDependencies`. Earlier releases fail to build under Xcode 26 once
+  `react-native-nitro-modules` is installed. Raise the floor only when a
+  dependency or platform requirement forces it, and note it in the changelog.
+- `react-native-iap` and `react-native-nitro-modules` are optional peers that
+  only the paywall uses. `react-native-iap` adds Google Play's billing
+  permission to any Android app that links it, so an app using only flags or
+  onboarding must not need it. Only `src/paywall/iapPaywallBridge.ts` may load
+  it, through the `require` inside `try` that Metro treats as optional. A
+  static import anywhere, including from the package root or onboarding, would
+  make it required again.
+- The RN example app (`sdks/react-native/coproduct/example`) runs the minimum
+  supported React Native and the RN consumer-test runs the latest, so together
+  they build both ends of the supported range. Move the example only when the
+  floor moves. Upgrading it to the latest release would stop the floor from
+  being built.
+- After editing any `package.json` in the RN workspace, run `yarn install` and
+  commit `yarn.lock` with it. The build scripts install with `--immutable`,
+  which fails on a stale lockfile.
+- After an Android package rename, or any SDK change that alters what
+  autolinking generates, delete `android/build/generated/autolinking` in the
+  consuming app. React Native regenerates it only when that app's own
+  `package.json` changes, so a stale cache fails the build with errors such as
+  "package ... does not exist" that read like code bugs.
+- When a change touches only development tooling (dev dependencies, Babel or
+  TypeScript configuration), build `lib/` before and after and compare. An
+  identical `lib/module` is identical shipped JavaScript, so earlier gate and
+  runtime results still hold. Differences confined to `lib/typescript` need a
+  type check of the README code, and any difference in `lib/module` needs the
+  artifact-linked gates and the vector runners again.
 
 ## Flutter Rust Bridge Notes
 

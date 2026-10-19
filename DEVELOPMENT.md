@@ -281,14 +281,14 @@ cd ../../consumer-tests/android
 ./gradlew :app:assembleRelease
 ```
 
-React Native consumer-test:
+React Native consumer-test. The native libraries are gitignored, and packing
+refuses to run without them, so build them first:
 
 ```bash
-cd sdks/react-native/coproduct
-yarn pack
-cd ../../../consumer-tests/react-native
-yarn install
-yarn android  # or yarn ios
+scripts/package/rn-build-native.sh
+cd consumer-tests/react-native
+npm run setup   # packs the SDK and installs the tarball
+npm run android # or: cd ios && pod install && cd .. && npm run ios
 ```
 
 Flutter consumer-test. **Run through the scripts, not by hand.** The checked-in

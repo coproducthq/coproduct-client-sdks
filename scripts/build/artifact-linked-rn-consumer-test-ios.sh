@@ -12,14 +12,14 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Freshness precondition: the packed .tgz bundles the vendored RN xcframework, so
+# Freshness precondition: the packed .tgz bundles the vendored RN dynamic xcframework, so
 # fail fast if either slice is stale relative to the FFI surface rather than
 # shipping stale bytes to the test. Both slices are checked because rebuilding one
 # and forgetting the other is a plausible stale-artifact failure
 "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
     "Rebuild the RN iOS framework: run scripts/package/rn-build-native.sh ios (see AGENTS.md)" \
-    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_uniffi.a" \
-    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_uniffi.a"
+    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework/CoproductFFI" \
+    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/CoproductFFI"
 
 # Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
 # script passes --filename so the archive lands where package.json references it,

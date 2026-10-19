@@ -4,7 +4,7 @@
 # Source-linked: builds the React Native demo app at sdks/react-native/coproduct/example/
 # for iOS. The example pulls the SDK as workspace code via RN autolinking.
 # Runs on macOS only.
-# Requires Xcode, CocoaPods, the Rust toolchain (rn-build-native.sh runs ubrn build), plus node and yarn on PATH.
+# Requires Xcode, CocoaPods, the Rust toolchain (rn-build-native.sh builds the framework with cargo), plus node and yarn on PATH.
 # Emits COPRODUCT_SOURCE_LINKED_RN_DEMO_IOS_BUILD_STATUS pass=true on success.
 
 set -euo pipefail

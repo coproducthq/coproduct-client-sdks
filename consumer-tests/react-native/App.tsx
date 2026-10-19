@@ -40,12 +40,12 @@ export default function App(): React.JSX.Element {
     let active = true;
 
     async function runDemo(): Promise<void> {
-      const client = await Coproduct.initialize('cpk_mob_test_consumer');
+      const client = await Coproduct.initialize('cpk_mob_0123456789abcdefghjkmnpqrstvwxyz');
       clientRef.current = client;
 
       const flagValue = client.getBool('test-flag', false);
 
-      subscriptionRef.current = client.observe('test-flag', false, () => {});
+      subscriptionRef.current = client.observeBool('test-flag', false, () => {});
 
       const next: DemoStatus = {
         ready: true,
@@ -70,8 +70,20 @@ export default function App(): React.JSX.Element {
 
       // Iterate the golden bucketing vectors through the real TurboModule and
       // emit a single tagged status line for the shell-script orchestrator
-      const vectors: BucketingVector[] = bucketingVectors;
-      let bucketingPass = true;
+      // The fixture also holds seed-form vectors, which the core's own
+      // conformance test covers and the RN binding does not expose. An entry
+      // in neither form fails the run rather than being skipped
+      const entries = bucketingVectors as Array<Record<string, unknown>>;
+      const isTriple = (v: Record<string, unknown>): boolean =>
+        typeof v.rule_id === 'string' &&
+        typeof v.targeting_key === 'string' &&
+        typeof v.suffix === 'string' &&
+        typeof v.expected_bucket === 'number';
+      const isSeed = (v: Record<string, unknown>): boolean =>
+        typeof v.seed === 'string' && typeof v.expected_bucket === 'number';
+      const vectors = entries.filter(isTriple) as BucketingVector[];
+      let bucketingPass =
+        vectors.length > 0 && entries.every((v) => isTriple(v) || isSeed(v));
       for (const v of vectors) {
         const actual = bucketForVectors(v.rule_id, v.targeting_key, v.suffix);
         if (actual !== v.expected_bucket) {

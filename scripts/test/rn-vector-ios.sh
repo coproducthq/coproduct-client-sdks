@@ -42,14 +42,14 @@ fi
 
 xcrun simctl terminate "$udid" "$bundle_id" >/dev/null 2>&1 || true
 : > "$log_capture"
-xcrun simctl spawn "$udid" log stream --predicate 'eventMessage CONTAINS "COPRODUCT_RN_VECTOR_STATUS"' >"$log_capture" 2>&1 &
+xcrun simctl spawn "$udid" log stream --level info --predicate 'eventMessage CONTAINS "COPRODUCT_RN_VECTOR_STATUS"' >"$log_capture" 2>&1 &
 log_stream_pid=$!
 xcrun simctl launch "$udid" "$bundle_id" >/dev/null
 
 echo "Waiting up to ${timeout_seconds}s for COPRODUCT_RN_VECTOR_STATUS..."
 status_line=""
 for ((i = 0; i < timeout_seconds; i++)); do
-  status_line="$(grep "COPRODUCT_RN_VECTOR_STATUS" "$log_capture" 2>/dev/null | tail -1 || true)"
+  status_line="$(grep -E "COPRODUCT_RN_VECTOR_STATUS pass=(true|false) count=[0-9]+" "$log_capture" 2>/dev/null | tail -1 || true)"
   if [[ -n "$status_line" ]]; then break; fi
   sleep 1
 done
@@ -62,7 +62,11 @@ if [[ -z "$status_line" ]]; then
 fi
 
 echo "$status_line"
-if [[ "$status_line" =~ pass=true ]]; then
+# The app checks the triple-form vectors only, so the count must equal how many
+# the fixture holds. A smaller count means vectors were skipped
+expected="$(node -e 'const v=require(process.argv[1]); console.log(v.filter((x) => typeof x.rule_id === "string").length)' "$repo_root/tests/bucketing_vectors.json")"
+if [[ "$status_line" =~ pass=true\ count=([0-9]+) && "${BASH_REMATCH[1]}" == "$expected" && "$expected" -gt 0 ]]; then
   exit 0
 fi
+echo "FAIL: expected pass=true count=$expected" >&2
 exit 1

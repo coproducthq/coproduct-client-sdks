@@ -36,6 +36,28 @@ export interface CoproductPaywallProps {
 // WebView, resolves and injects live StoreKit2 prices, and completes a
 // purchase or restore when the user taps a cta. Mirrors
 // sdks/flutter/coproduct/lib/src/paywall/coproduct_paywall.dart.
+/**
+ * The purchase bridge a paywall uses, or undefined after reporting why there
+ * is none. Building the default bridge loads react-native-iap, an optional
+ * peer, so an app without it gets onLoadError and a logged message naming the
+ * install command, rather than a rejection inside the boot effect that would
+ * leave the paywall blank
+ */
+export function createBridge(
+  override: NativePaywallBridge | undefined,
+  onLoadError: ((error: PaywallLoadError) => void) | undefined
+): NativePaywallBridge | undefined {
+  if (override != null) return override;
+  try {
+    return new IapPaywallBridge();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+    onLoadError?.({ message });
+    return undefined;
+  }
+}
+
 export function CoproductPaywall(props: CoproductPaywallProps) {
   const {
     paywallId,
@@ -57,7 +79,8 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
 
   const boot = useCallback(async (): Promise<void> => {
     const client = clientOverride ?? new HttpPaywallClient({ sdkKey, envSlug });
-    const bridge = bridgeOverride ?? new IapPaywallBridge();
+    const bridge = createBridge(bridgeOverride, onLoadError);
+    if (bridge == null) return;
 
     let snapshot: PaywallSnapshot | undefined;
     try {
