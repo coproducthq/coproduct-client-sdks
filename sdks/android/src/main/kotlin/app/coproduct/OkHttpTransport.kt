@@ -13,8 +13,8 @@ import uniffi.coproduct_ffi_uniffi.HttpMethod
 import uniffi.coproduct_ffi_uniffi.HttpRequest
 import uniffi.coproduct_ffi_uniffi.HttpResponse
 import uniffi.coproduct_ffi_uniffi.TransportException
-import java.io.InterruptedIOException
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
@@ -34,7 +34,6 @@ class OkHttpTransport(
     private val client: OkHttpClient = if (requestTimeoutMillis != null && requestTimeoutMillis > 0) {
         client.newBuilder()
             .callTimeout(requestTimeoutMillis, TimeUnit.MILLISECONDS)
-            .readTimeout(requestTimeoutMillis, TimeUnit.MILLISECONDS)
             .build()
     } else {
         client
@@ -58,14 +57,17 @@ class OkHttpTransport(
         } catch (error: SocketTimeoutException) {
             throw TransportException.Timeout()
         } catch (error: InterruptedIOException) {
+            // OkHttp's call-level `callTimeout` watchdog (RealCall.timeoutExit) raises a bare
+            // InterruptedIOException("timeout") when it fires mid-call, not a SocketTimeoutException
+            // (that subtype is only produced by the socket-level read/write/connect timeouts).
+            // Verified by decompiling okhttp-4.12.0's RealCall.timeoutExit, and reproduced here: with
+            // only .callTimeout(...) configured (no .readTimeout(...)), the timeout test fails with
+            // TransportException.Other("timeout") unless this catch is present.
             throw TransportException.Timeout()
         } catch (error: UnknownHostException) {
             throw TransportException.NetworkUnreachable()
         } catch (error: ConnectException) {
             throw TransportException.NetworkUnreachable()
-        } catch (error: java.net.SocketException) {
-            // SocketException can be raised by call timeout
-            throw TransportException.Timeout()
         } catch (error: IOException) {
             throw TransportException.Other(reason = error.message ?: error.toString())
         }
