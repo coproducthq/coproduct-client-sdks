@@ -34,50 +34,58 @@ class IdentitySerializerTest {
     }
 
     /**
-     * Exercises `enqueue` under genuine multi-threaded concurrency (a real
-     * `Dispatchers.Default`-backed scope, not a cooperative single-threaded test
-     * dispatcher) to demonstrate the `synchronized` block in `enqueue` actually
-     * preserves call order when multiple threads race to enqueue. Several
-     * coroutines call `enqueue` concurrently, but each `enqueue` call itself is
-     * made from a single coordinating coroutine in a known sequence, so the
-     * recorded order is deterministic: it must match the order `enqueue` was
-     * called in, regardless of which underlying thread each operation body
-     * happens to run on.
+     * A failing operation must not poison the chain: later-enqueued operations
+     * still run, and `drain()` itself must not throw. This also exercises the
+     * internal `Log.e` call on the failure path -- under plain `testDebugUnitTest`
+     * (no Robolectric, no `returnDefaultValues`), `android.util.Log.e` is
+     * unmocked and throws `RuntimeException: Method e in android.util.Log not
+     * mocked`. If the catch-and-log sequence didn't guard against that, this
+     * test would fail with that exception instead of passing.
      */
     @Test
-    fun appliesOperationsInCallOrderUnderConcurrentEnqueueFromMultipleThreads() {
+    fun operationFailureDoesNotPoisonLaterOperations() = runTest {
+        val serializer = IdentitySerializer(scope = this)
+        val applied = CopyOnWriteArrayList<Int>()
+
+        serializer.enqueue { applied.add(1) }
+        serializer.enqueue { throw RuntimeException("boom") }
+        serializer.enqueue { applied.add(3) }
+        serializer.drain()
+
+        assertEquals(listOf(1, 3), applied)
+    }
+
+    /**
+     * Exercises `enqueue` under genuine multi-threaded concurrency (a real
+     * `Dispatchers.Default`-backed scope, not a cooperative single-threaded test
+     * dispatcher, and no external lock serializing the `enqueue` calls
+     * themselves) to demonstrate the internal `synchronized(lock)` in `enqueue`
+     * actually protects `tail` from being raced on. Independent OS threads call
+     * `serializer.enqueue` concurrently with no coordination between them, so
+     * the cross-thread call order is genuinely non-deterministic -- this test
+     * does not assert any particular order. Instead it asserts the
+     * order-independent invariant the internal lock exists to guarantee: every
+     * one of the `callCount` enqueued operations actually ran exactly once,
+     * meaning no operation's link into the `tail` chain was ever dropped or
+     * overwritten by a racing thread. If the internal lock were deleted, this
+     * test would be expected to fail (or flake) by losing or duplicating
+     * entries.
+     */
+    @Test
+    fun concurrentEnqueueFromMultipleThreadsNeverLosesOrDuplicatesOperations() {
         val scope = CoroutineScope(Dispatchers.Default)
         val serializer = IdentitySerializer(scope = scope)
         val applied = CopyOnWriteArrayList<Int>()
         val callCount = 40
         val latch = CountDownLatch(callCount)
 
-        // Several real OS threads race to call `enqueue`, genuinely contending
-        // on IdentitySerializer's internal `synchronized(lock)`. The sequence
-        // number is assigned and the `enqueue` call is made atomically, inside
-        // the same `callOrderLock` critical section, so the order in which
-        // threads win that lock *is* the order `enqueue` is actually called in
-        // -- making the expected result deterministic rather than dependent on
-        // which thread happens to run first.
-        var nextSequence = 0
-        val callOrderLock = Any()
-
-        val threads = (1..8).map {
+        // Each thread calls `enqueue` directly with no external lock around the
+        // call itself, so threads genuinely race on IdentitySerializer's
+        // internal `synchronized(lock)`.
+        val threads = (0 until callCount).map { id ->
             Thread {
-                while (true) {
-                    val shouldContinue = synchronized(callOrderLock) {
-                        val sequence = nextSequence
-                        if (sequence >= callCount) {
-                            false
-                        } else {
-                            nextSequence++
-                            serializer.enqueue { applied.add(sequence) }
-                            latch.countDown()
-                            true
-                        }
-                    }
-                    if (!shouldContinue) break
-                }
+                serializer.enqueue { applied.add(id) }
+                latch.countDown()
             }
         }
 
@@ -87,6 +95,7 @@ class IdentitySerializerTest {
 
         runBlocking { serializer.drain() }
 
-        assertEquals((0 until callCount).toList(), applied)
+        assertEquals(callCount, applied.size)
+        assertEquals((0 until callCount).toSet(), applied.toSet())
     }
 }
