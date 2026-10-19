@@ -66,6 +66,38 @@ final class ShellAssemblerTests: XCTestCase {
         XCTAssertTrue(html.contains(#"<\/script>"#))
     }
 
+    func testDataBlobEncodesWholeNumberJSONValue() throws {
+        // `JSONValue.number` wraps a `Double`, so a whole-number condition
+        // value (e.g. the threshold below) round-trips through `JSONEncoder`
+        // before being embedded in the data blob. Assert against the parsed
+        // value rather than the raw text: `JSONSerialization` reads `5` and
+        // `5.0` back as the same `Double`, so this is correct regardless of
+        // which textual form `JSONEncoder` happens to emit.
+        let graph = OnboardingFlowGraph(
+            startScreenId: "s1",
+            screens: [
+                Screen(
+                    id: "s1",
+                    html: "<p>hi</p>",
+                    transitions: [
+                        Transition(condition: .object(["threshold": .number(5)]), next: .complete),
+                    ],
+                    defaultNext: .complete,
+                    onLoad: nil
+                ),
+            ]
+        )
+        let html = ShellAssembler.assemble(
+            graph: graph, sdkContextAttributes: [:], sdkContextSegmentKeys: [],
+            initialAnswers: [:], initialScreenId: "s1", platformScriptJs: ""
+        )
+        let data = try extractDataBlob(from: html)
+        let screens = data["screens"] as! [[String: Any]]
+        let transitions = screens[0]["transitions"] as! [[String: Any]]
+        let condition = transitions[0]["condition"] as! [String: Any]
+        XCTAssertEqual(condition["threshold"] as? Double, 5)
+    }
+
     func testPlatformScriptIsInsertedVerbatim() {
         let html = ShellAssembler.assemble(
             graph: makeGraph(), sdkContextAttributes: [:], sdkContextSegmentKeys: [],
