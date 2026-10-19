@@ -58,6 +58,13 @@ public struct PaywallPackageRef: Codable, Equatable, Sendable {
         case iosProductId, androidProductId, webProductId, kind
     }
 
+    public init(iosProductId: String?, androidProductId: String?, webProductId: String?, kind: PackageKind) {
+        self.iosProductId = iosProductId
+        self.androidProductId = androidProductId
+        self.webProductId = webProductId
+        self.kind = kind
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         iosProductId = try container.decodeIfPresent(String.self, forKey: .iosProductId)
