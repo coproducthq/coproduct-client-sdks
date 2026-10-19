@@ -30,9 +30,16 @@ internal class IdentitySerializer(
             val previous = tail
             tail = scope.async {
                 previous?.await()
-                runCatching { operation() }
-                    .onFailure { Log.e("Coproduct", "Identity operation failed", it) }
-                Unit
+                try {
+                    operation()
+                } catch (t: Throwable) {
+                    try {
+                        Log.e("Coproduct", "Identity operation failed", t)
+                    } catch (_: Throwable) {
+                        // Log.e itself is unmocked under plain JUnit; never let logging
+                        // failure reintroduce the poisoning this catch exists to prevent.
+                    }
+                }
             }
         }
     }
