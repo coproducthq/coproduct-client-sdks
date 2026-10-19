@@ -4,7 +4,7 @@ Swift SDK for [Coproduct](https://coproduct.app), a feature management platform.
 
 > **Releasing soon.** You can build this SDK from source, and [Building from source](#building-from-source) shows how. Installing it from a package URL arrives at release, and the API can still change before then.
 >
-> This SDK covers feature flags only: downloading them, evaluating them on the device, targeting them at users, and reacting to changes. It does not record which value a user saw and sends no analytics events.
+> This SDK covers feature flags, onboarding flows, and paywalls: downloading them, evaluating and rendering them on the device, targeting them at users, and reacting to changes. It does not record which flag value a user saw and sends no analytics events.
 
 A **feature flag** is a value you control from Coproduct rather than from your app's code: a switch that turns a feature on or off, or a piece of configuration you can change without shipping a release. In Coproduct you attach targeting rules to a flag. The rules match on **attributes** that describe the person using your app, so one flag can serve `true` to the users you choose and `false` to everyone else.
 
@@ -23,6 +23,8 @@ A **feature flag** is a value you control from Coproduct rather than from your a
 - [Configuration](#configuration)
 - [Checking for updates](#checking-for-updates)
 - [SDK status](#sdk-status)
+- [Onboarding](#onboarding)
+- [Paywall](#paywall)
 - [Lifecycle handlers and evaluation hooks](#lifecycle-handlers-and-evaluation-hooks)
 - [Errors](#errors)
 - [Threading](#threading)
@@ -646,6 +648,51 @@ To react when flags arrive, observe the flag you care about rather than watching
 `fatal` is worth logging: checks have stopped and will not resume until the app restarts, or until you call `Coproduct.shutdown()` and then `initialize` again.
 
 `Coproduct.snapshot` returns a `CoproductSnapshot` with the downloaded flags' `version`, `flagCount`, and `environment`, for diagnostics. Before `initialize` it reports version 0 and no flags.
+
+## Onboarding
+
+`CoproductOnboardingFlow` renders one onboarding flow you author in Coproduct: a sequence of screens, authored once, rendered the same way on every platform. It resolves the flow from an ordinary string flag, fetches the flow's content, and shows it in a `WKWebView`. Your app writes no screen-building code — only the flag key and the callbacks you care about.
+
+```swift
+CoproductOnboardingFlow(
+    flagKey: "keana-onboarding",
+    client: DefaultCoproductClient(),
+    onEvent: { event, screenId, answers in
+        // "screen_viewed", "flow_completed", "flow_dismissed", and so on
+    },
+    onRequestPermission: { permission in /* camera, microphone, location, photos, notifications */ },
+    onOpenUrl: { url in /* open a link outside the flow */ },
+    onShowPaywall: { paywallId in /* present CoproductPaywall(paywallId:) */ },
+    onNativeOperation: { operation, params in
+        // answer an author-configured "wait for API" screen; return a [String: String] result
+        [:]
+    }
+)
+```
+
+`client` defaults to needing no host wiring: `DefaultCoproductClient()` resolves the flag and fetches the flow directly through this SDK's existing flag/identity client. Supply your own `CoproductClient` only if you need custom attribute- or segment-tracking the base SDK can't read back on its own.
+
+If the flag never resolves or the flow can't be fetched, the view shows `fallbackSplash` (a plain `ProgressView` by default) indefinitely — there is no `onLoadError`-style callback for onboarding. Progress through the flow is persisted locally, so a killed app resumes on the last screen the user saw rather than restarting.
+
+## Paywall
+
+`CoproductPaywall` renders one paywall you author in Coproduct, resolves live StoreKit2 prices for its purchase options, and completes a purchase or restore when the user taps a cta.
+
+```swift
+CoproductPaywall(
+    paywallId: paywallId,
+    appUserId: currentUserId,
+    sdkKey: sdkKey,
+    onPurchaseResult: { result, entitlements in /* .success, .cancelled, or .pending */ },
+    onPurchaseError: { error in /* .unresolvedProduct, .serverRejected, or .networkError */ },
+    onDismiss: { /* the only place to navigate away from the paywall */ },
+    onLoadError: { error in /* the paywall couldn't be fetched for this environment */ }
+)
+```
+
+The paywall's own WebView content shows the success, failure, and cancellation visuals and waits for the user's dismiss tap on failure or cancellation; a successful purchase auto-dismisses itself after a brief hold. `onDismiss` is the one callback your app should use to navigate away.
+
+Purchases support subscription, consumable, and lifetime package kinds through StoreKit2. Restoring only ever returns subscriptions and lifetime (non-consumable) purchases — this is an Apple platform limitation (`Transaction.currentEntitlements` never reports consumables), not a gap in this SDK; a consumable's durability comes from your backend's own record of the purchase.
 
 ## Lifecycle handlers and evaluation hooks
 
