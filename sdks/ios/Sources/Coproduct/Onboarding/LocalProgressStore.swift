@@ -1,12 +1,12 @@
 import Foundation
 
 /// Persisted onboarding progress for one flow.
-public struct FlowProgress: Codable, Equatable, Sendable {
-    public let version: Int
-    public let screenId: String
-    public let answers: [String: [String]]
+struct FlowProgress: Codable, Equatable, Sendable {
+    let version: Int
+    let screenId: String
+    let answers: [String: [String]]
 
-    public init(version: Int, screenId: String, answers: [String: [String]]) {
+    init(version: Int, screenId: String, answers: [String: [String]]) {
         self.version = version
         self.screenId = screenId
         self.answers = answers
@@ -26,7 +26,7 @@ final class LocalProgressStore: @unchecked Sendable {
     }
 
     private func key(_ flowId: String) -> String {
-        "coproduct_onboarding_progress_\(flowId)"
+        "app.coproduct.onboardingProgress.\(flowId)"
     }
 
     func save(flowId: String, version: Int, screenId: String, answers: [String: [String]]) {
