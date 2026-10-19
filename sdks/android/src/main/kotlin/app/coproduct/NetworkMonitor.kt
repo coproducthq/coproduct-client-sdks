@@ -73,22 +73,29 @@ internal class NetworkMonitor(
 ) {
     private val lock = Any()
     private var lastReported: String? = null
+    private var stopped = false
 
     fun start() {
-        source.start { facts ->
-            deliver(
-                NetworkTypeClassifier.classify(
-                    satisfied = facts.satisfied,
-                    wifi = facts.wifi,
-                    cellular = facts.cellular,
-                    ethernet = facts.ethernet,
-                ),
-            )
+        synchronized(lock) {
+            if (stopped) return
+            source.start { facts ->
+                deliver(
+                    NetworkTypeClassifier.classify(
+                        satisfied = facts.satisfied,
+                        wifi = facts.wifi,
+                        cellular = facts.cellular,
+                        ethernet = facts.ethernet,
+                    ),
+                )
+            }
         }
     }
 
     fun cancel() {
-        source.cancel()
+        synchronized(lock) {
+            stopped = true
+            source.cancel()
+        }
     }
 
     // Deduplicates so path churn landing on the same classification does not

@@ -71,7 +71,12 @@ object Coproduct {
         val sdkKey: String,
         val timer: HostTimer,
         val networkMonitor: NetworkMonitor,
-    )
+    ) {
+        // Set after registerForegroundListener runs, under lock, once we
+        // re-confirm this Stored is still the live defaultInstance. Null
+        // means either not registered yet or a race already self-cleaned it
+        var foregroundObserver: LifecycleEventObserver? = null
+    }
 
     private sealed class Claim {
         data class Existing(val client: CoproductClient) : Claim()
@@ -168,7 +173,26 @@ object Coproduct {
 
         timer.start()
         networkMonitor.start()
-        registerForegroundListener(foregroundEvents)
+        val observer = registerForegroundListener(foregroundEvents)
+
+        // Stash the observer onto the Stored instance so shutdown() can
+        // remove it later, but only if that Stored is still the live
+        // defaultInstance: a shutdown could have raced in since storedOk
+        // succeeded above, already torn the old Stored down (with no
+        // observer to remove at that time), and cleared defaultInstance. In
+        // that case clean up the just-registered observer ourselves
+        val observerStoredOk = synchronized(lock) {
+            val current = defaultInstance
+            if (current?.client === client) {
+                current.foregroundObserver = observer
+                true
+            } else {
+                false
+            }
+        }
+        if (!observerStoredOk) {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(observer)
+        }
 
         if (!waitForFirstPoll(client, config.startupTimeoutSeconds)) {
             throw CoproductError.CancelledByShutdown
@@ -176,14 +200,14 @@ object Coproduct {
         return client
     }
 
-    private fun registerForegroundListener(events: MutableSharedFlow<Unit>) {
-        ProcessLifecycleOwner.get().lifecycle.addObserver(
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_START) {
-                    scope.launch { events.emit(Unit) }
-                }
-            },
-        )
+    private fun registerForegroundListener(events: MutableSharedFlow<Unit>): LifecycleEventObserver {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                scope.launch { events.emit(Unit) }
+            }
+        }
+        ProcessLifecycleOwner.get().lifecycle.addObserver(observer)
+        return observer
     }
 
     // Waits up to startupTimeoutSeconds for the first poll to move the
@@ -245,6 +269,7 @@ object Coproduct {
         pending?.cancel()
         stored?.timer?.stop()
         stored?.networkMonitor?.cancel()
+        stored?.foregroundObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
         stored?.client?.shutdownInner()
     }
 }
