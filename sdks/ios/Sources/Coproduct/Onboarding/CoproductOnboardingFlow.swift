@@ -106,7 +106,7 @@ public struct CoproductOnboardingFlow<Splash: View>: View {
 /// the shell html and the already-constructed `FlowRuntime` as plain
 /// values -- it never computes either itself, so it stays a thin rendering
 /// layer over logic `FlowRuntimeTests` already covers.
-private struct OnboardingWebView: UIViewRepresentable {
+struct OnboardingWebView: UIViewRepresentable {
     let html: String
     let runtime: FlowRuntime
 
