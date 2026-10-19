@@ -2,10 +2,10 @@ package app.coproduct
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,81 +18,85 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class HostTimerTest {
     @Test
-    fun timerRepollsAfterASuccessfulOutcome() {
+    fun timerRepollsAfterASuccessfulOutcome() = runBlocking {
         val latch = CountDownLatch(2)
+        // HostTimer's own internal scope must run on real threads distinct
+        // from this runBlocking test thread. If we handed it `this` instead,
+        // the timer's self-rescheduling coroutine would share this single
+        // thread with the test body below, and the blocking latch.await()
+        // call would starve it, so the timer could never run its own
+        // scheduled poll. Dispatchers.Default gives it a real thread pool.
         val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
-            val timer = HostTimer(
-                intervalMillis = 50,
-                scope = this,
-                poll = suspend {
-                    latch.countDown()
-                    PollOutcome.Updated
-                }
-            )
-            timer.start()
-        }
+        val timer = HostTimer(
+            intervalMillis = 50,
+            scope = scope,
+            poll = suspend {
+                latch.countDown()
+                PollOutcome.Updated
+            }
+        )
+        timer.start()
         assertTrue(latch.await(2, TimeUnit.SECONDS))
+        timer.stop()
+        scope.cancel()
     }
 
     @Test
-    fun foregroundTriggersAPollDuringNormalCadence() {
+    fun foregroundTriggersAPollDuringNormalCadence() = runBlocking {
         val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
-            val foregroundEvents = MutableSharedFlow<Unit>()
-            val count = AtomicInteger(0)
-            val firstPollLatch = CountDownLatch(1)
-            val foregroundPollLatch = CountDownLatch(1)
-            // A long interval means the scheduled timer will not fire again within
-            // the test, so the second poll can only come from the foreground event
-            val timer = HostTimer(
-                intervalMillis = 60_000,
-                pollOnForeground = true,
-                scope = this,
-                foregroundEvents = foregroundEvents,
-                poll = suspend {
-                    when (count.incrementAndGet()) {
-                        1 -> firstPollLatch.countDown()
-                        2 -> foregroundPollLatch.countDown()
-                    }
-                    PollOutcome.Updated
+        val foregroundEvents = MutableSharedFlow<Unit>()
+        val count = AtomicInteger(0)
+        val firstPollLatch = CountDownLatch(1)
+        val foregroundPollLatch = CountDownLatch(1)
+        // A long interval means the scheduled timer will not fire again within
+        // the test, so the second poll can only come from the foreground event
+        val timer = HostTimer(
+            intervalMillis = 60_000,
+            pollOnForeground = true,
+            scope = scope,
+            foregroundEvents = foregroundEvents,
+            poll = suspend {
+                when (count.incrementAndGet()) {
+                    1 -> firstPollLatch.countDown()
+                    2 -> foregroundPollLatch.countDown()
                 }
-            )
-            timer.start()
-            assertTrue(firstPollLatch.await(1, TimeUnit.SECONDS))
-            // Let the first poll's reschedule settle so the foreground is not deduped
-            delay(100)
-            foregroundEvents.emit(Unit)
-            assertTrue(foregroundPollLatch.await(1, TimeUnit.SECONDS))
-            timer.stop()
-        }
+                PollOutcome.Updated
+            }
+        )
+        timer.start()
+        assertTrue(firstPollLatch.await(1, TimeUnit.SECONDS))
+        // Let the first poll's reschedule settle so the foreground is not deduped
+        delay(100)
+        foregroundEvents.emit(Unit)
+        assertTrue(foregroundPollLatch.await(1, TimeUnit.SECONDS))
+        timer.stop()
+        scope.cancel()
     }
 
     @Test
-    fun foregroundDoesNotPollAfterFatal() {
+    fun foregroundDoesNotPollAfterFatal() = runBlocking {
         val scope = CoroutineScope(Dispatchers.Default)
-        scope.launch {
-            val foregroundEvents = MutableSharedFlow<Unit>()
-            val count = AtomicInteger(0)
-            val firstPollLatch = CountDownLatch(1)
-            val timer = HostTimer(
-                intervalMillis = 60_000,
-                pollOnForeground = true,
-                scope = this,
-                foregroundEvents = foregroundEvents,
-                poll = suspend {
-                    if (count.incrementAndGet() == 1) firstPollLatch.countDown()
-                    PollOutcome.Fatal
-                }
-            )
-            timer.start()
-            assertTrue(firstPollLatch.await(1, TimeUnit.SECONDS))
-            delay(100)
-            foregroundEvents.emit(Unit)
-            delay(200)
-            assertEquals(1, count.get())
-            timer.stop()
-        }
+        val foregroundEvents = MutableSharedFlow<Unit>()
+        val count = AtomicInteger(0)
+        val firstPollLatch = CountDownLatch(1)
+        val timer = HostTimer(
+            intervalMillis = 60_000,
+            pollOnForeground = true,
+            scope = scope,
+            foregroundEvents = foregroundEvents,
+            poll = suspend {
+                if (count.incrementAndGet() == 1) firstPollLatch.countDown()
+                PollOutcome.Fatal
+            }
+        )
+        timer.start()
+        assertTrue(firstPollLatch.await(1, TimeUnit.SECONDS))
+        delay(100)
+        foregroundEvents.emit(Unit)
+        delay(200)
+        assertEquals(1, count.get())
+        timer.stop()
+        scope.cancel()
     }
 
     @Test
