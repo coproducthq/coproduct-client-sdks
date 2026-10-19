@@ -1,5 +1,6 @@
 package app.coproduct
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -16,12 +17,22 @@ internal class IdentitySerializer(
     private val lock = Any()
     private var tail: Deferred<Unit>? = null
 
+    /**
+     * Enqueues [operation] to run after every previously enqueued operation has
+     * finished, preserving call order. If [operation] throws, the exception is
+     * caught and logged internally (tag "Coproduct") — it is never rethrown into
+     * the chain and never propagates to the caller's [scope]. Callers do not need
+     * their own try/catch around [enqueue]; a failing operation never poisons
+     * operations enqueued after it and never cancels the caller's scope.
+     */
     fun enqueue(operation: suspend () -> Unit) {
         synchronized(lock) {
             val previous = tail
             tail = scope.async {
                 previous?.await()
-                operation()
+                runCatching { operation() }
+                    .onFailure { Log.e("Coproduct", "Identity operation failed", it) }
+                Unit
             }
         }
     }
