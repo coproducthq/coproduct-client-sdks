@@ -40,4 +40,4 @@ OUT_FILE="$ROOT/sdks/ios/Sources/Coproduct/Paywall/PaywallPlatformScript.generat
   printf 'let paywallPlatformScriptJs = %s\n' "$(node -e "console.log(JSON.stringify(require('fs').readFileSync('$BUILT_JS', 'utf8')))")"
 } > "$OUT_FILE"
 
-echo "Synced PlatformScript.generated.swift (paywall)"
+echo "Synced PaywallPlatformScript.generated.swift (paywall)"
