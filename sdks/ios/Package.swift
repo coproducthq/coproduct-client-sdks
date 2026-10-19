@@ -34,7 +34,10 @@ let package = Package(
         ),
         .testTarget(
             name: "CoproductTests",
-            dependencies: ["Coproduct", "CoproductFFI"]
+            dependencies: ["Coproduct", "CoproductFFI"],
+            resources: [
+                .copy("Coproduct.storekit"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v5]

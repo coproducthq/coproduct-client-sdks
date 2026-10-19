@@ -1,0 +1,111 @@
+{
+  "identifier" : "A4C3E1D2-9B6A-4F3C-8E2D-1A5B6C7D8E9F",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "F1A2B3C4-D5E6-4789-9012-3456789ABCDE",
+      "localizations" : [
+        {
+          "description" : "Test Consumable",
+          "displayName" : "Test Consumable",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.coproduct.test.consumable",
+      "referenceName" : "Test Consumable",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "0",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "B2C3D4E5-F6A7-4890-A123-456789ABCDEF",
+      "localizations" : [],
+      "name" : "Test Group",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "C3D4E5F6-A7B8-4901-B234-56789ABCDEF0",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Test Subscription",
+              "displayName" : "Test Subscription",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.coproduct.test.subscription",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Test Subscription",
+          "subscriptionGroupID" : "B2C3D4E5-F6A7-4890-A123-456789ABCDEF",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : []
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
