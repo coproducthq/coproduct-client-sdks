@@ -67,7 +67,7 @@ public struct CoproductPaywall: View {
 /// Owns the `WKWebView` and its navigation delegate, fetches the paywall,
 /// and drives a `PaywallRuntime`. A `UIViewRepresentable` rather than a
 /// plain `View` body because `WKWebView` is a `UIView`, not SwiftUI-native.
-private struct PaywallWebViewHost: UIViewRepresentable {
+struct PaywallWebViewHost: UIViewRepresentable {
     let paywallId: String
     let appUserId: String
     let sdkKey: String
