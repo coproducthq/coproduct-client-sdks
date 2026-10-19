@@ -68,7 +68,7 @@ class OkHttpTransportTest {
         // Use a custom dispatcher that sleeps before responding
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
-                Thread.sleep(2000)  // Sleep for 2 seconds
+                Thread.sleep(200)  // Sleep well past the 50ms timeout below
                 return MockResponse().setResponseCode(200).setBody("delayed")
             }
         }
