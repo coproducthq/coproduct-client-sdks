@@ -244,32 +244,44 @@ Comment and doc terminology. Reserve `user` for the evaluated end-user (the targ
 
 ## Release Identity
 
-Each SDK carries a version identity in four places that must agree at release: the
-install instructions (the repo URL and version a developer copies), the published
-package or release tag, the built artifact version, and the `User-Agent` the SDK
-sends (`coproduct-<platform>/<version>`, set in the wrapper). These are the same
-concern seen from four angles, and they drift because they live in different
-files.
+React Native's versions are managed by release-please. The version in
+`.github/.release-please-manifest.json` is the single source of truth, and
+release PRs are the only changes that move it. Every line marked
+`x-release-please-version`, and the SDK's `package.json`, must equal it.
+`scripts/release/identity/check.sh` enforces this on every PR.
 
-Invariants (a release-blocking check, applied per platform: iOS, Android, React
-Native, Flutter):
+Contributors need two things:
 
-- A development branch keeps an explicit dev `User-Agent` such as
-  `coproduct-ios/0.0.1-dev`. Do not raise it to a release version until that
-  platform's package or tag is actually published.
-- A public release must not ship a `-dev` `User-Agent`, and the `User-Agent`
-  version must equal the published package version for that platform.
-- Install docs must not present a copy-pasteable command for a repo or tag that is
-  not yet published. Before a public release, update the install docs, the
-  package/release tag, the artifact version, and the `User-Agent` together for
-  that platform, in one change.
+1. Title the PR with a Conventional Commit type. Merges squash, so the title
+   becomes the commit message, and it decides the version bump: `fix` gives a
+   patch, `feat` a minor, and `!` after the type or scope a major. `refactor`,
+   `test`, `chore`, `docs`, `build`, `ci`, and `style` release nothing. A README
+   fix that must reach the published docs uses `fix:`.
+2. If you changed `core/`, `ffi/`, `Cargo.toml`, `Cargo.lock`, or
+   `rust-toolchain.toml`, run `scripts/release/core-changed.sh` and commit
+   what it writes. The PR checks say when it is needed.
 
-Where each lives today (keep this list current as platforms ship): iOS
-`User-Agent` is `coproductUserAgent` in `sdks/ios/Sources/Coproduct/Coproduct.swift`
-and the install doc is `sdks/ios/README.md`; Android and React Native set a
-`USER_AGENT` constant in their wrapper; Flutter's is `coproductUserAgent` in
-`sdks/flutter/coproduct/lib/src/sdk_version.dart`, passed through the FRB
-`initialize` call. See `DEVELOPMENT.md` for the release checklist.
+Never:
+
+- edit a version, a marked version line, a tag, or a changelog by hand
+- run `npm publish`, `dart pub publish`, or `git tag`
+
+The PR checks run on every PR, and every failure states its fix. Read a failing
+check's summary with `gh pr checks`. Running `scripts/release/check-all.sh`
+before pushing is optional and takes under a minute plus any React Native
+install.
+
+**Migrating an in-flight branch:** the `-dev` `User-Agent` convention has
+ended for SDKs on the release pipeline. If your branch sets React Native's
+`USER_AGENT` to a `-dev` value, take `main`'s line when you rebase.
+
+SDKs not yet on the release pipeline keep their own process. Flutter publishes
+through `scripts/release/flutter/` (see `DEVELOPMENT.md`), and its four version
+lines must agree with `pubspec.yaml`. iOS and Android set their `User-Agent` in
+their wrappers (`coproductUserAgent` in
+`sdks/ios/Sources/Coproduct/Coproduct.swift`, and `USER_AGENT` in the Android
+wrapper), and their install docs must not present a command for an
+unpublished version.
 
 ### Breaking low-level observer migration
 
