@@ -54,5 +54,14 @@ fun CoproductPaywall(
                 )
             }
         },
+        // Belt-and-suspenders alongside CoproductPaywall's own
+        // onDetachedFromWindow teardown: AndroidView tears the factory
+        // view down through onRelease when it leaves composition, which is
+        // the Compose-recommended hook for this and fires even in
+        // recomposition paths that do not cleanly route through the
+        // Android view-attachment callbacks. destroy() is idempotent, so
+        // this and the View's own onDetachedFromWindow cleanup are safe to
+        // both fire for the same instance.
+        onRelease = { it.destroy() },
     )
 }

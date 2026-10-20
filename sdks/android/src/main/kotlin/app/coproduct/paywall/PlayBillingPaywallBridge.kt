@@ -205,6 +205,17 @@ class PlayBillingPaywallBridge(
         }
     }
 
+    /**
+     * Ends this bridge's Play Billing connection. The caller owns the
+     * BillingClient's lifecycle (construction and startConnection, per this
+     * class's own kdoc), so it also owns calling this from its teardown --
+     * CoproductPaywall.destroy() calls this for the default bridge it
+     * builds itself.
+     */
+    fun close() {
+        billingClient.endConnection()
+    }
+
     private suspend fun queryProductDetails(productId: String, kind: PackageKind) =
         billingClient.queryProductDetails(
             QueryProductDetailsParams.newBuilder()
