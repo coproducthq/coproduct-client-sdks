@@ -12,6 +12,7 @@ label() {
     rn-tests) echo 'React Native tests' ;;
     readme) echo 'README examples compile' ;;
     docs) echo 'Docs links' ;;
+    tooling) echo 'Release tooling tests' ;;
     *) echo "$1" ;;
   esac
 }

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # build/artifact-linked-rn-consumer-test-ios.sh
 #
-# Artifact-linked: builds the React Native consumer-test app at consumer-tests/react-native/
-# for iOS. The app installs the SDK from a yarn-pack-built .tgz, mimicking
-# what a published release would look like.
+# Artifact-linked: builds a React Native test app (default consumer-tests/react-native,
+# or the app dir given as the first argument) for iOS against the packed SDK,
+# the way a published release installs. With COPRODUCT_RN_TGZ set, installs that
+# tarball after checking its hash. Otherwise it packs the tree first.
+# Usage: artifact-linked-rn-consumer-test-ios.sh [app-dir]
 # Runs on macOS only.
 # Requires Xcode, CocoaPods, plus node and yarn on PATH.
 # Emits COPRODUCT_ARTIFACT_LINKED_RN_CONSUMER_TEST_IOS_BUILD_STATUS pass=true on success.
@@ -12,48 +14,44 @@ set -euo pipefail
 
 SCAFFOLD_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Freshness precondition: the packed .tgz bundles the vendored RN dynamic xcframework, so
-# fail fast if either slice is stale relative to the FFI surface rather than
-# shipping stale bytes to the test. Both slices are checked because rebuilding one
-# and forgetting the other is a plausible stale-artifact failure
-"$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
-    "Rebuild the RN iOS framework: run scripts/package/rn-build-native.sh ios (see AGENTS.md)" \
-    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework/CoproductFFI" \
-    "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/CoproductFFI"
+APP_DIR="$(cd "${1:-$SCAFFOLD_ROOT/consumer-tests/react-native}" && pwd)"
 
-# Repack the SDK to the .sdk-pack.tgz path the consumer installs. The sdk:pack
-# script passes --filename so the archive lands where package.json references it,
-# unlike a plain yarn pack whose default package.tgz nothing installs. The SDK's
-# prepack builds lib/ so the archive carries the JS output, not just sources.
-cd "$SCAFFOLD_ROOT/consumer-tests/react-native"
-yarn sdk:pack
-
-# Clean-install through npm, the package manager the consumer's setup script uses.
-# A file: tarball is pinned by integrity in a lockfile, so an incremental install
-# treats a freshly packed .sdk-pack.tgz as up-to-date and keeps stale bytes.
-# --package-lock=false makes npm ignore and not write a lockfile, so the new
-# tarball is resolved and extracted fresh. This harness deliberately installs a
-# per-run local tarball, so a stable lockfile here has nothing to pin.
-rm -rf node_modules
-npm install --package-lock=false
+if [[ -n "${COPRODUCT_RN_TGZ:-}" ]]; then
+  # A release run packed once and checked freshness then. Install that exact
+  # file, never a fresh pack
+  "$SCAFFOLD_ROOT/scripts/release/react-native/install-tgz.sh" "$APP_DIR" "$COPRODUCT_RN_TGZ"
+else
+  # Freshness precondition: the packed .tgz bundles the vendored RN dynamic xcframework, so
+  # fail fast if either slice is stale relative to the FFI surface rather than
+  # shipping stale bytes to the test. Both slices are checked because rebuilding one
+  # and forgetting the other is a plausible stale-artifact failure
+  "$SCAFFOLD_ROOT/scripts/audit/ffi-symbol-freshness.sh" \
+      "Rebuild the RN iOS framework: run scripts/package/rn-build-native.sh ios (see AGENTS.md)" \
+      "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework/CoproductFFI" \
+      "sdks/react-native/coproduct/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/CoproductFFI"
+  # The pack lands at the .sdk-pack.tgz path the app's package.json references
+  (cd "$SCAFFOLD_ROOT/sdks/react-native/coproduct" && yarn pack --filename "$APP_DIR/.sdk-pack.tgz")
+  # A clean install without a lockfile, so npm extracts the new bytes
+  (cd "$APP_DIR" && rm -rf node_modules && npm install --package-lock=false)
+fi
+cd "$APP_DIR"
 
 # Install pods, then build for the simulator and for a device against the same
-# installed consumer. Signing is disabled fully so the unsigned device build
+# installed app. Signing is disabled fully so the unsigned device build
 # reaches the link step rather than stopping at a development-team requirement.
 # Both builds must link the packed SDK for the gate to pass
 cd ios
 pod install
-
-xcodebuild -workspace CpConsumer.xcworkspace \
-  -scheme CpConsumer \
-  -destination 'generic/platform=iOS Simulator' \
-  -configuration Release \
-  build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
-
-xcodebuild -workspace CpConsumer.xcworkspace \
-  -scheme CpConsumer \
-  -destination 'generic/platform=iOS' \
-  -configuration Release \
-  build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+workspaces=(*.xcworkspace)
+if [[ ${#workspaces[@]} -ne 1 || ! -d "${workspaces[0]}" ]]; then
+  echo "ERROR: expected exactly one .xcworkspace in $APP_DIR/ios" >&2
+  exit 1
+fi
+scheme="${workspaces[0]%.xcworkspace}"
+for destination in 'generic/platform=iOS Simulator' 'generic/platform=iOS'; do
+  xcodebuild -workspace "${workspaces[0]}" -scheme "$scheme" \
+    -destination "$destination" -configuration Release \
+    build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+done
 
 echo "COPRODUCT_ARTIFACT_LINKED_RN_CONSUMER_TEST_IOS_BUILD_STATUS pass=true"
