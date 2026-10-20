@@ -20,12 +20,25 @@ concurrency:
   group: publish-react-native-${{ inputs.ref || github.ref_name }}
   cancel-in-progress: false
 
-env:
-  CHECK_REF: ${{ inputs.ref || github.ref }}
-
 jobs:
+  # Every job checks out this one commit, so a push that lands mid-run can't
+  # mix two commits into one result
+  resolve:
+    name: Resolve the commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   native-ios:
     name: Native ${{ matrix.target }}
+    needs: resolve
     runs-on: macos-26
     timeout-minutes: 40
     strategy:
@@ -35,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.CHECK_REF }}
+          ref: ${{ needs.resolve.outputs.sha }}
       - run: sudo xcode-select -s /Applications/Xcode_26.5.app
       - run: scripts/package/rn-build-native.sh target ${{ matrix.target }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -47,6 +60,7 @@ jobs:
 
   native-android:
     name: Native ${{ matrix.abi }}
+    needs: resolve
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -56,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.CHECK_REF }}
+          ref: ${{ needs.resolve.outputs.sha }}
       - name: Install the pinned NDK and cargo-ndk
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" > /dev/null
@@ -72,7 +86,7 @@ jobs:
 
   pack:
     name: Pack react-native.tgz
-    needs: [native-ios, native-android]
+    needs: [resolve, native-ios, native-android]
     runs-on: macos-26
     timeout-minutes: 30
     outputs:
@@ -80,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.CHECK_REF }}
+          ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.14.0
@@ -121,7 +135,7 @@ jobs:
 
   build-ios:
     name: iOS build ${{ matrix.app }}
-    needs: pack
+    needs: [resolve, pack]
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
@@ -131,7 +145,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.CHECK_REF }}
+          ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.14.0
@@ -147,7 +161,7 @@ jobs:
 
   build-android:
     name: Android build ${{ matrix.app }}
-    needs: pack
+    needs: [resolve, pack]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -157,7 +171,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.CHECK_REF }}
+          ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.14.0
@@ -180,13 +194,13 @@ jobs:
 
   no-iap-android:
     name: Android build without paywall packages
-    needs: pack
+    needs: [resolve, pack]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.CHECK_REF }}
+          ref: ${{ needs.resolve.outputs.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.14.0
@@ -206,7 +220,7 @@ jobs:
   summary:
     name: Checks passed
     if: always()
-    needs: [native-ios, native-android, pack, build-ios, build-android, no-iap-android]
+    needs: [resolve, native-ios, native-android, pack, build-ios, build-android, no-iap-android]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
