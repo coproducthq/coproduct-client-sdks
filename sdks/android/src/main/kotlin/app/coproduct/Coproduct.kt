@@ -11,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
 import uniffi.coproduct_ffi_uniffi.FfiConfig
 import uniffi.coproduct_ffi_uniffi.HostSecureStore
@@ -191,7 +192,9 @@ object Coproduct {
             }
         }
         if (!observerStoredOk) {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(observer)
+            withContext(Dispatchers.Main) {
+                ProcessLifecycleOwner.get().lifecycle.removeObserver(observer)
+            }
         }
 
         if (!waitForFirstPoll(client, config.startupTimeoutSeconds)) {
@@ -200,13 +203,15 @@ object Coproduct {
         return client
     }
 
-    private fun registerForegroundListener(events: MutableSharedFlow<Unit>): LifecycleEventObserver {
+    private suspend fun registerForegroundListener(events: MutableSharedFlow<Unit>): LifecycleEventObserver {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
                 scope.launch { events.emit(Unit) }
             }
         }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(observer)
+        withContext(Dispatchers.Main) {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(observer)
+        }
         return observer
     }
 
@@ -269,7 +274,11 @@ object Coproduct {
         pending?.cancel()
         stored?.timer?.stop()
         stored?.networkMonitor?.cancel()
-        stored?.foregroundObserver?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
+        stored?.foregroundObserver?.let { observer ->
+            withContext(Dispatchers.Main) {
+                ProcessLifecycleOwner.get().lifecycle.removeObserver(observer)
+            }
+        }
         stored?.client?.shutdownInner()
     }
 }

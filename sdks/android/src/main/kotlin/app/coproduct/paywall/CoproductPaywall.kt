@@ -29,6 +29,12 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
     private var webView: WebView? = null
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
 
+    // Only set when load() builds its own default bridge (buildDefaultBridge
+    // below): that is the one case this view owns the BillingClient's
+    // connection and must end it itself. A bridge supplied by the caller is
+    // caller-owned, so its connection is the caller's to end
+    private var ownedBridge: PlayBillingPaywallBridge? = null
+
     /**
      * Boots this paywall session. activity is required because
      * PlayBillingPaywallBridge's launchBillingFlow needs an Activity to
@@ -162,13 +168,30 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
                 // enableAutoServiceReconnection() handles retry; nothing to do here.
             }
         })
+        ownedBridge = bridge
         return bridge
     }
 
-    /** Tears down this session's WebView and Play Billing connection. Call from the host's onDestroy. */
+    /**
+     * Tears down this session's WebView and ends this view's own Play
+     * Billing connection, if it built one. Idempotent, since both automatic
+     * teardown (onDetachedFromWindow, below) and a caller holding a direct
+     * reference to this View may each call this.
+     */
     fun destroy() {
         webView?.destroy()
         webView = null
+        ownedBridge?.close()
+        ownedBridge = null
         scope.cancel()
+    }
+
+    // Mirrors CoproductOnboardingFlow.onDetachedFromWindow's pattern: a host
+    // app that discards this View (navigates away, recomposes it out) without
+    // remembering to call destroy() itself must not leak the WebView or the
+    // Play Billing connection.
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        destroy()
     }
 }
