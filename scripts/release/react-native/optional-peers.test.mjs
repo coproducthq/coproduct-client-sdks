@@ -60,6 +60,18 @@ test('a require anywhere else, or of Nitro, fails', () => {
   assert.equal(problems.length, 2);
 });
 
+test('comment markers inside strings do not hide a loading import', () => {
+  const problems = checkOptionalPeers(pkg({
+    'src/a.ts': "const s = 'a // b'; import x from 'react-native-nitro-modules';\n",
+    'src/b.ts': "const glob = 'src/**/*.ts';\nimport { y } from 'react-native-iap';\nconst end = '*/';\n",
+  }));
+  assert.equal(problems.length, 2);
+});
+
+test('a template-literal require fails', () => {
+  assert.equal(checkOptionalPeers(pkg({ 'src/a.ts': 'const m = require(`react-native-iap`);\n' })).length, 1);
+});
+
 test('BILLING in the SDK manifest fails', () => {
   const [p] = checkOptionalPeers(pkg({ 'android/src/main/AndroidManifest.xml': '<uses-permission android:name="com.android.vending.BILLING" />\n' }));
   assert.match(p, /AndroidManifest\.xml declares com\.android\.vending\.BILLING/);

@@ -50,6 +50,19 @@ test('a package.json version that differs from the expected version fails', () =
   assert.match(run(p)[0], /package\.json version is 1\.0\.2, expected 1\.0\.3/);
 });
 
+test('missing code generator output fails', () => {
+  const p = good();
+  p.entries = p.entries.filter((e) => !e.includes('/generated/'));
+  assert.match(run(p).join('\n'), /missing package\/android\/generated\/jni\/CoproductSpec-generated\.cpp/);
+  assert.match(run(p).join('\n'), /missing package\/ios\/generated\/ReactCodegen\/CoproductSpecJSI\.h/);
+});
+
+test('stale code generator output fails', () => {
+  const p = good();
+  p.entries.push('package/android/generated/jni/react/renderer/components/CoproductSpec/CoproductSpecJSI-generated.cpp');
+  assert.match(run(p).join('\n'), /must not ship .*CoproductSpecJSI-generated\.cpp/);
+});
+
 test('an oversized package fails', () => {
   const p = good();
   p.size = 6_000_001;

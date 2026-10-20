@@ -8,10 +8,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PEER = "(react-native-iap|react-native-nitro-modules)(?:/[^'\"]*)?";
+const PEER = "(react-native-iap|react-native-nitro-modules)(?:/[^'\"`]*)?";
 const STATIC = new RegExp(`\\b(import|export)\\s+(type\\s+)?([^;'"]*?)\\bfrom\\s*['"]${PEER}['"]`, 'g');
 const BARE = new RegExp(`\\bimport\\s*['"]${PEER}['"]`, 'g');
-const CALL = new RegExp(`\\b(require|import)\\s*\\(\\s*['"]${PEER}['"]`, 'g');
+const CALL = new RegExp(`\\b(require|import)\\s*\\(\\s*['"\`]${PEER}['"\`]`, 'g');
 const LAZY_FILE = 'src/paywall/iapPaywallBridge.ts';
 const NATIVE = /nitro|react-native-iap|RNIap/i;
 const SKIP = new Set(['__tests__', '__mocks__', '__fixtures__', 'build', 'generated', '.gradle', '.cxx', 'node_modules', 'CoproductFFI.xcframework', 'jniLibs']);
@@ -29,8 +29,32 @@ function files(dir, keep, out = []) {
   return out;
 }
 
-// Comments mention the packages by name, and are not code
-const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+// Comments mention the packages by name, and are not code. Scans character by
+// character so a // or /* inside a string never hides the code after it
+function stripComments(text) {
+  let out = '';
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      out += c;
+      if (c === '\\') out += text[++i] ?? '';
+      else if (c === quote) quote = null;
+    } else if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      out += c;
+    } else if (c === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+      out += '\n';
+    } else if (c === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2);
+      i = end === -1 ? text.length : end + 1;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
 
 export function checkOptionalPeers(pkgDir) {
   const problems = [];

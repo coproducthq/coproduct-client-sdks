@@ -21,11 +21,23 @@ export const REQUIRED = [
   'package/lib/typescript/src/index.d.ts',
   ...Object.values(SLICES).flatMap((s) => [`${s}/CoproductFFI`, `${s}/Info.plist`, `${s}/PrivacyInfo.xcprivacy`]),
   ...ABIS.map((abi) => `package/android/src/main/jniLibs/${abi}/libcoproduct_ffi_uniffi.so`),
+  // includesGeneratedCode ships the codegen output, so apps build from these
+  // files rather than running codegen for the SDK
+  'package/android/generated/jni/CMakeLists.txt',
+  'package/android/generated/jni/CoproductSpec-generated.cpp',
+  'package/android/generated/jni/CoproductSpec.h',
+  'package/android/generated/jni/react/renderer/components/CoproductSpec/CoproductSpecJSI.h',
+  'package/android/generated/java/com/facebook/fbreact/specs/NativeCoproductSpec.java',
+  'package/ios/generated/ReactCodegen/CoproductSpec/CoproductSpec-generated.mm',
+  'package/ios/generated/ReactCodegen/CoproductSpec/CoproductSpec.h',
+  'package/ios/generated/ReactCodegen/CoproductSpecJSI.h',
 ];
 const FORBIDDEN = [
   /^package\/CORE_RELEASE_TRIGGER$/,
   /^package\/(example|scripts|build)\//,
   /(^|\/)(__tests__|__fixtures__|__mocks__|node_modules)\//,
+  // Output an older React Native codegen wrote, which the current one does not
+  /^package\/android\/generated\/jni\/react\/renderer\/components\/CoproductSpec\/CoproductSpecJSI-generated\.cpp$/,
 ];
 
 export function checkPack({ entries, files, size, version }) {
