@@ -241,9 +241,12 @@ class PlayBillingPaywallBridge(
     // an option either. Since billingClient is always a full BillingClient
     // mock in these tests, launchBillingFlow's real body -- the only place
     // that would ever dereference this argument -- never executes, so any
-    // non-null Activity reference is safe here; this module's
-    // testOptions.unitTests.isReturnDefaultValues (see build.gradle.kts)
-    // makes the android.jar stub constructor a no-op instead of throwing.
+    // non-null Activity reference is safe here; the android.jar stub's
+    // Activity() constructor itself is a harmless no-op under plain
+    // testDebugUnitTest (confirmed by running the suite with no
+    // module-wide isReturnDefaultValues override -- see
+    // PlayBillingPaywallBridgeTest's class kdoc and the Task 5 report for
+    // why that flag was removed), so no such override is needed here.
     // Task 7 removes this function entirely in favor of a
     // constructor-supplied `activityProvider: () -> Activity`.
     private fun activityFor(): android.app.Activity = android.app.Activity()
