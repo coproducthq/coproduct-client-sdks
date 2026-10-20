@@ -30,7 +30,7 @@ jobs:
           watched=$(jq -r '.packages | to_entries[] | .key as $p | ($p + "/package.json"), (.value["extra-files"][]? | $p + "/" + (if type == "string" then . else .path end))' .github/release-please-config.json)
           watched=$(printf '%s\n%s\n%s\n' .github/release-please-config.json .github/.release-please-manifest.json "$watched")
           rn=false; cfg=false
-          if printf '%s\n' "$changed" | grep -q '^sdks/react-native/'; then rn=true; fi
+          if printf '%s\n' "$changed" | grep -qE '^(sdks/react-native/|scripts/release/react-native/)'; then rn=true; fi
           if printf '%s\n' "$changed" | grep -qxF -f <(printf '%s\n' "$watched"); then cfg=true; fi
           echo "react_native=$rn" >> "$GITHUB_OUTPUT"
           echo "release_config=$cfg" >> "$GITHUB_OUTPUT"
@@ -107,6 +107,7 @@ jobs:
           node-version: 24.14.0
       - run: corepack enable && yarn install --immutable
       - run: ../../../scripts/release/ci-report.sh "React Native tests" -- bash -c 'yarn tsc && yarn jest --ci'
+      - run: ../../../scripts/release/ci-report.sh "Optional paywall packages" -- node ../../../scripts/release/react-native/optional-peers.mjs .
 
   readme:
     name: README examples compile

@@ -19,9 +19,10 @@ run "PR title ($title)" scripts/release/pr-title.sh "$title"
 run "Version identity" scripts/release/identity/check.sh --base "$base"
 run "Shared core release" scripts/release/core-changed.sh --check "$base" "$title"
 run "Docs links" scripts/docs/check.sh
-if printf '%s\n' "$changed" | grep -q '^sdks/react-native/'; then
+if printf '%s\n' "$changed" | grep -qE '^(sdks/react-native/|scripts/release/react-native/)'; then
   run "React Native tests" bash -c 'cd sdks/react-native/coproduct && yarn install --immutable >/dev/null && yarn tsc && yarn jest --silent'
   run "README examples compile" bash -c 'cd sdks/react-native/coproduct && yarn build >/dev/null && scripts/readme-typecheck.sh'
+  run "Optional paywall packages" node scripts/release/react-native/optional-peers.mjs
 fi
 echo "Release config runs in the PR checks only, because it reads the pushed branch."
 if [ -n "$failed" ]; then
