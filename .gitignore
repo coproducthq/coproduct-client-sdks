@@ -61,3 +61,6 @@ BACKLOG.md
 
 # Local automation scratch
 .superpowers/
+
+# Temporary copy the no-IAP Android build makes
+consumer-tests/react-native-no-iap.tmp/
