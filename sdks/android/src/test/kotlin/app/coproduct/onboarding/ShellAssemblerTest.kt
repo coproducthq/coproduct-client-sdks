@@ -32,9 +32,16 @@ class ShellAssemblerTest {
     fun escapesLiteralClosingScriptTagsInsideTheDataBlob() {
         val graph = OnboardingFlowGraph(
             startScreenId = "s1",
-            screens = listOf(Screen("s1", "</script><script>alert(1)</script>", emptyList(), NextTarget.CompleteTarget, null)),
+            screens = listOf(Screen("s1", "<p>Hi</p>", emptyList(), NextTarget.CompleteTarget, null)),
         )
-        val html = ShellAssembler.assemble(graph, emptyMap(), emptySet(), emptyMap(), "s1", "")
+        val html = ShellAssembler.assemble(
+            graph,
+            mapOf("evil" to ContextValue.String("</script><script>alert(1)</script>")),
+            emptySet(),
+            emptyMap(),
+            "s1",
+            "",
+        )
 
         assertFalse(html.contains("</script><script>alert(1)"))
         assertTrue(html.contains("<\\/script><script>alert(1)"))
