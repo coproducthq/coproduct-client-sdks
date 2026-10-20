@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "16075597ca61f4a7a58ca36e7390f63528481e7e",
+  "separate-pull-requests": true,
+  "draft": true,
+  "force-tag-creation": true,
+  "include-component-in-tag": true,
+  "packages": {
+    "sdks/react-native/coproduct": {
+      "release-type": "node",
+      "component": "react-native",
+      "extra-files": [{ "type": "generic", "path": "src/index.tsx" }]
+    }
+  }
+}
