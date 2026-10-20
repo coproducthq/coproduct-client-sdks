@@ -42,6 +42,17 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.01.00"))
     implementation("androidx.compose.runtime:runtime")
     implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    // OnboardingComposable.kt's public signature takes an
+    // ActivityResultCaller. :coproduct-android declares its own
+    // androidx.activity:activity-ktx dependency as `implementation`, which
+    // does not flow through this module's `api(project(":coproduct-android"))`
+    // dependency, so it needs its own direct declaration here. activity-ktx
+    // (not activity-compose) matches what :coproduct-android already uses for
+    // the same type -- nothing in this file needs Compose-specific activity
+    // integration, just the plain ActivityResultCaller/ActivityResultContracts
+    // types. 1.13.0 matches the version pinned in sdks/android/build.gradle.kts.
+    implementation("androidx.activity:activity-ktx:1.13.0")
 
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.01.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
