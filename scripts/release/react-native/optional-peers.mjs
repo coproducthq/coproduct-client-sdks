@@ -4,14 +4,11 @@
 // The SDK may name them in type-only imports, and load react-native-iap
 // lazily from the paywall bridge. Nothing else may load them, and the native
 // build files must not depend on either
+import { createRequire } from 'node:module';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PEER = "(react-native-iap|react-native-nitro-modules)(?:/[^'\"`]*)?";
-const STATIC = new RegExp(`\\b(import|export)\\s+(type\\s+)?([^;'"]*?)\\bfrom\\s*['"]${PEER}['"]`, 'g');
-const BARE = new RegExp(`\\bimport\\s*['"]${PEER}['"]`, 'g');
-const CALL = new RegExp(`\\b(require|import)\\s*\\(\\s*['"\`]${PEER}['"\`]`, 'g');
 const LAZY_FILE = 'src/paywall/iapPaywallBridge.ts';
 const NATIVE = /nitro|react-native-iap|RNIap/i;
 const SKIP = new Set(['__tests__', '__mocks__', '__fixtures__', 'build', 'generated', '.gradle', '.cxx', 'node_modules', 'CoproductFFI.xcframework', 'jniLibs']);
@@ -29,31 +26,38 @@ function files(dir, keep, out = []) {
   return out;
 }
 
-// Comments mention the packages by name, and are not code. Scans character by
-// character so a // or /* inside a string never hides the code after it
-function stripComments(text) {
-  let out = '';
-  let quote = null;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quote) {
-      out += c;
-      if (c === '\\') out += text[++i] ?? '';
-      else if (c === quote) quote = null;
-    } else if (c === "'" || c === '"' || c === '`') {
-      quote = c;
-      out += c;
-    } else if (c === '/' && text[i + 1] === '/') {
-      while (i < text.length && text[i] !== '\n') i++;
-      out += '\n';
-    } else if (c === '/' && text[i + 1] === '*') {
-      const end = text.indexOf('*/', i + 2);
-      i = end === -1 ? text.length : end + 1;
-    } else {
-      out += c;
+const PEERS = new Set(['react-native-iap', 'react-native-nitro-modules']);
+const peerOf = (specifier) => [...PEERS].find((p) => specifier === p || specifier.startsWith(`${p}/`));
+
+// TypeScript's own parser, from the SDK's dev dependencies, so comments,
+// strings, regex literals, and JSX can never hide or invent an import
+const ts = createRequire(join(dirname(fileURLToPath(import.meta.url)), '../../../sdks/react-native/coproduct/package.json'))('typescript');
+
+// Each place the file loads a paywall package at runtime: { peer, how }
+function runtimeLoads(path, text) {
+  const kind = path.endsWith('.tsx') ? ts.ScriptKind.TSX : path.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+  const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, kind);
+  const loads = [];
+  const literal = (node) => node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : undefined;
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+      const peer = peerOf(literal(node.moduleSpecifier) ?? '');
+      if (peer) loads.push({ peer, how: node.importClause ? 'import' : 'bare import' });
+    } else if (ts.isExportDeclaration(node) && !node.isTypeOnly && node.moduleSpecifier) {
+      const peer = peerOf(literal(node.moduleSpecifier) ?? '');
+      if (peer) loads.push({ peer, how: 'export' });
+    } else if (ts.isImportEqualsDeclaration(node) && !node.isTypeOnly && ts.isExternalModuleReference(node.moduleReference)) {
+      const peer = peerOf(literal(node.moduleReference.expression) ?? '');
+      if (peer) loads.push({ peer, how: 'import-equals' });
+    } else if (ts.isCallExpression(node)) {
+      const callee = node.expression.kind === ts.SyntaxKind.ImportKeyword ? 'import' : ts.isIdentifier(node.expression) && node.expression.text === 'require' ? 'require' : undefined;
+      const peer = callee && peerOf(literal(node.arguments[0]) ?? '');
+      if (peer) loads.push({ peer, how: `${callee}()` });
     }
-  }
-  return out;
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return loads;
 }
 
 export function checkOptionalPeers(pkgDir) {
@@ -62,14 +66,9 @@ export function checkOptionalPeers(pkgDir) {
 
   for (const path of files(join(pkgDir, 'src'), (n) => /\.(ts|tsx|js)$/.test(n))) {
     const file = rel(path);
-    const code = stripComments(readFileSync(path, 'utf8'));
-    for (const m of code.matchAll(STATIC)) {
-      if (!m[2]) problems.push(`${file} loads ${m[4]} at import time. Use "import type", or load it lazily in ${LAZY_FILE}.`);
-    }
-    for (const m of code.matchAll(BARE)) problems.push(`${file} loads ${m[1]} at import time with a bare import.`);
-    for (const m of code.matchAll(CALL)) {
-      const allowed = m[1] === 'require' && m[2] === 'react-native-iap' && file === LAZY_FILE;
-      if (!allowed) problems.push(`${file} loads ${m[2]} with ${m[1]}(). Only ${LAZY_FILE} may, and only react-native-iap.`);
+    for (const { peer, how } of runtimeLoads(path, readFileSync(path, 'utf8'))) {
+      if (how === 'require()' && peer === 'react-native-iap' && file === LAZY_FILE) continue;
+      problems.push(`${file} loads ${peer} at import time with ${how}. Use "import type", or load react-native-iap lazily in ${LAZY_FILE}.`);
     }
   }
 

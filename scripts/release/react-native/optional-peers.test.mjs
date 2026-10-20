@@ -79,6 +79,28 @@ test('comment markers inside strings do not hide a loading import', () => {
   assert.equal(problems.length, 2);
 });
 
+test('regex literals and JSX apostrophes do not hide a loading import', () => {
+  const problems = checkOptionalPeers(pkg({
+    'src/a.ts': "const r = /['\"]/;\nconst s = 'a // b'; import x from 'react-native-iap';\n",
+    'src/b.ts': "const r = /[/*]/;\nimport { y } from 'react-native-nitro-modules';\n",
+    'src/c.tsx': "const v = <Text>Don't</Text>;\nconst s = 'x // y'; import z from 'react-native-iap';\n",
+  }));
+  assert.equal(problems.length, 3);
+});
+
+test('a quote in a regex does not turn a comment into a finding', () => {
+  assert.deepEqual(checkOptionalPeers(pkg({ 'src/a.ts': "const r = /'/;\n// see react-native-iap's docs\nexport {};\n" })), []);
+});
+
+test('import-equals and export-star load the module, their type forms do not', () => {
+  const problems = checkOptionalPeers(pkg({
+    'src/a.ts': "import Iap = require('react-native-iap');\n",
+    'src/b.ts': "export * from 'react-native-iap';\n",
+    'src/c.ts': "export type * from 'react-native-iap';\nimport type { Purchase } from 'react-native-iap';\n",
+  }));
+  assert.equal(problems.length, 2);
+});
+
 test('a template-literal require fails', () => {
   assert.equal(checkOptionalPeers(pkg({ 'src/a.ts': 'const m = require(`react-native-iap`);\n' })).length, 1);
 });
