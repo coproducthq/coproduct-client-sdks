@@ -27,5 +27,6 @@
     "target": "ESNext",
     "types": ["jest", "node"],
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": ["node_modules", "build", "scripts/readme-context"]
 }
