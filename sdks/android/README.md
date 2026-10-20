@@ -46,7 +46,17 @@ val cancellable = client.observeBool("new-checkout", default = false) { enabled 
 // cancellable.cancel() when the observer is no longer needed
 ```
 
-For Jetpack Compose integration, see the `coproduct-android-compose` module.
+For Jetpack Compose integration:
+
+```kotlin
+import app.coproduct.compose.rememberBoolFlag
+
+@Composable
+fun CheckoutScreen(client: CoproductClient) {
+    val newCheckout by client.rememberBoolFlag("new-checkout", default = false)
+    if (newCheckout) NewCheckoutFlow() else OldCheckoutFlow()
+}
+```
 
 ## Known compatibility notes
 
