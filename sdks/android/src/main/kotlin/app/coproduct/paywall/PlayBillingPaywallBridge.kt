@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
  */
 class PlayBillingPaywallBridge(
     private val billingClient: BillingClient,
+    private val activityProvider: () -> android.app.Activity,
 ) : NativePaywallBridge, PurchasesUpdatedListener {
 
     private var pendingPurchase: PendingPurchase? = null
@@ -102,7 +103,7 @@ class PlayBillingPaywallBridge(
         // bridge does not hop threads itself, matching how it takes an
         // already-constructed BillingClient rather than owning Context/
         // Activity concerns.
-        val launchResult = billingClient.launchBillingFlow(activityFor(), params)
+        val launchResult = billingClient.launchBillingFlow(activityProvider(), params)
         if (launchResult.responseCode != BillingClient.BillingResponseCode.OK) {
             pendingPurchase = null
             throw IllegalStateException("launchBillingFlow failed: ${launchResult.debugMessage}")
@@ -221,33 +222,4 @@ class PlayBillingPaywallBridge(
                 .build()
         ).productDetailsList?.firstOrNull()
             ?: throw IllegalStateException("No product found for id \"$productId\"")
-
-    // The Activity to launch the billing flow from. This bridge takes no
-    // Activity reference at construction (keeping it unit-testable without
-    // one); Task 7's CoproductPaywall supplies the current Activity through
-    // this bridge's actual constructor signature once it's wired into the
-    // host View -- this placeholder signature is replaced during Task 7
-    // with a constructor parameter `activityProvider: () -> Activity`.
-    //
-    // An earlier version of this placeholder threw NotImplementedError
-    // here, on the assumption that PlayBillingPaywallBridgeTest's
-    // `billingClient.launchBillingFlow(any(), any())` mock -- which never
-    // inspects this argument -- would make that safe. It isn't: Kotlin
-    // evaluates a call's arguments before the call (mocked or not) ever
-    // runs, so a throwing activityFor() blew up every purchase() test
-    // before launchBillingFlow was ever reached (confirmed by actually
-    // running the suite). launchBillingFlow's Activity parameter is also
-    // @NonNull-annotated (confirmed via javap), so a null placeholder isn't
-    // an option either. Since billingClient is always a full BillingClient
-    // mock in these tests, launchBillingFlow's real body -- the only place
-    // that would ever dereference this argument -- never executes, so any
-    // non-null Activity reference is safe here; the android.jar stub's
-    // Activity() constructor itself is a harmless no-op under plain
-    // testDebugUnitTest (confirmed by running the suite with no
-    // module-wide isReturnDefaultValues override -- see
-    // PlayBillingPaywallBridgeTest's class kdoc and the Task 5 report for
-    // why that flag was removed), so no such override is needed here.
-    // Task 7 removes this function entirely in favor of a
-    // constructor-supplied `activityProvider: () -> Activity`.
-    private fun activityFor(): android.app.Activity = android.app.Activity()
 }

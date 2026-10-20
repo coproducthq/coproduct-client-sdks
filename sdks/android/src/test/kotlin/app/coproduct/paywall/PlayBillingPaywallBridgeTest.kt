@@ -173,7 +173,7 @@ class PlayBillingPaywallBridgeTest {
         coEvery { billingClient.queryProductDetails(capture(paramsSlot)) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
 
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val price = bridge.priceFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
         assertEquals("$9.99/mo", price)
@@ -191,7 +191,7 @@ class PlayBillingPaywallBridgeTest {
         coEvery { billingClient.queryProductDetails(capture(paramsSlot)) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
 
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val price = bridge.priceFor("points_pack_300", PackageKind.CONSUMABLE)
 
         assertEquals("$4.99", price)
@@ -208,7 +208,7 @@ class PlayBillingPaywallBridgeTest {
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
 
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         assertEquals("$19.99", bridge.priceFor("remove_ads", PackageKind.LIFETIME))
     }
 
@@ -218,7 +218,7 @@ class PlayBillingPaywallBridgeTest {
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), emptyList())
 
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         assertThrows(Exception::class.java) {
             kotlinx.coroutines.runBlocking { bridge.priceFor("unknown", PackageKind.SUBSCRIPTION) }
         }
@@ -230,7 +230,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val purchase = mockk<Purchase> {
                 every { products } returns listOf("premium_monthly")
@@ -261,7 +261,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("points_pack_300", "$4.99", isSubscription = false)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val purchase = mockk<Purchase> {
                 every { products } returns listOf("points_pack_300")
@@ -291,7 +291,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("remove_ads", "$19.99", isSubscription = false)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val purchase = mockk<Purchase> {
                 every { products } returns listOf("remove_ads")
@@ -319,7 +319,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val purchase = mockk<Purchase> {
                 every { products } returns listOf("premium_monthly")
@@ -348,7 +348,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("points_pack_300", "$4.99", isSubscription = false)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val purchase = mockk<Purchase> {
                 every { products } returns listOf("points_pack_300")
@@ -377,7 +377,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val cancelResult = mockk<BillingResult> {
                 every { responseCode } returns BillingClient.BillingResponseCode.USER_CANCELED
@@ -398,7 +398,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val purchase = mockk<Purchase> {
                 every { products } returns listOf("premium_monthly")
@@ -421,7 +421,7 @@ class PlayBillingPaywallBridgeTest {
         val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(productDetails))
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         every { billingClient.launchBillingFlow(any(), any()) } answers {
             val errorResult = mockk<BillingResult> {
                 every { responseCode } returns BillingClient.BillingResponseCode.ERROR
@@ -459,7 +459,7 @@ class PlayBillingPaywallBridgeTest {
             mockk { every { billingResult } returns okResult(); every { purchasesList } returns listOf(inappPurchase) }
         coEvery { billingClient.acknowledgePurchase(any()) } returns okResult()
 
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val restored = bridge.restore()
 
         assertEquals(2, restored.size)
@@ -475,7 +475,7 @@ class PlayBillingPaywallBridgeTest {
         coEvery { billingClient.queryPurchasesAsync(any()) } returns
             mockk { every { billingResult } returns okResult(); every { purchasesList } returns emptyList() }
 
-        val bridge = PlayBillingPaywallBridge(billingClient)
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         assertEquals(emptyList<RestoredTransaction>(), bridge.restore())
     }
 }
