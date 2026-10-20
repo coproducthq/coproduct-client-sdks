@@ -26,6 +26,19 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    testOptions {
+        unitTests {
+            // Play Billing's real (non-ktx) classes -- e.g.
+            // BillingFlowParams.ProductDetailsParams.Builder.setOfferToken --
+            // call into android.text.TextUtils internally. The android.jar
+            // used for local JVM unit tests stubs every framework method to
+            // throw by default; this makes those stubs return harmless
+            // defaults instead, which is the standard fix (see
+            // https://developer.android.com/r/studio-ui/build/not-mocked).
+            isReturnDefaultValues = true
+        }
+    }
+
     publishing {
         singleVariant("release") {
             withSourcesJar()
