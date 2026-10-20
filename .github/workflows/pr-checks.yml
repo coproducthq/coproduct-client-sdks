@@ -125,6 +125,19 @@ jobs:
       - run: corepack enable && yarn install --immutable && yarn build
       - run: ../../../scripts/release/ci-report.sh "README examples compile" -- scripts/readme-typecheck.sh
 
+  tooling:
+    name: Release tooling tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - run: corepack enable && (cd sdks/react-native/coproduct && yarn install --immutable)
+      - run: scripts/release/ci-report.sh "Release tooling tests" -- scripts/release/test-all.sh
+
   docs:
     name: Docs links
     runs-on: ubuntu-24.04
@@ -135,7 +148,7 @@ jobs:
   all:
     name: All checks passed
     if: always()
-    needs: [select, title, identity, core, release-config, rn-tests, readme, docs]
+    needs: [select, title, identity, core, release-config, rn-tests, readme, tooling, docs]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
