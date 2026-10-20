@@ -1,8 +1,4 @@
-## 1.1.1 - 2026-10-14
-
-Issue resolved for purchase results.
-
-## 1.1.0 - 2026-10-09
+## Unreleased
 
 Onboarding and paywall, previously separate unpublished packages
 (`coproduct_onboarding`, `coproduct_paywall`), are now part of this package.
@@ -15,6 +11,8 @@ One `flutter pub add coproduct` is enough for all three features.
   and its supporting types, unchanged from the standalone package. Still
   iOS-only (StoreKit2 / Apple Pay); there is no Android implementation.
 - No change to this package's existing flag-reading API.
+
+Issue resolved for purchase results.
 
 ## 1.0.0 - 2026-09-30
 
