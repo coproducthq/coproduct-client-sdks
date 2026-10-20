@@ -10,8 +10,10 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import uniffi.coproduct_ffi_uniffi.ContextValue
 
 // Assembles every screen's html fragment, plus the injected data blob and
@@ -49,24 +51,21 @@ object ShellAssembler {
         platformScriptJs: String,
     ): String {
         val sections = graph.screens.joinToString("\n") { screen ->
-            // Escape </script and </SCRIPT to prevent breaking the JSON script tag
-            val escapedHtml = screen.html.replace("</script", "<\\/script")
-                .replace("</SCRIPT", "<\\/SCRIPT")
-            """<section data-screen-id="${escapeAttr(screen.id)}" hidden>$escapedHtml</section>"""
+            """<section data-screen-id="${escapeAttr(screen.id)}" hidden>${screen.html}</section>"""
         }
 
         val data = buildJsonObject {
-            put("initialScreenId", JsonPrimitive(initialScreenId))
+            put("initialScreenId", initialScreenId)
             put("screens", buildJsonArray { graph.screens.forEach { add(screenToJson(it)) } })
             put("sdkContext", buildJsonObject {
                 put("attributes", buildJsonObject {
                     sdkContextAttributes.forEach { (key, value) -> put(key, value.toJsonElement()) }
                 })
-                put("segmentKeys", buildJsonArray { sdkContextSegmentKeys.forEach { add(JsonPrimitive(it)) } })
+                put("segmentKeys", buildJsonArray { sdkContextSegmentKeys.forEach { add(it) } })
             })
             put("initialAnswers", buildJsonObject {
                 initialAnswers.forEach { (key, values) ->
-                    put(key, buildJsonArray { values.forEach { add(JsonPrimitive(it)) } })
+                    put(key, buildJsonArray { values.forEach { add(it) } })
                 }
             })
         }
@@ -84,7 +83,7 @@ object ShellAssembler {
     }
 
     private fun screenToJson(screen: Screen): JsonObject = buildJsonObject {
-        put("id", JsonPrimitive(screen.id))
+        put("id", screen.id)
         put("transitions", buildJsonArray { screen.transitions.forEach { add(transitionToJson(it)) } })
         put("defaultNext", nextTargetToJson(screen.defaultNext))
         screen.onLoad?.let { put("onLoad", onLoadToJson(it)) }
@@ -97,18 +96,18 @@ object ShellAssembler {
 
     private fun nextTargetToJson(target: NextTarget): JsonObject = when (target) {
         is NextTarget.ScreenTarget -> buildJsonObject {
-            put("type", JsonPrimitive("screen"))
-            put("screenId", JsonPrimitive(target.screenId))
+            put("type", "screen")
+            put("screenId", target.screenId)
         }
-        is NextTarget.DismissTarget -> buildJsonObject { put("type", JsonPrimitive("dismiss")) }
-        is NextTarget.CompleteTarget -> buildJsonObject { put("type", JsonPrimitive("complete")) }
+        is NextTarget.DismissTarget -> buildJsonObject { put("type", "dismiss") }
+        is NextTarget.CompleteTarget -> buildJsonObject { put("type", "complete") }
     }
 
     private fun onLoadToJson(onLoad: NativeOnLoadRequest): JsonObject = buildJsonObject {
-        put("operation", JsonPrimitive(onLoad.operation))
-        put("params", buildJsonObject { onLoad.params.forEach { (k, v) -> put(k, JsonPrimitive(v)) } })
-        put("resultKey", JsonPrimitive(onLoad.resultKey))
-        put("timeoutMs", JsonPrimitive(onLoad.timeoutMs))
+        put("operation", onLoad.operation)
+        put("params", buildJsonObject { onLoad.params.forEach { (k, v) -> put(k, v) } })
+        put("resultKey", onLoad.resultKey)
+        put("timeoutMs", onLoad.timeoutMs)
     }
 
     private fun escapeAttr(value: String): String = value.replace("\"", "&quot;")
