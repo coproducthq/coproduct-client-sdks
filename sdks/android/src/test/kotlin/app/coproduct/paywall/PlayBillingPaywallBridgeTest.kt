@@ -80,14 +80,24 @@ import org.junit.Test
  * constructs a default BillingFlowParams.SubscriptionUpdateParams internally
  * (even though this bridge never calls setSubscriptionUpdateParams), and
  * that nested Builder's build() branches on
- * android.text.TextUtils.isEmpty(...). This module's testOptions already set
- * isReturnDefaultValues = true so unmocked android.* calls don't throw, but
- * that makes every stubbed Android method return its primitive default --
- * isEmpty() always returning `false` is wrong here (a null token IS empty)
- * and sends that real validation logic down the wrong branch
- * ("...not both" instead of treating neither as provided). So
- * TextUtils.isEmpty specifically needs a real implementation, not the
- * blanket default.
+ * android.text.TextUtils.isEmpty(...). Under plain (non-Robolectric)
+ * testDebugUnitTest the android.jar stub for TextUtils.isEmpty throws
+ * `RuntimeException: Method isEmpty in android.text.TextUtils not mocked`
+ * by default, which would fail purchase() before this bridge's own logic
+ * ever runs. This file's own `mockkStatic(TextUtils::class)` below gives it
+ * a real implementation scoped to just this test class, rather than
+ * reaching for a module-wide `testOptions.unitTests.isReturnDefaultValues`
+ * override: that blanket flag was tried first (see the Task 5 report) but
+ * makes every unmocked Android method return its primitive default instead
+ * of throwing -- isEmpty() always returning `false` is wrong here (a null
+ * token IS empty) and silently sends that real validation logic down the
+ * wrong branch ("...not both" instead of treating neither as provided). It
+ * was also discovered to defeat an unrelated regression test elsewhere in
+ * this module (IdentitySerializerTest) that depends on an unmocked
+ * android.util.Log.e call genuinely throwing. A scoped, real
+ * implementation of exactly the one static method this bridge's real
+ * (unmocked) builder chain touches is both correct and has no blast radius
+ * outside this file.
  */
 class PlayBillingPaywallBridgeTest {
     @Before
@@ -301,6 +311,64 @@ class PlayBillingPaywallBridgeTest {
         assertEquals(PurchaseOutcome.SUCCESS, result.outcome)
         io.mockk.coVerify(exactly = 1) { billingClient.acknowledgePurchase(any()) }
         io.mockk.coVerify(exactly = 0) { billingClient.consumePurchase(any()) }
+    }
+
+    @Test
+    fun `purchase still reports success when settlement (acknowledge) throws, since the charge already happened`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(productDetails))
+        val bridge = PlayBillingPaywallBridge(billingClient)
+        every { billingClient.launchBillingFlow(any(), any()) } answers {
+            val purchase = mockk<Purchase> {
+                every { products } returns listOf("premium_monthly")
+                every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                every { purchaseToken } returns "token-5"
+                every { orderId } returns "order-5"
+                every { purchaseTime } returns 1700000000000L
+                every { isAcknowledged } returns false
+            }
+            bridge.onPurchasesUpdated(okResult(), listOf(purchase))
+            okResult()
+        }
+        coEvery { billingClient.acknowledgePurchase(any()) } throws RuntimeException("ITEM_NOT_OWNED on a race")
+
+        val result = bridge.purchase("premium_monthly", PackageKind.SUBSCRIPTION)
+
+        assertEquals(PurchaseOutcome.SUCCESS, result.outcome)
+        assertEquals("token-5", result.transactionId)
+        assertEquals("premium_monthly", result.productId)
+        io.mockk.coVerify(exactly = 1) { billingClient.acknowledgePurchase(any()) }
+    }
+
+    @Test
+    fun `purchase still reports success when settlement (consume) throws, since the charge already happened`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val productDetails = fakeProductDetails("points_pack_300", "$4.99", isSubscription = false)
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(productDetails))
+        val bridge = PlayBillingPaywallBridge(billingClient)
+        every { billingClient.launchBillingFlow(any(), any()) } answers {
+            val purchase = mockk<Purchase> {
+                every { products } returns listOf("points_pack_300")
+                every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                every { purchaseToken } returns "token-6"
+                every { orderId } returns "order-6"
+                every { purchaseTime } returns 1700000000000L
+                every { isAcknowledged } returns false
+            }
+            bridge.onPurchasesUpdated(okResult(), listOf(purchase))
+            okResult()
+        }
+        coEvery { billingClient.consumePurchase(any()) } throws RuntimeException("consume failed")
+
+        val result = bridge.purchase("points_pack_300", PackageKind.CONSUMABLE)
+
+        assertEquals(PurchaseOutcome.SUCCESS, result.outcome)
+        assertEquals("token-6", result.transactionId)
+        assertEquals("points_pack_300", result.productId)
+        io.mockk.coVerify(exactly = 1) { billingClient.consumePurchase(any()) }
     }
 
     @Test
