@@ -3,7 +3,7 @@
 # title becomes the commit message release-please reads to pick the version
 set -uo pipefail
 title=${1:-}
-re='^(feat|fix|perf|revert|refactor|test|chore|docs|build|ci|style|deps)(\([a-z0-9._/-]+\))?!?: [^[:space:]]'
+re='^(feat|fix|perf|revert|refactor|test|chore|docs|build|ci|style)(\([a-z0-9._/-]+\))?!?: [^[:space:]]'
 if [[ $title =~ $re ]]; then
   echo "PR title OK: $title"
   exit 0
