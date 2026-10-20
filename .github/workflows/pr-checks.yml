@@ -1,0 +1,143 @@
+name: PR checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    name: Select checks
+    runs-on: ubuntu-24.04
+    outputs:
+      react_native: ${{ steps.pick.outputs.react_native }}
+      release_config: ${{ steps.pick.outputs.release_config }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: pick
+        name: Decide which checks apply
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA"...HEAD)
+          watched=$(jq -r '.packages | to_entries[] | .key as $p | ($p + "/package.json"), (.value["extra-files"][]? | $p + "/" + (if type == "string" then . else .path end))' .github/release-please-config.json)
+          watched=$(printf '%s\n%s\n%s\n' .github/release-please-config.json .github/.release-please-manifest.json "$watched")
+          rn=false; cfg=false
+          if printf '%s\n' "$changed" | grep -q '^sdks/react-native/'; then rn=true; fi
+          if printf '%s\n' "$changed" | grep -qxF -f <(printf '%s\n' "$watched"); then cfg=true; fi
+          echo "react_native=$rn" >> "$GITHUB_OUTPUT"
+          echo "release_config=$cfg" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Checks selected"
+            echo "- React Native tests and README examples: $rn"
+            echo "- Release config: $cfg"
+            scripts/release/core-changed.sh --check "$BASE_SHA" "chore: describe" | sed 's/^/- shared core: /'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  title:
+    name: PR title
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: scripts/release/ci-report.sh "PR title" -- scripts/release/pr-title.sh "$TITLE"
+
+  identity:
+    name: Version identity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: scripts/release/ci-report.sh "Version identity" -- scripts/release/identity/check.sh --base "$BASE_SHA"
+
+  core:
+    name: Shared core release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: scripts/release/ci-report.sh "Shared core release" -- scripts/release/core-changed.sh --check "$BASE_SHA" "$TITLE"
+
+  release-config:
+    name: Release config
+    needs: select
+    if: needs.select.outputs.release_config == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: scripts/release/ci-report.sh "Release config" -- scripts/release/release-config-check.sh "$HEAD_REF"
+
+  rn-tests:
+    name: React Native tests
+    needs: select
+    if: needs.select.outputs.react_native == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: sdks/react-native/coproduct
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - run: corepack enable && yarn install --immutable
+      - run: ../../../scripts/release/ci-report.sh "React Native tests" -- bash -c 'yarn tsc && yarn jest --ci'
+
+  readme:
+    name: README examples compile
+    needs: select
+    if: needs.select.outputs.react_native == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: sdks/react-native/coproduct
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - run: corepack enable && yarn install --immutable && yarn build
+      - run: ../../../scripts/release/ci-report.sh "README examples compile" -- scripts/readme-typecheck.sh
+
+  docs:
+    name: Docs links
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: scripts/release/ci-report.sh "Docs links" -- scripts/docs/check.sh
+
+  all:
+    name: All checks passed
+    if: always()
+    needs: [select, title, identity, core, release-config, rn-tests, readme, docs]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: printf '%s' "$NEEDS" | scripts/release/checks-result.sh
