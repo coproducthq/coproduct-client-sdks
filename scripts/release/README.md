@@ -1,12 +1,22 @@
 # Release scripts
 
-One directory per SDK that has a release pipeline. Today that is `flutter/`.
-Anything directly in `scripts/release/` is shared across SDKs.
+Shared release checks live directly in `scripts/release/`. The Flutter SDK's
+own pipeline lives in `flutter/`. `RELEASING.md` at the repository root is the
+contributor guide.
 
 | Path | What it is |
 |---|---|
+| `check-all.sh` | Optional local run of the PR checks that apply to this branch |
+| `pr-title.sh` | Checks a PR title against Conventional Commits |
+| `identity/check.sh` | Checks that every version line release-please manages equals the manifest, and that only release PRs move it |
+| `core-changed.sh` | Writes `CORE_RELEASE_TRIGGER` into the SDKs a shared core change affects, and checks it on PRs |
+| `release-config-check.sh` | Dry-runs release-please against a pushed branch and checks what a release PR would update |
+| `ci-report.sh`, `checks-result.sh` | Job summaries for the PR checks, and the "All checks passed" decision |
 | `flutter/` | The Flutter SDK's release pipeline |
 | `assert-safe-path.sh` | Shared guard: accepts only a path that does not exist, or one it already marked. Staging deletes and rewrites the directory it is given, so this is what stops it destroying a directory it does not own |
+
+Each script with a `.test.sh` or `.test.mjs` file beside it is tested by
+running that file.
 
 ## The Flutter pipeline
 
