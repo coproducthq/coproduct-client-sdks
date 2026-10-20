@@ -4,8 +4,6 @@ name: Publish
 # builds in real apps. It never publishes. Release mode is added with npm
 # trusted publishing
 on:
-  push:
-    branches: [ci/rn-one-package]
   workflow_dispatch:
     inputs:
       ref:
