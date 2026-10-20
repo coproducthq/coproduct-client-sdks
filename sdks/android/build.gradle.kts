@@ -46,6 +46,10 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0")
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("com.android.billingclient:billing-ktx:9.1.0")
+    // Pulls in androidx.activity (ActivityResultCaller/ActivityResultContracts)
+    // transitively. 1.13.0 is the latest stable release as of this module's
+    // AGP 9.2.1/compileSdk 36.1 toolchain (1.14.x is still alpha-only).
+    implementation("androidx.activity:activity-ktx:1.13.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
