@@ -17,7 +17,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-react-native-${{ inputs.ref || github.ref_name }}
+  # One group for the SDK, as the release design specifies: runs queue rather
+  # than overlap, whichever ref or event started them
+  group: publish-react-native
   cancel-in-progress: false
 
 jobs:

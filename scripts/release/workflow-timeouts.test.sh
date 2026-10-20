@@ -22,7 +22,10 @@ if ! unpinned=$(ruby -ryaml -e '
     next if %w[resolve summary].include?(name)
     (job["steps"] || []).each do |step|
       next unless step["uses"].to_s.start_with?("actions/checkout@")
-      puts name unless step.dig("with", "ref") == "${{ needs.resolve.outputs.sha }}"
+      pinned = step.dig("with", "ref") == "${{ needs.resolve.outputs.sha }}"
+      # Without resolve in needs, the output reads as empty and checkout falls
+      # back to the default ref without saying so
+      puts name unless pinned && Array(job["needs"]).include?("resolve")
     end
   end
 ' "$wf" 2>&1); then
