@@ -133,7 +133,7 @@ export class CoproductCancelledError extends Error {
 }
 
 // User agent identifying this platform wrapper to the Coproduct backend.
-const USER_AGENT = 'coproduct-rn/1.0.2'; // x-release-please-version
+const USER_AGENT = 'coproduct-rn/1.0.3'; // x-release-please-version
 
 type Stored = {
   sdkKey: string;
