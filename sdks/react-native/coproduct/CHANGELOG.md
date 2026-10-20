@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.0.2...react-native-v1.0.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **rn:** ship native libraries and refuse to pack without them ([d25ef8a](https://github.com/coproducthq/coproduct-client-sdks/commit/d25ef8af28438e93aaf110b80baa95345c9086d1))
+
 ## 1.0.2
 
 Formatted the README, with a quick start.
