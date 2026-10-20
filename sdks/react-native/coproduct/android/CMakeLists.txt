@@ -91,12 +91,14 @@ find_package(fbjni REQUIRED CONFIG)
 if (TARGET react_codegen_CoproductSpec)
   target_link_libraries(react-native-coproduct react_codegen_CoproductSpec)
 else()
-  target_sources(
-    react-native-coproduct
-    PRIVATE
-    generated/jni/CoproductSpec-generated.cpp
-    generated/jni/react/renderer/components/CoproductSpec/CoproductSpecJSI-generated.cpp
+  # Compile whatever the React Native codegen produced. Its file set changes
+  # between React Native versions, and newer versions emit the C++ spec as a
+  # header only, so naming files here breaks builds when codegen drops one
+  file(GLOB COPRODUCT_CODEGEN_SRCS CONFIGURE_DEPENDS
+    generated/jni/*.cpp
+    generated/jni/react/renderer/components/CoproductSpec/*.cpp
   )
+  target_sources(react-native-coproduct PRIVATE ${COPRODUCT_CODEGEN_SRCS})
 endif()
 
 target_link_libraries(
