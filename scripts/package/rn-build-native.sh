@@ -125,9 +125,6 @@ build_target() { # name
         cargo ndk -t "$name" -o "$tmp" build -p coproduct-ffi-uniffi --release
         mv "$tmp/$name/$LIB.so" "$out/$LIB.so"
         rm -rf "$tmp"
-    else
-        echo "ERROR: unknown target $name. Use one of: ${IOS_TRIPLES[*]} ${ANDROID_ABIS[*]}" >&2
-        exit 2
     fi
     echo "built $name: $(ls "$out")"
 }
