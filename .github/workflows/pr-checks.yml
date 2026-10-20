@@ -26,7 +26,7 @@ jobs:
         name: Decide which checks apply
         run: |
           BASE_SHA=$(scripts/release/pr-base.sh)
-          changed=$(git diff --name-only "$BASE_SHA"...HEAD)
+          changed=$(git diff --no-renames --name-only "$BASE_SHA"...HEAD)
           watched=$(jq -r '.packages | to_entries[] | .key as $p | ($p + "/package.json"), (.value["extra-files"][]? | $p + "/" + (if type == "string" then . else .path end))' .github/release-please-config.json)
           watched=$(printf '%s\n%s\n%s\n' .github/release-please-config.json .github/.release-please-manifest.json "$watched")
           rn=false; cfg=false

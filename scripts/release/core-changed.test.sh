@@ -47,6 +47,9 @@ if check 'fix(flutter): x' && grep -q 'flutter: not on the release pipeline' out
 setup; echo 'regen' >> ffi/coproduct-ffi-frb/src/frb_generated.rs; git rm -q ffi/coproduct-ffi-uniffi/src/lib.rs; g commit -qam del
 if ! check 'fix: x' && grep -q 'react-native' out.txt; then pass 'a deleted shared file counts as a change'; else fail 'a deleted shared file counts as a change'; cat out.txt; fi
 
+setup; mkdir -p tools; git mv core/coproduct-core/src/lib.rs tools/moved.rs; g commit -qm move
+if ! check 'fix: move' && grep -q 'react-native' out.txt; then pass 'moving a shared file out counts as a change'; else fail 'moving a shared file out counts as a change'; cat out.txt; fi
+
 setup; echo 'regen' >> ffi/coproduct-ffi-frb/src/frb_generated.rs; g commit -qam gen
 if check 'fix: x' && grep -q 'No shared core changes' out.txt; then pass 'generated files need no trigger'; else fail 'generated files need no trigger'; cat out.txt; fi
 

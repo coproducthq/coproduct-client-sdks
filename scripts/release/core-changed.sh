@@ -91,7 +91,7 @@ describe() {
 if [ "${1:-}" = "--check" ]; then
   base=${2:?usage: core-changed.sh --check BASE TITLE}
   title=${3:?usage: core-changed.sh --check BASE TITLE}
-  changed=$(git diff --name-only "$base"...HEAD)
+  changed=$(git diff --no-renames --name-only "$base"...HEAD)
   touched=$(printf '%s\n' "$changed" | grep -v '^$' | touched_groups || true)
   if [ -z "$touched" ]; then echo "No shared core changes."; exit 0; fi
   # shellcheck disable=SC2086
@@ -121,7 +121,7 @@ if [ "${1:-}" = "--all" ]; then
 fi
 
 base=${CORE_BASE:-origin/main}
-touched=$( { git diff --name-only "$(git merge-base "$base" HEAD)"; git ls-files --others --exclude-standard; } | grep -v '^$' | sort -u | touched_groups || true)
+touched=$( { git diff --no-renames --name-only "$(git merge-base "$base" HEAD)"; git ls-files --others --exclude-standard; } | grep -v '^$' | sort -u | touched_groups || true)
 if [ -z "$touched" ]; then echo "No shared core changes since $base. Nothing to do."; exit 0; fi
 # shellcheck disable=SC2086
 describe $touched

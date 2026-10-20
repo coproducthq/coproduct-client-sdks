@@ -8,7 +8,7 @@ root=$(git rev-parse --show-toplevel)
 cd "$root"
 base=${CHECK_BASE:-origin/main}
 title=${CHECK_TITLE:-$(git log -1 --format=%s)}
-changed=$( { git diff --name-only "$(git merge-base "$base" HEAD)"; git ls-files --others --exclude-standard; } | sort -u)
+changed=$( { git diff --no-renames --name-only "$(git merge-base "$base" HEAD)"; git ls-files --others --exclude-standard; } | sort -u)
 failed=''
 run() {
   local name=$1
