@@ -11,7 +11,7 @@ if [ ! -f lib/typescript/src/index.d.ts ]; then
   echo "lib/typescript is missing. Fix: run yarn build first." >&2
   exit 2
 fi
-if grep -nE '^[[:space:]]+```(ts|tsx|typescript)[[:space:]]*$' "$readme" >&2; then
+if grep -nE '^[[:space:]]+```(ts|tsx|typescript)([[:space:]].*)?$' "$readme" >&2; then
   echo "The fences above are indented, so this check cannot compile them. Fix: move TypeScript examples out of lists, unindented." >&2
   exit 1
 fi
@@ -19,7 +19,7 @@ out=build/readme-typecheck
 rm -rf "$out"
 mkdir -p "$out"
 awk -v out="$out" '
-  /^```(ts|tsx|typescript)[[:space:]]*$/ { n++; ext = ($0 ~ /tsx/) ? "tsx" : "ts"; f = sprintf("%s/example%02d.%s", out, n, ext); inside = 1; next }
+  /^```(ts|tsx|typescript)([[:space:]].*)?$/ { n++; ext = ($0 ~ /^```tsx/) ? "tsx" : "ts"; f = sprintf("%s/example%02d.%s", out, n, ext); inside = 1; next }
   /^```/ { if (inside) print "export {};" > f; inside = 0; next }
   inside { print > f }
 ' "$readme"

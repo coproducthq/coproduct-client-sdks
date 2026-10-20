@@ -17,6 +17,10 @@ printf '# Title\n\n1. Step\n\n   ```ts\n   const x: number = "no";\n   ```\n' > 
 out=$("$script" "$t/indented.md" 2>&1)
 if printf '%s' "$out" | grep -q 'indented'; then echo 'ok   an indented fence is refused'; else echo 'FAIL an indented fence is refused'; fails=$((fails + 1)); fi
 
+printf '# Title\n\n```tsx title="App.tsx"\nconst x: number = "no";\n```\n' > "$t/info.md"
+out=$("$script" "$t/info.md" 2>&1)
+if printf '%s' "$out" | grep -q "is not assignable to type 'number'"; then echo 'ok   a fence with an info string is compiled'; else echo 'FAIL a fence with an info string is compiled'; fails=$((fails + 1)); fi
+
 printf '# Title\n\nNo code.\n' > "$t/none.md"
 out=$("$script" "$t/none.md" 2>&1)
 if printf '%s' "$out" | grep -q 'no TypeScript examples'; then echo 'ok   a README with no examples is reported'; else echo 'FAIL a README with no examples is reported'; fails=$((fails + 1)); fi
