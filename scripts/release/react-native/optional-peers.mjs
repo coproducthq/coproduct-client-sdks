@@ -73,6 +73,14 @@ export function checkOptionalPeers(pkgDir) {
     }
   }
 
+  // npm installs a peer automatically unless its metadata marks it optional
+  const pkgJson = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
+  for (const name of ['react-native-iap', 'react-native-nitro-modules']) {
+    if (!pkgJson.peerDependencies?.[name]) problems.push(`${name} must be listed in peerDependencies.`);
+    if (pkgJson.peerDependenciesMeta?.[name]?.optional !== true) problems.push(`${name} must be marked optional in peerDependenciesMeta, or npm installs it in every app.`);
+    if (pkgJson.dependencies?.[name]) problems.push(`${name} must not be in dependencies, or every app installs it.`);
+  }
+
   const manifest = join(pkgDir, 'android/src/main/AndroidManifest.xml');
   if (existsSync(manifest) && readFileSync(manifest, 'utf8').includes('com.android.vending.BILLING')) {
     problems.push('android/src/main/AndroidManifest.xml declares com.android.vending.BILLING. Only react-native-iap may add it, for apps that install it.');

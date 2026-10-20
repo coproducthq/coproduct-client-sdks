@@ -7,6 +7,16 @@ import { fileURLToPath } from 'node:url';
 import { checkOptionalPeers } from './optional-peers.mjs';
 
 const BRIDGE = 'src/paywall/iapPaywallBridge.ts';
+const PKG_JSON = {
+  peerDependencies: { 'react-native-iap': '^17.0.1', 'react-native-nitro-modules': '>=0.36.5' },
+  peerDependenciesMeta: { 'react-native-iap': { optional: true }, 'react-native-nitro-modules': { optional: true } },
+  dependencies: { 'uniffi-bindgen-react-native': '0.31.0-6' },
+};
+const withPkg = (change) => {
+  const pkgJson = structuredClone(PKG_JSON);
+  change(pkgJson);
+  return { 'package.json': JSON.stringify(pkgJson) };
+};
 
 function pkg(extra = {}) {
   const root = mkdtempSync(join(tmpdir(), 'peers-'));
@@ -17,6 +27,7 @@ function pkg(extra = {}) {
     'android/src/main/AndroidManifest.xml': '<manifest xmlns:android="http://schemas.android.com/apk/res/android" />\n',
     'Coproduct.podspec': "s.dependency 'React-Core'\n",
     'android/build.gradle': "dependencies { implementation 'com.facebook.react:react-android' }\n",
+    'package.json': JSON.stringify(PKG_JSON),
     ...extra,
   };
   for (const [path, text] of Object.entries(files)) {
@@ -70,6 +81,25 @@ test('comment markers inside strings do not hide a loading import', () => {
 
 test('a template-literal require fails', () => {
   assert.equal(checkOptionalPeers(pkg({ 'src/a.ts': 'const m = require(`react-native-iap`);\n' })).length, 1);
+});
+
+test('a paywall package marked not optional fails', () => {
+  const [p] = checkOptionalPeers(pkg(withPkg((j) => { j.peerDependenciesMeta['react-native-iap'].optional = false; })));
+  assert.match(p, /react-native-iap must be marked optional/);
+});
+
+test('missing optional metadata fails', () => {
+  assert.equal(checkOptionalPeers(pkg(withPkg((j) => { delete j.peerDependenciesMeta; }))).length, 2);
+});
+
+test('a paywall package missing from peerDependencies fails', () => {
+  const [p] = checkOptionalPeers(pkg(withPkg((j) => { delete j.peerDependencies['react-native-nitro-modules']; })));
+  assert.match(p, /react-native-nitro-modules must be listed in peerDependencies/);
+});
+
+test('a paywall package in regular dependencies fails', () => {
+  const [p] = checkOptionalPeers(pkg(withPkg((j) => { j.dependencies['react-native-iap'] = '^17.0.1'; })));
+  assert.match(p, /react-native-iap must not be in dependencies/);
 });
 
 test('BILLING in the SDK manifest fails', () => {
