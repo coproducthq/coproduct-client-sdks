@@ -26,7 +26,8 @@ export function finalizeAction({ mode, needs, npmChecks }) {
   if (mode !== 'release') return 'none';
   if (needs?.publish?.result !== 'skipped') return 'none';
   // Any reported result other than success or skipped means the job did not
-  // finish, including abandoned, which GitHub reports for a job that never got a runner
+  // finish, including abandoned, which GitHub reports for a job that never
+  // got a runner
   const buildBroke = BUILD_JOBS.some((job) => {
     const result = needs?.[job]?.result;
     return typeof result === 'string' && result !== 'success' && result !== 'skipped';

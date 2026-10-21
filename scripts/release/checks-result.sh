@@ -17,9 +17,15 @@ label() {
     *) echo "$1" ;;
   esac
 }
+needs=$(cat)
+# Input that is not a non-empty needs object proves nothing passed
+if ! jq -e 'type == "object" and length > 0' >/dev/null 2>&1 <<< "$needs"; then
+  echo "The job results could not be read, so the checks cannot pass" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" >&2
+  exit 1
+fi
 failed=''
 count=0
-for job in $(jq -r 'to_entries[] | select((.value.result // "") as $r | $r != "success" and $r != "skipped") | .key'); do
+for job in $(jq -r 'to_entries[] | select((.value.result // "") as $r | $r != "success" and $r != "skipped") | .key' <<< "$needs"); do
   failed="${failed:+$failed, }$(label "$job")"
   count=$((count + 1))
 done
