@@ -31,7 +31,8 @@ commits merged to `main`, so nobody edits them by hand.
 The PR checks run on every pull request. Each failure states what to fix.
 
 Never edit version numbers, marked version lines, tags, or changelogs, and
-never publish or tag by hand.
+never publish or tag by hand. Flutter's maintainer runbook in `DEVELOPMENT.md`
+is the exception.
 
 ## Checking locally
 

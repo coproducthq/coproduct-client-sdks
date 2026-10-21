@@ -340,6 +340,8 @@ README for the layout.
 | Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
 | A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
 | A pub.dev account with rights to publish `coproduct` | needed only at step 6, but it is the step where a first-time publisher discovers they lack them |
+| `gh` signed in (`gh auth status`) | steps 4, 7, and 8 use it |
+| Admin rights on the repository, or an admin on hand | step 7 pauses the tag ruleset |
 
 #### The release, end to end
 
@@ -417,11 +419,15 @@ replaced. Add an
 refuses to run without it.
 
 Set the version once and use it for both preparation and the tag, so the two
-cannot drift apart:
+cannot drift apart. Prepare it on a release branch cut from an up-to-date
+`main`, so the CHANGELOG it promotes is current:
 
 ```bash
-export COPRODUCT_RELEASE_VERSION=1.2.0   # the version being released
+export COPRODUCT_RELEASE_VERSION=1.2.0   # replace with the version being released
 export COPRODUCT_RELEASE_DATE="$(date +%F)"
+
+git switch main && git pull --ff-only
+git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
 
 (cd scripts/release/flutter && dart pub get \
   && dart run bin/prepare_release.dart \
@@ -446,31 +452,31 @@ pub emits a second warning and the gate fails, because it allows exactly one.
 
 **4. Merge the version through a PR, then build from `main`.** The pipeline
 builds from one identified commit: staging refuses a dirty tree, and refuses
-binaries whose build stamp names a commit other than `HEAD`. Prepare the version
-on a branch and open a PR titled with the release:
+binaries whose build stamp names a commit other than `HEAD`. Commit the changes
+step 3 made and open a PR titled with the release:
 
 ```bash
-git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
-# run step 3 here, then:
 git commit -am "chore(flutter): release $COPRODUCT_RELEASE_VERSION"
 git push -u origin HEAD
 gh pr create --title "chore(flutter): release $COPRODUCT_RELEASE_VERSION" \
   --body "Moves the Flutter SDK's version lines to $COPRODUCT_RELEASE_VERSION."
-gh pr checks --watch
+sleep 15 && gh pr checks --watch
 ```
 
-Merge it when "All checks passed" is green. Merges squash, and the squash
+If `gh pr checks` reports no checks, the workflow has not registered yet, so run
+it again. Merge when "All checks passed" is green. Merges squash, and the squash
 creates a new commit, so run the pipeline only after switching to the merged
 `main`:
 
 ```bash
+gh pr merge --squash --delete-branch
 git switch main && git pull --ff-only
 ```
 
 A pipeline run on the branch would seal a package whose `PROVENANCE.json` names
 a commit that the squash merge leaves off `main`.
 
-**Push before publishing, not after.** A published version is immutable, and its
+**Publish only from the merged `main`.** A published version is immutable, and its
 `PROVENANCE.json` names the commit it was built from. If that commit exists only
 on the machine that published it, the record points at nothing anyone else can
 fetch, and a lost laptop or a discarded branch makes a shipped release
@@ -571,6 +577,9 @@ gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
 gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
 ```
 
+If the push is rejected, delete the local tag with
+`git tag -d "flutter-v$COPRODUCT_RELEASE_VERSION"` before retrying.
+
 **8. Publish the GitHub Release.** Developers read releases, not tags, and in a
 repository with several SDKs the title is what says which one a release
 belongs to. Use this version's changelog entry as the notes:
@@ -608,7 +617,7 @@ from its own repository, tagged `1.0.0`. This repository still gets an
 | 3, 4 — preparing the version and merging its PR | human |
 | 6 — `publish.sh` | human, and the only supported way to publish |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
-| 7, 8 — the tag and the GitHub Release | human |
+| 7, 8 — the tag and the GitHub Release | human, and the ruleset change needs an admin |
 
 Dart cannot publish a new package directly to a verified publisher, which is why
 the first publication and the transfer are both manual.
@@ -655,8 +664,9 @@ prints its last five lines and the path to its full log, one file per step under
 rather than defects, and both are common:
 
 - **"the release must start from a clean checkout"** or **"the binaries were
-  built at X but HEAD is Y"** — commit your changes, then rerun. The pipeline
-  describes exactly one commit and refuses to describe two.
+  built at X but HEAD is Y"** — fix it on a branch, merge it through a PR, then
+  `git switch main && git pull --ff-only` and rerun. The pipeline describes
+  exactly one commit, and it must be the one on `main`.
 - **A gate that is slow or hangs** — check the machine before the code:
   `uptime`, `sysctl vm.swapusage`, and whether a build that once took seconds now
   takes minutes. A cold Gradle cache and a thrashing machine both look like a
