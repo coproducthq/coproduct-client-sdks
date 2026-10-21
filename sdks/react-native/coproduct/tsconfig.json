@@ -2,7 +2,10 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@coproduct/react-native-sdk": ["./src/index"]
+      "@coproduct/react-native-sdk": ["./src/index"],
+      "@coproduct/react-native-sdk/paywall": ["./src/paywall/index"],
+      "@coproduct/react-native-sdk/onboarding": ["./src/onboarding/index"],
+      "@coproduct/react-native-sdk/internal": ["./src/internal"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
