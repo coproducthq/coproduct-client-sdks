@@ -313,88 +313,396 @@ checkout.
 
 ## Releasing
 
-See `RELEASING.md` for the contributor rules. React Native's versions are
-managed by release-please, `scripts/release/identity/check.sh` checks them on
-every PR, and `.github/workflows/publish.yml` builds the package once and proves
-it builds in test apps. Publishing or tagging by hand is only for an urgent or
-emergency release, through the runbooks below.
+See `RELEASING.md` for the contributor rules. A React Native release needs a
+maintainer at two points, merging the release PR and approving the npm
+deployment. CI does the rest:
+
+1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
+   a release PR, `chore(main): release react-native X.Y.Z`, open with the next
+   version and changelog.
+2. A maintainer merges the release PR when the release is ready. release-please
+   tags the merge `react-native-vX.Y.Z`, creates a draft GitHub Release, and
+   starts that tag's run of `.github/workflows/publish.yml`.
+3. The run builds the package once and proves that exact file builds in test
+   apps. Then its "Publish to npm" job waits.
+4. A maintainer approves the `npm` deployment on the run's page (Review
+   deployments).
+5. CI publishes the tested file to npm with provenance, publishes the GitHub
+   Release, and updates the documentation.
+
+`scripts/release/identity/check.sh` checks the version lines on every PR.
+Publishing React Native by hand is only for an emergency, through the runbook
+below. Flutter is not on this pipeline and follows its own runbook.
+
+### When a React Native release goes wrong
+
+Every tag run ends in a job named "Result", whose summary records what happened
+to npm, the provenance check, the GitHub Release, and the docs. The commands in
+this section use `VERSION` and `R`. Replace `REPLACE_ME` with the release's
+version, such as `1.4.2`, then list the release's runs, newest first. Every
+block below checks its placeholders, and when one is left unedited it prints
+what to replace and returns non-zero without running anything.
+
+```bash
+export VERSION=REPLACE_ME R=coproducthq/coproduct-client-sdks
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  gh run list -R "$R" -w publish.yml -e workflow_dispatch -L 100 \
+    --json databaseId,headBranch,status,conclusion,createdAt \
+    -q ".[] | select(.headBranch == \"react-native-v$VERSION\")"
+else
+  echo "Replace REPLACE_ME with the release version, such as 1.4.2"; false
+fi
+```
+
+The Release Please run that started a Publish run links it in its summary. A run
+a person starts on the tag runs only the checks and never publishes.
+
+**A job failed.** Re-run only the failed jobs. Replace `REPLACE_ME` with the
+run's ID, the number after `/runs/` in its link:
+
+```bash
+RUN_ID=REPLACE_ME
+if [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  gh run rerun "$RUN_ID" -R "$R" --failed
+else
+  echo "Replace REPLACE_ME with the run ID"; false
+fi
+```
+
+The re-run reuses the run's sealed `react-native-package` artifact, so it
+publishes the bytes the builds tested and never repacks. Before publishing, it
+reads npm:
+
+- npm already holds this version with the same bytes: it skips the publish and
+  carries on with the provenance check, the Release, and the docs.
+- npm holds this version with different bytes: it stops (see the bad-version
+  runbook below).
+- npm `latest` is newer than this version: it stops as stale (see the
+  bad-version runbook below).
+
+A re-run that reaches "Publish to npm" waits for approval again. A failed
+"Release the docs" job re-runs the same way, and so does a provenance check that
+failed with "was not visible with provenance in time", because npm was only slow
+to show it. A build that failed before publishing, with the version absent from
+npm, retitles the Release "react-native: vX.Y.Z (not published)", and the next
+successful run restores the title. Done when the "Result" job passes.
+
+The native libraries that "Pack react-native.tgz" reads are kept for one day. If
+that job failed more than a day ago, start a fresh run as below instead.
+
+A "Release the docs" job that failed because npm served a newer version as
+`latest` before this one is expected. The newer release's docs win, and there
+is nothing to fix.
+
+**The run never started, or stopped before publishing.** Start a fresh Publish
+run on the tag. The release App's runs for one tag queue behind each other, so
+a fresh run waits while an older one is still live, for example one waiting on
+approval. First list the tag's live runs:
+
+```bash
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  gh run list -R "$R" -w publish.yml -e workflow_dispatch -L 100 --json databaseId,headBranch,status \
+    -q ".[] | select(.headBranch == \"react-native-v$VERSION\" and .status != \"completed\") | .databaseId"
+else
+  echo "Export VERSION as in the first block of this section"; false
+fi
+```
+
+Cancel each ID it prints, replacing `REPLACE_ME` with it, and rerun the list
+until it prints nothing:
+
+```bash
+RUN_ID=REPLACE_ME
+if [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  gh run cancel "$RUN_ID" -R "$R"
+else
+  echo "Replace REPLACE_ME with the run ID"; false
+fi
+```
+
+Then start the fresh run. The release App dispatches it, so it can still
+release:
+
+```bash
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  gh workflow run release-please.yml -R "$R" -f tag="react-native-v$VERSION"
+else
+  echo "Export VERSION as in the first block of this section"; false
+fi
+```
+
+Done when that Release Please run's summary links a new Publish run. A dispatch
+can succeed on GitHub's side and still report an error, which leaves a
+duplicate Publish run queued behind the first. Cancel the duplicate, or reject
+its `npm` deployment. If it runs anyway, it finds the version already on npm and
+publishes nothing. It packs its own bytes, so it can stop with "npm already
+holds a different package", which is expected here and needs no bad-version
+work. A fresh run packs new bytes, so use it only for a version npm does not
+have yet. For a version already on npm, re-run the failed jobs of the run that
+published it.
+
+**The approval expires.** A pending `npm` approval expires after 30 days, and
+the run can't be re-run after that. Approve or reject it before then. An expired
+run published nothing, so start a fresh run as above.
+
+#### The bad-version runbook
+
+A published version can never be replaced or reused. npm refuses a second
+publish of the same version, even after an unpublish, so the only repair is a
+newer version. Use this runbook when a published version is broken, or when a
+run stops with an error that points here. Each case below needs `VERSION` and
+`R` exported as in the first block of this section.
+
+- **"npm already holds a different package"**: npm has this version with bytes
+  this run did not test, for example from a hand publish. This run published
+  nothing. Leave it alone, because re-running it stops the same way. Check
+  whether the bytes on npm are a release you trust:
+  ```bash
+  if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    mkdir -p "$HOME/.coproduct-rn-npm-check" &&
+      curl -fsSL "$(npm view "@coproduct/react-native-sdk@$VERSION" dist.tarball)" -o "$HOME/.coproduct-rn-npm-check/npm.tgz" &&
+      shasum -a 256 "$HOME/.coproduct-rn-npm-check/npm.tgz" &&
+      node scripts/release/react-native/check-pack.mjs "$HOME/.coproduct-rn-npm-check/npm.tgz" "$VERSION"
+  else
+    echo "Export VERSION as in the first block of this section"; false
+  fi
+  ```
+  The bytes are acceptable only when the package check passes and the hash
+  equals the `react-native.tgz.sha256` of a run whose builds all passed for this
+  tag, such as the run used for a hand publish. A person decides whether they
+  are, and whether to publish the Release. An agent runs the next command only
+  with a person's explicit go-ahead. If they are acceptable, publish the draft
+  Release with
+  `gh release edit "react-native-v$VERSION" -R "$R" --draft=false --title "react-native: v$VERSION"`
+  and update the docs as in step 8 of the emergency runbook. Otherwise treat it
+  as a bad version.
+- **"npm already has a release newer than"**: a later release overtook this one.
+  Release PRs are cut from `main` in order, so the newer version already ships
+  these changes, and there is nothing to publish. Mark the draft so it is not
+  mistaken for a pending release. This edits a public page. A person decides
+  it, and an agent runs it only with a person's explicit go-ahead:
+  ```bash
+  if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    gh release edit "react-native-v$VERSION" -R "$R" --title "react-native: v$VERSION (not published)"
+  else
+    echo "Export VERSION as in the first block of this section"; false
+  fi
+  ```
+- **"published without provenance"**: this is expected only when someone re-ran
+  a run after the version was published by hand, because a hand publish carries
+  no provenance. Leave that run alone. In any other case, treat it as a bad
+  version.
+- **"provenance names ..., not the tag's ..." or "names no source commit"**: the
+  version on npm is not proven to come from the tag. Treat it as a bad version.
+
+For a bad version, replace both `REPLACE_ME` values (`BAD` is the broken
+version, `FIXED` the release that replaces it), then work through the steps in
+order:
+
+```bash
+export R=coproducthq/coproduct-client-sdks BAD=REPLACE_ME FIXED=REPLACE_ME
+if [[ "$BAD" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$FIXED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "versions OK"
+else
+  echo "Replace both REPLACE_ME values with versions, such as 1.4.2"; false
+fi
+```
+
+Done when it prints `versions OK`.
+
+1. **Fix forward.** Merge the fix in a PR titled `fix: ...`. release-please
+   moves the release PR to the next patch version. Merge it and approve the
+   run's `npm` deployment as usual. Done when
+   `npm view @coproduct/react-native-sdk dist-tags.latest` prints `FIXED`'s
+   version.
+2. **Deprecate the bad version.** This changes the public registry for every
+   installer. A person decides it, the registry owner runs it, and an agent never
+   runs it without a person's explicit go-ahead. Run it once the fix is on npm,
+   adding `--otp=<code>` if the account asks for one. Keep the message neutral
+   and name the fixed version.
+   ```bash
+   if [[ "$BAD" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$FIXED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+     npm deprecate "@coproduct/react-native-sdk@$BAD" "Use $FIXED or later, which fixes an issue in $BAD"
+   else
+     echo "Export BAD and FIXED as above"; false
+   fi
+   ```
+   Done when `npm view "@coproduct/react-native-sdk@$BAD" deprecated` prints
+   the message.
+3. **Annotate the GitHub Release.** This edits a public page. A person decides
+   it, and an agent runs it only with a person's explicit go-ahead. Add a note
+   above the bad version's notes:
+   ```bash
+   if [[ "$BAD" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$FIXED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+     notes=$(mktemp) &&
+       { printf '> Deprecated. Use %s or later.\n\n' "$FIXED"
+         gh release view "react-native-v$BAD" -R "$R" --json body -q .body; } > "$notes" &&
+       gh release edit "react-native-v$BAD" -R "$R" --notes-file "$notes"
+   else
+     echo "Export BAD and FIXED as above"; false
+   fi
+   ```
+   Done when `gh release view "react-native-v$BAD" -R "$R"` shows the note.
+4. **Check the docs.** The fixed release's run moves the documentation to the
+   fixed version in its "Release the docs" job. Done when that job passed. If it
+   failed, re-run the failed jobs of that run.
 
 ### React Native, by hand in an emergency
 
-Use this only for an urgent or emergency release. It publishes the exact package
-`publish.yml` built and tested, so nothing is packed on your machine. Run each
-block from the repository root as one command. Each starts by sourcing the
-release's environment file, so it works in a fresh shell. You need `gh` and
-`npm` signed in to accounts that can publish `@coproduct/react-native-sdk`, and
-admin rights for step 5.
+A person decides to use this runbook at all, and an agent follows it only with a
+person's explicit go-ahead. Use it only when CI can't publish a release whose
+build passed, for example when npm trusted publishing is broken. It publishes
+the exact package the tag's Publish run built and tested, so nothing is packed
+on your machine. Run each block from the repository root as one command. Each
+starts by sourcing the release's environment file, so it works in a fresh
+shell. You need `gh` and `npm` signed in to accounts that can publish
+`@coproduct/react-native-sdk`. release-please already tags the merged release
+PR, creates its draft Release, and labels the PR as released, so this runbook
+does none of those.
 
-1. **Merge the release PR, then set the environment.** release-please opens the
-   release PR. To open it by hand, run
-   `npx -y release-please@17.6.0 release-pr --token "$(gh auth token)" --repo-url coproducthq/coproduct-client-sdks --config-file .github/release-please-config.json --manifest-file .github/.release-please-manifest.json`.
-   After it merges, replace `1.2.0` with its version and run:
+1. **Set the environment and find the tag's run.** Replace `REPLACE_ME` with the
+   release's version, such as `1.4.2`, and run:
    ```bash
-   git switch main && git pull --ff-only
    cat > "$HOME/.coproduct-rn-release.env" <<'EOF'
-   export VERSION=1.2.0
+   export VERSION=REPLACE_ME
    export OUT="$HOME/.coproduct-rn-release"
    export R=coproducthq/coproduct-client-sdks
    EOF
    source "$HOME/.coproduct-rn-release.env"
-   grep -q "\"$VERSION\"" .github/.release-please-manifest.json && echo "version OK"
+   if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+     echo "Replace REPLACE_ME with the release version, then rerun this block"; false
+   else
+     RUN=$(gh run list -R "$R" -w publish.yml -e workflow_dispatch -L 100 --json databaseId,headBranch \
+       -q "[.[] | select(.headBranch == \"react-native-v$VERSION\")][0].databaseId // empty")
+     if [ -z "$RUN" ]; then
+       echo "No Publish run found for react-native-v$VERSION. Take the run ID from the Release Please run's summary"; false
+     else
+       echo "export RUN=$RUN" >> "$HOME/.coproduct-rn-release.env"
+       if [ "$(gh run view "$RUN" -R "$R" --json headSha -q .headSha)" = "$(gh api "repos/$R/commits/react-native-v$VERSION" -q .sha)" ]; then
+         echo "run $RUN OK"
+       else
+         echo "MISMATCH: run $RUN is not on the commit of react-native-v$VERSION"; false
+       fi
+     fi
+   fi
    ```
-   Done when it prints `version OK`.
-2. **Build and test it in CI.** About 30 minutes.
+   Done when it prints `run <ID> OK`. The newest run on the tag is not always
+   the release's run, because anyone can start a checks-only run on the tag, and
+   step 2 tells the two apart. If no run was found, or step 2 rules this one
+   out, take the run ID from the link in the Release Please run's summary, add
+   the line `export RUN=` followed by that ID to
+   `$HOME/.coproduct-rn-release.env`, and go on to step 2.
+2. **Check that the build passed.**
    ```bash
    source "$HOME/.coproduct-rn-release.env"
-   gh workflow run publish.yml --ref main
-   until RUN=$(gh run list -w publish.yml -e workflow_dispatch -c "$(git rev-parse HEAD)" -L 1 --json databaseId -q '.[0].databaseId') && [ -n "$RUN" ]; do sleep 5; done
-   echo "export RUN=$RUN" >> "$HOME/.coproduct-rn-release.env"
-   gh run watch "$RUN" --exit-status
+   gh run view "$RUN" -R "$R" --json jobs -q '.jobs[] | "\(.status) \(.conclusion) \(.name)"'
    ```
-   Done when every job passes. A tool that cannot hold a command open polls
-   `gh run view "$RUN" --json status,conclusion` until it shows `completed` and
-   `success`. Never publish from a failed run.
-3. **Download the tested package and check it.**
+   Done when every Native, Pack, iOS build, and Android build job reads
+   `completed success`, and "Publish to npm" is either waiting for approval or
+   reads `completed failure` and the block below allows going on. A run where
+   "Publish to npm" is skipped or missing is a checks-only run, so go back to
+   step 1 and use the run the Release Please summary links. Never publish from
+   a run whose build failed.
+
+   If "Publish to npm" failed, read why before going on. A run that stopped
+   because npm already has a newer release (`newer than`) or already holds a
+   different package for this version (`different package`) must not be
+   published by hand: stop and follow the bad-version runbook instead. A run
+   that stopped because the package carries another version
+   (`but this release is`) must not be published either: stop and find out how
+   the tag and the package came apart.
+   The log also echoes each step's script, which contains these phrases, so
+   the checks below match only the errors GitHub rendered, which start with
+   `##[error]`.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
-   rm -rf "$OUT" && gh run download "$RUN" -n react-native-package -D "$OUT"
+   if ! log=$(gh run view "$RUN" -R "$R" --log-failed); then
+     echo "Could not read the failed log. Open the failed job on the run's page and read it"; false
+   elif grep -E '##\[error\]npm already (has a release newer than|holds a different package)' <<< "$log"; then
+     echo "STOP: npm already has this version or a newer one. Follow the bad-version runbook"; false
+   elif grep -E '##\[error\]The package is version' <<< "$log"; then
+     echo "STOP: the package is not this release's version. Do not publish it"; false
+   else
+     grep -E '##\[error\]|npm (error|ERR!)' <<< "$log" | tail -n 20
+     echo "Read the errors above before going on"
+   fi
+   ```
+   Go on only when the errors show npm failing to authenticate or to publish,
+   for example because trusted publishing is broken. For any other failure,
+   stop and find its cause.
+3. **Stop CI from publishing.** Skip this step if "Publish to npm" already
+   failed, because that run publishes nothing more. Otherwise cancel the run so
+   CI can't publish alongside you. Rejecting the deployment on the run's page is
+   optional, since cancelling is enough.
+   ```bash
+   source "$HOME/.coproduct-rn-release.env"
+   gh run cancel "$RUN" -R "$R"
+   ```
+   Then rerun `gh run view "$RUN" -R "$R" --json status -q .status` until it
+   prints `completed`. Don't re-run this run later, because its provenance check
+   would fail on the hand-published version.
+4. **Download the tested package and check it.**
+   ```bash
+   source "$HOME/.coproduct-rn-release.env"
+   rm -rf "$OUT" && gh run download "$RUN" -R "$R" -n react-native-package -D "$OUT"
    (cd "$OUT" && shasum -a 256 -c react-native.tgz.sha256)
    node scripts/release/react-native/check-pack.mjs "$OUT/react-native.tgz" "$VERSION"
    ```
    Done when the hash reads `OK` and the package check passes.
-4. **Publish that file, and confirm npm serves it.** A published version can
-   never be reused. If the account requires a one-time password, a person
-   supplies it with `--otp=<code>`.
+5. **Publish that file.** A published version can never be reused. A person
+   decides to publish, and an agent runs this block only with a person's
+   explicit go-ahead. The block first asks npm whether it already has the
+   version, and publishes only on a definite `E404`:
+   - If npm has the version, the failed run did publish. The block stops, and
+     you re-run that run's failed jobs instead.
+   - If npm fails for any other reason, the block stops. Retry it, and never
+     assume the version is absent.
+
+   If the account requires a one-time password, a person supplies it by adding
+   `--otp=<code>` to `npm publish`.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
-   npm publish "$OUT/react-native.tgz" --access public
-   [ "$(curl -sL "$(npm view "@coproduct/react-native-sdk@$VERSION" dist.tarball)" | shasum -a 256 | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$OUT/react-native.tgz.sha256")" ] && echo MATCH
+   if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+     echo "Set VERSION in step 1 first"; false
+   elif out=$(npm view "@coproduct/react-native-sdk@$VERSION" version 2>&1); then
+     echo "STOP: npm answered for $VERSION (${out:-no output}). Do not publish"; false
+   elif ! printf '%s\n' "$out" | grep -q 'E404'; then
+     echo "UNCERTAIN: npm view failed without E404. Retry, and never assume the version is absent"; false
+   else
+     npm publish "$OUT/react-native.tgz" --access public
+   fi
    ```
-   Done when it prints `MATCH`. If `npm view` finds no version yet, wait a minute
-   and rerun the last line.
-5. **Tag the built commit and create its GitHub Release.** The tag ruleset lets
-   only the release automation create `*-v*` tags, so an admin pauses it for the
-   release and restores it straight after:
+   Done when `npm publish` succeeds.
+6. **Confirm npm serves that file.**
    ```bash
    source "$HOME/.coproduct-rn-release.env"
-   awk -v v="## [$VERSION]" 'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' \
-     sdks/react-native/coproduct/CHANGELOG.md > "$OUT/notes.md"
-   test -s "$OUT/notes.md" || echo "no changelog entry for $VERSION"
-   gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
-   gh release create "react-native-v$VERSION" -R "$R" \
-     --target "$(gh run view "$RUN" --json headSha -q .headSha)" \
-     --title "react-native: v$VERSION" --notes-file "$OUT/notes.md"
-   gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
-   gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
+   if [ "$(curl -sL "$(npm view "@coproduct/react-native-sdk@$VERSION" dist.tarball)" | shasum -a 256 | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$OUT/react-native.tgz.sha256")" ]; then
+     echo MATCH
+   else
+     echo "MISMATCH: npm does not serve these bytes yet. Wait a minute and rerun. If it persists, stop and follow the bad-version runbook"; false
+   fi
    ```
-   If any command between the two `PUT`s fails, still run the
-   `enforcement=active` `PUT` and the check before stopping.
-6. **Mark the release PR as released,** so release-please does not try to
-   release it again:
+   Done when it prints `MATCH`.
+7. **Publish the draft Release.** This makes the Release public. A person decides
+   it, and an agent runs it only with a person's explicit go-ahead.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
-   gh pr edit <release PR number> -R "$R" --remove-label "autorelease: pending" --add-label "autorelease: tagged"
+   if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+     gh release edit "react-native-v$VERSION" -R "$R" --draft=false --title "react-native: v$VERSION"
+   else
+     echo "Set VERSION in step 1 first"; false
+   fi
    ```
+   Done when
+   `gh release view "react-native-v$VERSION" -R "$R" --json isDraft -q .isDraft`
+   prints `false`.
+8. **Update the docs.** The run's "Release the docs" job does not run in a run
+   that was cancelled or whose publish failed. The documentation update runs from
+   a private repository, so a maintainer with access there starts it for
+   `react-native` and the version, once
+   `npm view @coproduct/react-native-sdk dist-tags.latest` prints it. If nobody
+   does, the docs stay on the previous version until a later release, whose own
+   "Release the docs" job moves them to that release.
 
 A package published this way carries no npm provenance, because provenance comes
 only from a CI publish.
