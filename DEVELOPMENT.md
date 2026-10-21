@@ -8,7 +8,7 @@ This file covers working on the Coproduct client SDKs: prerequisites, the build 
 |---|---|---|
 | Rust | 1.95.0 (pinned in `rust-toolchain.toml`) | `rustup` |
 | JDK | 17 | `brew install openjdk@17` |
-| Node | 24 (CI pins 24.14.0). React Native needs 22.11 or later | `nvm` or `asdf` |
+| Node | 24 (CI pins 24.14.0) | `nvm` or `asdf` |
 | Flutter | 3.38.1 or later. Releases use exactly 3.44.0, and the floor gate uses 3.38.1, both through FVM | https://flutter.dev/docs/get-started/install |
 | Android SDK | API 36.1 | Android Studio |
 | Android NDK | 27.1.12297006 | Android Studio SDK Manager |
@@ -26,7 +26,7 @@ export ANDROID_NDK_HOME=$HOME/Library/Android/sdk/ndk/27.1.12297006
 
 ## Build scripts
 
-Every SDK surface has a build script under `scripts/build/`. The scripts run on macOS local dev and on GitHub Actions runners (Linux for Android-only surfaces, macOS for iOS-touching surfaces). Each emits a tagged `COPRODUCT_<surface>_<role>_STATUS pass=true` status line on success that CI can grep for.
+Every SDK surface has a build script under `scripts/build/`. The scripts run on macOS local dev and on GitHub Actions runners (Linux for Android-only surfaces, macOS for iOS-touching surfaces). Each prints a status line on success, such as `COPRODUCT_SOURCE_LINKED_IOS_DEMO_BUILD_STATUS pass=true`, that CI can match.
 
 Two linkage models, named explicitly:
 
@@ -54,6 +54,10 @@ Two linkage models, named explicitly:
 | React Native consumer-test, Android (`consumer-tests/react-native/`) | `./scripts/build/artifact-linked-rn-consumer-test-android.sh` |
 | Flutter consumer-test, iOS (`consumer-tests/flutter/`) | `./scripts/build/artifact-linked-flutter-consumer-test-ios.sh` |
 | Flutter consumer-test, Android (`consumer-tests/flutter/`) | `./scripts/build/artifact-linked-flutter-consumer-test-android.sh` |
+
+The React Native scripts take an optional app directory, such as
+`consumer-tests/react-native-floor` for the minimum supported React Native, and
+install a prebuilt package when `COPRODUCT_RN_TGZ` names one.
 
 ### Acceptance (device-running)
 
@@ -315,66 +319,82 @@ every PR, and `.github/workflows/publish.yml` builds the package once and proves
 it builds in test apps. Publishing or tagging by hand is only for an urgent or
 emergency release, through the runbooks below.
 
-For an SDK that is not yet on the release pipeline, its version identity must
-agree across four places before publishing. See Release Identity in
-`AGENTS.md`.
-
-- [ ] The `User-Agent` version (`coproduct-<platform>/<version>`) equals the version
-      being published, and carries no `-dev` suffix.
-- [ ] The published package or git tag matches that version.
-- [ ] The built/packaged artifact version matches that version.
-- [ ] The install instructions in the platform README point at the real published
-      repo and version, and read as installable now rather than aspirational.
-
 ### React Native, by hand in an emergency
 
 Use this only for an urgent or emergency release. It publishes the exact package
-that `publish.yml` built and tested, so it never packs on your machine. Run every
-command from the repository root, with `gh` and `npm` signed in to accounts that
-can publish `@coproduct/react-native-sdk`.
+`publish.yml` built and tested, so nothing is packed on your machine. Run each
+block from the repository root as one command. Each starts by sourcing the
+release's environment file, so it works in a fresh shell. You need `gh` and
+`npm` signed in to accounts that can publish `@coproduct/react-native-sdk`, and
+admin rights for step 5.
 
-1. **Merge the release PR.** The version on `main` must be the one you release.
+1. **Merge the release PR, then set the environment.** release-please opens the
+   release PR. To open it by hand, run
+   `npx -y release-please@17.6.0 release-pr --token "$(gh auth token)" --repo-url coproducthq/coproduct-client-sdks --config-file .github/release-please-config.json --manifest-file .github/.release-please-manifest.json`.
+   After it merges, replace `1.2.0` with its version and run:
    ```bash
-   export VERSION=1.2.0   # replace with the version being released
    git switch main && git pull --ff-only
-   grep '"version"' sdks/react-native/coproduct/package.json   # must show $VERSION
+   cat > "$HOME/.coproduct-rn-release.env" <<'EOF'
+   export VERSION=1.2.0
+   export OUT="$HOME/.coproduct-rn-release"
+   export R=coproducthq/coproduct-client-sdks
+   EOF
+   source "$HOME/.coproduct-rn-release.env"
+   grep -q "\"$VERSION\"" .github/.release-please-manifest.json && echo "version OK"
    ```
+   Done when it prints `version OK`.
 2. **Build and test it in CI.** About 30 minutes.
    ```bash
+   source "$HOME/.coproduct-rn-release.env"
    gh workflow run publish.yml --ref main
-   gh run watch "$(gh run list -w publish.yml -L 1 --json databaseId -q '.[0].databaseId')" --exit-status
+   until RUN=$(gh run list -w publish.yml -e workflow_dispatch -c "$(git rev-parse HEAD)" -L 1 --json databaseId -q '.[0].databaseId') && [ -n "$RUN" ]; do sleep 5; done
+   echo "export RUN=$RUN" >> "$HOME/.coproduct-rn-release.env"
+   gh run watch "$RUN" --exit-status
    ```
-   Done when every job passes. Do not publish from a failed run.
+   Done when every job passes. A tool that cannot hold a command open polls
+   `gh run view "$RUN" --json status,conclusion` until it shows `completed` and
+   `success`. Never publish from a failed run.
 3. **Download the tested package and check it.**
    ```bash
-   RUN=$(gh run list -w publish.yml -L 1 --json databaseId -q '.[0].databaseId')
-   OUT="$HOME/.coproduct-rn-release" && rm -rf "$OUT"
-   gh run download "$RUN" -n react-native-package -D "$OUT"
+   source "$HOME/.coproduct-rn-release.env"
+   rm -rf "$OUT" && gh run download "$RUN" -n react-native-package -D "$OUT"
    (cd "$OUT" && shasum -a 256 -c react-native.tgz.sha256)
    node scripts/release/react-native/check-pack.mjs "$OUT/react-native.tgz" "$VERSION"
    ```
+   Done when the hash reads `OK` and the package check passes.
 4. **Publish that file, and confirm npm serves it.** A published version can
-   never be reused.
+   never be reused. If the account requires a one-time password, a person
+   supplies it with `--otp=<code>`.
    ```bash
+   source "$HOME/.coproduct-rn-release.env"
    npm publish "$OUT/react-native.tgz" --access public
-   curl -sL "$(npm view "@coproduct/react-native-sdk@$VERSION" dist.tarball)" | shasum -a 256
+   [ "$(curl -sL "$(npm view "@coproduct/react-native-sdk@$VERSION" dist.tarball)" | shasum -a 256 | cut -d' ' -f1)" = "$(cut -d' ' -f1 "$OUT/react-native.tgz.sha256")" ] && echo MATCH
    ```
-   The hash must equal the one in `react-native.tgz.sha256`.
-5. **Tag the release commit and create its GitHub Release.** The tag ruleset
-   lets only the release automation create `*-v*` tags, so an admin pauses it for
-   the tag and restores it straight after:
+   Done when it prints `MATCH`. If `npm view` finds no version yet, wait a minute
+   and rerun the last line.
+5. **Tag the built commit and create its GitHub Release.** The tag ruleset lets
+   only the release automation create `*-v*` tags, so an admin pauses it for the
+   release and restores it straight after:
    ```bash
-   R=coproducthq/coproduct-client-sdks
-   gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
+   source "$HOME/.coproduct-rn-release.env"
    awk -v v="## [$VERSION]" 'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' \
      sdks/react-native/coproduct/CHANGELOG.md > "$OUT/notes.md"
-   gh release create "react-native-v$VERSION" -R "$R" --target "$(git rev-parse HEAD)" \
+   test -s "$OUT/notes.md" || echo "no changelog entry for $VERSION"
+   gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
+   gh release create "react-native-v$VERSION" -R "$R" \
+     --target "$(gh run view "$RUN" --json headSha -q .headSha)" \
      --title "react-native: v$VERSION" --notes-file "$OUT/notes.md"
    gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
    gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
    ```
-   If any command between the two `PUT`s fails, still run the `enforcement=active`
-   `PUT` and the check before stopping.
+   If any command between the two `PUT`s fails, still run the
+   `enforcement=active` `PUT` and the check before stopping.
+6. **Mark the release PR as released,** so release-please does not try to
+   release it again:
+   ```bash
+   source "$HOME/.coproduct-rn-release.env"
+   gh pr edit <release PR number> -R "$R" --remove-label "autorelease: pending" --add-label "autorelease: tagged"
+   ```
 
 A package published this way carries no npm provenance, because provenance comes
 only from a CI publish.
@@ -394,7 +414,7 @@ README for the layout.
 | `cargo-ndk` 4.1.2 | Android cross-compilation needs the NDK linker |
 | Android NDK 27.1.12297006 | asserted from its own `source.properties`, not the directory name |
 | Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
-| A booted iOS simulator and Android emulator | the acceptance gates consume an already-booted device and neither boot nor provision one |
+| An iPhone simulator, and an Android Virtual Device (`$ANDROID_HOME/emulator/emulator -list-avds` lists one) | step 2 boots them, and the acceptance gates neither boot nor provision a device |
 | A pub.dev account with rights to publish `coproduct` | needed only at step 6, but it is the step where a first-time publisher discovers they lack them |
 | `gh` signed in (`gh auth status`) | steps 4, 7, and 8 use it |
 | Admin rights on the repository, or an admin on hand | step 7 pauses the tag ruleset |
@@ -403,9 +423,9 @@ README for the layout.
 #### The release, end to end
 
 Every command runs from the repository root, in this order. Steps 0, 2, and 3
-write their settings to one environment file, and every later command starts by
-sourcing it, so the release works the same in one terminal or in a tool that
-starts a fresh shell per command.
+write their settings to one environment file, and every later block starts by
+sourcing it. Run each block as one command, so the release works the same in
+one terminal or in a tool that starts a fresh shell per command.
 
 **0. Set the environment.** Name scratch paths that do not exist yet: the
 scripts create and mark their own space and refuse a directory they did not
@@ -428,13 +448,11 @@ EOF
 source "$HOME/.coproduct-release.env"
 ```
 
-Start every later command with `source "$HOME/.coproduct-release.env"` if your
-shell does not keep it.
-
 **1. Check the toolchains.** Every version the release pins, in one second,
 rather than discovering a missing one part-way through a half-hour run:
 
 ```bash
+source "$HOME/.coproduct-release.env"
 scripts/release/flutter/preflight.sh
 ```
 
@@ -448,6 +466,7 @@ finished compiling.
 already-booted device and neither boot nor provision one.
 
 ```bash
+source "$HOME/.coproduct-release.env"
 xcrun simctl list devices booted | grep -q Booted || xcrun simctl boot "$(
   xcrun simctl list devices available | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)"
 IOS_DEVICE="$(xcrun simctl list devices booted | grep -oE '[0-9A-F-]{36}' | head -1)"
@@ -467,7 +486,8 @@ echo "ios=$IOS_DEVICE android=$ANDROID_DEVICE"
 Done when the last line prints both ids. A missing one fails at its guard
 rather than part-way through a long run.
 
-**3. Prepare the version.** `prepare_release.dart` moves the pubspec version,
+**3. Prepare the version.** Before this step, the CHANGELOG's first heading must
+be `## Unreleased`. `prepare_release.dart` moves the pubspec version,
 the SDK version constant and its derived `User-Agent`, the README install
 example, the podspec version, and the CHANGELOG together, then audits that they
 agree. The podspec is the costly one to get wrong: it is externally visible in
@@ -491,14 +511,13 @@ source "$HOME/.coproduct-release.env"
 git switch main && git pull --ff-only
 git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
 
-(cd scripts/release/flutter && dart pub get \
+scripts/build/with-fvm-toolchain.sh 3.44.0 -- bash -c 'cd scripts/release/flutter && dart pub get \
   && dart run bin/prepare_release.dart \
-       --version "$COPRODUCT_RELEASE_VERSION" \
-       --date "$COPRODUCT_RELEASE_DATE")
+       --version "$COPRODUCT_RELEASE_VERSION" --date "$COPRODUCT_RELEASE_DATE"'
 ```
 
-The date defaults to today. Edit it in the environment file if you publish on a
-later day.
+The date defaults to today. To change it, reset the CHANGELOG heading to
+`## Unreleased`, edit the date in the environment file, and rerun this step.
 
 **If the CHANGELOG already carries a dated heading** for a version that was
 prepared but never published, this refuses to run: it accepts only
@@ -519,6 +538,7 @@ binaries whose build stamp names a commit other than `HEAD`. Commit the changes
 step 3 made and open a PR titled with the release:
 
 ```bash
+source "$HOME/.coproduct-release.env"
 git commit -am "chore(flutter): release $COPRODUCT_RELEASE_VERSION"
 git push -u origin HEAD
 gh pr create --title "chore(flutter): release $COPRODUCT_RELEASE_VERSION" \
@@ -534,6 +554,7 @@ creates a new commit, so run the pipeline only after switching to the merged
 `main`:
 
 ```bash
+source "$HOME/.coproduct-release.env"
 gh pr merge --squash --delete-branch
 git switch main && git pull --ff-only
 ```
@@ -541,24 +562,22 @@ git switch main && git pull --ff-only
 A pipeline run on the branch would seal a package whose `PROVENANCE.json` names
 a commit that the squash merge leaves off `main`.
 
-**Publish only from the merged `main`.** A published version is immutable, and its
-`PROVENANCE.json` names the commit it was built from. If that commit exists only
-on the machine that published it, the record points at nothing anyone else can
-fetch, and a lost laptop or a discarded branch makes a shipped release
-unreproducible. Everything else in this pipeline exists to keep the artifact
-traceable; this is the step that keeps the thing it traces to alive.
+**Publish only from the merged `main`.** The `PROVENANCE.json` of an immutable
+release must name a commit anyone can fetch.
 
 **5. Run the pipeline.** Expect roughly 20-30 minutes on a healthy machine, most
 of it the gate matrix building both platforms on two Flutter toolchains.
 
 ```bash
-scripts/release/flutter/measure.sh
+source "$HOME/.coproduct-release.env"
+scripts/release/flutter/measure.sh 2>&1 | tee "$COPRODUCT_RELEASE_ROOT/measure.out"
 ```
 
-Done when the log ends with `COPRODUCT_FLUTTER_MEASURE_STATUS pass=true`. A tool
-that cannot hold a command open for half an hour runs it detached,
-`nohup scripts/release/flutter/measure.sh >/dev/null 2>&1 &`, and reads progress
-with `grep 'STATUS pass=' "$COPRODUCT_RELEASE_LOG"`.
+Done when the output ends with `COPRODUCT_FLUTTER_MEASURE_STATUS pass=true`. A
+tool that cannot hold a command open for half an hour starts it detached, with
+`nohup scripts/release/flutter/measure.sh > "$COPRODUCT_RELEASE_ROOT/measure.out" 2>&1 &`,
+and polls `tail -n 3 "$COPRODUCT_RELEASE_ROOT/measure.out"` until it shows that
+line or `ERROR:`.
 
 `COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES` overrides the acceptance budget, which
 spans the Gradle build as well as the device run. The default is 8. The no-Rust
@@ -609,6 +628,8 @@ shows how far it got.
 **6. Publish.** Only through the wrapper:
 
 ```bash
+source "$HOME/.coproduct-release.env"
+git fetch -q origin && git merge-base --is-ancestor HEAD origin/main && echo "HEAD is on main"
 scripts/release/flutter/publish.sh
 ```
 
@@ -618,7 +639,9 @@ directory — and it publishes cleanly. The native binaries there are gitignored
 build output, so pub omits them and offers a ~91 KB archive with no
 `CoproductFFI.xcframework` and no `jniLibs`, carrying only the same single
 warning the real release carries. pub.dev accepts it, every consumer fails at
-load. A published version can never be replaced. Within seven days it may be retracted to prevent new resolutions, but retraction does not delete it and existing lockfiles can continue using it.
+load. A published version can never be replaced. Within seven days it can be
+retracted to stop new resolutions. Retraction does not delete it, and existing
+lockfiles keep using it.
 
 The wrapper re-verifies the seal (`COPRODUCT_FLUTTER_SEAL_VERIFY_STATUS
 pass=true`), changes into the staged package, and publishes it. pub asks for a
@@ -641,6 +664,7 @@ admin sets the ruleset to evaluate for the push and back to active straight
 after:
 
 ```bash
+source "$HOME/.coproduct-release.env"
 R=coproducthq/coproduct-client-sdks
 gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
 git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
@@ -657,30 +681,44 @@ If the push is rejected, delete the local tag with
 `git tag -d "flutter-v$COPRODUCT_RELEASE_VERSION"` before retrying.
 
 **8. Publish the GitHub Release.** Developers read releases, not tags, and in a
-repository with several SDKs the title is what says which one a release
-belongs to. Use this version's changelog entry as the notes:
+repository with several SDKs the title names the SDK. Use this version's changelog entry as the notes:
 
 ```bash
+source "$HOME/.coproduct-release.env"
 awk -v v="## $COPRODUCT_RELEASE_VERSION " \
   'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' \
   sdks/flutter/coproduct/CHANGELOG.md > "$COPRODUCT_RELEASE_ROOT/notes.md"
+test -s "$COPRODUCT_RELEASE_ROOT/notes.md" || echo "no changelog entry for this version"
 gh release create "flutter-v$COPRODUCT_RELEASE_VERSION" \
-  --title "Flutter SDK $COPRODUCT_RELEASE_VERSION" \
+  --title "flutter: v$COPRODUCT_RELEASE_VERSION" \
   --notes-file "$COPRODUCT_RELEASE_ROOT/notes.md" --verify-tag
 ```
+
+#### iOS and Android version identity
+
+The React Native and Flutter pipelines check version identity automatically.
+For iOS and Android, confirm by hand before publishing, as Release Identity in
+`AGENTS.md` describes:
+
+- [ ] The `User-Agent` version (`coproduct-<platform>/<version>`) equals the
+      version being published, and carries no `-dev` suffix.
+- [ ] The published package or git tag matches that version.
+- [ ] The built or packaged artifact version matches that version.
+- [ ] The install instructions in the platform README point at the real
+      published repo and version, and read as installable now.
 
 #### Tag names
 
 Each SDK versions independently, so every tag names its SDK:
 `<sdk>-v<version>`, where `<sdk>` is `flutter`, `android`, `react-native`, or
 `ios`, as in `flutter-v1.0.0`. This is also the default that release-please uses
-for a repository with several components. A Flutter Release is titled
-`Flutter SDK <version>`. React Native Releases keep release-please's title,
-`react-native: v<version>`.
+for a repository with several components. A GitHub Release is titled the way
+release-please titles it, `<sdk>: v<version>`, such as `flutter: v1.1.0`.
 
 Swift Package Manager is the exception. It reads only a `Package.swift` at a
 repository's root and only plain version tags, so the iOS SDK is distributed
-from its own repository, tagged `1.0.0`. This repository still gets an
+from its own repository with plain version tags, such as `1.0.0`. This
+repository still gets an
 `ios-v<version>` tag on the commit the release was built from.
 
 #### Who does what
@@ -690,10 +728,10 @@ from its own repository, tagged `1.0.0`. This repository still gets an
 | 0, 1, 2, 5: the environment, the toolchain check, the devices, the pipeline | automated once started |
 | Before the first publication: archive a clean consumer in Xcode, generate the privacy report in the Organizer, and confirm it lists the `UserDefaults` declaration from the `coproduct_privacy` bundle | human: the pipeline checks the manifest inside the release app, but Xcode generates the report only from the Organizer |
 | Before the first publication: the session check on a physical iPhone, below | human: no simulator or emulator can be put in the state before the first unlock after boot |
-| 3, 4 — preparing the version and merging its PR | human |
-| 6 — `publish.sh` | human, and the only supported way to publish |
+| 3 and 4: preparing the version and merging its PR | human |
+| 6: `publish.sh` | human, and the only supported way to publish |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
-| 7, 8 — the tag and the GitHub Release | human, and the ruleset change needs an admin |
+| 7 and 8: the tag and the GitHub Release | human, and the ruleset change needs an admin |
 
 A row marked human needs a person to run it, or to approve an agent running it.
 
@@ -805,7 +843,7 @@ Constraints that are already true, and that any design has to accept:
   acceleration on its Linux runners and states nested virtualization is
   unsupported on macOS runners, so one macOS runner cannot reliably host both.
 
-Prerequisites that do not exist yet, and would have to be built:
+Prerequisites a CI design needs:
 
 - **Splitting the pipeline across runners.** `release.sh` runs every stage in
   one process and shares the staging directory by path. Putting iOS on macOS and
@@ -814,8 +852,8 @@ Prerequisites that do not exist yet, and would have to be built:
   arrival. That is a structural change, not configuration.
 - **Portability for the Linux half.** `stages/seal-package.sh` uses BSD
   `stat -f` and `gates/mutation-gates.sh` uses BSD `sed -i ''`. Both fail on a
-  GNU userland, so the seal — which establishes what the package *is* — does not
-  currently run on Linux at all.
+  GNU userland, so the seal, which establishes what the package *is*, does not run on
+  Linux.
 - **Non-interactive publishing.** `publish.sh --force` skips pub's confirmation,
   but publishing still needs stored pub.dev credentials, and nothing in the
   repository reads a pub token or handles credentials as a secret.
