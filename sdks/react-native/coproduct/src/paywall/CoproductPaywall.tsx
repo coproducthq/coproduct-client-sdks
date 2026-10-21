@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { HttpPaywallClient } from './httpPaywallClient';
 import { IapPaywallBridge } from './iapPaywallBridge';
@@ -58,6 +58,16 @@ export function createBridge(
   }
 }
 
+/**
+ * Maps React Native's Platform.OS to the platform string PaywallRuntime
+ * and the backend's purchase-recording API expect. Every non-Android OS
+ * name (ios, macos, windows, ...) maps to IOS -- the only two store
+ * integrations this feature has are Apple's and Google's.
+ */
+export function platformFor(osName: string): string {
+  return osName === 'android' ? 'ANDROID' : 'IOS';
+}
+
 export function CoproductPaywall(props: CoproductPaywallProps) {
   const {
     paywallId,
@@ -111,6 +121,7 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
       bridge,
       client,
       appUserId,
+      platform: platformFor(Platform.OS),
       setPrices: async (prices) => {
         try {
           webViewRef.current?.injectJavaScript(

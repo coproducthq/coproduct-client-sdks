@@ -8036,7 +8036,10 @@ __metadata:
     react-native: "npm:0.84.1"
     react-native-builder-bob: "npm:^0.41.0"
     react-native-fs: "npm:^2.20.0"
+    react-native-iap: "npm:^17.0.1"
     react-native-monorepo-config: "npm:^0.3.3"
+    react-native-nitro-modules: "npm:>=0.36.5"
+    react-native-webview: "npm:^13.16.0"
   languageName: unknown
   linkType: soft
 

@@ -66,6 +66,7 @@ class FakePaywallClient implements PaywallClient {
   throwNetworkErrorNextPurchase = false;
   transactionIdsThatThrow: Set<string> = new Set();
   recordedTransactionIds: string[] = [];
+  recordedPlatforms: string[] = [];
 
   async fetchPaywall(): Promise<PaywallSnapshot | undefined> {
     return undefined;
@@ -93,6 +94,7 @@ class FakePaywallClient implements PaywallClient {
       throw new Error('Connection failed');
     }
     this.recordedTransactionIds.push(args.storeTransactionId);
+    this.recordedPlatforms.push(args.platform);
     return [
       {
         entitlementId: 'premium',
@@ -287,6 +289,71 @@ describe('PaywallRuntime', () => {
     expect(client.recordedTransactionIds).toEqual(['tx-1']);
     expect(capturedResult?.outcome).toBe('success');
     expect(capturedEntitlements?.[0]?.entitlementId).toBe('premium');
+  });
+
+  it('onSnapshotLoaded resolves a price using androidProductId when platform is ANDROID', async () => {
+    const bridge = new FakeNativePaywallBridge({
+      pricesByProductId: { premium_monthly_android: '$9.99/mo' },
+    });
+    const client = new FakePaywallClient();
+    let capturedPrices: Record<string, string> | undefined;
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      platform: 'ANDROID',
+      setPrices: async (prices) => {
+        capturedPrices = prices;
+      },
+    });
+
+    await runtime.onSnapshotLoaded(
+      buildSnapshot({
+        monthly: {
+          iosProductId: 'premium_monthly',
+          androidProductId: 'premium_monthly_android',
+        },
+      })
+    );
+
+    expect(capturedPrices).toEqual({ monthly: '$9.99/mo' });
+    expect(bridge.priceForCalls).toEqual([
+      { productId: 'premium_monthly_android', kind: 'subscription' },
+    ]);
+  });
+
+  it('a purchase tap on Android resolves androidProductId and records platform ANDROID', async () => {
+    const bridge = new FakeNativePaywallBridge({
+      nextPurchaseResult: {
+        outcome: 'success',
+        transactionId: 'tx-1',
+        productId: 'premium_monthly_android',
+        purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    });
+    const client = new FakePaywallClient();
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      platform: 'ANDROID',
+      setPrices: async () => {},
+    });
+    await runtime.onSnapshotLoaded(
+      buildSnapshot({
+        monthly: {
+          iosProductId: 'premium_monthly',
+          androidProductId: 'premium_monthly_android',
+        },
+      })
+    );
+
+    await runtime.handleNavigationRequest(
+      'coproduct-action:purchase?packageKey=monthly'
+    );
+
+    expect(bridge.purchaseCalls).toEqual(['premium_monthly_android']);
+    expect(client.recordedPlatforms).toEqual(['ANDROID']);
   });
 
   it('a purchase tap for a consumable package passes kind through to bridge.purchase', async () => {

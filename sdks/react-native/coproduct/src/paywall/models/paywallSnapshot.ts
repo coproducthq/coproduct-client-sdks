@@ -41,9 +41,10 @@ function parsePackageKind(value: unknown): PackageKind {
 
 // One packageKey's store product ids, as resolved server-side from the
 // offering the paywall's content.offeringKey points at. Every product id
-// field is optional -- an offering may only have an iOS product configured,
-// which this P1 is the only platform that reads. kind is absent on a server
-// that predates consumable support, which defaults it to 'subscription',
+// field is optional -- an offering may only have a product configured for
+// one store, and PaywallRuntime reads iosProductId or androidProductId
+// depending on the running platform. kind is absent on a server that
+// predates consumable support, which defaults it to 'subscription',
 // preserving this feature's original subscription-only behavior exactly.
 export interface PaywallPackageRef {
   iosProductId?: string;
