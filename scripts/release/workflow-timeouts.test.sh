@@ -97,6 +97,62 @@ else
   fails=$((fails + 1))
 fi
 
+# The mode seam: only the mode job's decision lets publish run, and that
+# decision reads the run's own identity, never a value a caller can set
+if ! seam=$(ruby -ryaml -e '
+  wf = YAML.load_file(ARGV[0])
+  jobs = wf["jobs"]
+  problems = []
+  pub = jobs["publish"] || {}
+  cond = pub["if"].to_s.strip
+  # A status function such as always() would let publish run past a failed or
+  # skipped mode job, so the condition is pinned exactly
+  problems << "publish if is not exactly needs.mode.outputs.mode == release: #{cond}" unless cond == "needs.mode.outputs.mode == '\''release'\''"
+  problems << "publish if calls a status function: #{cond}" if cond =~ /\b(always|failure|success|cancelled)\s*\(/
+  mode = (jobs.dig("mode", "steps") || []).find { |s| s["id"] == "mode" }
+  expected = {
+    "ACTOR_ID" => "${{ github.actor_id }}",
+    "REF_TYPE" => "${{ github.ref_type }}",
+    "REF_NAME" => "${{ github.ref_name }}",
+    "RESOLVED_SHA" => "${{ needs.resolve.outputs.sha }}",
+    "RUN_SHA" => "${{ github.sha }}",
+  }
+  if mode.nil?
+    problems << "the mode job has no step with id: mode"
+  else
+    problems << "the mode step does not run release-mode.mjs" unless mode["run"].to_s.include?("scripts/release/react-native/release-mode.mjs")
+    got = mode["env"] || {}
+    problems << "the mode step env is not exactly #{expected.inspect}: #{got.inspect}" unless got == expected
+  end
+  # The tarball must carry the version the mode job decided, checked after
+  # the package is verified and before the registry is read or written
+  steps = pub["steps"] || []
+  verify = steps.index { |s| s["run"].to_s.include?("sha256sum -c") }
+  version = steps.index do |s|
+    run = s["run"].to_s
+    run.include?("pkg/react-native.tgz") && run.include?("package/package.json") &&
+      (s["env"] || {}).values.include?("${{ needs.mode.outputs.version }}")
+  end
+  state = steps.index { |s| s["run"].to_s.include?("registry.mjs state") }
+  publish = steps.index { |s| s["run"].to_s =~ /\bnpm publish\b/ }
+  if version.nil?
+    problems << "publish has no step that checks the tarball version against needs.mode.outputs.version"
+  else
+    problems << "the tarball version step does not use shell: bash" unless steps[version]["shell"] == "bash"
+    problems << "the tarball version step does not come after the SHA-256 verification" unless verify && verify < version
+    problems << "the tarball version step does not come before the registry state step" unless state && version < state
+    problems << "the tarball version step does not come before npm publish" unless publish && version < publish
+  end
+  puts problems
+' "$wf" 2>&1); then
+  echo "FAIL $wf: could not parse: $seam"; fails=$((fails + 1))
+elif [ -z "$seam" ]; then
+  echo "ok   $wf: publish runs only on the mode decision, which reads the run identity and the tarball version"
+else
+  while IFS= read -r line; do echo "FAIL $wf: $line"; done <<< "$seam"
+  fails=$((fails + 1))
+fi
+
 # Only these secrets exist for the release workflows, so any other name reads
 # as empty and fails at run time instead of here
 allowed=' RELEASE_APP_CLIENT_ID RELEASE_APP_KEY DISPATCH_APP_CLIENT_ID DISPATCH_APP_KEY GITHUB_TOKEN '
