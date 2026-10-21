@@ -117,6 +117,13 @@ done
     "$TARGET_DIR/x86_64-apple-ios/release/libcoproduct_ffi_frb.dylib" \
     "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework"
 
+# App Store Connect validates each embedded framework only when an adopter
+# uploads, so the rules it applies are checked here, where the framework is made
+"$REPO_ROOT/scripts/audit/apple-framework-check.sh" ios \
+    "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework"
+"$REPO_ROOT/scripts/audit/apple-framework-check.sh" iossimulator \
+    "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework"
+
 # --- symbols in every shipped artifact -----------------------------------
 # Collected with a read loop rather than mapfile, which is a bash 4 builtin and
 # this platform ships bash 3.2

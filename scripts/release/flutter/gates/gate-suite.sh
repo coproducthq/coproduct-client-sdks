@@ -175,6 +175,9 @@ check_app_framework 'iOS simulator' 'iphonesimulator' 'arm64 x86_64'
 run 'iOS privacy manifest in the release app' \
     "$REPO_ROOT/scripts/release/flutter/gates/privacy-manifest-check.sh" "$COPRODUCT_CONSUMER_DIR"
 
+run 'iOS App Store readiness of the embedded framework' \
+    "$REPO_ROOT/scripts/release/flutter/gates/app-store-readiness-check.sh" "$COPRODUCT_CONSUMER_DIR"
+
 APK="$(find "$COPRODUCT_CONSUMER_DIR/build/app/outputs" -name '*.apk' 2>/dev/null | head -1)"
 if [[ -n "$APK" ]]; then
     UNZ="$(mktemp -d)"

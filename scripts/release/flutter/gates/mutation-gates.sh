@@ -194,6 +194,49 @@ else
 fi
 rm -rf "$(dirname "$W")"
 
+echo "mutation: the framework's version is not one App Store Connect accepts"
+# A pub prerelease version copied verbatim into CFBundleShortVersionString
+# builds, links, signs and runs everywhere, and is rejected only on upload
+readiness_on() { "$REPO_ROOT/scripts/release/flutter/gates/app-store-readiness-check.sh" "$1"; }
+readiness_scratch() { # -> a scratch consumer holding a copy of the release app
+    local d app
+    d="$(scratch)"; mkdir -p "$d/build/ios/Release-iphoneos"
+    app="$(find "$COPRODUCT_CONSUMER_DIR/build/ios" -type d -name 'Runner.app' \
+        -path '*/Release-iphoneos/*' 2>/dev/null | sort | head -1)"
+    [[ -n "$app" ]] && cp -R "$app" "$d/build/ios/Release-iphoneos/"
+    printf '%s' "$d"
+}
+W="$(readiness_scratch)"
+FW="$W/build/ios/Release-iphoneos/Runner.app/Frameworks/CoproductFFI.framework"
+if baseline 'embedded framework is App Store ready' readiness_on "$W"; then
+    plutil -replace CFBundleShortVersionString -string 1.2.0-beta.1 "$FW/Info.plist"
+    mutated 'prerelease bundle version' 'CFBundleShortVersionString' readiness_on "$W"
+fi
+rm -rf "$(dirname "$W")"
+
+echo "mutation: the framework imports a required-reason API its manifest omits"
+# Apple requires the declaration in the manifest of the bundle that holds the
+# binary. Without it, upload fails even though the plugin's own manifest is fine
+W="$(readiness_scratch)"
+FW="$W/build/ios/Release-iphoneos/Runner.app/Frameworks/CoproductFFI.framework"
+if baseline 'framework manifest covers its imports' readiness_on "$W"; then
+    plutil -replace NSPrivacyAccessedAPITypes -json '[]' "$FW/PrivacyInfo.xcprivacy"
+    mutated 'file timestamp declaration removed' 'NSPrivacyAccessedAPICategoryFileTimestamp' \
+        readiness_on "$W"
+fi
+rm -rf "$(dirname "$W")"
+
+echo "mutation: the framework is not a well-formed bundle"
+# A stray file at the framework root is the kind of structure codesign seals
+# today and App Store Connect rejects as an invalid bundle
+W="$(readiness_scratch)"
+FW="$W/build/ios/Release-iphoneos/Runner.app/Frameworks/CoproductFFI.framework"
+if baseline 'framework holds only its own files' readiness_on "$W"; then
+    cp "$FW/CoproductFFI" "$FW/libextra.dylib"
+    mutated 'stray dylib in the framework' 'unexpected entry' readiness_on "$W"
+fi
+rm -rf "$(dirname "$W")"
+
 echo "mutation: the Dart bindings disagree with the compiled library"
 # Changing the archive directory alone does not reach the runner, which consumes
 # COPRODUCT_CONSUMER_DIR, so the mutated archive needs a consumer of its own

@@ -29,6 +29,15 @@ done
 
 version="$(awk '/^version:/ {print $2; exit}' "$FLUTTER/pubspec.yaml")"
 [[ -n "$version" ]] || { echo "ERROR: could not read the package version" >&2; exit 1; }
+# Apple requires CFBundleShortVersionString to be exactly three period-separated
+# integers, and App Store Connect rejects an embedded framework whose version
+# carries anything else. A pub prerelease or build suffix is dropped, so 1.2.0-beta.1
+# ships as 1.2.0
+bundle_version="${version%%[-+]*}"
+if [[ ! "$bundle_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "ERROR: package version '$version' gives no three-integer bundle version" >&2
+    exit 1
+fi
 
 make_framework() { # dylib, output directory, platform
     local dylib="$1" dir="$2" platform="$3"
@@ -51,8 +60,8 @@ make_framework() { # dylib, output directory, platform
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>$FRAMEWORK</string>
   <key>CFBundlePackageType</key><string>FMWK</string>
-  <key>CFBundleShortVersionString</key><string>$version</string>
-  <key>CFBundleVersion</key><string>$version</string>
+  <key>CFBundleShortVersionString</key><string>$bundle_version</string>
+  <key>CFBundleVersion</key><string>$bundle_version</string>
   <key>CFBundleSupportedPlatforms</key><array><string>$platform</string></array>
   <key>MinimumOSVersion</key><string>$IOS_DEPLOYMENT_TARGET</string>
 </dict>
