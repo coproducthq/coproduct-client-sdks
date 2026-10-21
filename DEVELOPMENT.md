@@ -611,16 +611,19 @@ does none of those.
    that stopped because the package carries another version
    (`but this release is`) must not be published either: stop and find out how
    the tag and the package came apart.
+   The log also echoes each step's script, which contains these phrases, so
+   the checks below match only the errors GitHub rendered, which start with
+   `##[error]`.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    if ! log=$(gh run view "$RUN" -R "$R" --log-failed); then
      echo "Could not read the failed log. Open the failed job on the run's page and read it"; false
-   elif grep -E 'newer than|different package' <<< "$log"; then
+   elif grep -E '##\[error\]npm already (has a release newer than|holds a different package)' <<< "$log"; then
      echo "STOP: npm already has this version or a newer one. Follow the bad-version runbook"; false
-   elif grep -E 'but this release is' <<< "$log"; then
+   elif grep -E '##\[error\]The package is version' <<< "$log"; then
      echo "STOP: the package is not this release's version. Do not publish it"; false
    else
-     grep -E 'error|ERR!' <<< "$log" | tail -n 20
+     grep -E '##\[error\]|npm (error|ERR!)' <<< "$log" | tail -n 20
      echo "Read the errors above before going on"
    fi
    ```
