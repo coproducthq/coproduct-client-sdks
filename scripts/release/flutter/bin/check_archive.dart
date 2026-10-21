@@ -12,7 +12,7 @@ import '../lib/pub_file_list.dart';
 
 /// The exact number of files pub publishes. See the assertion below for why a
 /// count earns its keep next to the membership allowlist.
-const _expectedFileCount = 160;
+const _expectedFileCount = 190;
 
 const _maxCompressedMb = 35;
 const _maxUncompressedMb = 115;

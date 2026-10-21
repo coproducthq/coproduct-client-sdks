@@ -3,10 +3,12 @@
 The `coproduct` package includes two optional features beyond feature flags. `flutter pub add coproduct` installs them, and you import only what you use:
 
 ```dart
-import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/coproduct.dart' as base;
 import 'package:coproduct/onboarding.dart';
 import 'package:coproduct/paywall.dart';
 ```
+
+Both `coproduct.dart` and `onboarding.dart` define a type named `CoproductClient`, so import one of them with a prefix. This guide prefixes the main library with `base`.
 
 Both render an experience you author and publish on the Coproduct platform, in a WebView, and report back to your app through callbacks. Your app contains no screen-building code for them.
 
@@ -20,7 +22,7 @@ Both render an experience you author and publish on the Coproduct platform, in a
 Initialize the SDK once, before using either feature, as the [main guide](../README.md#quick-start) shows:
 
 ```dart
-final client = await Coproduct.initialize(sdkKey: sdkKey); // a mobile key, cpk_mob_...
+final client = await base.Coproduct.initialize(sdkKey: sdkKey); // a mobile key, cpk_mob_...
 ```
 
 ## Onboarding
@@ -46,7 +48,38 @@ CoproductOnboardingFlow(
 );
 ```
 
-**The client adapter.** The onboarding feature reaches the SDK through a small adapter you write. It implements the feature's `CoproductClient` contract: `resolveStringFlag`, `fetchOnboardingFlow`, `sdkContextAttributes`, `sdkContextSegmentKeys`, and `refresh`. The contract is `CoproductClient`, exported from `package:coproduct/onboarding.dart`.
+**The client adapter.** The onboarding feature reaches the SDK through a small adapter you write, implementing the `CoproductClient` contract from `package:coproduct/onboarding.dart`. `HttpOnboardingClient` fetches flows, given your environment's slug:
+
+```dart
+class OnboardingAdapter implements CoproductClient {
+  OnboardingAdapter(this.client, {required String envSlug})
+      : _flows = HttpOnboardingClient(envSlug: envSlug);
+
+  final base.CoproductClient client;
+  final HttpOnboardingClient _flows;
+
+  @override
+  String? resolveStringFlag(String flagKey) {
+    final value = client.getString(flagKey, defaultValue: '');
+    return value.isEmpty ? null : value;
+  }
+
+  @override
+  Future<OnboardingFlowGraph?> fetchOnboardingFlow(String flowId) =>
+      _flows.fetchOnboardingFlow(flowId);
+
+  // Attributes and segments that screen transitions can branch on. Return
+  // the values your app already knows, or leave them empty
+  @override
+  Map<String, Object> get sdkContextAttributes => const {};
+
+  @override
+  Set<String> get sdkContextSegmentKeys => const {};
+
+  @override
+  Future<void> refresh() => client.pollNow();
+}
+```
 
 **Screens that wait for your app.** A screen authored with an `onLoad` setting (`operation`, `resultKey`, and `timeoutMs`) pauses as soon as it appears and calls `onNativeOperation` with that operation's name. Whatever your handler returns is stored in the flow's answers under `resultKey`, where later screens can show it. Your handler can use any answer from an earlier screen, such as a name typed into a form. Keep the latest `answers` from `onEvent`, which always runs before the next screen's `onLoad`.
 
@@ -54,7 +87,7 @@ Progress, meaning the current screen and the answers so far, is saved on the dev
 
 ## Paywall
 
-`CoproductPaywall` shows one paywall and handles the purchase or restore through StoreKit 2. It runs on iOS only.
+`CoproductPaywall` shows one paywall and handles the purchase or restore through StoreKit 2. It runs on iOS only. Show it only on iOS, for example behind `Platform.isIOS` from `dart:io`. On Android it still renders, but its purchase buttons do nothing.
 
 ```dart
 final platformScript = await CoproductPaywall.loadPlatformScript();
