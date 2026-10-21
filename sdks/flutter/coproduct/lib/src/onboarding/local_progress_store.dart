@@ -6,7 +6,11 @@ class FlowProgress {
   final String screenId;
   final Map<String, List<String>> answers;
 
-  const FlowProgress({required this.version, required this.screenId, required this.answers});
+  const FlowProgress({
+    required this.version,
+    required this.screenId,
+    required this.answers,
+  });
 }
 
 /// Persists onboarding progress to local device storage, keyed by flowId
@@ -23,11 +27,14 @@ class LocalProgressStore {
     required Map<String, List<String>> answers,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key(flowId), jsonEncode({
-      'version': version,
-      'screenId': screenId,
-      'answers': answers,
-    }));
+    await prefs.setString(
+      _key(flowId),
+      jsonEncode({
+        'version': version,
+        'screenId': screenId,
+        'answers': answers,
+      }),
+    );
   }
 
   Future<FlowProgress?> load({required String flowId}) async {

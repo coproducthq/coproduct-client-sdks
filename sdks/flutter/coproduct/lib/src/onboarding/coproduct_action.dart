@@ -12,7 +12,9 @@ sealed class CoproductAction {
     final withoutScheme = url.substring('coproduct-action:'.length);
     final parts = withoutScheme.split('?');
     final action = parts[0];
-    final params = parts.length > 1 ? Uri.splitQueryString(parts[1]) : <String, String>{};
+    final params = parts.length > 1
+        ? Uri.splitQueryString(parts[1])
+        : <String, String>{};
 
     switch (action) {
       case 'requestPermission':
@@ -28,7 +30,9 @@ sealed class CoproductAction {
       case 'request':
         final requestParams = <String, String>{};
         for (final entry in params.entries) {
-          if (entry.key.startsWith('param_')) requestParams[entry.key.substring('param_'.length)] = entry.value;
+          if (entry.key.startsWith('param_')) {
+            requestParams[entry.key.substring('param_'.length)] = entry.value;
+          }
         }
         return RequestAction(
           operation: params['operation'] ?? '',
@@ -78,12 +82,20 @@ final class RequestAction extends CoproductAction {
   final String operation;
   final String requestId;
   final Map<String, String> params;
-  const RequestAction({required this.operation, required this.requestId, required this.params});
+  const RequestAction({
+    required this.operation,
+    required this.requestId,
+    required this.params,
+  });
 }
 
 final class TrackAction extends CoproductAction {
   final String event;
   final String screenId;
   final Map<String, List<String>> answers;
-  const TrackAction({required this.event, required this.screenId, required this.answers});
+  const TrackAction({
+    required this.event,
+    required this.screenId,
+    required this.answers,
+  });
 }

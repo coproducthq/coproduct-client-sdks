@@ -10,7 +10,11 @@ import 'paywall_client.dart';
 /// testable without importing a plugin that needs a real platform channel.
 enum PaywallNavigationDecision { prevent, navigate }
 
-enum PaywallPurchaseErrorReason { unresolvedProduct, serverRejected, networkError }
+enum PaywallPurchaseErrorReason {
+  unresolvedProduct,
+  serverRejected,
+  networkError,
+}
 
 class PaywallPurchaseError {
   final PaywallPurchaseErrorReason reason;
@@ -18,10 +22,12 @@ class PaywallPurchaseError {
   const PaywallPurchaseError(this.reason, {this.serverCode});
 }
 
-typedef SetPricesCallback = Future<void> Function(Map<String, String> pricesByPackageKey);
+typedef SetPricesCallback =
+    Future<void> Function(Map<String, String> pricesByPackageKey);
 // entitlements is the resolved set after this purchase/restore landed --
 // empty for a cancelled/pending outcome, since nothing was recorded server-side
-typedef PurchaseResultCallback = void Function(PurchaseResult result, List<Entitlement> entitlements);
+typedef PurchaseResultCallback =
+    void Function(PurchaseResult result, List<Entitlement> entitlements);
 typedef PurchaseErrorCallback = void Function(PaywallPurchaseError error);
 
 /// Owns everything native does for one paywall session: resolving and
@@ -93,7 +99,11 @@ class PaywallRuntime {
   Future<void> _handlePurchase(String packageKey) async {
     final productId = _snapshot?.packages[packageKey]?.iosProductId;
     if (productId == null) {
-      onPurchaseError?.call(const PaywallPurchaseError(PaywallPurchaseErrorReason.unresolvedProduct));
+      onPurchaseError?.call(
+        const PaywallPurchaseError(
+          PaywallPurchaseErrorReason.unresolvedProduct,
+        ),
+      );
       return;
     }
 
@@ -114,14 +124,21 @@ class PaywallRuntime {
         expiresDate: result.expirationDate,
       );
     } on PaywallServerError catch (e) {
-      onPurchaseError?.call(PaywallPurchaseError(PaywallPurchaseErrorReason.serverRejected, serverCode: e.code));
+      onPurchaseError?.call(
+        PaywallPurchaseError(
+          PaywallPurchaseErrorReason.serverRejected,
+          serverCode: e.code,
+        ),
+      );
       return;
     } catch (_) {
       // StoreKit already charged the user by this point (outcome ==
       // success, above) -- a transport failure reporting that purchase
       // must still surface a terminal callback, not propagate uncaught and
       // leave the paywall UI with no signal after a real charge
-      onPurchaseError?.call(const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError));
+      onPurchaseError?.call(
+        const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError),
+      );
       return;
     }
     // Outside the try: a throwing onPurchaseResult callback must never be
@@ -134,7 +151,10 @@ class PaywallRuntime {
     if (transactions.isEmpty) {
       // Nothing to restore is a legitimate, successful outcome -- distinct
       // from every found transaction failing to record, below
-      onPurchaseResult?.call(const PurchaseResult(outcome: PurchaseOutcome.success), const []);
+      onPurchaseResult?.call(
+        const PurchaseResult(outcome: PurchaseOutcome.success),
+        const [],
+      );
       return;
     }
     // recordPurchase recomputes and returns this appUserId's FULL
@@ -167,9 +187,14 @@ class PaywallRuntime {
       // empty entitlement list here would be indistinguishable from a user
       // who genuinely has nothing to restore, hiding a real prior purchase
       // whose restore never reached the server
-      onPurchaseError?.call(const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError));
+      onPurchaseError?.call(
+        const PaywallPurchaseError(PaywallPurchaseErrorReason.networkError),
+      );
       return;
     }
-    onPurchaseResult?.call(const PurchaseResult(outcome: PurchaseOutcome.success), entitlements);
+    onPurchaseResult?.call(
+      const PurchaseResult(outcome: PurchaseOutcome.success),
+      entitlements,
+    );
   }
 }

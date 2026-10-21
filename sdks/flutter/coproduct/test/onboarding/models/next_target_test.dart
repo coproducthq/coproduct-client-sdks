@@ -15,7 +15,10 @@ void main() {
     });
 
     test('throws on an unknown type', () {
-      expect(() => NextTarget.fromJson({'type': 'explode'}), throwsFormatException);
+      expect(
+        () => NextTarget.fromJson({'type': 'explode'}),
+        throwsFormatException,
+      );
     });
   });
 }

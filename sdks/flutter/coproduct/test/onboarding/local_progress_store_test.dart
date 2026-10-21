@@ -11,13 +11,22 @@ void main() {
 
   test('round-trips saved progress for a flowId', () async {
     final store = LocalProgressStore();
-    await store.save(flowId: 'f-1', version: 2, screenId: 'goal', answers: {'goal': ['lose_weight']});
+    await store.save(
+      flowId: 'f-1',
+      version: 2,
+      screenId: 'goal',
+      answers: {
+        'goal': ['lose_weight'],
+      },
+    );
 
     final loaded = await store.load(flowId: 'f-1');
     expect(loaded, isNotNull);
     expect(loaded!.version, 2);
     expect(loaded.screenId, 'goal');
-    expect(loaded.answers, {'goal': ['lose_weight']});
+    expect(loaded.answers, {
+      'goal': ['lose_weight'],
+    });
   });
 
   test('returns null for a flowId with no saved progress', () async {

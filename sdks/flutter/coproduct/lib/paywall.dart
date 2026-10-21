@@ -5,4 +5,9 @@ export 'src/paywall/models/entitlement.dart';
 export 'src/paywall/models/paywall_snapshot.dart';
 export 'src/paywall/native_paywall_bridge.dart';
 export 'src/paywall/paywall_client.dart';
-export 'src/paywall/paywall_runtime.dart' show PurchaseResultCallback, PurchaseErrorCallback, PaywallPurchaseError, PaywallPurchaseErrorReason;
+export 'src/paywall/paywall_runtime.dart'
+    show
+        PurchaseResultCallback,
+        PurchaseErrorCallback,
+        PaywallPurchaseError,
+        PaywallPurchaseErrorReason;

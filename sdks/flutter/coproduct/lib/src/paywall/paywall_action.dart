@@ -12,7 +12,9 @@ sealed class PaywallAction {
     final withoutScheme = url.substring('coproduct-action:'.length);
     final parts = withoutScheme.split('?');
     final action = parts[0];
-    final params = parts.length > 1 ? Uri.splitQueryString(parts[1]) : <String, String>{};
+    final params = parts.length > 1
+        ? Uri.splitQueryString(parts[1])
+        : <String, String>{};
 
     switch (action) {
       case 'purchase':

@@ -9,7 +9,8 @@ class OnboardingFlowGraph {
     required this.screens,
   });
 
-  factory OnboardingFlowGraph.fromJson(Map<String, dynamic> json) => OnboardingFlowGraph(
+  factory OnboardingFlowGraph.fromJson(Map<String, dynamic> json) =>
+      OnboardingFlowGraph(
         startScreenId: json['startScreenId'] as String,
         screens: (json['screens'] as List)
             .map((s) => Screen.fromJson(s as Map<String, dynamic>))
