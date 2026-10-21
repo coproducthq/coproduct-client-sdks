@@ -62,6 +62,7 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           RESOLVED_SHA: ${{ needs.resolve.outputs.sha }}
           RUN_SHA: ${{ github.sha }}
+        shell: bash
         run: node scripts/release/react-native/release-mode.mjs | tee -a "$GITHUB_OUTPUT"
 
   native-ios:
@@ -282,6 +283,7 @@ jobs:
       - name: Verify this is the package the builds tested
         env:
           EXPECTED_SHA256: ${{ needs.pack.outputs.sha256 }}
+        shell: bash
         run: |
           if [ -z "$EXPECTED_SHA256" ]; then
             echo "::error::The pack job recorded no SHA-256, so the package cannot be verified"
@@ -293,6 +295,7 @@ jobs:
         env:
           VERSION: ${{ needs.mode.outputs.version }}
           ARTIFACT_SHA256: ${{ needs.pack.outputs.sha256 }}
+        shell: bash
         run: node scripts/release/react-native/registry.mjs state @coproduct/react-native-sdk "$VERSION" "$ARTIFACT_SHA256" | tee -a "$GITHUB_OUTPUT"
       - name: Publish, or explain why not
         env:
@@ -350,7 +353,7 @@ jobs:
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
           permission-contents: write
       # The title also clears a "(not published)" left by an earlier failed run
       - env:
@@ -359,13 +362,14 @@ jobs:
         run: |
           gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft=false --title "react-native: v$VERSION"
 
-  docs:
+  release-docs:
     name: Release the docs
     needs: [mode, finish-release]
     if: needs.mode.outputs.mode == 'release'
     runs-on: ubuntu-24.04
     environment: release
-    # The platform run it watches is bounded at 45 minutes
+    # Leaves room for the platform run it watches, whose own job limit is 45
+    # minutes. Time that run spends queued is not covered by that limit
     timeout-minutes: 60
     steps:
       - name: Wait for npm to serve the version as latest
@@ -386,7 +390,7 @@ jobs:
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.DISPATCH_APP_CLIENT_ID }}
-          private-key: ${{ secrets.DISPATCH_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.DISPATCH_APP_KEY }}
           owner: coproducthq
           repositories: coproduct-platform
           permission-actions: write
@@ -411,9 +415,9 @@ jobs:
   # Fails when any check or release job failed. In a checks-only run the
   # release jobs are skipped, and skipped jobs pass
   summary:
-    name: Checks passed
+    name: Result
     if: always()
-    needs: [resolve, mode, native-ios, native-android, pack, build-ios, build-android, no-iap-android, publish, confirm, finish-release, docs]
+    needs: [resolve, mode, native-ios, native-android, pack, build-ios, build-android, no-iap-android, publish, confirm, finish-release, release-docs]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -434,6 +438,7 @@ jobs:
           NEEDS: ${{ toJSON(needs) }}
           PKG: '@coproduct/react-native-sdk'
           VERSION: ${{ needs.mode.outputs.version }}
+        shell: bash
         run: node scripts/release/react-native/finalize.mjs | tee -a "$GITHUB_OUTPUT"
       - env:
           NEEDS: ${{ toJSON(needs) }}
@@ -446,13 +451,13 @@ jobs:
           PUBLISH: ${{ needs.publish.result }}
           CONFIRM: ${{ needs.confirm.result }}
           FINISH: ${{ needs.finish-release.result }}
-          DOCS: ${{ needs.docs.result }}
+          DOCS: ${{ needs.release-docs.result }}
           ACTION: ${{ steps.finalize.outputs.action }}
         run: |
           {
             echo "### Final state"
             if [ "$MODE" = release ]; then
-              echo "Release of $VERSION: npm publish $PUBLISH, provenance $CONFIRM, GitHub release $FINISH, docs $DOCS."
+              echo "Release of $VERSION: npm $PUBLISH, provenance $CONFIRM, GitHub release $FINISH, docs $DOCS."
               echo "Draft release action: ${ACTION:-none}"
             else
               echo "Checks only. Nothing was published."
@@ -471,7 +476,7 @@ jobs:
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
           permission-contents: write
       - env:
           GH_TOKEN: ${{ steps.token.outputs.token }}

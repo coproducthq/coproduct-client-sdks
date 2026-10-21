@@ -45,7 +45,7 @@ if ! release=$(ruby -ryaml -e '
   jobs = wf["jobs"]
   env = ->(job) { e = job["environment"]; e.is_a?(Hash) ? e["name"] : e }
   problems = []
-  %w[publish confirm finish-release docs mark-not-published summary].each do |name|
+  %w[publish confirm finish-release release-docs mark-not-published summary].each do |name|
     problems << "#{name} is missing" unless jobs.key?(name)
   end
   if (pub = jobs["publish"])
@@ -55,15 +55,30 @@ if ! release=$(ruby -ryaml -e '
     problems << "publish runs no npm publish" if lines.empty?
     lines.each { |l| problems << "publish runs npm publish without --provenance" unless l.include?("--provenance") }
   end
-  %w[finish-release docs mark-not-published].each do |name|
+  %w[finish-release release-docs mark-not-published].each do |name|
     next unless jobs[name]
     problems << "#{name} has no environment: release" unless env.(jobs[name]) == "release"
   end
-  %w[publish confirm finish-release docs].each do |name|
+  %w[publish confirm finish-release release-docs].each do |name|
     next unless jobs[name]
     problems << "#{name} has no if naming needs.mode.outputs.mode" unless jobs[name]["if"].to_s.include?("needs.mode.outputs.mode")
   end
   problems << "summary declares an environment" if jobs["summary"]&.key?("environment")
+  jobs.each do |name, job|
+    next if name == "publish"
+    problems << "#{name} has environment: npm" if env.(job) == "npm"
+    problems << "#{name} has id-token: write" if job["permissions"].is_a?(Hash) && job["permissions"]["id-token"] == "write"
+    problems << "#{name} runs npm publish" if (job["steps"] || []).any? { |s| s["run"].to_s =~ /\bnpm publish\b/ }
+  end
+  # The default run shell has no pipefail, so a node script piped into tee
+  # would fail without failing its step
+  jobs.each do |name, job|
+    (job["steps"] || []).each do |s|
+      run = s["run"].to_s
+      next unless run =~ /\|\s*tee\b/ && run =~ /\bnode\b/
+      problems << "#{name} pipes node into tee without shell: bash" unless s["shell"] == "bash"
+    end
+  end
   puts problems
 ' "$wf" 2>&1); then
   echo "FAIL $wf: could not parse: $release"; fails=$((fails + 1))
@@ -72,6 +87,22 @@ elif [ -z "$release" ]; then
 else
   while IFS= read -r line; do echo "FAIL $wf: $line"; done <<< "$release"
   fails=$((fails + 1))
+fi
+
+# Only these secrets exist for the publish workflow, so any other name reads
+# as empty and fails at run time instead of here
+allowed=' RELEASE_APP_CLIENT_ID RELEASE_APP_KEY DISPATCH_APP_CLIENT_ID DISPATCH_APP_KEY GITHUB_TOKEN '
+unknown=''
+for name in $(grep -o -E 'secrets\.[A-Za-z0-9_]+' "$wf" | sed 's/^secrets\.//' | sort -u); do
+  case "$allowed" in
+    *" $name "*) ;;
+    *) unknown="${unknown:+$unknown, }$name" ;;
+  esac
+done
+if [ -z "$unknown" ]; then
+  echo "ok   $wf: every secret it reads exists"
+else
+  echo "FAIL $wf: reads secrets that do not exist: $unknown"; fails=$((fails + 1))
 fi
 
 # github.triggering_actor changes when someone re-runs a job, so the release
