@@ -52,11 +52,6 @@ function storeTypeFor(kind: PackageKind): 'subs' | 'in-app' {
 // auto-finish by default), and resolves a single Promise<PurchaseResult> --
 // restoring the simple awaited shape every other file in this feature (and
 // Flutter) expects.
-// Also owns the two Android-specific problems with no iOS equivalent: a
-// subscription purchase must name an explicit offer token (resolved via an
-// extra fetchProducts call before the purchase flow starts), and a pending
-// Android purchase arrives through this same purchaseUpdatedListener rather
-// than through purchaseErrorListener the way iOS pending does.
 // Purchase = PurchaseAndroid | PurchaseIOS; expirationDateIOS only exists on
 // the iOS variant. An Android purchase therefore always resolves
 // expirationDate as undefined here -- subscription expiry on Android is
@@ -127,10 +122,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
           // unlike iOS's "Ask to Buy" pending, which purchaseErrorListener
           // carries. A pending purchase isn't charged yet, so it must not
           // be finished.
-          if (
-            (purchase as { purchaseState?: string }).purchaseState ===
-            'pending'
-          ) {
+          if (purchase.purchaseState === 'pending') {
             cleanup();
             resolve({ outcome: 'pending' });
             return;
@@ -183,7 +175,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
       // such requirement on this library's Android surface, so this is skipped
       // entirely outside the subscription case.
       ensureConnection()
-        .then(() => {
+        .then(async () => {
           if (!isSubscription) {
             return iap().requestPurchase({
               request: {
@@ -194,27 +186,30 @@ export class IapPaywallBridge implements NativePaywallBridge {
             });
           }
 
-          return iap()
-            .fetchProducts({ skus: [productId], type: 'subs' })
-            .then((products) => {
-              const offers = products?.[0]?.subscriptionOffers ?? [];
-              const subscriptionOffers = offers
-                .map((offer) => offer.offerTokenAndroid)
-                .filter((offerToken): offerToken is string => offerToken != null)
-                .map((offerToken) => ({ sku: productId, offerToken }));
-              return iap().requestPurchase({
-                request: {
-                  apple: { sku: productId },
-                  google: {
-                    skus: [productId],
-                    ...(subscriptionOffers.length > 0 && {
-                      subscriptionOffers,
-                    }),
-                  },
-                },
-                type: storeTypeFor(kind),
-              });
-            });
+          // Subscription offers must be resolved with defensive fallback
+          // before calling requestPurchase, to ensure fetchProducts failures
+          // are handled consistently (not hidden by mock-state leakage).
+          const products =
+            (await iap().fetchProducts({ skus: [productId], type: 'subs' })) ??
+            [];
+          const offers = products[0]?.subscriptionOffers ?? [];
+          const subscriptionOffers = offers
+            .map((offer) => offer.offerTokenAndroid)
+            .filter((offerToken): offerToken is string => offerToken != null)
+            .map((offerToken) => ({ sku: productId, offerToken }));
+
+          return iap().requestPurchase({
+            request: {
+              apple: { sku: productId },
+              google: {
+                skus: [productId],
+                ...(subscriptionOffers.length > 0 && {
+                  subscriptionOffers,
+                }),
+              },
+            },
+            type: storeTypeFor(kind),
+          });
         })
         .catch((error: unknown) => {
           cleanup();
