@@ -69,7 +69,7 @@ This adds the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  coproduct: ^1.0.0
+  coproduct: ^1.1.0
 ```
 
 The package ships prebuilt native libraries, so you do not need a Rust

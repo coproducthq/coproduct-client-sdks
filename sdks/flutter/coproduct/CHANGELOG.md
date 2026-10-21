@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.0 - 2026-10-20
 
 Onboarding and paywall, previously separate unpublished packages
 (`coproduct_onboarding`, `coproduct_paywall`), are now part of this package.
