@@ -76,7 +76,8 @@ function npmView(spec, field) {
     if (code === 'E404') throw new Absent(`${spec} is not in the registry`);
     throw new Error(`npm view ${spec} failed: ${code ?? error.message}`);
   }
-  if (stdout.trim() === '') throw new Absent(`${spec} has no ${field ?? 'data'}`);
+  // Only an E404 means absence, so silence from npm is uncertainty
+  if (stdout.trim() === '') throw new Error(`npm view ${spec} returned no output`);
   return JSON.parse(stdout);
 }
 
@@ -95,9 +96,10 @@ async function withRetries(attempts, fn) {
   }
 }
 
-async function fetchBytes(url) {
+// A 404 counts as absence only where the caller says the file may not exist yet
+async function fetchBytes(url, { absentOn404 = false } = {}) {
   const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (response.status === 404) throw new Absent(`${url} is not there yet`);
+  if (absentOn404 && response.status === 404) throw new Absent(`${url} is not there yet`);
   if (!response.ok) throw new Error(`fetching ${url} returned ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 }
@@ -110,12 +112,15 @@ async function tarballSha(manifest) {
 
 async function state(pkg, version, artifactSha) {
   const registryTarballSha = await withRetries(5, async () => {
+    let manifest;
     try {
-      return await tarballSha(npmView(`${pkg}@${version}`));
+      manifest = npmView(`${pkg}@${version}`);
     } catch (error) {
       if (error instanceof Absent) return null;
       throw error;
     }
+    // The manifest proves the version exists, so a tarball failure is never absence
+    return tarballSha(manifest);
   });
   const latest = await withRetries(5, async () => {
     try {
@@ -135,13 +140,15 @@ async function confirm(pkg, version, expectedCommit) {
       const manifest = npmView(`${pkg}@${version}`);
       const url = manifest?.dist?.attestations?.url;
       if (!url) throw new Absent(`${pkg}@${version} lists no attestations yet`);
-      const attestations = JSON.parse((await fetchBytes(url)).toString('utf8'));
+      const attestations = JSON.parse((await fetchBytes(url, { absentOn404: true })).toString('utf8'));
       let commit;
       try {
         commit = provenanceCommit(attestations);
       } catch (error) {
-        if (error.message !== 'no SLSA provenance') throw error;
-        throw new Error(`${pkg}@${version} published without provenance. ${RUNBOOK}`);
+        if (error.message === 'no SLSA provenance') {
+          throw new Error(`${pkg}@${version} published without provenance. ${RUNBOOK}`);
+        }
+        throw new Error(`${error.message}. ${RUNBOOK}`);
       }
       if (commit !== expectedCommit) {
         throw new Error(`provenance names ${commit}, not the tag's ${expectedCommit}. ${RUNBOOK}`);

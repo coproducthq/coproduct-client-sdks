@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -96,7 +97,9 @@ writeFileSync(
   join(fakeDir, 'npm'),
   `#!/bin/sh
 case "$*" in
-  *dist-tags.latest*) echo '"1.0.0"'; exit 0 ;;
+  *dist-tags.latest*)
+    if [ "$FAKE_LATEST" = "empty" ]; then exit 0; fi
+    echo '"1.0.0"'; exit 0 ;;
 esac
 n=$(cat "$FAKE_COUNT" 2>/dev/null || echo 0)
 n=$((n + 1))
@@ -105,6 +108,13 @@ if [ "$FAKE_MODE" = "fail" ] || { [ "$FAKE_MODE" = "flaky" ] && [ "$n" -le 2 ]; 
   echo 'npm error code ETIMEDOUT' >&2
   exit 1
 fi
+case "$FAKE_MODE" in
+  e500) echo '{"error":{"code":"E500"}}'; exit 1 ;;
+  empty) exit 0 ;;
+  manifest)
+    echo "{\\"dist\\":{\\"tarball\\":\\"$FAKE_TARBALL\\",\\"attestations\\":{\\"url\\":\\"$FAKE_ATT\\"}}}"
+    exit 0 ;;
+esac
 echo '{"error":{"code":"E404","summary":"not found"}}'
 exit 1
 `,
@@ -159,4 +169,136 @@ test('cli rejects unknown usage', () => {
   const r = cli('e404', ['bogus']);
   assert.notEqual(r.status, 0);
   assert.doesNotMatch(r.stdout, /state=/);
+});
+
+// A local server stands in for the registry's tarball and attestation hosts
+async function withServer(handler, fn) {
+  const server = createServer(handler);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    return await fn(`http://127.0.0.1:${server.address().port}`);
+  } finally {
+    server.close();
+  }
+}
+
+// spawnSync would block the event loop the server needs, so this is async
+function cliAsync(mode, args, extra) {
+  writeFileSync(counter, '0');
+  return new Promise((resolve) => {
+    const child = spawn('node', [join(here, 'registry.mjs'), ...args], {
+      env: {
+        ...process.env,
+        PATH: `${fakeDir}:${process.env.PATH}`,
+        FAKE_MODE: mode,
+        FAKE_COUNT: counter,
+        REGISTRY_RETRY_MS: '10',
+        ...extra,
+      },
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => (stdout += d));
+    child.stderr.on('data', (d) => (stderr += d));
+    child.on('close', (status) => resolve({ status, stdout, stderr }));
+  });
+}
+
+test('cli never reports absence when the manifest exists but the tarball 404s', async () => {
+  await withServer(
+    (req, res) => {
+      res.statusCode = 404;
+      res.end();
+    },
+    async (base) => {
+      const r = await cliAsync('manifest', ['state', 'pkg', '1.1.0', 'abc'], {
+        FAKE_TARBALL: `${base}/pkg.tgz`,
+        FAKE_ATT: `${base}/att`,
+      });
+      assert.notEqual(r.status, 0);
+      assert.doesNotMatch(r.stdout, /state=/);
+    },
+  );
+});
+
+test('cli treats empty npm output as an error, not absence', () => {
+  const r = cli('empty');
+  assert.notEqual(r.status, 0);
+  assert.doesNotMatch(r.stdout, /state=/);
+  assert.equal(readFileSync(counter, 'utf8').trim(), '5');
+});
+
+test('cli treats empty latest output as an error, not a new package', () => {
+  const r = cli('e404', ['state', 'pkg', '1.1.0', 'abc'], { FAKE_LATEST: 'empty' });
+  assert.notEqual(r.status, 0);
+  assert.doesNotMatch(r.stdout, /state=/);
+});
+
+test('cli retries a server error from npm instead of counting it as absent', () => {
+  const r = cli('e500');
+  assert.notEqual(r.status, 0);
+  assert.doesNotMatch(r.stdout, /state=/);
+  assert.equal(readFileSync(counter, 'utf8').trim(), '5');
+});
+
+const slsaless = {
+  attestations: fixture.attestations.filter((a) => !a.predicateType.includes('slsa')),
+};
+
+async function confirmAgainst(body, commit) {
+  let result;
+  await withServer(
+    (req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify(body));
+    },
+    async (base) => {
+      result = await cliAsync('manifest', ['confirm', 'pkg', '1.1.0', commit], {
+        FAKE_TARBALL: `${base}/pkg.tgz`,
+        FAKE_ATT: `${base}/att`,
+        REGISTRY_CONFIRM_MS: '5000',
+        REGISTRY_RETRY_MS: '2000',
+      });
+    },
+  );
+  return result;
+}
+
+test('cli confirm fails at once on a different commit', async () => {
+  const started = Date.now();
+  const r = await confirmAgainst(fixture, 'f'.repeat(40));
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /provenance names 7d2900e/);
+  assert.match(r.stderr, /bad-version runbook in DEVELOPMENT\.md/);
+  assert.ok(Date.now() - started < 1500);
+});
+
+test('cli confirm fails at once on missing SLSA provenance', async () => {
+  const started = Date.now();
+  const r = await confirmAgainst(slsaless, COMMIT);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /published without provenance/);
+  assert.match(r.stderr, /bad-version runbook in DEVELOPMENT\.md/);
+  assert.ok(Date.now() - started < 1500);
+});
+
+test('cli confirm succeeds when the commit matches', async () => {
+  const r = await confirmAgainst(fixture, COMMIT);
+  assert.equal(r.status, 0, r.stderr);
+});
+
+test('cli confirm points at the runbook when provenance names no commit', async () => {
+  const payload = { predicate: { buildDefinition: { resolvedDependencies: [{ digest: {} }] } } };
+  const body = {
+    attestations: [
+      {
+        predicateType: 'https://slsa.dev/provenance/v1',
+        bundle: { dsseEnvelope: { payload: Buffer.from(JSON.stringify(payload)).toString('base64') } },
+      },
+    ],
+  };
+  const r = await confirmAgainst(body, COMMIT);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /names no source commit/);
+  assert.match(r.stderr, /bad-version runbook in DEVELOPMENT\.md/);
 });
