@@ -6,7 +6,7 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { provenanceCommit, publishDecision } from './registry.mjs';
+import { npmPresence, provenanceCommit, publishDecision } from './registry.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = JSON.parse(
@@ -301,4 +301,35 @@ test('cli confirm points at the runbook when provenance names no commit', async 
   assert.equal(r.status, 1);
   assert.match(r.stderr, /names no source commit/);
   assert.match(r.stderr, /bad-version runbook in DEVELOPMENT\.md/);
+});
+
+// npmPresence runs the fake npm through the inherited PATH
+function presence(mode) {
+  const saved = { PATH: process.env.PATH, FAKE_MODE: process.env.FAKE_MODE, FAKE_COUNT: process.env.FAKE_COUNT };
+  writeFileSync(counter, '0');
+  process.env.PATH = `${fakeDir}:${saved.PATH}`;
+  process.env.FAKE_MODE = mode;
+  process.env.FAKE_COUNT = counter;
+  try {
+    return npmPresence('pkg@1.1.0');
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+test('npmPresence reports absent only for a real 404', () => {
+  assert.equal(presence('e404'), 'absent');
+});
+
+test('npmPresence reports present when the manifest exists', () => {
+  assert.equal(presence('manifest'), 'present');
+});
+
+test('npmPresence reports error for a server error, a failure, and empty output', () => {
+  assert.equal(presence('e500'), 'error');
+  assert.equal(presence('fail'), 'error');
+  assert.equal(presence('empty'), 'error');
 });

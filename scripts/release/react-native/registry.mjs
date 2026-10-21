@@ -81,6 +81,19 @@ function npmView(spec, field) {
   return JSON.parse(stdout);
 }
 
+/**
+ * Returns 'absent' only for a real 404, 'present' when npm returns a manifest,
+ * and 'error' for anything else, because silence is not absence
+ */
+export function npmPresence(spec) {
+  try {
+    npmView(spec);
+    return 'present';
+  } catch (error) {
+    return error instanceof Absent ? 'absent' : 'error';
+  }
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const retryMs = () => Number(process.env.REGISTRY_RETRY_MS ?? 10000);
 
