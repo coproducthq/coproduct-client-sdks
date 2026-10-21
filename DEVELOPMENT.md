@@ -390,10 +390,14 @@ successful run restores the title. Done when the "Result" job passes.
 The native libraries that "Pack react-native.tgz" reads are kept for one day. If
 that job failed more than a day ago, start a fresh run as below instead.
 
+A "Release the docs" job that failed because npm served a newer version as
+`latest` before this one is expected. The newer release's docs win, and there
+is nothing to fix.
+
 **The run never started, or stopped before publishing.** Start a fresh Publish
-run on the tag. Runs for one tag queue behind each other, so a fresh run waits
-while an older one is still live, for example one waiting on approval. First
-list the tag's live runs:
+run on the tag. The release App's runs for one tag queue behind each other, so
+a fresh run waits while an older one is still live, for example one waiting on
+approval. First list the tag's live runs:
 
 ```bash
 if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -427,9 +431,15 @@ else
 fi
 ```
 
-Done when that Release Please run's summary links a new Publish run. A fresh run
-packs new bytes, so use it only for a version npm does not have yet. For a
-version already on npm, re-run the failed jobs of the run that published it.
+Done when that Release Please run's summary links a new Publish run. A dispatch
+can succeed on GitHub's side and still report an error, which leaves a
+duplicate Publish run queued behind the first. Cancel the duplicate, or reject
+its `npm` deployment. If it runs anyway, it finds the version already on npm and
+publishes nothing. It packs its own bytes, so it can stop with "npm already
+holds a different package", which is expected here and needs no bad-version
+work. A fresh run packs new bytes, so use it only for a version npm does not
+have yet. For a version already on npm, re-run the failed jobs of the run that
+published it.
 
 **The approval expires.** A pending `npm` approval expires after 30 days, and
 the run can't be re-run after that. Approve or reject it before then. An expired
@@ -469,8 +479,15 @@ run stops with an error that points here. Each case below needs `VERSION` and
 - **"npm already has a release newer than"**: a later release overtook this one.
   Release PRs are cut from `main` in order, so the newer version already ships
   these changes, and there is nothing to publish. Mark the draft so it is not
-  mistaken for a pending release:
-  `gh release edit "react-native-v$VERSION" -R "$R" --title "react-native: v$VERSION (not published)"`.
+  mistaken for a pending release. This edits a public page. A person decides
+  it, and an agent runs it only with a person's explicit go-ahead:
+  ```bash
+  if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    gh release edit "react-native-v$VERSION" -R "$R" --title "react-native: v$VERSION (not published)"
+  else
+    echo "Export VERSION as in the first block of this section"; false
+  fi
+  ```
 - **"published without provenance"**: this is expected only when someone re-ran
   a run after the version was published by hand, because a hand publish carries
   no provenance. Leave that run alone. In any other case, treat it as a bad
@@ -582,9 +599,34 @@ does none of those.
    ```
    Done when every Native, Pack, iOS build, and Android build job reads
    `completed success`, and "Publish to npm" is either waiting for approval or
-   reads `completed failure`. A run where "Publish to npm" is skipped or missing
-   is a checks-only run, so go back to step 1 and use the run the Release Please
-   summary links. Never publish from a run whose build failed.
+   reads `completed failure` and the block below allows going on. A run where
+   "Publish to npm" is skipped or missing is a checks-only run, so go back to
+   step 1 and use the run the Release Please summary links. Never publish from
+   a run whose build failed.
+
+   If "Publish to npm" failed, read why before going on. A run that stopped
+   because npm already has a newer release (`newer than`) or already holds a
+   different package for this version (`different package`) must not be
+   published by hand: stop and follow the bad-version runbook instead. A run
+   that stopped because the package carries another version
+   (`but this release is`) must not be published either: stop and find out how
+   the tag and the package came apart.
+   ```bash
+   source "$HOME/.coproduct-rn-release.env"
+   if ! log=$(gh run view "$RUN" -R "$R" --log-failed); then
+     echo "Could not read the failed log. Open the failed job on the run's page and read it"; false
+   elif grep -E 'newer than|different package' <<< "$log"; then
+     echo "STOP: npm already has this version or a newer one. Follow the bad-version runbook"; false
+   elif grep -E 'but this release is' <<< "$log"; then
+     echo "STOP: the package is not this release's version. Do not publish it"; false
+   else
+     grep -E 'error|ERR!' <<< "$log" | tail -n 20
+     echo "Read the errors above before going on"
+   fi
+   ```
+   Go on only when the errors show npm failing to authenticate or to publish,
+   for example because trusted publishing is broken. For any other failure,
+   stop and find its cause.
 3. **Stop CI from publishing.** Skip this step if "Publish to npm" already
    failed, because that run publishes nothing more. Otherwise cancel the run so
    CI can't publish alongside you. Rejecting the deployment on the run's page is
