@@ -18,6 +18,7 @@ const base = {
   runSha: SHA,
   tagCommitSubject: 'chore(main): release react-native 1.1.0',
   identityOk: true,
+  manifestVersion: '1.1.0',
 };
 const decide = (overrides = {}) => decideMode({ ...base, ...overrides });
 
@@ -74,10 +75,27 @@ test('runs checks only when the identity check fails', () => {
   assert.match(result.reason, /identity/);
 });
 
+test('runs checks only when the manifest names a different version than the tag', () => {
+  const result = decide({ manifestVersion: '1.0.3' });
+  assert.equal(result.mode, 'checks');
+  assert.equal(result.version, undefined);
+  assert.match(result.reason, /manifest/);
+  assert.match(result.reason, /1\.0\.3/);
+  assert.match(result.reason, /1\.1\.0/);
+});
+
+test('runs checks only when the manifest version is missing', () => {
+  for (const manifestVersion of [undefined, null, '', 1.1]) {
+    const result = decide({ manifestVersion });
+    assert.equal(result.mode, 'checks', String(manifestVersion));
+    assert.match(result.reason, /manifest/);
+  }
+});
+
 const RN = 'sdks/react-native/coproduct';
 const CLI = join(dirname(fileURLToPath(import.meta.url)), 'release-mode.mjs');
 
-function repo({ userAgentVersion }) {
+function repo({ userAgentVersion, lineVersion = '1.1.0', manifest = true }) {
   const root = mkdtempSync(join(tmpdir(), 'release-mode-'));
   const write = (path, text) => {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -92,8 +110,8 @@ function repo({ userAgentVersion }) {
       },
     },
   }));
-  write('.github/.release-please-manifest.json', JSON.stringify({ [RN]: '1.1.0' }));
-  write(`${RN}/package.json`, JSON.stringify({ name: 'x', version: '1.1.0' }));
+  if (manifest) write('.github/.release-please-manifest.json', JSON.stringify({ [RN]: lineVersion }));
+  write(`${RN}/package.json`, JSON.stringify({ name: 'x', version: lineVersion }));
   write(
     `${RN}/src/index.tsx`,
     `import x from 'y';\nconst USER_AGENT = 'coproduct-rn/${userAgentVersion}'; // x-release-please-version\n`
@@ -134,6 +152,19 @@ test('CLI prints checks when the User-Agent line disagrees', () => {
   const out = runCli(repo({ userAgentVersion: '1.0.3' }));
   assert.match(out, /^mode=checks$/m);
   assert.doesNotMatch(out, /^version=/m);
+});
+
+test('CLI prints checks when every version line agrees on a version other than the tag', () => {
+  const out = runCli(repo({ userAgentVersion: '1.0.3', lineVersion: '1.0.3' }));
+  assert.match(out, /^mode=checks$/m);
+  assert.doesNotMatch(out, /^version=/m);
+  assert.match(out, /^reason=.*manifest.*1\.0\.3/m);
+});
+
+test('CLI prints checks when the manifest is missing', () => {
+  const out = runCli(repo({ userAgentVersion: '1.1.0', manifest: false }));
+  assert.match(out, /^mode=checks$/m);
+  assert.match(out, /^reason=.*manifest/m);
 });
 
 test('rejects malformed squash suffixes on the subject', () => {

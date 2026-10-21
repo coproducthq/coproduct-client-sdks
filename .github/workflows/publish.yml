@@ -290,6 +290,19 @@ jobs:
             exit 1
           fi
           echo "$EXPECTED_SHA256  pkg/react-native.tgz" | sha256sum -c -
+      # The mode job checked the manifest. This checks the file itself, so a
+      # package built at another version can never go out under this tag
+      - name: Verify the package carries the release version
+        env:
+          VERSION: ${{ needs.mode.outputs.version }}
+        shell: bash
+        run: |
+          actual=$(tar -xOzf pkg/react-native.tgz package/package.json | jq -r .version)
+          if [ -z "$VERSION" ] || [ "$actual" != "$VERSION" ]; then
+            printf '::error::The package is version %q, but this release is %q, so nothing was published\n' "$actual" "$VERSION"
+            exit 1
+          fi
+          echo "The package is version $actual"
       - id: state
         name: Read the registry's state for this version
         env:

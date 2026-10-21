@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 // Decides whether a publish run may release or may only run the checks.
-// Only the release automation's own tag, on a release commit whose version
-// lines agree, may release. Everything else gets the checks and no publish
+// Only the release automation's own tag, on a release commit whose manifest
+// names the tag's version and whose version lines agree, may release.
+// Everything else gets the checks and no publish
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync, realpathSync } from 'node:fs';
+import { appendFileSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RELEASE_ACTOR_ID = '345134390';
 const TAG = /^react-native-v(\d+\.\d+\.\d+)$/;
+const MANIFEST = '.github/.release-please-manifest.json';
+const MANIFEST_KEY = 'sdks/react-native/coproduct';
 
 /**
  * Returns { mode, version?, reason }. The reason names the first unmet
@@ -22,6 +25,7 @@ export function decideMode({
   runSha,
   tagCommitSubject,
   identityOk,
+  manifestVersion,
 }) {
   const checks = (reason) => ({ mode: 'checks', reason });
 
@@ -42,6 +46,13 @@ export function decideMode({
     (tagCommitSubject?.startsWith(`${subject} (#`) && /^ \(#\d+\)$/.test(tagCommitSubject.slice(subject.length)));
   if (!isReleaseCommit) {
     return checks(`the tagged commit is not the release commit for ${version}, so this run only checks`);
+  }
+  // The identity check only proves the version lines agree with each other.
+  // The manifest must also name the tag's version, or a tag and subject that
+  // run ahead of the package would publish the older version under them
+  if (manifestVersion !== version) {
+    const named = typeof manifestVersion === 'string' && manifestVersion !== '' ? manifestVersion : 'no version';
+    return checks(`the release manifest names ${named}, but the tag is ${version}, so this run only checks`);
   }
   if (identityOk !== true) {
     return checks('the version identity check failed on the tagged commit, so this run only checks');
@@ -64,6 +75,19 @@ function readSubject() {
   }
 }
 
+// A missing or unreadable manifest gives no version, which never matches a tag
+function readManifestVersion() {
+  try {
+    const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return JSON.parse(readFileSync(join(root, MANIFEST), 'utf8'))[MANIFEST_KEY];
+  } catch {
+    return undefined;
+  }
+}
+
 function decideFromEnvironment() {
   const env = process.env;
   const identity = join(dirname(fileURLToPath(import.meta.url)), '..', 'identity', 'check.mjs');
@@ -77,6 +101,7 @@ function decideFromEnvironment() {
     runSha: env.RUN_SHA,
     tagCommitSubject: readSubject(),
     identityOk,
+    manifestVersion: readManifestVersion(),
   });
 }
 
