@@ -518,7 +518,9 @@ Done when it prints `versions OK`.
 2. **Deprecate the bad version.** This changes the public registry for every
    installer. A person decides it, the registry owner runs it, and an agent never
    runs it without a person's explicit go-ahead. Run it once the fix is on npm,
-   adding `--otp=<code>` if the account asks for one. Keep the message neutral
+   adding `--otp=<code>` if npm asks for a one-time password. If npm prints a
+   link instead, open it and confirm in the browser, which is where a security
+   key is used. Keep the message neutral
    and name the fixed version.
    ```bash
    if [[ "$BAD" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$FIXED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -612,12 +614,14 @@ does none of those.
    (`but this release is`) must not be published either: stop and find out how
    the tag and the package came apart.
    The log also echoes each step's script, which contains these phrases, so
-   the checks below match only the errors GitHub rendered, which start with
-   `##[error]`.
+   the checks below match only the errors GitHub rendered. GitHub puts
+   `##[error]` after the job, step, and timestamp that start each log line.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    if ! log=$(gh run view "$RUN" -R "$R" --log-failed); then
      echo "Could not read the failed log. Open the failed job on the run's page and read it"; false
+   elif [ -z "$log" ]; then
+     echo "STOP: the failed log came back empty. Open the failed job on the run's page and read it"; false
    elif grep -E '##\[error\]npm already (has a release newer than|holds a different package)' <<< "$log"; then
      echo "STOP: npm already has this version or a newer one. Follow the bad-version runbook"; false
    elif grep -E '##\[error\]The package is version' <<< "$log"; then
@@ -658,8 +662,9 @@ does none of those.
    - If npm fails for any other reason, the block stops. Retry it, and never
      assume the version is absent.
 
-   If the account requires a one-time password, a person supplies it by adding
-   `--otp=<code>` to `npm publish`.
+   If npm asks for a one-time password, a person supplies it by adding
+   `--otp=<code>` to `npm publish`. If npm prints a link instead, a person opens
+   it and confirms in the browser, which is where a security key is used.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
