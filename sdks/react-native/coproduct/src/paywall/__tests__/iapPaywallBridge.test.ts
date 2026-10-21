@@ -11,6 +11,7 @@ const mockInitConnection = jest.fn().mockResolvedValue(true);
 
 jest.mock('react-native-iap', () => ({
   ErrorCode: { UserCancelled: 'user-cancelled', Pending: 'pending' },
+  PurchaseState: { pending: 'pending', purchased: 'purchased', unknown: 'unknown' },
   initConnection: (...args: unknown[]) => mockInitConnection(...args),
   requestPurchase: (...args: unknown[]) => mockRequestPurchase(...args),
   finishTransaction: (...args: unknown[]) => mockFinishTransaction(...args),
@@ -119,7 +120,10 @@ describe('IapPaywallBridge', () => {
       const result = await resultPromise;
 
       expect(mockRequestPurchase).toHaveBeenCalledWith({
-        request: { apple: { sku: 'premium_monthly' } },
+        request: {
+          apple: { sku: 'premium_monthly' },
+          google: { skus: ['premium_monthly'] },
+        },
         type: 'subs',
       });
       expect(mockFinishTransaction).toHaveBeenCalledWith({
@@ -150,7 +154,10 @@ describe('IapPaywallBridge', () => {
       await resultPromise;
 
       expect(mockRequestPurchase).toHaveBeenCalledWith({
-        request: { apple: { sku: 'points_pack_300' } },
+        request: {
+          apple: { sku: 'points_pack_300' },
+          google: { skus: ['points_pack_300'] },
+        },
         type: 'in-app',
       });
       expect(mockFinishTransaction).toHaveBeenCalledWith({
@@ -172,7 +179,10 @@ describe('IapPaywallBridge', () => {
       await resultPromise;
 
       expect(mockRequestPurchase).toHaveBeenCalledWith({
-        request: { apple: { sku: 'remove_ads' } },
+        request: {
+          apple: { sku: 'remove_ads' },
+          google: { skus: ['remove_ads'] },
+        },
         type: 'in-app',
       });
       expect(mockFinishTransaction).toHaveBeenCalledWith({
@@ -247,6 +257,100 @@ describe('IapPaywallBridge', () => {
       });
       const result = await second;
       expect(result.transactionId).toBe('tx-2');
+    });
+
+    it('resolves an Android subscription offer token into google.subscriptionOffers', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99/mo',
+          subscriptionOffers: [{ id: 'base-plan', offerTokenAndroid: 'token-abc' }],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
+      purchaseUpdateListeners[0]?.({
+        productId: 'premium_monthly',
+        purchaseState: 'purchased',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+      await resultPromise;
+
+      expect(mockFetchProducts).toHaveBeenCalledWith({
+        skus: ['premium_monthly'],
+        type: 'subs',
+      });
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: {
+          apple: { sku: 'premium_monthly' },
+          google: {
+            skus: ['premium_monthly'],
+            subscriptionOffers: [
+              { sku: 'premium_monthly', offerToken: 'token-abc' },
+            ],
+          },
+        },
+        type: 'subs',
+      });
+    });
+
+    it('sends a plain google.skus request with no subscriptionOffers when the product has none', async () => {
+      mockFetchProducts.mockResolvedValue([
+        { id: 'premium_monthly', displayPrice: '$9.99/mo', subscriptionOffers: [] },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
+      purchaseUpdateListeners[0]?.({
+        productId: 'premium_monthly',
+        purchaseState: 'purchased',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+      await resultPromise;
+
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: {
+          apple: { sku: 'premium_monthly' },
+          google: { skus: ['premium_monthly'] },
+        },
+        type: 'subs',
+      });
+    });
+
+    it('never queries product offers for a one-time (non-subscription) purchase', async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('points_pack_300', 'consumable');
+      purchaseUpdateListeners[0]?.({
+        productId: 'points_pack_300',
+        purchaseState: 'purchased',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+      await resultPromise;
+
+      expect(mockFetchProducts).not.toHaveBeenCalled();
+    });
+
+    it('resolves pending from an Android purchaseState update without finishing the transaction', async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
+
+      purchaseUpdateListeners[0]?.({
+        productId: 'premium_monthly',
+        purchaseState: 'pending',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+
+      const result = await resultPromise;
+
+      expect(result).toEqual({ outcome: 'pending' });
+      expect(mockFinishTransaction).not.toHaveBeenCalled();
+      expect(removedUpdateListeners).toHaveLength(1);
+      expect(removedErrorListeners).toHaveLength(1);
     });
   });
 
