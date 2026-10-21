@@ -186,9 +186,9 @@ export class IapPaywallBridge implements NativePaywallBridge {
             });
           }
 
-          // Subscription offers must be resolved with defensive fallback
-          // before calling requestPurchase, to ensure fetchProducts failures
-          // are handled consistently (not hidden by mock-state leakage).
+          // Falls back to an empty offer list if the product lookup returns
+          // nothing, so a transient fetchProducts failure degrades to a
+          // plain subscription request rather than throwing.
           const products =
             (await iap().fetchProducts({ skus: [productId], type: 'subs' })) ??
             [];

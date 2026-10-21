@@ -11,7 +11,6 @@ const mockInitConnection = jest.fn().mockResolvedValue(true);
 
 jest.mock('react-native-iap', () => ({
   ErrorCode: { UserCancelled: 'user-cancelled', Pending: 'pending' },
-  PurchaseState: { pending: 'pending', purchased: 'purchased', unknown: 'unknown' },
   initConnection: (...args: unknown[]) => mockInitConnection(...args),
   requestPurchase: (...args: unknown[]) => mockRequestPurchase(...args),
   finishTransaction: (...args: unknown[]) => mockFinishTransaction(...args),
