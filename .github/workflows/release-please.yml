@@ -28,8 +28,10 @@ jobs:
     timeout-minutes: 10
     steps:
       # The App token, unlike GITHUB_TOKEN, starts workflows from the events it
-      # causes, and publish.yml releases only when this App dispatched it
+      # causes. This one goes to the third-party release-please action, so it
+      # cannot start workflows itself
       - id: token
+        if: github.event_name == 'push'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
@@ -37,7 +39,6 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
           permission-issues: write
-          permission-actions: write
       - id: rp
         if: github.event_name == 'push'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -45,6 +46,17 @@ jobs:
           token: ${{ steps.token.outputs.token }}
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+      # Only the dispatch step holds this token. It can start publish.yml and
+      # read the tag, and publish.yml releases only when this App dispatched it.
+      # It runs under the dispatch step's own condition
+      - id: dispatch-token
+        if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || github.event_name == 'workflow_dispatch')
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-actions: write
+          permission-contents: read
       # always() lets a release-please step that fails after reporting its
       # release still start the publish run. If it fails before reporting, run
       # this workflow by hand with the tag. The tag is the run's ref, never an
@@ -52,16 +64,18 @@ jobs:
       - name: Start publish.yml on the release tag
         if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || github.event_name == 'workflow_dispatch')
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.dispatch-token.outputs.token }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || steps.rp.outputs['sdks/react-native/coproduct--tag_name'] }}
         shell: bash
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::No release App token, so publish.yml cannot be started. Re-run this workflow by hand with tag $TAG once the token step works"
+          # The tag can come from a person, so it is checked before anything
+          # prints it, and printed only escaped until then
+          if ! [[ "$TAG" =~ ^react-native-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            printf '::error::%q is not a release tag like react-native-v1.2.3\n' "$TAG"
             exit 1
           fi
-          if ! [[ "$TAG" =~ ^react-native-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::'$TAG' is not a release tag like react-native-v1.2.3"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::No release App token, so publish.yml cannot be started. Re-run this workflow by hand with tag $TAG once the token step works"
             exit 1
           fi
           if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null; then

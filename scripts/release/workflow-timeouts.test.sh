@@ -97,6 +97,18 @@ else
   fails=$((fails + 1))
 fi
 
+# Only the release automation's tag runs share a group, so a person's checks
+# run on a release tag can never displace a pending release run
+if ! group=$(ruby -ryaml -e '
+  puts YAML.load_file(ARGV[0]).dig("concurrency", "group").to_s
+' "$wf" 2>&1); then
+  echo "FAIL $wf: could not parse: $group"; fails=$((fails + 1))
+elif [ "$group" = "\${{ github.ref_type == 'tag' && github.actor_id == '345134390' && format('publish-react-native-{0}', github.ref_name) || format('publish-checks-{0}', github.run_id) }}" ]; then
+  echo "ok   $wf: only the release automation's tag runs share a concurrency group"
+else
+  echo "FAIL $wf: the concurrency group does not key release runs by the release App and the rest by run: $group"; fails=$((fails + 1))
+fi
+
 # The mode seam: only the mode job's decision lets publish run, and that
 # decision reads the run's own identity, never a value a caller can set
 if ! seam=$(ruby -ryaml -e '
@@ -207,6 +219,51 @@ if ! rpout=$(ruby -ryaml -e '
     problems << "the dispatch does not pass ref=\"$TAG\"" unless run.include?("ref=\"$TAG\"")
     problems << "the dispatch sends an inputs[ field" if run.include?("inputs[")
     problems << "the dispatch does not check the tag format" unless run.include?("^react-native-v[0-9]+\\.[0-9]+\\.[0-9]+$")
+    # An unchecked tag could carry a newline into a workflow command, so the
+    # format check comes first and nothing prints the raw value before it
+    lines = run.lines
+    check = lines.index { |l| l.include?("^react-native-v[0-9]+") }
+    if check
+      lines[0...check].each { |l| problems << "the dispatch uses TAG before checking its format: #{l.strip}" if l.include?("TAG") }
+      lines[(check + 1)..].take_while { |l| l.strip != "fi" }.each do |l|
+        problems << "the dispatch prints an unchecked TAG without printf %q: #{l.strip}" if l.include?("TAG") && !l.include?("%q")
+      end
+    end
+  end
+  # release-please-action is third-party code, so its token cannot start
+  # workflows. A second token that can only start them goes to the dispatch
+  # step alone, minted just before it under the same condition
+  token_steps = steps.select { |s| s["uses"].to_s.start_with?("actions/create-github-app-token@") }
+  by_id = token_steps.to_h { |s| [s["id"], s] }
+  perms = ->(s) { (s["with"] || {}).select { |k, _| k.start_with?("permission-") } }
+  ref = ->(text) { text.to_s[/\A\$\{\{\s*steps\.([A-Za-z0-9_-]+)\.outputs\.token\s*\}\}\z/, 1] }
+  rp_steps.each do |s|
+    id = ref.((s["with"] || {})["token"])
+    tok = by_id[id]
+    if tok.nil?
+      problems << "the release-please token does not come from an App token step"
+      next
+    end
+    want = { "permission-contents" => "write", "permission-pull-requests" => "write", "permission-issues" => "write" }
+    problems << "the release-please token permissions are not exactly #{want.inspect}: #{perms.(tok).inspect}" unless perms.(tok) == want
+  end
+  dispatch.each do |s|
+    id = ref.((s["env"] || {})["GH_TOKEN"])
+    tok = by_id[id]
+    if tok.nil?
+      problems << "the dispatch token does not come from an App token step"
+      next
+    end
+    want = { "permission-actions" => "write", "permission-contents" => "read" }
+    problems << "the dispatch token permissions are not exactly #{want.inspect}: #{perms.(tok).inspect}" unless perms.(tok) == want
+    rp_ids = rp_steps.map { |r| ref.((r["with"] || {})["token"]) }
+    problems << "the dispatch shares the release-please token" if rp_ids.include?(id)
+    problems << "the dispatch token step does not run under the dispatch condition" unless tok["if"].to_s.strip == s["if"].to_s.strip
+    problems << "the dispatch token step is not the step just before the dispatch" unless steps.index(tok) == steps.index(s) - 1
+    # publish.yml releases only for this App, so the dispatch token is minted from it
+    problems << "the dispatch token is not minted from the release App" unless (tok["with"] || {})["client-id"] == "${{ secrets.RELEASE_APP_CLIENT_ID }}"
+    others = steps.reject { |o| o.equal?(s) }.select { |o| o.to_s.include?("steps.#{id}.outputs.token") }
+    problems << "a step other than the dispatch uses the dispatch token" unless others.empty?
   end
   # Expressions reach a shell only through env, never spliced into the script
   steps.each do |s|

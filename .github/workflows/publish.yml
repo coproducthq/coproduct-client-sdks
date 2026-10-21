@@ -16,9 +16,11 @@ permissions:
   contents: read
 
 concurrency:
-  # Runs for one release tag queue behind each other, so a re-dispatch never
-  # races a publish already in flight. Checks-only runs never block anything
-  group: ${{ github.ref_type == 'tag' && format('publish-react-native-{0}', github.ref_name) || format('publish-checks-{0}', github.run_id) }}
+  # The release automation's runs on one release tag queue behind each
+  # other, so a re-dispatch never races a publish already in flight. Every
+  # other run, including a person's checks on a release tag, gets its own
+  # group, so it can never displace a pending release run
+  group: ${{ github.ref_type == 'tag' && github.actor_id == '345134390' && format('publish-react-native-{0}', github.ref_name) || format('publish-checks-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
