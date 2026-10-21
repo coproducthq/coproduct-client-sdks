@@ -237,7 +237,7 @@ check_macho_platform() { # file, arch
     # architecture of a universal binary at a time
     if file -b "$file" | grep -q 'dynamically linked shared library'; then
         got="$(vtool -arch "$arch" -show-build "$file" 2>/dev/null \
-            | awk '/platform/ {print toupper($2); exit}')"
+            | awk '$1 == "platform" {print toupper($2); exit}')"
         if [[ -z "$got" ]]; then
             echo "ERROR: $file [$arch]: no platform in the Mach-O build command." >&2
             return 1
@@ -273,7 +273,7 @@ check_macho_platform() { # file, arch
         return 1
     fi
     ( cd "$workdir" && ar x thin.a "$member" )
-    got="$(vtool -show-build "$workdir/$member" 2>/dev/null | awk '/platform/ {print toupper($2); exit}')"
+    got="$(vtool -show-build "$workdir/$member" 2>/dev/null | awk '$1 == "platform" {print toupper($2); exit}')"
     rm -rf "$workdir"
     if [[ -z "$got" ]]; then
         # An object built without a deployment target carries the legacy

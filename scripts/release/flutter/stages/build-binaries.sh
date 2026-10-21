@@ -78,7 +78,7 @@ done
 for target in "${APPLE_TARGETS[@]}"; do
     dylib="$TARGET_DIR/$target/release/libcoproduct_ffi_frb.dylib"
     [[ -f "$dylib" ]] || fail "$target produced no dynamic library"
-    minos="$(vtool -show-build "$dylib" 2>/dev/null | awk '/minos/ {if (!seen++) print $2}')"
+    minos="$(vtool -show-build "$dylib" 2>/dev/null | awk '$1 == "minos" {if (!seen++) print $2}')"
     [[ "$minos" == "$PINNED_IOS_TARGET" ]] \
         || fail "$target minos is '$minos', expected $PINNED_IOS_TARGET"
 done

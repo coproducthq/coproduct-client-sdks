@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Check a consumer's release iOS app for what App Store Connect validates in the
-# SDK's embedded framework, without an Apple Developer account
+# SDK's embedded framework
 #
-# Upload validation needs a signed archive and an account, so neither runs in
-# the release. This checks the inputs it reads instead. The app is re-signed
+# Upload validation needs a distribution-signed archive, which the release
+# pipeline does not produce. This checks the inputs it reads instead. The app is re-signed
 # ad hoc with the command CocoaPods' embed phase runs, which signs each embedded
 # framework with the app's identity, and then verified strictly. codesign
 # applies the same bundle-structure rules a distribution signature does, so a

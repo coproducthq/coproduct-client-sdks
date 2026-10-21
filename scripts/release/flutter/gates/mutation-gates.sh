@@ -227,8 +227,8 @@ fi
 rm -rf "$(dirname "$W")"
 
 echo "mutation: the framework is not a well-formed bundle"
-# A stray file at the framework root is the kind of structure codesign seals
-# today and App Store Connect rejects as an invalid bundle
+# codesign seals a stray file at the framework root without complaint, and App
+# Store Connect rejects the same framework as an invalid bundle
 W="$(readiness_scratch)"
 FW="$W/build/ios/Release-iphoneos/Runner.app/Frameworks/CoproductFFI.framework"
 if baseline 'framework holds only its own files' readiness_on "$W"; then

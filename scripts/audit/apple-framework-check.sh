@@ -146,9 +146,9 @@ check_framework() {
 
         local build_platform build_minos
         build_platform="$(vtool -arch "$arch" -show-build "$binary" 2>/dev/null \
-            | awk '/platform/ {print toupper($2); exit}')"
+            | awk '$1 == "platform" {print toupper($2); exit}')"
         build_minos="$(vtool -arch "$arch" -show-build "$binary" 2>/dev/null \
-            | awk '/minos/ {print $2; exit}')"
+            | awk '$1 == "minos" {print $2; exit}')"
         [[ "$build_platform" == "$WANT_PLATFORM" ]] \
             || fail "$binary [$arch]: [macho] built for '$build_platform', expected $WANT_PLATFORM"
         [[ "$build_minos" == "$minos_plist" ]] \
