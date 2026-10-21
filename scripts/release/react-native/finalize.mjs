@@ -25,7 +25,12 @@ const CHECKS = 3;
 export function finalizeAction({ mode, needs, npmChecks }) {
   if (mode !== 'release') return 'none';
   if (needs?.publish?.result !== 'skipped') return 'none';
-  const buildBroke = BUILD_JOBS.some((job) => ['failure', 'cancelled'].includes(needs?.[job]?.result));
+  // Any reported result other than success or skipped means the job did not
+  // finish, including abandoned, which GitHub reports for a job that never got a runner
+  const buildBroke = BUILD_JOBS.some((job) => {
+    const result = needs?.[job]?.result;
+    return typeof result === 'string' && result !== 'success' && result !== 'skipped';
+  });
   if (!buildBroke) return 'none';
   if (!Array.isArray(npmChecks) || npmChecks.length !== CHECKS) return 'none';
   return npmChecks.every((check) => check === 'absent') ? 'mark-not-published' : 'none';

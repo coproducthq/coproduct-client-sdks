@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Decides "All checks passed" from the needs context on stdin. A skipped check
-# did not apply to this change, so it passes
+# did not apply to this change, so it passes. Every other result fails,
+# including ones GitHub reports for jobs that never ran, such as abandoned
 set -euo pipefail
 label() {
   case "$1" in
@@ -18,7 +19,7 @@ label() {
 }
 failed=''
 count=0
-for job in $(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key'); do
+for job in $(jq -r 'to_entries[] | select((.value.result // "") as $r | $r != "success" and $r != "skipped") | .key'); do
   failed="${failed:+$failed, }$(label "$job")"
   count=$((count + 1))
 done
