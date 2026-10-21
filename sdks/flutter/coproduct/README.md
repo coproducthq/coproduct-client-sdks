@@ -851,7 +851,7 @@ the opposite of the quick start. Both approaches are supported. See
 
 ## Onboarding and paywall
 
-This package also includes an agentic onboarding flow runtime (`package:coproduct/onboarding.dart`) and a paywall/Apple Pay surface (`package:coproduct/paywall.dart`), both rendering platform-authored, WebView-driven content with no screen-building code in your app. See [`docs/flutter-onboarding-and-paywall.md`](../../../docs/flutter-onboarding-and-paywall.md) at the repository root for the full integration guide.
+This package also includes onboarding flows (`package:coproduct/onboarding.dart`) and paywalls (`package:coproduct/paywall.dart`). Both show content you author and publish on the Coproduct platform, so your app contains no screen-building code for them. Onboarding runs on iOS and Android. The paywall runs on iOS only, with StoreKit 2. See [Onboarding and paywall](doc/onboarding_and_paywall.md) for the integration guide.
 
 ## Building from source
 
