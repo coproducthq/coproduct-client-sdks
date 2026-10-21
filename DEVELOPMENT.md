@@ -420,7 +420,7 @@ Set the version once and use it for both preparation and the tag, so the two
 cannot drift apart:
 
 ```bash
-export COPRODUCT_RELEASE_VERSION=1.0.0
+export COPRODUCT_RELEASE_VERSION=1.2.0   # the version being released
 export COPRODUCT_RELEASE_DATE="$(date +%F)"
 
 (cd scripts/release/flutter && dart pub get \
@@ -444,14 +444,31 @@ with `git checkout` before retrying.
 A dated heading is also what the archive gate expects. Left at `## Unreleased`,
 pub emits a second warning and the gate fails, because it allows exactly one.
 
-**4. Review, commit, and push.** The pipeline builds from one identified commit:
-staging refuses a dirty tree, and refuses binaries whose build stamp names a
-commit other than `HEAD`. Commit first, then run; rebuild after any further
-commit.
+**4. Merge the version through a PR, then build from `main`.** The pipeline
+builds from one identified commit: staging refuses a dirty tree, and refuses
+binaries whose build stamp names a commit other than `HEAD`. Prepare the version
+on a branch and open a PR titled with the release:
 
 ```bash
-git push origin HEAD
+git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
+# run step 3 here, then:
+git commit -am "chore(flutter): release $COPRODUCT_RELEASE_VERSION"
+git push -u origin HEAD
+gh pr create --title "chore(flutter): release $COPRODUCT_RELEASE_VERSION" \
+  --body "Moves the Flutter SDK's version lines to $COPRODUCT_RELEASE_VERSION."
+gh pr checks --watch
 ```
+
+Merge it when "All checks passed" is green. Merges squash, and the squash
+creates a new commit, so run the pipeline only after switching to the merged
+`main`:
+
+```bash
+git switch main && git pull --ff-only
+```
+
+A pipeline run on the branch would seal a package whose `PROVENANCE.json` names
+a commit that the squash merge leaves off `main`.
 
 **Push before publishing, not after.** A published version is immutable, and its
 `PROVENANCE.json` names the commit it was built from. If that commit exists only
@@ -481,6 +498,17 @@ retrying. It also deletes `~/Library/Developer/Xcode/DerivedData/Runner-*`,
 which is every Flutter app's DerivedData on the machine, not only this one.
 
 It stops at the first failure and prints the full log to `$COPRODUCT_RELEASE_LOG`.
+Fix a failure on a branch, through a PR with a Conventional Commit title such as
+`style(flutter): …` or `fix(flutter): …`, then pull the merged `main` and run the
+pipeline again from the start. The pipeline's first stage runs the package's
+`dart format`, `flutter analyze`, and `flutter test` with the pinned toolchain,
+so running those first saves a run that fails a few minutes in:
+
+```bash
+(cd sdks/flutter/coproduct && ../../../scripts/build/with-fvm-toolchain.sh 3.44.0 -- \
+  bash -c 'flutter pub get && dart format --output=none --set-exit-if-changed . && flutter analyze && flutter test')
+```
+
 Each stage emits a status line, so `grep 'STATUS pass=' "$COPRODUCT_RELEASE_LOG"`
 shows how far it got.
 
@@ -528,12 +556,19 @@ available on pub.dev, and for later ones your account must be an uploader.
 Confirm both before starting a run, because neither is visible until the moment
 you publish.
 
-**7. Tag, only after pub.dev accepts.**
+**7. Tag, only after pub.dev accepts.** A repository ruleset lets only the
+release automation create `*-v*` tags, so a person's tag push is rejected. An
+admin sets the ruleset to evaluate for the push and back to active straight
+after:
 
 ```bash
+R=coproducthq/coproduct-client-sdks
+gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
 git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
   -m "Flutter SDK $COPRODUCT_RELEASE_VERSION" \
   && git push origin "flutter-v$COPRODUCT_RELEASE_VERSION"
+gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
+gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
 ```
 
 **8. Publish the GitHub Release.** Developers read releases, not tags, and in a
@@ -570,7 +605,7 @@ from its own repository, tagged `1.0.0`. This repository still gets an
 | 1, 2, 5 — environment, devices, the pipeline | automated once started |
 | Before the first publication: archive a clean consumer in Xcode, generate the privacy report in the Organizer, and confirm it lists the `UserDefaults` declaration from the `coproduct_privacy` bundle | human: the pipeline checks the manifest inside the release app, but Xcode generates the report only from the Organizer |
 | Before the first publication: the session check on a physical iPhone, below | human: no simulator or emulator can be put in the state before the first unlock after boot |
-| 3, 4 — preparing and committing the version | human |
+| 3, 4 — preparing the version and merging its PR | human |
 | 6 — `publish.sh` | human, and the only supported way to publish |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
 | 7, 8 — the tag and the GitHub Release | human |
