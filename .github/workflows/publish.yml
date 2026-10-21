@@ -427,8 +427,8 @@ jobs:
           echo "Docs release run: $url" >> "$GITHUB_STEP_SUMMARY"
           gh run watch "$id" -R coproducthq/coproduct-platform --exit-status
 
-  # Fails when any check or release job failed. In a checks-only run the
-  # release jobs are skipped, and skipped jobs pass
+  # Fails unless every check and release job succeeded or was skipped. In a
+  # checks-only run the release jobs are skipped, and skipped jobs pass
   summary:
     name: Result
     if: always()

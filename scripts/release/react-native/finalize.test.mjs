@@ -25,6 +25,11 @@ test('marks the release when a build failed, publish was skipped, and npm lacks 
   assert.equal(act(), 'mark-not-published');
 });
 
+test('marks the release when a build job was abandoned', () => {
+  const needs = needsWith({ pack: { result: 'success' }, 'native-ios': { result: 'abandoned' } });
+  assert.equal(act({ needs }), 'mark-not-published');
+});
+
 test('marks the release when a build job was cancelled', () => {
   const needs = needsWith({ pack: { result: 'success' }, 'build-ios': { result: 'cancelled' } });
   assert.equal(act({ needs }), 'mark-not-published');

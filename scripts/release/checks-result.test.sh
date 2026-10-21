@@ -12,6 +12,14 @@ expect 0 'all success' '{"title":{"result":"success"},"identity":{"result":"succ
 expect 0 'skipped jobs pass' '{"title":{"result":"success"},"release-config":{"result":"skipped"}}'
 expect 1 'a failure fails' '{"title":{"result":"success"},"identity":{"result":"failure"}}'
 expect 1 'a cancellation fails' '{"title":{"result":"cancelled"}}'
+expect 1 'an abandoned job fails' '{"title":{"result":"success"},"native-ios":{"result":"abandoned"}}'
+expect 1 'any unknown result fails' '{"title":{"result":"something-new"}}'
+expect 1 'a missing result fails' '{"title":{}}'
+expect 1 'empty input fails' ''
+expect 1 'invalid input fails' 'not json'
+expect 1 'an empty needs object fails' '{}'
+expect 1 'a non-object entry fails' '{"title":"x"}'
+expect 1 'a null top level fails' 'null'
 out=$(printf '%s' '{"identity":{"result":"failure"},"docs":{"result":"failure"}}' | "$script" 2>&1)
 if printf '%s' "$out" | grep -q '2 checks failed: Version identity, Docs links'; then echo 'ok   names failed checks'; else echo "FAIL names failed checks: $out"; fails=$((fails + 1)); fi
 [ "$fails" -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
