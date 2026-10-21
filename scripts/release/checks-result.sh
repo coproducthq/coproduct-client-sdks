@@ -19,13 +19,15 @@ label() {
 }
 needs=$(cat)
 # Input that is not a non-empty needs object proves nothing passed
-if ! jq -e 'type == "object" and length > 0' >/dev/null 2>&1 <<< "$needs"; then
+if ! jq -e 'type == "object" and length > 0 and all(.[]; type == "object")' >/dev/null 2>&1 <<< "$needs"; then
   echo "The job results could not be read, so the checks cannot pass" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" >&2
   exit 1
 fi
 failed=''
 count=0
-for job in $(jq -r 'to_entries[] | select((.value.result // "") as $r | $r != "success" and $r != "skipped") | .key' <<< "$needs"); do
+# Captured first so a jq error stops the script instead of reading as no failures
+jobs=$(jq -r 'to_entries[] | select((.value.result // "") as $r | $r != "success" and $r != "skipped") | .key' <<< "$needs")
+for job in $jobs; do
   failed="${failed:+$failed, }$(label "$job")"
   count=$((count + 1))
 done

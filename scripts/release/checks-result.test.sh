@@ -18,6 +18,8 @@ expect 1 'a missing result fails' '{"title":{}}'
 expect 1 'empty input fails' ''
 expect 1 'invalid input fails' 'not json'
 expect 1 'an empty needs object fails' '{}'
+expect 1 'a non-object entry fails' '{"title":"x"}'
+expect 1 'a null top level fails' 'null'
 out=$(printf '%s' '{"identity":{"result":"failure"},"docs":{"result":"failure"}}' | "$script" 2>&1)
 if printf '%s' "$out" | grep -q '2 checks failed: Version identity, Docs links'; then echo 'ok   names failed checks'; else echo "FAIL names failed checks: $out"; fails=$((fails + 1)); fi
 [ "$fails" -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
