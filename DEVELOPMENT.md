@@ -1,6 +1,6 @@
 # Development
 
-This file documents the build prerequisites, per-surface build commands, and local disk hygiene for working on the Coproduct client SDKs.
+This file covers working on the Coproduct client SDKs: prerequisites, the build script for each surface, changing the SDKs, releasing them, and recovering disk space. Contributors start with `RELEASING.md`, which covers PR titles and the shared-core rule.
 
 ## Prerequisites
 
@@ -8,8 +8,8 @@ This file documents the build prerequisites, per-surface build commands, and loc
 |---|---|---|
 | Rust | 1.95.0 (pinned in `rust-toolchain.toml`) | `rustup` |
 | JDK | 17 | `brew install openjdk@17` |
-| Node | latest LTS | `nvm` or `asdf` |
-| Flutter | latest stable | https://flutter.dev/docs/get-started/install |
+| Node | 24 (CI pins 24.14.0). React Native needs 22.11 or later | `nvm` or `asdf` |
+| Flutter | 3.38.1 or later. Releases use exactly 3.44.0, and the floor gate uses 3.38.1, both through FVM | https://flutter.dev/docs/get-started/install |
 | Android SDK | API 36.1 | Android Studio |
 | Android NDK | 27.1.12297006 | Android Studio SDK Manager |
 | Xcode | 16.0+ to build; exactly 26.5 to cut a release | Mac App Store |
@@ -95,10 +95,10 @@ The iOS scripts depend on these packaging scripts that can also be run on their 
 
 ## Building your own app against the Flutter SDK
 
-The package README tells adopters to depend on `coproduct: ^1.0.0` from pub.dev.
-Until that version is published, and whenever you want an app that is not the
+Adopters depend on the published `coproduct` package from pub.dev, as its README
+shows. To try changes that are not published yet, in an app that is not the
 example or the consumer test, depend on the working copy instead. This is the
-path for a demo, a spike, or evaluating the SDK before it ships.
+path for a demo, a spike, or evaluating an unreleased change.
 
 ```bash
 flutter create my_demo
@@ -139,11 +139,10 @@ however your app chooses, and `--dart-define` keeps it out of source:
 flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 ```
 
-Two things to know before demonstrating live. The poll interval defaults to 60
-seconds with a 30 second floor, and there is no public refresh, so a flag
-changed in Coproduct takes up to a minute to appear. Backgrounding and
-foregrounding the app forces a poll, which is the fastest way to show a change
-on demand.
+Before demonstrating live, know that the poll interval defaults to 60 seconds
+with a 30 second floor, so a flag changed in Coproduct takes up to a minute to
+appear on its own. To show a change on demand, call `client.pollNow()`, or
+background and foreground the app, which also polls.
 
 ## Changing the SDK
 
@@ -177,8 +176,9 @@ cargo test --workspace                                    # the Rust core and bo
 (cd scripts/acceptance && dart test)                      # the device-acceptance harness
 ```
 
-The release pipeline runs the first three and fails on any of them. It does not
-run the fourth, so that one is on you.
+The Flutter release pipeline runs the second and third and fails on either. It
+does not run `cargo test` or the acceptance harness's own tests, so run those
+before pushing a change to the Rust core or to `scripts/acceptance`.
 
 ### Native unit suites
 
@@ -309,8 +309,11 @@ checkout.
 
 ## Releasing
 
-See `RELEASING.md`. React Native's versions are managed by release-please,
-and `scripts/release/identity/check.sh` checks them on every PR.
+See `RELEASING.md` for the contributor rules. React Native's versions are
+managed by release-please, `scripts/release/identity/check.sh` checks them on
+every PR, and `.github/workflows/publish.yml` builds the package once and proves
+it builds in test apps. Publishing or tagging by hand is only for an urgent or
+emergency release, through the runbooks below.
 
 For an SDK that is not yet on the release pipeline, its version identity must
 agree across four places before publishing. See Release Identity in
@@ -322,6 +325,59 @@ agree across four places before publishing. See Release Identity in
 - [ ] The built/packaged artifact version matches that version.
 - [ ] The install instructions in the platform README point at the real published
       repo and version, and read as installable now rather than aspirational.
+
+### React Native, by hand in an emergency
+
+Use this only for an urgent or emergency release. It publishes the exact package
+that `publish.yml` built and tested, so it never packs on your machine. Run every
+command from the repository root, with `gh` and `npm` signed in to accounts that
+can publish `@coproduct/react-native-sdk`.
+
+1. **Merge the release PR.** The version on `main` must be the one you release.
+   ```bash
+   export VERSION=1.2.0   # replace with the version being released
+   git switch main && git pull --ff-only
+   grep '"version"' sdks/react-native/coproduct/package.json   # must show $VERSION
+   ```
+2. **Build and test it in CI.** About 30 minutes.
+   ```bash
+   gh workflow run publish.yml --ref main
+   gh run watch "$(gh run list -w publish.yml -L 1 --json databaseId -q '.[0].databaseId')" --exit-status
+   ```
+   Done when every job passes. Do not publish from a failed run.
+3. **Download the tested package and check it.**
+   ```bash
+   RUN=$(gh run list -w publish.yml -L 1 --json databaseId -q '.[0].databaseId')
+   OUT="$HOME/.coproduct-rn-release" && rm -rf "$OUT"
+   gh run download "$RUN" -n react-native-package -D "$OUT"
+   (cd "$OUT" && shasum -a 256 -c react-native.tgz.sha256)
+   node scripts/release/react-native/check-pack.mjs "$OUT/react-native.tgz" "$VERSION"
+   ```
+4. **Publish that file, and confirm npm serves it.** A published version can
+   never be reused.
+   ```bash
+   npm publish "$OUT/react-native.tgz" --access public
+   curl -sL "$(npm view "@coproduct/react-native-sdk@$VERSION" dist.tarball)" | shasum -a 256
+   ```
+   The hash must equal the one in `react-native.tgz.sha256`.
+5. **Tag the release commit and create its GitHub Release.** The tag ruleset
+   lets only the release automation create `*-v*` tags, so an admin pauses it for
+   the tag and restores it straight after:
+   ```bash
+   R=coproducthq/coproduct-client-sdks
+   gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
+   awk -v v="## [$VERSION]" 'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' \
+     sdks/react-native/coproduct/CHANGELOG.md > "$OUT/notes.md"
+   gh release create "react-native-v$VERSION" -R "$R" --target "$(git rev-parse HEAD)" \
+     --title "react-native: v$VERSION" --notes-file "$OUT/notes.md"
+   gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
+   gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
+   ```
+   If any command between the two `PUT`s fails, still run the `enforcement=active`
+   `PUT` and the check before stopping.
+
+A package published this way carries no npm provenance, because provenance comes
+only from a CI publish.
 
 ### Flutter
 
@@ -422,9 +478,8 @@ refuses to run without it.
 
 Set the version once and use it for both preparation and the tag, so the two
 cannot drift apart. Prepare it on a release branch cut from an up-to-date
-`main`, so the CHANGELOG it promotes is current:
-
-Replace `1.2.0` with the version being released:
+`main`, so the CHANGELOG it promotes is current. Replace `1.2.0` with the
+version being released:
 
 ```bash
 cat >> "$HOME/.coproduct-release.env" <<EOF
@@ -442,7 +497,8 @@ git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
        --date "$COPRODUCT_RELEASE_DATE")
 ```
 
-Use the date you intend to publish on, not necessarily today.
+The date defaults to today. Edit it in the environment file if you publish on a
+later day.
 
 **If the CHANGELOG already carries a dated heading** for a version that was
 prepared but never published, this refuses to run: it accepts only
@@ -617,10 +673,10 @@ gh release create "flutter-v$COPRODUCT_RELEASE_VERSION" \
 
 Each SDK versions independently, so every tag names its SDK:
 `<sdk>-v<version>`, where `<sdk>` is `flutter`, `android`, `react-native`, or
-`ios`, as in `flutter-v1.0.0`. This is also the default that release tooling
-such as release-please uses for a repository with several components. The
-GitHub Release for a tag is titled `<SDK name> SDK <version>`, such as
-`Flutter SDK 1.0.0`.
+`ios`, as in `flutter-v1.0.0`. This is also the default that release-please uses
+for a repository with several components. A Flutter Release is titled
+`Flutter SDK <version>`. React Native Releases keep release-please's title,
+`react-native: v<version>`.
 
 Swift Package Manager is the exception. It reads only a `Package.swift` at a
 repository's root and only plain version tags, so the iOS SDK is distributed
@@ -631,7 +687,7 @@ from its own repository, tagged `1.0.0`. This repository still gets an
 
 | Step | Who |
 |---|---|
-| 1, 2, 5 — environment, devices, the pipeline | automated once started |
+| 0, 1, 2, 5: the environment, the toolchain check, the devices, the pipeline | automated once started |
 | Before the first publication: archive a clean consumer in Xcode, generate the privacy report in the Organizer, and confirm it lists the `UserDefaults` declaration from the `coproduct_privacy` bundle | human: the pipeline checks the manifest inside the release app, but Xcode generates the report only from the Organizer |
 | Before the first publication: the session check on a physical iPhone, below | human: no simulator or emulator can be put in the state before the first unlock after boot |
 | 3, 4 — preparing the version and merging its PR | human |
@@ -704,7 +760,7 @@ prints its last five lines and the path to its full log, one file per step under
 
 #### Toolchains and the compatibility floor
 
-FVM is maintainer-only; adopters never need it. Release and floor-verification
+FVM is for maintainers. Adopters never need it. Release and floor-verification
 commands run through
 `scripts/build/with-fvm-toolchain.sh <flutter-version> -- <command>`, which pins
 the exact Flutter/Dart onto `PATH` for every nested process, verifies both
@@ -737,10 +793,8 @@ dependency and native toolchain versions as release evidence.
 
 #### What CI would require
 
-This pipeline is built to run on one developer's machine. Nothing about it is
-hostile to CI, but it is not a workflow file away either, and the list below is
-the honest scope. **Local, gated release was this work's goal; CI was never in
-it.**
+This pipeline runs on one developer's machine. Nothing about it is hostile to
+CI, but it is not a workflow file away either. The list below is the scope.
 
 Constraints that are already true, and that any design has to accept:
 
@@ -762,9 +816,9 @@ Prerequisites that do not exist yet, and would have to be built:
   `stat -f` and `gates/mutation-gates.sh` uses BSD `sed -i ''`. Both fail on a
   GNU userland, so the seal — which establishes what the package *is* — does not
   currently run on Linux at all.
-- **Non-interactive publishing.** `publish.sh` ends in `flutter pub publish`,
-  which prompts. Nothing in the repository reads a pub token or handles
-  credentials as a secret.
+- **Non-interactive publishing.** `publish.sh --force` skips pub's confirmation,
+  but publishing still needs stored pub.dev credentials, and nothing in the
+  repository reads a pub token or handles credentials as a secret.
 - **Device provisioning.** Both acceptance scripts consume an already-booted
   device id and neither boot nor provision one. The runbook's boot commands are
   written for a human at a terminal, not as workflow steps.
