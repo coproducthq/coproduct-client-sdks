@@ -70,6 +70,14 @@ if ! release=$(ruby -ryaml -e '
     problems << "#{name} has id-token: write" if job["permissions"].is_a?(Hash) && job["permissions"]["id-token"] == "write"
     problems << "#{name} runs npm publish" if (job["steps"] || []).any? { |s| s["run"].to_s =~ /\bnpm publish\b/ }
   end
+  # The summary decides the result of the run, so a job left out of its needs
+  # could fail without failing the run
+  if (summary = jobs["summary"])
+    covered = Array(summary["needs"])
+    (jobs.keys - %w[summary mark-not-published] - covered).each do |name|
+      problems << "summary does not need #{name}"
+    end
+  end
   # The default run shell has no pipefail, so a node script piped into tee
   # would fail without failing its step
   jobs.each do |name, job|
