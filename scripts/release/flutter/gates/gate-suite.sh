@@ -209,8 +209,16 @@ run 'Android native unit suite' android_native_unit_gate
 # Serial, on the named simulator itself. The scheme allows parallel testing,
 # which runs the tests on a clone and shuts the original simulator down, and
 # the acceptance and no-Rust gates after this need that simulator booted
+#
+# The pods are installed here rather than assumed. xcodebuild never runs pod
+# install, and an earlier flutter pub get under the pinned toolchain deletes
+# Pods/Manifest.lock whenever it sees the plugin list change, which fails the
+# build at its CocoaPods sync check before any test runs
 ios_native_unit_gate() {
-    ( cd "$REPO_ROOT/sdks/flutter/coproduct/example/ios" \
+    ( cd "$REPO_ROOT/sdks/flutter/coproduct/example" \
+        && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+            flutter build ios --simulator --debug --config-only \
+        && cd ios \
         && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
             -parallel-testing-enabled NO \
             -destination "platform=iOS Simulator,id=$COPRODUCT_ACCEPTANCE_IOS_DEVICE" )
