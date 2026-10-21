@@ -1,0 +1,86 @@
+name: Release Please
+
+# On every push to main, opens or updates the release PR. When a release PR
+# merges, tags it, creates its draft GitHub release, and starts publish.yml on
+# that tag. Run it by hand with a tag to start publish.yml again for a release
+# whose dispatch was lost
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish again, for example react-native-v1.1.0"
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release PRs and publish dispatch
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 10
+    steps:
+      # The App token, unlike GITHUB_TOKEN, starts workflows from the events it
+      # causes, and publish.yml releases only when this App dispatched it
+      - id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-actions: write
+      - id: rp
+        if: github.event_name == 'push'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.token.outputs.token }}
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+      # always() lets a release-please step that fails after tagging still
+      # start the publish run. The tag is the run's ref, never an input,
+      # because publish.yml releases only on a tag ref
+      - name: Start publish.yml on the release tag
+        if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || steps.rp.outputs['sdks/react-native/coproduct--tag_name'] }}
+        shell: bash
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::No release App token, so publish.yml cannot be started. Re-run this workflow by hand with tag $TAG once the token step works"
+            exit 1
+          fi
+          if ! [[ "$TAG" =~ ^react-native-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a release tag like react-native-v1.2.3"
+            exit 1
+          fi
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null; then
+            echo "::error::Tag $TAG does not exist"
+            exit 1
+          fi
+          for attempt in 1 2 3; do
+            if response=$(gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/publish.yml/dispatches" \
+              -f ref="$TAG" -F return_run_details=true); then
+              url=$(jq -r '.html_url // empty' <<< "$response")
+              if [ -z "$url" ]; then
+                echo "::error::The dispatch returned no run URL: $response"
+                exit 1
+              fi
+              echo "Started publish.yml on $TAG: $url"
+              echo "Publish run for $TAG: $url" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Dispatch attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          echo "::error::Could not start publish.yml on $TAG after 3 attempts. Re-run this workflow by hand with tag $TAG"
+          exit 1

@@ -4,7 +4,7 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 fails=0
-for wf in .github/workflows/publish.yml; do
+for wf in .github/workflows/publish.yml .github/workflows/release-please.yml; do
   if ! missing=$(ruby -ryaml -e '
     wf = YAML.load_file(ARGV[0])
     puts wf["jobs"].reject { |_, j| j.key?("timeout-minutes") }.keys
@@ -97,20 +97,67 @@ else
   fails=$((fails + 1))
 fi
 
-# Only these secrets exist for the publish workflow, so any other name reads
+# Only these secrets exist for the release workflows, so any other name reads
 # as empty and fails at run time instead of here
 allowed=' RELEASE_APP_CLIENT_ID RELEASE_APP_KEY DISPATCH_APP_CLIENT_ID DISPATCH_APP_KEY GITHUB_TOKEN '
-unknown=''
-for name in $(grep -o -E 'secrets\.[A-Za-z0-9_]+' "$wf" | sed 's/^secrets\.//' | sort -u); do
-  case "$allowed" in
-    *" $name "*) ;;
-    *) unknown="${unknown:+$unknown, }$name" ;;
-  esac
+for f in .github/workflows/publish.yml .github/workflows/release-please.yml; do
+  unknown=''
+  for name in $(grep -o -E 'secrets\.[A-Za-z0-9_]+' "$f" | sed 's/^secrets\.//' | sort -u); do
+    case "$allowed" in
+      *" $name "*) ;;
+      *) unknown="${unknown:+$unknown, }$name" ;;
+    esac
+  done
+  if [ -z "$unknown" ]; then
+    echo "ok   $f: every secret it reads exists"
+  else
+    echo "FAIL $f: reads secrets that do not exist: $unknown"; fails=$((fails + 1))
+  fi
 done
-if [ -z "$unknown" ]; then
-  echo "ok   $wf: every secret it reads exists"
+
+# release-please opens release PRs and tags on a push to main, then starts
+# publish.yml on the new tag. A manual run re-dispatches an existing tag
+rp=.github/workflows/release-please.yml
+if ! rpout=$(ruby -ryaml -e '
+  wf = YAML.load_file(ARGV[0])
+  problems = []
+  pin = "googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7"
+  steps = (wf["jobs"] || {}).values.flat_map { |j| j["steps"] || [] }
+  rp_steps = steps.select { |s| s["uses"].to_s.start_with?("googleapis/release-please-action@") }
+  problems << "runs no release-please-action" if rp_steps.empty?
+  rp_steps.each do |s|
+    problems << "release-please-action is not pinned to the v5.0.0 SHA: #{s["uses"]}" unless s["uses"] == pin
+    problems << "the release-please step has no id: rp" unless s["id"] == "rp"
+    # A manual run only re-dispatches, so it must never cut a release
+    problems << "the release-please step does not run only on push" unless s["if"].to_s.strip == "github.event_name == '\''push'\''"
+  end
+  dispatch = steps.select { |s| s["run"].to_s.include?("actions/workflows/publish.yml/dispatches") }
+  problems << "no step dispatches publish.yml" if dispatch.empty?
+  dispatch.each do |s|
+    cond = s["if"].to_s.strip
+    # Without always() a release-please step that fails after tagging would skip
+    # the dispatch and leave a tag that nothing publishes
+    problems << "the dispatch if does not start with always()" unless cond.start_with?("always()")
+    problems << "the dispatch if does not name sdks/react-native/coproduct--release_created" unless cond.include?("sdks/react-native/coproduct--release_created")
+    run = s["run"].to_s
+    # publish.yml releases only on a tag ref, so the tag must be the ref and
+    # never an input
+    problems << "the dispatch does not pass ref=\"$TAG\"" unless run.include?("ref=\"$TAG\"")
+    problems << "the dispatch sends an inputs[ field" if run.include?("inputs[")
+    problems << "the dispatch does not check the tag format" unless run.include?("^react-native-v[0-9]+\\.[0-9]+\\.[0-9]+$")
+  end
+  # Expressions reach a shell only through env, never spliced into the script
+  steps.each do |s|
+    problems << "a run script contains ${{ }}: #{s["name"] || s["id"] || s["run"].to_s.lines.first}" if s["run"].to_s.include?("${{")
+  end
+  puts problems
+' "$rp" 2>&1); then
+  echo "FAIL $rp: could not parse: $rpout"; fails=$((fails + 1))
+elif [ -z "$rpout" ]; then
+  echo "ok   $rp: release-please is pinned and dispatches publish.yml on the tag ref"
 else
-  echo "FAIL $wf: reads secrets that do not exist: $unknown"; fails=$((fails + 1))
+  while IFS= read -r line; do echo "FAIL $rp: $line"; done <<< "$rpout"
+  fails=$((fails + 1))
 fi
 
 # github.triggering_actor changes when someone re-runs a job, so the release
