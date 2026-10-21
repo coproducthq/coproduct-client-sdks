@@ -135,7 +135,9 @@ public_surface_gate() {
 }
 run 'public surface from the installed package' public_surface_gate
 
-# Symbols in the artifacts that ship, not in the libraries they came from
+# Symbols in the artifacts that ship, not in the libraries they came from. The
+# Rust core is its own embedded framework, so it is read there rather than in
+# the plugin's framework
 # Flutter writes one app per configuration and SDK, and a release device build
 # leaves a second copy under build/ios/iphoneos, so selecting with head -1
 # inspected whichever path the filesystem happened to return first. Each
@@ -151,9 +153,9 @@ check_app_framework() { # label, sdk path fragment, expected architectures
         printf '  FAIL no %s app found for symbol inspection\n' "$label"; fail=1; return
     fi
     for app in "${apps[@]}"; do
-        fw="$app/Frameworks/coproduct.framework/coproduct"
+        fw="$app/Frameworks/CoproductFFI.framework/CoproductFFI"
         if [[ ! -f "$fw" ]]; then
-            printf '  FAIL %s: no coproduct framework in %s\n' "$label" "$app"; fail=1; continue
+            printf '  FAIL %s: no CoproductFFI framework embedded in %s\n' "$label" "$app"; fail=1; continue
         fi
         got="$(lipo -archs "$fw" | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ $//')"
         if [[ "$got" != "$want" ]]; then

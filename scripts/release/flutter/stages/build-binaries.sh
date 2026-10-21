@@ -76,16 +76,9 @@ for target in "${APPLE_TARGETS[@]}"; do
 done
 
 for target in "${APPLE_TARGETS[@]}"; do
-    archive="$TARGET_DIR/$target/release/libcoproduct_ffi_frb.a"
-    [[ -f "$archive" ]] || fail "$target produced no static archive"
-    # Read the whole listing: a consumer that exits early would leave `ar` with
-    # a closed pipe, and pipefail reports that as a failure
-    member="$(ar t "$archive" | awk '/\.o$/ {if (!seen++) print}')"
-    [[ -n "$member" ]] || fail "$target archive has no objects"
-    workdir="$(mktemp -d)"
-    ( cd "$workdir" && ar x "$archive" "$member" )
-    minos="$(vtool -show-build "$workdir/$member" 2>/dev/null | awk '/minos/ {if (!seen++) print $2}')"
-    rm -rf "$workdir"
+    dylib="$TARGET_DIR/$target/release/libcoproduct_ffi_frb.dylib"
+    [[ -f "$dylib" ]] || fail "$target produced no dynamic library"
+    minos="$(vtool -show-build "$dylib" 2>/dev/null | awk '/minos/ {if (!seen++) print $2}')"
     [[ "$minos" == "$PINNED_IOS_TARGET" ]] \
         || fail "$target minos is '$minos', expected $PINNED_IOS_TARGET"
 done
@@ -110,43 +103,19 @@ done
     && fail "32-bit x86 was produced but is not a Flutter ABI"
 
 # --- xcframework ---------------------------------------------------------
-# The two simulator architectures become one fat archive before the xcframework
-# is assembled. xcodebuild rejects two libraries built for the same platform as
+# Each slice is a dynamic CoproductFFI.framework. The linker keeps only what the
+# FFI exports reach and the release profile strips it, so a slice carries the
+# code the SDK runs rather than the whole standard library and every dependency
+# a static archive would. The two simulator architectures become one universal
+# framework, because xcodebuild rejects two frameworks for the same platform as
 # ambiguous slices, and a universal slice is what lets a consuming app resolve
 # the simulator architectures Xcode asks for without the package constraining
 # them
-# xcodebuild -create-xcframework copies each library into its slice under the
-# basename it was given, so the fat archive must already be named what every
-# downstream consumer expects: the staging script, the podspec force-load, the
-# archive allowlist and the mutation gates all name libcoproduct_ffi_frb.a. It
-# is built in a temporary directory so the name can be exact without colliding
-# with the thin archives
-SIM_DIR="$(mktemp -d)"
-SIM_FAT="$SIM_DIR/libcoproduct_ffi_frb.a"
-lipo -create \
-    "$TARGET_DIR/aarch64-apple-ios-sim/release/libcoproduct_ffi_frb.a" \
-    "$TARGET_DIR/x86_64-apple-ios/release/libcoproduct_ffi_frb.a" \
-    -output "$SIM_FAT"
-sim_archs="$(lipo -archs "$SIM_FAT")"
-[[ "$sim_archs" == "arm64 x86_64" || "$sim_archs" == "x86_64 arm64" ]] \
-    || fail "simulator archive carries '$sim_archs', expected arm64 and x86_64"
-
-xcodebuild -create-xcframework \
-    -library "$TARGET_DIR/aarch64-apple-ios/release/libcoproduct_ffi_frb.a" \
-    -library "$SIM_FAT" \
-    -output "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" >/dev/null
-
-# The fat archive was an intermediate. Leaving it anywhere under the release
-# output would put a second copy of both simulator architectures into the
-# staged package
-rm -rf "$SIM_DIR"
-
-# The slice directory names are xcodebuild's, derived from each library's
-# platform and architectures, and stage_prebuilt.sh selects on them verbatim
-for want in ios-arm64 ios-arm64_x86_64-simulator; do
-    [[ -f "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework/$want/libcoproduct_ffi_frb.a" ]] \
-        || fail "xcframework is missing the $want slice"
-done
+"$REPO_ROOT/scripts/package/flutter-ios-xcframework.sh" \
+    "$TARGET_DIR/aarch64-apple-ios/release/libcoproduct_ffi_frb.dylib" \
+    "$TARGET_DIR/aarch64-apple-ios-sim/release/libcoproduct_ffi_frb.dylib" \
+    "$TARGET_DIR/x86_64-apple-ios/release/libcoproduct_ffi_frb.dylib" \
+    "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework"
 
 # --- symbols in every shipped artifact -----------------------------------
 # Collected with a read loop rather than mapfile, which is a bash 4 builtin and
@@ -155,7 +124,7 @@ xcf_slices=()
 while IFS= read -r slice; do
     xcf_slices+=("$slice")
 done < <(find "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" \
-    -name 'libcoproduct_ffi_frb.a' -type f | sort)
+    -path '*/CoproductFFI.framework/CoproductFFI' -type f | sort)
 [[ "${#xcf_slices[@]}" -eq 2 ]] || fail "expected two xcframework slices, found ${#xcf_slices[@]}"
 "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" macho "${xcf_slices[@]}"
 
@@ -180,7 +149,8 @@ done < <(find "$COPRODUCT_RELEASE_OUT/jniLibs" \
         [[ "$first" -eq 1 ]] || printf ',\n'
         first=0
         printf '    "%s": "%s"' "$rel" "$(shasum -a 256 "$artifact" | awk '{print $1}')"
-    done < <( (find "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" -name '*.a' -type f
+    done < <( (find "$COPRODUCT_RELEASE_OUT/CoproductFFI.xcframework" \
+                   -path '*/CoproductFFI.framework/CoproductFFI' -type f
                find "$COPRODUCT_RELEASE_OUT/jniLibs" -name '*.so' -type f) | sort )
     printf '\n  }\n}\n'
 } > "$COPRODUCT_RELEASE_OUT/BUILD-STAMP.json"

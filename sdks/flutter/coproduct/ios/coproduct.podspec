@@ -29,24 +29,18 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
   s.swift_version = '5.0'
   # The session attributes read and write UserDefaults, a required-reason API,
   # and a third-party SDK must declare its own use rather than rely on the app
-  # or another dependency to. A resource bundle is how a pod ships the manifest
+  # or another dependency to. A resource bundle is how a pod ships the manifest.
+  # The Rust core's file timestamp reads are declared by CoproductFFI.framework's
+  # own manifest, because that framework is a separate binary in the app
   s.resource_bundles = { 'coproduct_privacy' => ['Resources/PrivacyInfo.xcprivacy'] }
 
-  s.script_phase = {
-    :name => 'Stage prebuilt Rust library',
-    :script => 'sh "$PODS_TARGET_SRCROOT/stage_prebuilt.sh"',
-    :execution_position => :before_compile,
-    :input_files => [
-      '${PODS_TARGET_SRCROOT}/stage_prebuilt.sh',
-      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
-      '${PODS_TARGET_SRCROOT}/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a',
-    ],
-    :output_files => ["${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a"],
-    # Xcode skips a script phase whose outputs it considers current, which would
-    # skip the architecture guard on a cached DerivedData or a platform switch.
-    # Staging one file is cheap, so it always runs.
-    :always_out_of_date => '1',
-  }
+  # The Rust core ships as a dynamic framework, one per platform slice, which
+  # CocoaPods selects, links, embeds, and signs with the app. A shared library
+  # carries only the code the FFI reaches, where a static archive carries the
+  # whole standard library and every dependency until the app's own link
+  # discards them. The Dart side opens the framework by name
+  s.vendored_frameworks = 'CoproductFFI.xcframework'
+
   # This pod deliberately constrains no architectures. The simulator slice is
   # universal, so there is nothing to exclude, and an exclusion set here would
   # not hold in any case: CocoaPods writes pod xcconfig into
@@ -55,6 +49,5 @@ Flutter SDK for Coproduct, a feature flag and experimentation platform.
   # the later include wins
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'OTHER_LDFLAGS' => '-force_load ${PODS_CONFIGURATION_BUILD_DIR}/coproduct/libcoproduct_ffi_frb.a',
   }
 end

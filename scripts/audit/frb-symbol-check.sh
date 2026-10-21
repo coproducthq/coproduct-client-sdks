@@ -177,6 +177,17 @@ expected_platform_for_slice() {
     esac
 }
 
+# The slice directory a file claims membership of. A framework binary sits one
+# level deeper than a library, inside the slice's CoproductFFI.framework
+slice_of() {
+    local dir
+    dir="$(dirname "$1")"
+    case "$dir" in
+        *.framework) dir="$(dirname "$dir")" ;;
+    esac
+    basename "$dir"
+}
+
 # Does this file sit inside an xcframework, and therefore make a claim that must
 # be checked? The gate also inspects the linked framework inside a built app,
 # which is not a slice and claims nothing
@@ -193,7 +204,7 @@ is_xcframework_slice() {
 check_macho_archs() { # file, actual-archs...
     local file="$1"; shift
     local slice want got
-    slice="$(basename "$(dirname "$file")")"
+    slice="$(slice_of "$file")"
     want="$(expected_archs_for_slice "$slice")"
     if [[ -z "$want" ]]; then
         if is_xcframework_slice "$file"; then
@@ -217,14 +228,31 @@ check_macho_archs() { # file, actual-archs...
 check_macho_platform() { # file, arch
     local file="$1" arch="$2"
     local slice want
-    slice="$(basename "$(dirname "$file")")"
+    slice="$(slice_of "$file")"
     want="$(expected_platform_for_slice "$slice")"
     [[ -n "$want" ]] || return 0
+
+    local got
+    # A dylib carries its own build command, so vtool reads it directly, one
+    # architecture of a universal binary at a time
+    if file -b "$file" | grep -q 'dynamically linked shared library'; then
+        got="$(vtool -arch "$arch" -show-build "$file" 2>/dev/null \
+            | awk '/platform/ {print toupper($2); exit}')"
+        if [[ -z "$got" ]]; then
+            echo "ERROR: $file [$arch]: no platform in the Mach-O build command." >&2
+            return 1
+        fi
+        if [[ "$got" != "$want" ]]; then
+            echo "ERROR: $file [$arch]: built for $got but its slice directory claims $slice ($want)." >&2
+            return 1
+        fi
+        return 0
+    fi
 
     # vtool reads Mach-O objects, not archives, and ar cannot read a member of a
     # fat archive, so thin the requested architecture out first. A thin archive
     # is copied rather than thinned, because lipo -thin rejects one
-    local workdir thinned member got
+    local workdir thinned member
     workdir="$(mktemp -d)"
     thinned="$workdir/thin.a"
     if [[ "$(lipo -archs "$file")" == *' '* ]]; then

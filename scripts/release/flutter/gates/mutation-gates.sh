@@ -62,7 +62,7 @@ echo "mutation: an unexpected native slice appears"
 W="$(scratch)"; cp -R "$COPRODUCT_RELEASE_STAGE" "$W"
 if baseline 'no stray native files' check_archive "$W"; then
     mkdir -p "$W/ios/CoproductFFI.xcframework/ios-arm64-simulator"
-    cp "$W/ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a" \
+    cp -R "$W/ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework" \
        "$W/ios/CoproductFFI.xcframework/ios-arm64-simulator/"
     mutated 'unexpected slice added' 'unexpected entry under a native root' check_archive "$W"
 fi
@@ -70,7 +70,7 @@ rm -rf "$(dirname "$W")"
 
 echo "mutation: the universal simulator slice loses an architecture"
 W="$(scratch)"; cp -R "$COPRODUCT_RELEASE_STAGE" "$W"
-sim_slice="$W/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a"
+sim_slice="$W/ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/CoproductFFI"
 symbol_check() { "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" macho "$1"; }
 if baseline 'simulator slice is universal' symbol_check "$sim_slice"; then
     # A thinned slice still links for the architecture it kept, so every other
@@ -154,23 +154,43 @@ EOF
 fi
 rm -rf "$(dirname "$W")"
 
-echo "mutation: the staged podspec loses always_out_of_date"
-podspec_guard_set() { # archive dir
+echo "mutation: the staged podspec stops vendoring the Rust framework"
+# Nothing the app compiles references the Rust core, which the Dart side opens
+# at runtime, so a podspec that drops the framework still builds every app and
+# fails only at initialize, on a device
+podspec_vendors_framework() { # archive dir
     ( cd "$1/ios" && pod ipc spec coproduct.podspec ) 2>/dev/null | python3 -c "
 import json, sys
-sp = json.load(sys.stdin).get('script_phases')
-# A single phase serializes as an object and several as an array. Iterating the
-# object would yield its keys, so normalize the shape before checking
-phases = sp if isinstance(sp, list) else ([sp] if isinstance(sp, dict) else [])
-ok = any(str(ph.get('always_out_of_date')) == '1' for ph in phases)
-print('always_out_of_date present' if ok else 'always_out_of_date missing')
+vf = json.load(sys.stdin).get('vendored_frameworks')
+vf = vf if isinstance(vf, list) else [vf]
+ok = 'CoproductFFI.xcframework' in vf
+print('CoproductFFI.xcframework vendored' if ok else 'CoproductFFI.xcframework not vendored')
 sys.exit(0 if ok else 1)
 "
 }
 W="$(scratch)"; cp -R "$COPRODUCT_FLUTTER_ARCHIVE_DIR" "$W"
-if baseline 'podspec keeps the phase unskippable' podspec_guard_set "$W"; then
-    perl -pi -e "s/^\\s*:always_out_of_date.*\\n//" "$W/ios/coproduct.podspec"
-    mutated 'always_out_of_date removed' 'always_out_of_date missing' podspec_guard_set "$W"
+if baseline 'podspec vendors the framework' podspec_vendors_framework "$W"; then
+    perl -pi -e "s/^\\s*s\\.vendored_frameworks.*\\n//" "$W/ios/coproduct.podspec"
+    mutated 'vendored_frameworks removed' 'not vendored' podspec_vendors_framework "$W"
+fi
+rm -rf "$(dirname "$W")"
+
+echo "mutation: the Rust framework's privacy manifest is missing from the app"
+# The plugin's resource bundle no longer declares the core's file timestamp
+# reads, so the framework's own manifest is the only declaration of them
+privacy_check_on() { "$REPO_ROOT/scripts/release/flutter/gates/privacy-manifest-check.sh" "$1"; }
+W="$(scratch)"; mkdir -p "$W/build/ios/Release-iphoneos"
+release_app="$(find "$COPRODUCT_CONSUMER_DIR/build/ios" -type d -name 'Runner.app' \
+    -path '*/Release-iphoneos/*' 2>/dev/null | sort | head -1)"
+if [[ -z "$release_app" ]]; then
+    printf '  FAIL no release device app under %s to mutate\n' "$COPRODUCT_CONSUMER_DIR"; fail=1
+else
+    cp -R "$release_app" "$W/build/ios/Release-iphoneos/"
+    if baseline 'both privacy manifests declared' privacy_check_on "$W"; then
+        rm -f "$W/build/ios/Release-iphoneos/Runner.app/Frameworks/CoproductFFI.framework/PrivacyInfo.xcprivacy"
+        mutated 'framework manifest removed' 'no CoproductFFI framework privacy manifest' \
+            privacy_check_on "$W"
+    fi
 fi
 rm -rf "$(dirname "$W")"
 
@@ -265,17 +285,6 @@ if [[ -f "$COPRODUCT_RELEASE_OUT/seal.txt" ]]; then
 else
     printf '  FAIL no seal.txt at %s, cannot prove the seal check bites\n' \
         "$COPRODUCT_RELEASE_OUT"
-    fail=1
-fi
-
-echo "check: the staging script selection matrix"
-# Captured, not discarded: every other failure in this file shows why, and a
-# bare FAIL here would send the reader back to run the test by hand
-if MATRIX_OUT="$(bash "$REPO_ROOT/sdks/flutter/coproduct/ios/stage_prebuilt.test.sh" 2>&1)"; then
-    printf '  ok   selection matrix\n'
-else
-    printf '  FAIL selection matrix\n'
-    printf '%s' "$MATRIX_OUT" | tail -6 | sed 's/^/       /'
     fail=1
 fi
 
