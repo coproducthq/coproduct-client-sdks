@@ -11,8 +11,6 @@ import {
   CoproductPaywall,
   type Entitlement,
   type PaywallClient,
-  type PaywallLoadError,
-  type PaywallPurchaseError,
   type PaywallSnapshot,
   type PurchaseResult,
 } from '@coproduct/react-native-sdk/paywall';
@@ -161,10 +159,10 @@ export default function App() {
         platformScriptJs=""
         client={paywallClientRef.current}
         onPurchaseResult={logPaywallResult}
-        onPurchaseError={(error: PaywallPurchaseError) =>
+        onPurchaseError={(error) =>
           console.error('COPRODUCT_RN_PAYWALL_DEMO_ERROR', error)
         }
-        onLoadError={(error: PaywallLoadError) =>
+        onLoadError={(error) =>
           console.error('COPRODUCT_RN_PAYWALL_DEMO_LOAD_ERROR', error)
         }
         onDismiss={() => setShowPaywall(false)}
