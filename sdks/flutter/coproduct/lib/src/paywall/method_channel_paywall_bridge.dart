@@ -13,7 +13,9 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
   @override
   Future<String> priceFor(String productId) async {
     try {
-      final price = await _channel.invokeMethod<String>('priceFor', {'productId': productId});
+      final price = await _channel.invokeMethod<String>('priceFor', {
+        'productId': productId,
+      });
       if (price == null) throw const PaywallBridgeUnavailable();
       return price;
     } on MissingPluginException {
@@ -25,7 +27,9 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
   Future<PurchaseResult> purchase(String productId) async {
     final Map<Object?, Object?>? raw;
     try {
-      raw = await _channel.invokeMethod<Map<Object?, Object?>>('purchase', {'productId': productId});
+      raw = await _channel.invokeMethod<Map<Object?, Object?>>('purchase', {
+        'productId': productId,
+      });
     } on MissingPluginException {
       throw const PaywallBridgeUnavailable();
     }
@@ -43,7 +47,10 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
     }
     if (raw == null) return const [];
     return raw
-        .map((entry) => _restoredTransactionFromChannel(entry! as Map<Object?, Object?>))
+        .map(
+          (entry) =>
+              _restoredTransactionFromChannel(entry! as Map<Object?, Object?>),
+        )
         .toList();
   }
 }

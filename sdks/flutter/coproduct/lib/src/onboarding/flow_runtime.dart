@@ -15,13 +15,24 @@ import 'shell_assembler.dart';
 /// one at its single call site
 enum FlowNavigationDecision { prevent, navigate }
 
-typedef EventCallback = Future<void> Function(String event, String screenId, Map<String, List<String>> answers);
+typedef EventCallback =
+    Future<void> Function(
+      String event,
+      String screenId,
+      Map<String, List<String>> answers,
+    );
 typedef PermissionCallback = Future<void> Function(String permission);
 typedef OpenUrlCallback = Future<void> Function(String url);
 typedef PaywallCallback = Future<void> Function(String paywallId);
-typedef NativeOperationCallback = Future<Map<String, String>> Function(String operation, Map<String, String> params);
-typedef ResolveRequestFn = Future<void> Function(String requestId, Map<String, String> response);
-typedef PermissionRequestFn = Future<Map<String, String>> Function(String permission);
+typedef NativeOperationCallback =
+    Future<Map<String, String>> Function(
+      String operation,
+      Map<String, String> params,
+    );
+typedef ResolveRequestFn =
+    Future<void> Function(String requestId, Map<String, String> response);
+typedef PermissionRequestFn =
+    Future<Map<String, String>> Function(String permission);
 
 Permission? _permissionByName(String name) {
   switch (name) {
@@ -100,7 +111,9 @@ class FlowRuntime {
       sdkContextAttributes: client.sdkContextAttributes,
       sdkContextSegmentKeys: client.sdkContextSegmentKeys,
       initialAnswers: initialAnswers,
-      initialScreenId: initialScreenId.isEmpty ? graph.startScreenId : initialScreenId,
+      initialScreenId: initialScreenId.isEmpty
+          ? graph.startScreenId
+          : initialScreenId,
       platformScriptJs: platformScriptJs,
     );
   }
@@ -147,7 +160,9 @@ class FlowRuntime {
   // analysis rejects a final local reassigned across a try body and its
   // catch clause; returning from each branch sidesteps that without
   // widening `response`'s mutability.
-  Future<Map<String, String>> _computeRequestResponse(RequestAction action) async {
+  Future<Map<String, String>> _computeRequestResponse(
+    RequestAction action,
+  ) async {
     if (action.operation == 'requestPermission') {
       try {
         return await _requestPermission(action.params['permission'] ?? '');
@@ -157,7 +172,10 @@ class FlowRuntime {
     }
     final handler = onNativeOperation;
     if (handler == null) {
-      return {'status': 'error', 'message': 'No handler registered for operation "${action.operation}"'};
+      return {
+        'status': 'error',
+        'message': 'No handler registered for operation "${action.operation}"',
+      };
     }
     try {
       return await handler(action.operation, action.params);

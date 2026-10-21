@@ -11,7 +11,11 @@ class DebugFlowDrawer extends StatefulWidget {
   final Future<void> Function() onRestartFlow;
   final Future<void> Function() onRefresh;
 
-  const DebugFlowDrawer({super.key, required this.onRestartFlow, required this.onRefresh});
+  const DebugFlowDrawer({
+    super.key,
+    required this.onRestartFlow,
+    required this.onRefresh,
+  });
 
   @override
   State<DebugFlowDrawer> createState() => _DebugFlowDrawerState();
@@ -27,7 +31,12 @@ class _DebugFlowDrawerState extends State<DebugFlowDrawer> {
     try {
       await action();
     } finally {
-      if (mounted) setState(() { _busy = false; _open = false; });
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _open = false;
+        });
+      }
     }
   }
 
@@ -80,16 +89,31 @@ class _DebugFlowDrawerState extends State<DebugFlowDrawer> {
           Row(
             children: [
               const Expanded(
-                child: Text("DEBUG", style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(
+                  "DEBUG",
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               InkWell(
                 onTap: () => setState(() => _open = false),
-                child: const Icon(Icons.chevron_right, color: Colors.white70, size: 18),
+                child: const Icon(
+                  Icons.chevron_right,
+                  color: Colors.white70,
+                  size: 18,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          _actionButton("Restart flow", Icons.restart_alt, () => _run(widget.onRestartFlow)),
+          _actionButton(
+            "Restart flow",
+            Icons.restart_alt,
+            () => _run(widget.onRestartFlow),
+          ),
           const SizedBox(height: 6),
           _actionButton("Refresh", Icons.refresh, () => _run(widget.onRefresh)),
         ],
@@ -111,12 +135,21 @@ class _DebugFlowDrawerState extends State<DebugFlowDrawer> {
           children: [
             _busy
                 ? const SizedBox(
-                    width: 14, height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70),
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white70,
+                    ),
                   )
                 : Icon(icon, color: Colors.white, size: 14),
             const SizedBox(width: 6),
-            Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12))),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
           ],
         ),
       ),

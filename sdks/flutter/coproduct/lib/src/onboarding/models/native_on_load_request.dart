@@ -14,17 +14,20 @@ class NativeOnLoadRequest {
     required this.timeoutMs,
   });
 
-  factory NativeOnLoadRequest.fromJson(Map<String, dynamic> json) => NativeOnLoadRequest(
+  factory NativeOnLoadRequest.fromJson(Map<String, dynamic> json) =>
+      NativeOnLoadRequest(
         operation: json['operation'] as String,
-        params: (json['params'] as Map).map((k, v) => MapEntry(k as String, v as String)),
+        params: (json['params'] as Map).map(
+          (k, v) => MapEntry(k as String, v as String),
+        ),
         resultKey: json['resultKey'] as String,
         timeoutMs: json['timeoutMs'] as int,
       );
 
   Map<String, dynamic> toJson() => {
-        'operation': operation,
-        'params': params,
-        'resultKey': resultKey,
-        'timeoutMs': timeoutMs,
-      };
+    'operation': operation,
+    'params': params,
+    'resultKey': resultKey,
+    'timeoutMs': timeoutMs,
+  };
 }

@@ -4,17 +4,25 @@ import 'package:coproduct/src/paywall/paywall_action.dart';
 void main() {
   group('PaywallAction.parse', () {
     test('parses purchase with its packageKey', () {
-      final action = PaywallAction.parse('coproduct-action:purchase?packageKey=monthly');
+      final action = PaywallAction.parse(
+        'coproduct-action:purchase?packageKey=monthly',
+      );
       expect(action, isA<PurchaseAction>());
       expect((action as PurchaseAction).packageKey, 'monthly');
     });
 
     test('parses restore with no params', () {
-      expect(PaywallAction.parse('coproduct-action:restore'), isA<RestoreAction>());
+      expect(
+        PaywallAction.parse('coproduct-action:restore'),
+        isA<RestoreAction>(),
+      );
     });
 
     test('parses dismiss', () {
-      expect(PaywallAction.parse('coproduct-action:dismiss'), isA<DismissAction>());
+      expect(
+        PaywallAction.parse('coproduct-action:dismiss'),
+        isA<DismissAction>(),
+      );
     });
 
     test('returns null for purchase with no packageKey', () {
