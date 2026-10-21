@@ -121,6 +121,9 @@ rp=.github/workflows/release-please.yml
 if ! rpout=$(ruby -ryaml -e '
   wf = YAML.load_file(ARGV[0])
   problems = []
+  # The job asks for its token permissions through the App, so GITHUB_TOKEN
+  # holds none
+  problems << "top-level permissions is not {}" unless wf.key?("permissions") && wf["permissions"] == {}
   pin = "googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7"
   steps = (wf["jobs"] || {}).values.flat_map { |j| j["steps"] || [] }
   rp_steps = steps.select { |s| s["uses"].to_s.start_with?("googleapis/release-please-action@") }
@@ -135,10 +138,13 @@ if ! rpout=$(ruby -ryaml -e '
   problems << "no step dispatches publish.yml" if dispatch.empty?
   dispatch.each do |s|
     cond = s["if"].to_s.strip
-    # Without always() a release-please step that fails after tagging would skip
-    # the dispatch and leave a tag that nothing publishes
+    # Without always() a release-please step that fails after reporting its
+    # release would skip the dispatch and leave a tag that nothing publishes
     problems << "the dispatch if does not start with always()" unless cond.start_with?("always()")
     problems << "the dispatch if does not name sdks/react-native/coproduct--release_created" unless cond.include?("sdks/react-native/coproduct--release_created")
+    # On a push the tag comes from the output for this package, never another
+    tag_src = (s["env"] || {})["TAG"].to_s
+    problems << "the dispatch TAG does not name sdks/react-native/coproduct--tag_name" unless tag_src.include?("sdks/react-native/coproduct--tag_name")
     run = s["run"].to_s
     # publish.yml releases only on a tag ref, so the tag must be the ref and
     # never an input

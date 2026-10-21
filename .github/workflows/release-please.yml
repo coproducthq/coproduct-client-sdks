@@ -45,9 +45,10 @@ jobs:
           token: ${{ steps.token.outputs.token }}
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
-      # always() lets a release-please step that fails after tagging still
-      # start the publish run. The tag is the run's ref, never an input,
-      # because publish.yml releases only on a tag ref
+      # always() lets a release-please step that fails after reporting its
+      # release still start the publish run. If it fails before reporting, run
+      # this workflow by hand with the tag. The tag is the run's ref, never an
+      # input, because publish.yml releases only on a tag ref
       - name: Start publish.yml on the release tag
         if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || github.event_name == 'workflow_dispatch')
         env:
@@ -70,7 +71,7 @@ jobs:
           for attempt in 1 2 3; do
             if response=$(gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/publish.yml/dispatches" \
               -f ref="$TAG" -F return_run_details=true); then
-              url=$(jq -r '.html_url // empty' <<< "$response")
+              url=$(jq -r '.html_url // empty' <<< "$response" 2>/dev/null || true)
               if [ -z "$url" ]; then
                 echo "::error::The dispatch returned no run URL: $response"
                 exit 1
