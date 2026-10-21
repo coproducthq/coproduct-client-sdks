@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,4 +134,65 @@ test('CLI prints checks when the User-Agent line disagrees', () => {
   const out = runCli(repo({ userAgentVersion: '1.0.3' }));
   assert.match(out, /^mode=checks$/m);
   assert.doesNotMatch(out, /^version=/m);
+});
+
+test('rejects malformed squash suffixes on the subject', () => {
+  for (const tagCommitSubject of [
+    'chore(main): release react-native 1.1.0 (#23) extra',
+    'chore(main): release react-native 1.1.0 (#abc)',
+  ]) {
+    assert.equal(decide({ tagCommitSubject }).mode, 'checks', tagCommitSubject);
+  }
+});
+
+test('runs checks only for a branch even when its name looks like a tag', () => {
+  assert.equal(decide({ refType: 'branch', refName: 'react-native-v1.1.0' }).mode, 'checks');
+});
+
+test('runs checks only for tags that merely contain the pattern', () => {
+  for (const refName of ['xreact-native-v1.1.0', 'react-native-v1x1x0']) {
+    assert.equal(decide({ refName }).mode, 'checks', refName);
+  }
+});
+
+test('runs checks only for a ref name carrying a newline', () => {
+  assert.equal(decide({ refName: 'react-native-v1.1.0\nmode=release' }).mode, 'checks');
+});
+
+function cliEnv(overrides = {}) {
+  return {
+    ...process.env,
+    ACTOR_ID: BOT,
+    REF_TYPE: 'tag',
+    REF_NAME: 'react-native-v1.1.0',
+    RESOLVED_SHA: SHA,
+    RUN_SHA: SHA,
+    ...overrides,
+  };
+}
+
+test('CLI prints checks outside a git repository', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'release-mode-nogit-'));
+  const out = execFileSync('node', [CLI], { cwd: dir, encoding: 'utf8', env: cliEnv({ GIT_CEILING_DIRECTORIES: tmpdir() }) });
+  assert.match(out, /^mode=checks$/m);
+  assert.match(out, /^reason=/m);
+});
+
+test('CLI prints exactly one mode line for a hostile ref name', () => {
+  const { root, sha } = repo({ userAgentVersion: '1.1.0' });
+  const out = execFileSync('node', [CLI], {
+    cwd: root,
+    encoding: 'utf8',
+    env: cliEnv({ REF_NAME: 'react-native-v1.1.0\nmode=release', RESOLVED_SHA: sha, RUN_SHA: sha }),
+  });
+  assert.equal(out.match(/^mode=/gm).length, 1);
+  assert.match(out, /^mode=checks$/m);
+});
+
+test('CLI runs when invoked through a symlink', () => {
+  const { root, sha } = repo({ userAgentVersion: '1.1.0' });
+  const link = join(mkdtempSync(join(tmpdir(), 'release-mode-link-')), 'rm.mjs');
+  symlinkSync(CLI, link);
+  const out = execFileSync('node', [link], { cwd: root, encoding: 'utf8', env: cliEnv({ RESOLVED_SHA: sha, RUN_SHA: sha }) });
+  assert.match(out, /^mode=release$/m);
 });

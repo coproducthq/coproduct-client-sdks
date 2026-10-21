@@ -3,7 +3,7 @@
 // Only the release automation's own tag, on a release commit whose version
 // lines agree, may release. Everything else gets the checks and no publish
 import { execFileSync, spawnSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -49,26 +49,64 @@ export function decideMode({
   return { mode: 'release', version, reason: `release automation tagged ${version} on its release commit` };
 }
 
-function main() {
+// Values from the environment can carry newlines, and each output line is
+// read as a key=value pair, so control characters never reach stdout
+const clean = (text) => String(text).replace(/[\x00-\x1f\x7f]/g, ' ');
+
+function readSubject() {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%s'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function decideFromEnvironment() {
   const env = process.env;
-  const here = dirname(fileURLToPath(import.meta.url));
-  const identity = join(here, '..', 'identity', 'check.mjs');
-  const subject = execFileSync('git', ['log', '-1', '--format=%s'], { encoding: 'utf8' }).trim();
+  const identity = join(dirname(fileURLToPath(import.meta.url)), '..', 'identity', 'check.mjs');
   const identityOk =
     spawnSync('node', [identity, 'react-native'], { stdio: ['ignore', 2, 2] }).status === 0;
-  const { mode, version, reason } = decideMode({
+  return decideMode({
     actorId: env.ACTOR_ID,
     refType: env.REF_TYPE,
     refName: env.REF_NAME,
     resolvedSha: env.RESOLVED_SHA,
     runSha: env.RUN_SHA,
-    tagCommitSubject: subject,
+    tagCommitSubject: readSubject(),
     identityOk,
   });
-  console.log(`mode=${mode}`);
-  if (version) console.log(`version=${version}`);
-  console.log(`reason=${reason}`);
-  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `Run mode: ${mode}. ${reason}\n`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+// Any failure to decide means the run only checks, so it can never release
+function main() {
+  let decision;
+  try {
+    decision = decideFromEnvironment();
+  } catch (error) {
+    decision = { mode: 'checks', reason: `the mode could not be decided (${error.message}), so this run only checks` };
+  }
+  const { mode, version, reason } = decision;
+  console.log(`mode=${mode}`);
+  if (version) console.log(`version=${version}`);
+  console.log(`reason=${clean(reason)}`);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Run mode: ${mode}. ${clean(reason)}\n`);
+    } catch {
+      // The summary is a convenience, and the outputs above are what the workflow reads
+    }
+  }
+}
+
+function isMain() {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) main();
