@@ -264,9 +264,12 @@ Contributors need two things:
 Never:
 
 - edit a version, a marked version line, a tag, or a changelog by hand
-- run `npm publish`, `dart pub publish`, or `git tag`. The one exception is
-  the Flutter maintainer runbook in `DEVELOPMENT.md`, which publishes only
-  through `publish.sh` and tags only after pub.dev accepts
+- run `npm publish`, `dart pub publish`, or `git tag`
+
+Releases go through the automated release pipeline. Publishing or tagging by
+hand is only for an urgent or emergency release, following the maintainer
+runbook in `DEVELOPMENT.md`. Flutter is not on the automated pipeline, so every
+Flutter release follows its runbook there.
 
 The PR checks run on every PR, and every failure states its fix. Read a failing
 check's summary with `gh pr checks`. Running `scripts/release/check-all.sh`

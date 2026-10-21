@@ -342,32 +342,24 @@ README for the layout.
 | A pub.dev account with rights to publish `coproduct` | needed only at step 6, but it is the step where a first-time publisher discovers they lack them |
 | `gh` signed in (`gh auth status`) | steps 4, 7, and 8 use it |
 | Admin rights on the repository, or an admin on hand | step 7 pauses the tag ruleset |
+| A checkout where `main` is not checked out in another worktree | steps 3 and 4 switch to `main` |
 
 #### The release, end to end
 
-Every command below runs in **one shell**, in this order. The environment is set
-once and every later step depends on it, so do not start a new terminal
-part-way through.
+Every command runs from the repository root, in this order. Steps 0, 2, and 3
+write their settings to one environment file, and every later command starts by
+sourcing it, so the release works the same in one terminal or in a tool that
+starts a fresh shell per command.
 
-**0. Check the toolchains.** Every version the release pins, in one second,
-rather than discovering a missing one part-way through a half-hour run:
-
-```bash
-scripts/release/flutter/preflight.sh
-```
-
-Each failure names the command that fixes it. `llvm-tools` is the one worth
-front-loading: it is a separate `rustup` component and the first thing that
-needs it is the symbol check, which runs only after every architecture has
-finished compiling.
-
-**1. Set the environment.** Name scratch paths that do not exist yet: the
+**0. Set the environment.** Name scratch paths that do not exist yet: the
 scripts create and mark their own space and refuse a directory they did not
 create, because staging deletes and rewrites the path it is given. Reusing paths
-from a previous run is fine — they carry the marker.
+from a previous run is fine, because they carry the marker. Adjust the Android
+and Java paths to your machine. Step 1 confirms each one.
 
 ```bash
-export COPRODUCT_RELEASE_ROOT="${TMPDIR:-/tmp}/coproduct-release"
+cat > "$HOME/.coproduct-release.env" <<'EOF'
+export COPRODUCT_RELEASE_ROOT="$HOME/.coproduct-release"
 export COPRODUCT_RELEASE_OUT="$COPRODUCT_RELEASE_ROOT/out"
 export COPRODUCT_RELEASE_STAGE="$COPRODUCT_RELEASE_ROOT/stage/pkg"
 export COPRODUCT_FLUTTER_ARCHIVE_DIR="$COPRODUCT_RELEASE_ROOT/archive"
@@ -376,37 +368,47 @@ export COPRODUCT_RELEASE_LOG="$COPRODUCT_RELEASE_ROOT.log"
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/27.1.12297006"
 export ANDROID_HOME="$HOME/Library/Android/sdk"
 export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
+EOF
+source "$HOME/.coproduct-release.env"
 ```
 
-`ANDROID_HOME` and `JAVA_HOME` are gated by the Android consumer-test script,
-which the gate matrix reaches about twenty minutes into a run, after six
-architectures have already been built.
+Start every later command with `source "$HOME/.coproduct-release.env"` if your
+shell does not keep it.
+
+**1. Check the toolchains.** Every version the release pins, in one second,
+rather than discovering a missing one part-way through a half-hour run:
+
+```bash
+scripts/release/flutter/preflight.sh
+```
+
+Done when the last line is `COPRODUCT_FLUTTER_PREFLIGHT_STATUS pass=true`. Each
+failure names the command that fixes it. `llvm-tools` is the one worth
+front-loading: it is a separate `rustup` component, and the first thing that
+needs it is the symbol check, which runs only after every architecture has
+finished compiling.
 
 **2. Boot one iOS simulator and one Android emulator.** The gates consume an
 already-booted device and neither boot nor provision one.
 
 ```bash
-# Boot the first available iPhone simulator, if none is booted already
 xcrun simctl list devices booted | grep -q Booted || xcrun simctl boot "$(
-  xcrun simctl list devices available | awk -F'[()]' '/iPhone/{print $2; exit}')"
+  xcrun simctl list devices available | grep iPhone | grep -oE '[0-9A-F-]{36}' | head -1)"
+IOS_DEVICE="$(xcrun simctl list devices booted | grep -oE '[0-9A-F-]{36}' | head -1)"
+xcrun simctl bootstatus "$IOS_DEVICE" -b
 
-# Start the first AVD, if no emulator is attached already
-adb devices | awk 'NR==2' | grep -q emulator || \
-  "$HOME/Library/Android/sdk/emulator/emulator" \
-    -avd "$("$HOME/Library/Android/sdk/emulator/emulator" -list-avds | head -1)" \
-    -no-snapshot-load >/dev/null 2>&1 &
+adb devices | grep -q '^emulator-' || nohup "$ANDROID_HOME/emulator/emulator" \
+  -avd "$("$ANDROID_HOME/emulator/emulator" -list-avds | head -1)" \
+  -no-snapshot-load >/dev/null 2>&1 &
+adb wait-for-device shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 2; done'
+ANDROID_DEVICE="$(adb devices | awk '/^emulator-.*device$/{print $1; exit}')"
 
-# Both must print a value before continuing
-export COPRODUCT_ACCEPTANCE_IOS_DEVICE="$(
-  xcrun simctl list devices booted | awk -F'[()]' '/Booted/{print $2; exit}')"
-export COPRODUCT_ACCEPTANCE_ANDROID_DEVICE="$(adb devices | awk 'NR==2{print $1}')"
-echo "ios=$COPRODUCT_ACCEPTANCE_IOS_DEVICE android=$COPRODUCT_ACCEPTANCE_ANDROID_DEVICE"
+echo "export COPRODUCT_ACCEPTANCE_IOS_DEVICE=$IOS_DEVICE" >> "$HOME/.coproduct-release.env"
+echo "export COPRODUCT_ACCEPTANCE_ANDROID_DEVICE=$ANDROID_DEVICE" >> "$HOME/.coproduct-release.env"
+echo "ios=$IOS_DEVICE android=$ANDROID_DEVICE"
 ```
 
-The emulator takes a minute to appear in `adb devices`; re-run the two `export`
-lines until both print a value.
-
-Both must be non-empty before continuing. A missing one fails at its guard
+Done when the last line prints both ids. A missing one fails at its guard
 rather than part-way through a long run.
 
 **3. Prepare the version.** `prepare_release.dart` moves the pubspec version,
@@ -422,9 +424,14 @@ Set the version once and use it for both preparation and the tag, so the two
 cannot drift apart. Prepare it on a release branch cut from an up-to-date
 `main`, so the CHANGELOG it promotes is current:
 
+Replace `1.2.0` with the version being released:
+
 ```bash
-export COPRODUCT_RELEASE_VERSION=1.2.0   # replace with the version being released
-export COPRODUCT_RELEASE_DATE="$(date +%F)"
+cat >> "$HOME/.coproduct-release.env" <<EOF
+export COPRODUCT_RELEASE_VERSION=1.2.0
+export COPRODUCT_RELEASE_DATE=$(date +%F)
+EOF
+source "$HOME/.coproduct-release.env"
 
 git switch main && git pull --ff-only
 git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
@@ -460,11 +467,13 @@ git commit -am "chore(flutter): release $COPRODUCT_RELEASE_VERSION"
 git push -u origin HEAD
 gh pr create --title "chore(flutter): release $COPRODUCT_RELEASE_VERSION" \
   --body "Moves the Flutter SDK's version lines to $COPRODUCT_RELEASE_VERSION."
-sleep 15 && gh pr checks --watch
+gh pr checks --watch
 ```
 
-If `gh pr checks` reports no checks, the workflow has not registered yet, so run
-it again. Merge when "All checks passed" is green. Merges squash, and the squash
+If `gh pr checks` reports no checks, the workflow has not registered yet, so wait
+a few seconds and run it again. A tool that cannot wait on a long command runs
+`gh pr checks` without `--watch` until every check reports. Merge when every
+check passes. Merges squash, and the squash
 creates a new commit, so run the pipeline only after switching to the merged
 `main`:
 
@@ -489,6 +498,11 @@ of it the gate matrix building both platforms on two Flutter toolchains.
 ```bash
 scripts/release/flutter/measure.sh
 ```
+
+Done when the log ends with `COPRODUCT_FLUTTER_MEASURE_STATUS pass=true`. A tool
+that cannot hold a command open for half an hour runs it detached,
+`nohup scripts/release/flutter/measure.sh >/dev/null 2>&1 &`, and reads progress
+with `grep 'STATUS pass=' "$COPRODUCT_RELEASE_LOG"`.
 
 `COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES` overrides the acceptance budget, which
 spans the Gradle build as well as the device run. The default is 8. The no-Rust
@@ -534,8 +548,9 @@ shows how far it got.
 | Both platforms, both toolchains | `gates/gate-suite.sh` | `COPRODUCT_FLUTTER_GATE_SUITE_STATUS` |
 | Prove the gates fail | `gates/mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
 | Re-verify the seal | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
+| The whole run, timed | `measure.sh` | `COPRODUCT_FLUTTER_MEASURE_STATUS` |
 
-**6. Publish.** Only through the wrapper, in the same shell:
+**6. Publish.** Only through the wrapper:
 
 ```bash
 scripts/release/flutter/publish.sh
@@ -549,9 +564,11 @@ build output, so pub omits them and offers a ~91 KB archive with no
 warning the real release carries. pub.dev accepts it, every consumer fails at
 load. A published version can never be replaced. Within seven days it may be retracted to prevent new resolutions, but retraction does not delete it and existing lockfiles can continue using it.
 
-The wrapper re-verifies the seal, changes into the staged package, and publishes
-that. It stays interactive, so pub still prompts for confirmation and for
-authentication.
+The wrapper re-verifies the seal (`COPRODUCT_FLUTTER_SEAL_VERIFY_STATUS
+pass=true`), changes into the staged package, and publishes it. pub asks for a
+y/N confirmation, and `publish.sh --force` answers it for a tool that cannot. A
+first publication from a machine opens a browser sign-in that only a person can
+complete. Done when pub reports the upload succeeded.
 
 **Authentication.** If you have never published from this machine, pub opens a
 browser for a Google sign-in and stores the result in
@@ -576,6 +593,9 @@ git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
 gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
 gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
 ```
+
+If any command between the two `PUT`s fails, still run the `enforcement=active`
+`PUT` and the check before stopping, so the tags stay protected.
 
 If the push is rejected, delete the local tag with
 `git tag -d "flutter-v$COPRODUCT_RELEASE_VERSION"` before retrying.
@@ -619,6 +639,8 @@ from its own repository, tagged `1.0.0`. This repository still gets an
 | Transferring the package to the verified publisher | human, and it cannot be undone |
 | 7, 8 — the tag and the GitHub Release | human, and the ruleset change needs an admin |
 
+A row marked human needs a person to run it, or to approve an agent running it.
+
 Dart cannot publish a new package directly to a verified publisher, which is why
 the first publication and the transfer are both manual.
 
@@ -660,11 +682,11 @@ applies to such an app.
 The gates are built so a failure names its own cause; read the status line that
 is missing rather than the last line of output. A failing gate-matrix step
 prints its last five lines and the path to its full log, one file per step under
-`/tmp/gate-suite-*.log`. Two failures are procedural
-rather than defects, and both are common:
+`/tmp/gate-suite-*.log`. Three failures are procedural rather than defects:
 
-- **"the release must start from a clean checkout"** or **"the binaries were
-  built at X but HEAD is Y"** — fix it on a branch, merge it through a PR, then
+- **"the release must start from a clean checkout"**, **"the binaries were built
+  at X but HEAD is Y"**, or, at publish, **"this stage was built from X but HEAD
+  is now Y"** — fix it on a branch, merge it through a PR, then
   `git switch main && git pull --ff-only` and rerun. The pipeline describes
   exactly one commit, and it must be the one on `main`.
 - **A gate that is slow or hangs** — check the machine before the code:
