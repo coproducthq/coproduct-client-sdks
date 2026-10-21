@@ -6,7 +6,7 @@ An optional feature of the `@coproduct/react-native-sdk` package — the same `y
 import { CoproductPaywall } from '@coproduct/react-native-sdk/paywall';
 ```
 
-**iOS only for now.** Android (Google Play Billing) is `react-native-iap`'s to support later; this feature does not implement or test it yet.
+Purchases on iOS go through StoreKit2 and on Android through Google Play Billing, both via `react-native-iap`.
 
 ## Prerequisites
 
