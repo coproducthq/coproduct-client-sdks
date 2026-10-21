@@ -13,13 +13,13 @@ for wf in .github/workflows/publish.yml; do
   fi
   if [ -z "$missing" ]; then echo "ok   $wf: every job has timeout-minutes"; else echo "FAIL $wf: no timeout-minutes on: $missing"; fails=$((fails + 1)); fi
 done
-# Every job that checks out code for the build uses the one commit the resolve
+# Every job that checks out code uses the one commit the resolve
 # job recorded, so a run never mixes two commits
 wf=.github/workflows/publish.yml
 if ! unpinned=$(ruby -ryaml -e '
   wf = YAML.load_file(ARGV[0])
   wf["jobs"].each do |name, job|
-    next if %w[resolve summary].include?(name)
+    next if name == "resolve"
     (job["steps"] || []).each do |step|
       next unless step["uses"].to_s.start_with?("actions/checkout@")
       pinned = step.dig("with", "ref") == "${{ needs.resolve.outputs.sha }}"
@@ -35,5 +35,53 @@ elif [ -z "$unpinned" ]; then
 else
   echo "FAIL $wf: checkouts not pinned to the resolved commit in: $unpinned"; fails=$((fails + 1))
 fi
+
+# Release mode: only the publish job holds the npm environment and the OIDC
+# token, it always publishes with provenance, the jobs that write to GitHub
+# wait on the release environment, and every release job runs only when the
+# mode job says so. The summary job must never wait on an approval
+if ! release=$(ruby -ryaml -e '
+  wf = YAML.load_file(ARGV[0])
+  jobs = wf["jobs"]
+  env = ->(job) { e = job["environment"]; e.is_a?(Hash) ? e["name"] : e }
+  problems = []
+  %w[publish confirm finish-release docs mark-not-published summary].each do |name|
+    problems << "#{name} is missing" unless jobs.key?(name)
+  end
+  if (pub = jobs["publish"])
+    problems << "publish has no environment: npm" unless env.(pub) == "npm"
+    problems << "publish has no id-token: write" unless (pub["permissions"] || {})["id-token"] == "write"
+    lines = (pub["steps"] || []).flat_map { |s| s["run"].to_s.lines }.select { |l| l =~ /\bnpm publish\b/ }
+    problems << "publish runs no npm publish" if lines.empty?
+    lines.each { |l| problems << "publish runs npm publish without --provenance" unless l.include?("--provenance") }
+  end
+  %w[finish-release docs mark-not-published].each do |name|
+    next unless jobs[name]
+    problems << "#{name} has no environment: release" unless env.(jobs[name]) == "release"
+  end
+  %w[publish confirm finish-release docs].each do |name|
+    next unless jobs[name]
+    problems << "#{name} has no if naming needs.mode.outputs.mode" unless jobs[name]["if"].to_s.include?("needs.mode.outputs.mode")
+  end
+  problems << "summary declares an environment" if jobs["summary"]&.key?("environment")
+  puts problems
+' "$wf" 2>&1); then
+  echo "FAIL $wf: could not parse: $release"; fails=$((fails + 1))
+elif [ -z "$release" ]; then
+  echo "ok   $wf: release jobs hold the right environments, permissions, and mode gates"
+else
+  while IFS= read -r line; do echo "FAIL $wf: $line"; done <<< "$release"
+  fails=$((fails + 1))
+fi
+
+# github.triggering_actor changes when someone re-runs a job, so the release
+# decision reads github.actor_id, which stays the original dispatcher
+for f in .github/workflows/*.yml; do
+  if grep -n -F 'triggering_actor' "$f"; then
+    echo "FAIL $f: uses github.triggering_actor"; fails=$((fails + 1))
+  else
+    echo "ok   $f: never reads github.triggering_actor"
+  fi
+done
 
 [ "$fails" -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
