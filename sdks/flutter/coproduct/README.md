@@ -840,6 +840,16 @@ arrives and rules that use it start matching a moment later, or the device has
 no value for it, such as `device_type` on a television or a Chromebook, in
 which case it stays unset. These lines appear in debug builds only.
 
+**`initialize` fails on iOS with `Failed to load dynamic library
+'CoproductFFI.framework/CoproductFFI'`.** The app does not contain the SDK's
+native framework. This happens in an existing iOS app that embeds a Flutter
+module built with `flutter build ios-framework` on Flutter 3.38 or 3.41,
+because those releases do not copy the framework into the output. Embed
+`CoproductFFI.xcframework` from the package's `ios/` directory in your host app
+alongside the other frameworks, with **Embed & Sign**, or build the module
+with Flutter 3.44 or later, which copies it for you. Apps that add the module
+through CocoaPods, and ordinary Flutter apps, embed it automatically.
+
 ## Example app
 
 [`example/lib/main.dart`](example/lib/main.dart) is a complete integration. It
