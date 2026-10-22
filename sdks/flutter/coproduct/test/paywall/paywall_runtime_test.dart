@@ -24,7 +24,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   });
 
   @override
-  Future<String> priceFor(String productId) async {
+  Future<String> priceFor(String productId, PackageKind kind) async {
     if (productIdsThatThrow.contains(productId)) {
       throw Exception('STOREKIT_ERROR: unknown product $productId');
     }
@@ -34,7 +34,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   }
 
   @override
-  Future<PurchaseResult> purchase(String productId) async {
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
     purchaseCalls.add(productId);
     return nextPurchaseResult;
   }
