@@ -1,3 +1,26 @@
+## 1.2.0 - 2026-10-21
+
+The iOS native library now ships as a dynamic framework,
+`CoproductFFI.framework`, in place of static archives. Nothing changes in your
+code.
+
+- **Smaller package.** The package download drops from about 30 MB to about
+  2 MB. A release iOS app built from the default Flutter template is also
+  about 3.5 MB smaller, because the app now carries only the native code the
+  SDK uses.
+- **Fixes `Coproduct.initialize` failing on iOS when your Podfile uses
+  `use_frameworks! :linkage => :static`.** The app built, but the native
+  library never reached it, so `initialize` failed at runtime with a symbol
+  lookup error. The SDK now loads with every CocoaPods linkage setting.
+- **Privacy manifests.** The framework carries its own privacy manifest for
+  the file timestamp reads its cache makes, alongside the plugin's manifest
+  for its UserDefaults use. Your app needs no changes.
+- **Add-to-app on Flutter earlier than 3.44.** If you embed a Flutter module
+  in an existing iOS app with `flutter build ios-framework`, Flutter 3.38 and
+  3.41 do not copy the SDK's framework into the output. See
+  [Troubleshooting](README.md#troubleshooting). Flutter 3.44 and later copy
+  it automatically.
+
 ## 1.1.0 - 2026-10-20
 
 Onboarding and paywall, previously separate unpublished packages

@@ -1,5 +1,5 @@
 PODS:
-  - coproduct (1.1.0):
+  - coproduct (1.2.0):
     - Flutter
   - Flutter (1.0.0)
 
@@ -14,7 +14,7 @@ EXTERNAL SOURCES:
     :path: Flutter
 
 SPEC CHECKSUMS:
-  coproduct: 1be47937d162705bcbf5ce50bdfaf4c496131bf8
+  coproduct: 2628091c642be4ac381cf76e4ff60f6afa9228b9
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
 
 PODFILE CHECKSUM: f00001f8834ad5e0c1cdd2f86183444b10c28390

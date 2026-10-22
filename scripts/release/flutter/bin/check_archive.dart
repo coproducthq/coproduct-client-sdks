@@ -12,7 +12,7 @@ import '../lib/pub_file_list.dart';
 
 /// The exact number of files pub publishes. See the assertion below for why a
 /// count earns its keep next to the membership allowlist.
-const _expectedFileCount = 190;
+const _expectedFileCount = 193;
 
 const _maxCompressedMb = 35;
 const _maxUncompressedMb = 115;
@@ -53,11 +53,14 @@ const _platformExact = <String>[
   'ios/Classes/SessionStore.swift',
   'ios/Classes/dummy_file.c',
   'ios/CoproductFFI.xcframework/Info.plist',
-  'ios/CoproductFFI.xcframework/ios-arm64/libcoproduct_ffi_frb.a',
-  'ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a',
+  'ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework/CoproductFFI',
+  'ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework/Info.plist',
+  'ios/CoproductFFI.xcframework/ios-arm64/CoproductFFI.framework/PrivacyInfo.xcprivacy',
+  'ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/CoproductFFI',
+  'ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/Info.plist',
+  'ios/CoproductFFI.xcframework/ios-arm64_x86_64-simulator/CoproductFFI.framework/PrivacyInfo.xcprivacy',
   'ios/Resources/PrivacyInfo.xcprivacy',
   'ios/coproduct.podspec',
-  'ios/stage_prebuilt.sh',
   'android/build.gradle',
   'android/settings.gradle',
   'android/src/main/AndroidManifest.xml',
@@ -71,6 +74,11 @@ const _platformExact = <String>[
   'android/src/main/kotlin/app/coproduct/flutter/NetworkTypeObserver.kt',
   'android/src/main/kotlin/app/coproduct/flutter/SessionStore.kt',
 ];
+
+/// Whether a [_platformExact] entry is a compiled library: an Android shared
+/// object, or the binary inside an iOS framework slice, which has no extension.
+bool _isNativeBinary(String p) =>
+    p.endsWith('.so') || p.endsWith('.framework/CoproductFFI');
 
 /// Roots whose contents are governed entirely by [_platformExact].
 const _exactRoots = <String>['ios/', 'android/'];
@@ -217,9 +225,7 @@ void main(List<String> args) {
   } else {
     final stamp = jsonDecode(stampFile.readAsStringSync()) as Map<String, dynamic>;
     final artifacts = (stamp['artifacts'] as Map<String, dynamic>).cast<String, String>();
-    final stagedNativeRels = _platformExact
-        .where((p) => p.endsWith('.a') || p.endsWith('.so'))
-        .toList();
+    final stagedNativeRels = _platformExact.where(_isNativeBinary).toList();
     final covered = <String>{};
     for (final entry in artifacts.entries) {
       final matches =
@@ -308,9 +314,9 @@ void main(List<String> args) {
 
   final stagedNatives = <String>[
     for (final p in _platformExact)
-      if (p.endsWith('.a') || p.endsWith('.so')) '$stage/$p'
+      if (_isNativeBinary(p)) '$stage/$p'
   ];
-  final machO = stagedNatives.where((p) => p.endsWith('.a')).toList();
+  final machO = stagedNatives.where((p) => !p.endsWith('.so')).toList();
   final elf = stagedNatives.where((p) => p.endsWith('.so')).toList();
   final checker = '$repoRoot/scripts/audit/frb-symbol-check.sh';
   for (final group in [

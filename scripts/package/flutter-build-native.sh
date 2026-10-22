@@ -54,9 +54,9 @@ build_ios() {
     cargo build -p coproduct_ffi_frb --target aarch64-apple-ios-sim
     cargo build -p coproduct_ffi_frb --target x86_64-apple-ios
 
-    local dev_lib="$target_dir/aarch64-apple-ios/debug/libcoproduct_ffi_frb.a"
-    local sim_arm="$target_dir/aarch64-apple-ios-sim/debug/libcoproduct_ffi_frb.a"
-    local sim_x86="$target_dir/x86_64-apple-ios/debug/libcoproduct_ffi_frb.a"
+    local dev_lib="$target_dir/aarch64-apple-ios/debug/libcoproduct_ffi_frb.dylib"
+    local sim_arm="$target_dir/aarch64-apple-ios-sim/debug/libcoproduct_ffi_frb.dylib"
+    local sim_x86="$target_dir/x86_64-apple-ios/debug/libcoproduct_ffi_frb.dylib"
     for lib in "$dev_lib" "$sim_arm" "$sim_x86"; do
         if [[ ! -f "$lib" ]]; then
             echo "ERROR: expected $lib after the cargo build" >&2
@@ -64,30 +64,10 @@ build_ios() {
         fi
     done
 
-    local xcf="$FLUTTER/ios/CoproductFFI.xcframework"
-    rm -rf "$xcf"
-    # The simulator architectures are combined before assembly, matching what the
-    # release pipeline ships. A thin simulator slice here would leave the
-    # maintainer loop unable to reproduce a consuming app's simulator build
-    # The basename is the one the slice will carry, so it must be final here
-    local sim_dir sim_fat
-    sim_dir="$(mktemp -d)"
-    sim_fat="$sim_dir/libcoproduct_ffi_frb.a"
-    lipo -create "$sim_arm" "$sim_x86" -output "$sim_fat"
-    xcodebuild -create-xcframework \
-        -library "$dev_lib" \
-        -library "$sim_fat" \
-        -output "$xcf"
-    rm -rf "$sim_dir"
-
-    # stage_prebuilt.sh selects slices by these exact directory names, which
-    # xcodebuild derives from each library's platform and architectures
-    local dev="$xcf/ios-arm64/libcoproduct_ffi_frb.a"
-    local sim="$xcf/ios-arm64_x86_64-simulator/libcoproduct_ffi_frb.a"
-    if [[ ! -f "$dev" || ! -f "$sim" ]]; then
-        echo "ERROR: expected both xcframework slices ios-arm64 and ios-arm64_x86_64-simulator after assembly" >&2
-        exit 1
-    fi
+    # The same assembly the release pipeline uses, so the maintainer loop
+    # reproduces the framework layout a consuming app embeds
+    "$ROOT/scripts/package/flutter-ios-xcframework.sh" \
+        "$dev_lib" "$sim_arm" "$sim_x86" "$FLUTTER/ios/CoproductFFI.xcframework"
     echo "built ios xcframework: ios-arm64 and ios-arm64_x86_64-simulator"
 }
 

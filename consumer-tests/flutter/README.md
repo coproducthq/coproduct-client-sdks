@@ -33,7 +33,7 @@ flutter run -d <udid> --dart-define=COPRODUCT_SDK_KEY=<key>
 
 - A consumer with no Rust toolchain builds and runs against the packaged SDK, on both platforms.
 - A consumer with modern transitives (`androidx.fragment:fragment:1.7.1` etc.) builds against the SDK's `compileSdkVersion 36`.
-- Apple's `ExternalLibrary.process(iKnowHowToUseIt: true)` loader works in a non-workspace consumer where the podspec force-loads the prebuilt static `.a` into the host app.
+- On iOS, `ExternalLibrary.open('CoproductFFI.framework/CoproductFFI')` finds the dynamic framework the podspec vendors, once CocoaPods has embedded it in a non-workspace consumer.
 
 ## Verifying green
 
