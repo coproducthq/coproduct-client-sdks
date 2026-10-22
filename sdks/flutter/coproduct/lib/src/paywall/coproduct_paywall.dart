@@ -1,5 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -123,6 +124,7 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       bridge: bridge,
       client: client,
       appUserId: widget.appUserId,
+      platform: Platform.isAndroid ? 'ANDROID' : 'IOS',
       setPrices: (prices) async {
         try {
           await _controller?.runJavaScript(
