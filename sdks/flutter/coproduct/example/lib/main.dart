@@ -32,13 +32,21 @@ class _DemoPaywallClient implements PaywallClient {
   // PaywallSnapshot.html and content.html are meant to carry the identical
   // string (see PaywallSnapshot's own doc comment) -- sharing one constant
   // here keeps that in sync instead of risking the WebView loading a blank
-  // body while content.html still lists ctas that never render
+  // body while content.html still lists ctas that never render.
+  //
+  // The attribute names below (data-cp-action/data-package-key/
+  // data-cp-price-for) are what paywall-platform-script.js actually binds
+  // click handlers to -- confirmed against the real paywall HTML a
+  // production paywall snapshot serves. An earlier version of this demo
+  // used invented names (data-cp-cta/data-cp-restore/data-cp-dismiss) that
+  // the script's click delegation never matches, so every button silently
+  // did nothing; verified live on a device that every button here does.
   static const String _html = '''
 <section>
   <h1>Coproduct demo paywall</h1>
-  <button data-cp-cta="test">Buy <span data-cp-price="test"></span></button>
-  <button data-cp-restore>Restore</button>
-  <button data-cp-dismiss>Close</button>
+  <button data-cp-action="purchase" data-package-key="test">Buy <span data-cp-price-for="test"></span></button>
+  <button data-cp-action="restore">Restore</button>
+  <button data-cp-action="dismiss">Close</button>
 </section>
 ''';
 
