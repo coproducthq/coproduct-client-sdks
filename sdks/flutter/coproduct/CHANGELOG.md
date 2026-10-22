@@ -1,4 +1,4 @@
-## Unreleased
+## 1.2.0 - 2026-10-21
 
 The iOS native library now ships as a dynamic framework,
 `CoproductFFI.framework`, in place of static archives. Nothing changes in your
