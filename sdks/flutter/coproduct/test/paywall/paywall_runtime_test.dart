@@ -12,7 +12,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   final Set<String> productIdsThatThrow;
   PurchaseResult nextPurchaseResult;
   List<RestoredTransaction> restoredTransactions;
-  final List<String> purchaseCalls = [];
+  final List<(String, PackageKind)> purchaseCalls = [];
 
   FakeNativePaywallBridge({
     this.pricesByProductId = const {},
@@ -24,7 +24,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   });
 
   @override
-  Future<String> priceFor(String productId) async {
+  Future<String> priceFor(String productId, PackageKind kind) async {
     if (productIdsThatThrow.contains(productId)) {
       throw Exception('STOREKIT_ERROR: unknown product $productId');
     }
@@ -34,8 +34,8 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   }
 
   @override
-  Future<PurchaseResult> purchase(String productId) async {
-    purchaseCalls.add(productId);
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
+    purchaseCalls.add((productId, kind));
     return nextPurchaseResult;
   }
 
@@ -135,6 +135,39 @@ void main() {
       );
 
       expect(capturedPrices, {'monthly': '\$9.99/mo'});
+    },
+  );
+
+  test(
+    'onSnapshotLoaded resolves the androidProductId and kind when platform is ANDROID',
+    () async {
+      final bridge = FakeNativePaywallBridge(
+        pricesByProductId: {'premium_monthly_android': '₹799/mo'},
+      );
+      final client = FakePaywallClient();
+      Map<String, String>? capturedPrices;
+      final runtime = PaywallRuntime(
+        bridge: bridge,
+        client: client,
+        appUserId: 'user-1',
+        platform: 'ANDROID',
+        setPrices: (prices) async {
+          capturedPrices = prices;
+        },
+      );
+
+      await runtime.onSnapshotLoaded(
+        buildSnapshot(
+          packages: {
+            'monthly': const PaywallPackageRef(
+              iosProductId: 'premium_monthly',
+              androidProductId: 'premium_monthly_android',
+            ),
+          },
+        ),
+      );
+
+      expect(capturedPrices, {'monthly': '₹799/mo'});
     },
   );
 
@@ -241,12 +274,48 @@ void main() {
       );
 
       expect(decision, PaywallNavigationDecision.prevent);
-      expect(bridge.purchaseCalls, ['premium_monthly']);
+      expect(bridge.purchaseCalls, [
+        ('premium_monthly', PackageKind.subscription),
+      ]);
       expect(client.recordedTransactionIds, ['tx-1']);
       expect(capturedResult?.outcome, PurchaseOutcome.success);
       expect(capturedEntitlements?.single.entitlementId, 'premium');
     },
   );
+
+  test('a purchase tap threads the resolved kind to bridge.purchase', () async {
+    final bridge = FakeNativePaywallBridge(
+      nextPurchaseResult: PurchaseResult(
+        outcome: PurchaseOutcome.success,
+        transactionId: 'tx-1',
+        productId: 'coins_100',
+        purchaseDate: DateTime.utc(2026, 1, 1),
+      ),
+    );
+    final client = FakePaywallClient();
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: client,
+      appUserId: 'user-1',
+      setPrices: (_) async {},
+    );
+    await runtime.onSnapshotLoaded(
+      buildSnapshot(
+        packages: {
+          'coins': const PaywallPackageRef(
+            iosProductId: 'coins_100',
+            kind: PackageKind.consumable,
+          ),
+        },
+      ),
+    );
+
+    await runtime.handleNavigationRequest(
+      'coproduct-action:purchase?packageKey=coins',
+    );
+
+    expect(bridge.purchaseCalls, [('coins_100', PackageKind.consumable)]);
+  });
 
   test(
     'a purchase tap for an unresolved packageKey reports unresolvedProduct without calling native',

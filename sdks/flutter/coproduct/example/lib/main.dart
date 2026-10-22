@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 import 'dart:developer' as developer;
 
 import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/paywall.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -21,6 +22,82 @@ const String _intFlag = 'max-items';
 const String _numberFlag = 'ratio';
 const String _jsonFlag = 'theme';
 
+/// A paywall demo with no real backend: fetchPaywall returns a fixed
+/// snapshot whose one package is Google's static test product id
+/// (android.test.purchased), which the Play Store app resolves specially
+/// for any installed app with no Play Console configuration needed.
+/// recordPurchase/getEntitlements just log, matching this demo's
+/// bridge-level verification goal rather than a backend integration test.
+class _DemoPaywallClient implements PaywallClient {
+  // PaywallSnapshot.html and content.html are meant to carry the identical
+  // string (see PaywallSnapshot's own doc comment) -- sharing one constant
+  // here keeps that in sync instead of risking the WebView loading a blank
+  // body while content.html still lists ctas that never render.
+  //
+  // The attribute names below (data-cp-action/data-package-key/
+  // data-cp-price-for) are what paywall-platform-script.js actually binds
+  // click handlers to -- confirmed against the real paywall HTML a
+  // production paywall snapshot serves. An earlier version of this demo
+  // used invented names (data-cp-cta/data-cp-restore/data-cp-dismiss) that
+  // the script's click delegation never matches, so every button silently
+  // did nothing; verified live on a device that every button here does.
+  static const String _html = '''
+<section>
+  <h1>Coproduct demo paywall</h1>
+  <button data-cp-action="purchase" data-package-key="test">Buy <span data-cp-price-for="test"></span></button>
+  <button data-cp-action="restore">Restore</button>
+  <button data-cp-action="dismiss">Close</button>
+</section>
+''';
+
+  @override
+  Future<PaywallSnapshot?> fetchPaywall(String paywallId) async {
+    return const PaywallSnapshot(
+      paywallId: 'demo',
+      version: 1,
+      templateType: 'hero_single_offer',
+      content: PaywallContent(
+        offeringKey: 'default',
+        ctas: [PaywallCta(packageKey: 'test', label: 'Buy (test)')],
+        html: _html,
+      ),
+      packages: {
+        'test': PaywallPackageRef(
+          androidProductId: 'android.test.purchased',
+          kind: PackageKind.consumable,
+        ),
+      },
+      html: _html,
+    );
+  }
+
+  @override
+  Future<List<Entitlement>> recordPurchase({
+    required String appUserId,
+    required String platform,
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+  }) async {
+    developer.log(
+      'COPRODUCT_FLUTTER_DEMO_PAYWALL_PURCHASE_RECORDED '
+      'platform=$platform storeProductId=$storeProductId',
+      name: 'coproduct',
+    );
+    return const [];
+  }
+
+  @override
+  Future<List<Entitlement>> getEntitlements(String appUserId) async => const [];
+
+  @override
+  Future<void> identify({
+    required String appUserId,
+    required String targetingKey,
+  }) async {}
+}
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key, this.sdkKey = _sdkKey});
 
@@ -36,6 +113,10 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   CoproductClient? client;
   bool ready = false;
+  // Loaded once up front, alongside client/ready, so the paywall demo button
+  // never needs to await anything itself -- null until loaded, and stays
+  // null (disabling the button) if loading the bundled asset ever fails
+  String? _paywallScript;
 
   @override
   void initState() {
@@ -64,10 +145,26 @@ class _MyAppState extends State<MyApp> {
       return;
     }
 
+    // Loaded here, not lazily from the button, so opening the demo paywall
+    // never has to await anything itself. A failure here only disables that
+    // one button -- it's unrelated to the SDK's own readiness
+    String? paywallScript;
+    try {
+      paywallScript = await CoproductPaywall.loadPlatformScript();
+    } catch (error, stack) {
+      developer.log(
+        'COPRODUCT_FLUTTER_DEMO_PAYWALL_SCRIPT_ERROR',
+        name: 'coproduct',
+        error: error,
+        stackTrace: stack,
+      );
+    }
+
     if (!mounted) return;
     setState(() {
       client = c;
       ready = true;
+      _paywallScript = paywallScript;
     });
 
     developer.log(
@@ -115,7 +212,13 @@ class _MyAppState extends State<MyApp> {
         // instead, which the README shows
         body: c == null
             ? const Center(child: Text('SDK ready: no'))
-            : CoproductScope(client: c, child: const _FlagDemo()),
+            : CoproductScope(
+                client: c,
+                child: _FlagDemo(
+                  sdkKey: widget.sdkKey,
+                  paywallScript: _paywallScript,
+                ),
+              ),
       ),
     );
   }
@@ -161,7 +264,13 @@ class _MissingKey extends StatelessWidget {
 
 /// Everything below the scope reads flags without being handed the client
 class _FlagDemo extends StatelessWidget {
-  const _FlagDemo();
+  const _FlagDemo({required this.sdkKey, required this.paywallScript});
+
+  final String sdkKey;
+
+  /// Null until `_bootstrap` loads it (or if loading it ever fails), which
+  /// disables the paywall button below rather than crashing it
+  final String? paywallScript;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +393,36 @@ class _FlagDemo extends StatelessWidget {
                 child: const Text('sign out'),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+
+          // Exercises the real MethodChannelPaywallBridge against the real
+          // CoproductPaywallPlugin.kt (no bridge override), using Google's
+          // static test product id -- see the manual verification steps in
+          // this task's plan for what a tap through this actually confirms
+          const Text('Paywall', style: TextStyle(fontWeight: FontWeight.bold)),
+          ElevatedButton(
+            onPressed: paywallScript == null
+                ? null
+                : () {
+                    final script = paywallScript!;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (routeContext) => Scaffold(
+                          appBar: AppBar(title: const Text('Demo paywall')),
+                          body: CoproductPaywall(
+                            paywallId: 'demo',
+                            appUserId: 'demo-user',
+                            sdkKey: sdkKey,
+                            platformScriptJs: script,
+                            client: _DemoPaywallClient(),
+                            onDismiss: () => Navigator.of(routeContext).pop(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+            child: const Text('Open demo paywall'),
           ),
         ],
       ),

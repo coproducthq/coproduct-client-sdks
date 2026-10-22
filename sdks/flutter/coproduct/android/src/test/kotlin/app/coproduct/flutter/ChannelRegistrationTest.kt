@@ -4,6 +4,8 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.mockk.every
+import io.mockk.mockk
 import java.nio.ByteBuffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -66,5 +68,50 @@ class ChannelRegistrationTest {
         })
         assertEquals("app.coproduct.flutter/network_type", messenger.channel)
         assertNull(messenger.queue)
+    }
+}
+
+class PaywallPluginAttachmentTest {
+    @Test fun theChannelRegistersOnTheSameNameAndQueueAsHostContext() {
+        // Proves CoproductPaywallPlugin.registerChannel (the companion
+        // helper onAttachedToEngine actually calls) wires the right name on
+        // a background queue, exactly as CoproductHostContextPlugin's own
+        // registerChannel does -- without constructing a real BillingClient
+        val messenger = RecordingMessenger()
+        CoproductPaywallPlugin.registerChannel(messenger, object : MethodChannel.MethodCallHandler {
+            override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {}
+        })
+        assertEquals("app.coproduct.flutter/paywall", messenger.channel)
+        assertSame(messenger.backgroundQueue, messenger.queue)
+    }
+
+    @Test fun activityCallbacksForwardToTheNestedPaywallPlugin() {
+        // Exercises only the forwarding wiring: a bare CoproductPaywallPlugin
+        // instance is attached directly (internal var, same module), never
+        // going through onAttachedToEngine, so this never touches BillingClient
+        val plugin = CoproductHostContextPlugin()
+        plugin.paywallPlugin = CoproductPaywallPlugin()
+
+        val activity = mockk<android.app.Activity>()
+        val activityBinding = mockk<io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding> {
+            every { this@mockk.activity } returns activity
+        }
+
+        plugin.onAttachedToActivity(activityBinding)
+        assertSame(activity, plugin.paywallPlugin?.activity)
+
+        plugin.onDetachedFromActivity()
+        assertNull(plugin.paywallPlugin?.activity)
+    }
+
+    @Test fun activityCallbacksAreANoOpWithNoPaywallPluginAttached() {
+        // onAttachedToActivity can fire before onAttachedToEngine has run in
+        // some embedding orderings -- must not NPE
+        val plugin = CoproductHostContextPlugin()
+        val activityBinding = mockk<io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding> {
+            every { activity } returns mockk()
+        }
+        plugin.onAttachedToActivity(activityBinding)
+        plugin.onDetachedFromActivity()
     }
 }
