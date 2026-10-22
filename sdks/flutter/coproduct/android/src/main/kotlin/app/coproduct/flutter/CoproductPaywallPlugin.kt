@@ -96,7 +96,7 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
      * onAttachedToEngine. */
     @Volatile internal var billingClientForTest: BillingClient? = null
 
-    private var pendingPurchase: PendingPurchase? = null
+    @Volatile private var pendingPurchase: PendingPurchase? = null
 
     private class PendingPurchase(
         val productId: String,
@@ -269,6 +269,9 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
             }
             BillingClient.BillingResponseCode.OK -> {
                 val purchase = purchases?.firstOrNull { it.products.contains(pending.productId) }
+                // An OK update naming a different product (an out-of-band or
+                // promo purchase) must not clobber this in-flight wait --
+                // leaving pendingPurchase set here is intentional, not a gap
                 if (purchase == null) return
                 pendingPurchase = null
                 handleUpdatedPurchase(pending, purchase)
