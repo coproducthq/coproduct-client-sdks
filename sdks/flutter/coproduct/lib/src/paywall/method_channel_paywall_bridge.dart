@@ -11,10 +11,11 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
   static const _channel = MethodChannel('app.coproduct.flutter/paywall');
 
   @override
-  Future<String> priceFor(String productId) async {
+  Future<String> priceFor(String productId, PackageKind kind) async {
     try {
       final price = await _channel.invokeMethod<String>('priceFor', {
         'productId': productId,
+        'kind': kind.name.toUpperCase(),
       });
       if (price == null) throw const PaywallBridgeUnavailable();
       return price;
@@ -24,11 +25,12 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
   }
 
   @override
-  Future<PurchaseResult> purchase(String productId) async {
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
     final Map<Object?, Object?>? raw;
     try {
       raw = await _channel.invokeMethod<Map<Object?, Object?>>('purchase', {
         'productId': productId,
+        'kind': kind.name.toUpperCase(),
       });
     } on MissingPluginException {
       throw const PaywallBridgeUnavailable();
