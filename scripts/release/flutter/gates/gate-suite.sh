@@ -29,8 +29,11 @@ fail=0
 
 # One log per step. A single shared path meant each step erased the previous
 # one's output, so a failure twelve steps in left five lines of tail and no
-# build log to diagnose it from
-step_log_for() { printf '/tmp/gate-suite-%s.log' "$(printf '%s' "$1" | tr -c 'a-zA-Z0-9' '-')"; }
+# build log to diagnose it from. COPRODUCT_GATE_LOG_DIR moves them, so a CI job
+# can upload them and a test can keep them out of a maintainer's last run
+GATE_LOG_DIR="${COPRODUCT_GATE_LOG_DIR:-/tmp}"
+mkdir -p "$GATE_LOG_DIR"
+step_log_for() { printf '%s/gate-suite-%s.log' "$GATE_LOG_DIR" "$(printf '%s' "$1" | tr -c 'a-zA-Z0-9' '-')"; }
 
 run() { # label, command...
     local label="$1"; shift
@@ -327,9 +330,18 @@ fi
 # Both platforms with no Rust reachable, each on a consumer of its own. Android
 # runs build-only where there is no emulator, and the run with acceptance builds
 # too, so it covers both ids
+#
+# The gate runs the flutter on PATH rather than a pinned toolchain. Under ci it
+# is the only iOS acceptance run, so it must run on the primary toolchain, and
+# the gate checks that before building anything
 if gate_enabled ios-no-rust; then
-    run "ios with no Rust toolchain" \
-        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" ios
+    if gate_set_is ci; then
+        run "ios with no Rust toolchain on Flutter $PRIMARY" \
+            "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" --require-flutter "$PRIMARY" ios
+    else
+        run "ios with no Rust toolchain" \
+            "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" ios
+    fi
 fi
 if gate_enabled android-no-rust-runtime; then
     run "android with no Rust toolchain" \

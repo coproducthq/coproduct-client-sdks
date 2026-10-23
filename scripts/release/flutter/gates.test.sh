@@ -10,7 +10,9 @@
 #
 # The gate scripts list their ids under COPRODUCT_GATES_LIST_ONLY=1 through the
 # same guards that decide what a real run does, so these lists are read from
-# the code paths themselves rather than from a table kept beside them
+# the code paths themselves rather than from a table kept beside them. lib/gates.sh
+# names the two ids a listing shows although a real run skips their block, and
+# the recorded runs below show what each set actually runs
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
@@ -73,10 +75,12 @@ LOCAL_LINE='COPRODUCT_FLUTTER_GATES set=ci local=android-acceptance,android-dark
 # Placeholder paths: list-only mode must run nothing, so none of them is read
 # and none needs to exist. An empty HOME and a system-only PATH hold no Flutter,
 # FVM, or codegen, so a broken guard fails here in seconds rather than
-# starting a real release run
-mkdir -p "$T/home" "$T/tmp"
+# starting a real release run. env -i keeps out anything the caller exported,
+# such as a gate set or a device, so only the values named here reach the run
+mkdir -p "$T/home" "$T/tmp" "$T/logs"
 list_env() {
-    env HOME="$T/home" PATH=/usr/bin:/bin \
+    env -i HOME="$T/home" PATH=/usr/bin:/bin TMPDIR="$T/tmp" \
+        COPRODUCT_GATE_LOG_DIR="$T/logs" \
         COPRODUCT_GATES_LIST_ONLY=1 \
         COPRODUCT_RELEASE_OUT="$T/none/out" \
         COPRODUCT_RELEASE_STAGE="$T/none/stage" \
@@ -231,9 +235,13 @@ EOF
 done
 chmod +x "$SUITE_ROOT"/scripts/build/*.sh "$SUITE_ROOT"/scripts/release/flutter/gates/*.sh
 
+# env -i so an exported COPRODUCT_GATES_LIST_ONLY cannot turn this into a
+# listing that records nothing. The step logs go to the test's own directory
+# rather than over a maintainer's last real run
 recorded_run() { # set
     : > "$SUITE_REC"
-    env HOME="$T/home" PATH=/usr/bin:/bin TMPDIR="$T/tmp" \
+    env -i HOME="$T/home" PATH=/usr/bin:/bin TMPDIR="$T/tmp" \
+        COPRODUCT_GATE_LOG_DIR="$T/logs" \
         COPRODUCT_RELEASE_GATES="$1" \
         COPRODUCT_FLUTTER_ARCHIVE_DIR="$SUITE_ROOT/archive" \
         COPRODUCT_CONSUMER_DIR="$SUITE_ROOT/consumer" \
@@ -260,8 +268,16 @@ same_list 'ci builds floor then primary, and its only runtime gate is the no-Rus
 fvm 3.38.1 artifact-linked-flutter-consumer-test-android.sh
 fvm 3.44.0 artifact-linked-flutter-consumer-test-ios.sh
 fvm 3.44.0 artifact-linked-flutter-consumer-test-android.sh
-no-rust-gate.sh ios
+no-rust-gate.sh --require-flutter 3.44.0 ios
 no-rust-gate.sh --build-only android" "$(recorded_run ci)"
+
+# The gates that need a real build fail in the stub tree, so a run always
+# leaves step logs behind to look for
+if ls "$T/logs"/gate-suite-*.log >/dev/null 2>&1; then
+    ok 'the step logs go to COPRODUCT_GATE_LOG_DIR'
+else
+    bad 'no step log reached COPRODUCT_GATE_LOG_DIR'
+fi
 
 echo "the no-Rust gate in build-only mode"
 
@@ -302,7 +318,9 @@ for tool in cargo rustc rustup; do
     printf '#!/bin/sh\nexit 0\n' > "$FAKE_CARGO_BIN/$tool"
     chmod +x "$FAKE_CARGO_BIN/$tool"
 done
-GATE_PATH="$FAKE_CARGO_BIN:/usr/bin:/bin"
+FLUTTER_BIN="$T/flutterbin"
+mkdir -p "$FLUTTER_BIN"
+GATE_PATH="$FAKE_CARGO_BIN:$FLUTTER_BIN:/usr/bin:/bin"
 if PATH="$GATE_PATH" /bin/sh -c 'command -v cargo' | grep -q "$FAKE_CARGO_BIN"; then
     ok 'cargo is reachable on the PATH the gate starts from'
 else
@@ -349,21 +367,84 @@ for tool in cargo rustc; do
         bad "$tool was reachable from the build"
     fi
 done
-if printf '%s\n' "$out" | grep -q -E '^COPRODUCT_FLUTTER_NO_RUST_ANDROID_STATUS pass=true'; then
-    ok 'build-only android reports its status'
+if printf '%s\n' "$out" | grep -q -E '^COPRODUCT_FLUTTER_NO_RUST_ANDROID_STATUS pass=true mode=build-only$'; then
+    ok 'build-only android reports its status with mode=build-only'
 else
-    bad 'build-only android printed no status line'
+    bad 'build-only android printed no status line ending in mode=build-only'
 fi
 
 REC="$T/runtime.rec"
 out="$(run_no_rust "$REC" android)"; rc=$?
 [[ $rc -eq 0 ]] || bad "android without build-only exited $rc"
 same_list 'without build-only, android runs acceptance and not the build script' 'role=acceptance-android' "$(grep '^role=' "$REC")"
+if printf '%s\n' "$out" | grep -q -E '^COPRODUCT_FLUTTER_NO_RUST_ANDROID_STATUS pass=true$'; then
+    ok 'android with acceptance reports its status with no mode suffix'
+else
+    bad 'android with acceptance printed no status line, or one with a suffix'
+fi
 
 REC="$T/ios.rec"
 out="$(run_no_rust "$REC" ios)"; rc=$?
 [[ $rc -eq 0 ]] || bad "ios exited $rc"
 same_list 'ios runs acceptance' 'role=acceptance-ios' "$(grep '^role=' "$REC")"
+
+echo "the no-Rust iOS gate on the primary Flutter"
+
+# Under ci the no-Rust iOS run is the only iOS acceptance run, and it uses the
+# flutter on PATH rather than the toolchain wrapper, so the gate checks that
+# flutter's own report of its version before building anything. The stub
+# records where it ran from, which has to be the gate's sanitized environment
+FLUTTER_REC="$T/flutter.rec"
+stub_flutter() { # the framework version it reports
+    cat > "$FLUTTER_BIN/flutter" <<EOF
+#!/bin/sh
+{
+    echo "args=\$*"
+    echo "home=\$HOME"
+    if command -v cargo >/dev/null 2>&1; then echo "cargo=present"; else echo "cargo=absent"; fi
+} >> "$FLUTTER_REC"
+printf '{\n  "frameworkVersion": "%s",\n  "channel": "stable"\n}\n' "$1"
+EOF
+    chmod +x "$FLUTTER_BIN/flutter"
+}
+
+REC="$T/pin-mismatch.rec"
+: > "$FLUTTER_REC"
+stub_flutter 3.38.1
+out="$(run_no_rust "$REC" --require-flutter 3.44.0 ios)"; rc=$?
+if [[ $rc -ne 0 && ! -s "$REC" ]] && printf '%s' "$out" | grep -q -F '3.38.1'; then
+    ok 'a flutter reporting another version fails the gate before it builds anything'
+else
+    bad "the gate ran with a flutter reporting 3.38.1 (exit $rc)"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
+if grep -q '^args=--version --machine$' "$FLUTTER_REC" && grep -q '^cargo=absent$' "$FLUTTER_REC" \
+        && [[ "$(basename "$(sed -n 's/^home=//p' "$FLUTTER_REC" | head -1)")" == coproduct-nohome.* ]]; then
+    ok 'the version is read from flutter --version --machine inside the sanitized environment'
+else
+    bad 'the version was not read inside the sanitized environment'
+    sed 's/^/       /' "$FLUTTER_REC"
+fi
+
+REC="$T/pin-match.rec"
+stub_flutter 3.44.0
+out="$(run_no_rust "$REC" --require-flutter 3.44.0 ios)"; rc=$?
+if [[ $rc -eq 0 ]]; then
+    ok 'a flutter reporting the primary version passes the check'
+else
+    bad "the gate failed with a flutter reporting 3.44.0 (exit $rc)"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
+same_list 'and the gate then runs iOS acceptance' 'role=acceptance-ios' "$(grep '^role=' "$REC")"
+
+REC="$T/pin-none.rec"
+rm -f "$FLUTTER_BIN/flutter"
+out="$(run_no_rust "$REC" --require-flutter 3.44.0 ios)"; rc=$?
+if [[ $rc -ne 0 && ! -s "$REC" ]] && printf '%s' "$out" | grep -q 'no flutter'; then
+    ok 'no flutter on the sanitized PATH fails the check'
+else
+    bad "the gate ran with no flutter on its PATH (exit $rc)"
+fi
 
 REC="$T/bogus.rec"
 out="$(run_no_rust "$REC" --build-only windows)"; rc=$?

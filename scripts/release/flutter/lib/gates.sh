@@ -9,7 +9,13 @@
 # gates.test.sh holds the two lists to that
 #
 # Under COPRODUCT_GATES_LIST_ONLY=1 each guard prints its id instead of
-# running, so the lists are read from the same guards a real run takes.
+# running, so the lists are read from the guards a real run takes, with two
+# exceptions that are listed although a real run of that set skips their block.
+# Under ci, ios-acceptance is listed, but its block also requires the full set,
+# because the no-Rust iOS run stands in for it. Under full,
+# android-no-rust-build is listed from the elif behind android-no-rust-runtime,
+# which a real full run never reaches, because the runtime run builds too
+#
 # Deliberately not a script of its own: sourcing must not change shell options
 
 GATES_FULL="consumer-builds floor-template testing-library public-surface ios-symbols ios-privacy-manifest ios-app-store-readiness android-symbols native-unit ios-acceptance android-acceptance android-dark-mode ios-no-rust android-no-rust-runtime android-no-rust-build mutations"

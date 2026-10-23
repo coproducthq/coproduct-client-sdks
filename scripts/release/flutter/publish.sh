@@ -22,6 +22,11 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
+# A stage inside a git repository is refused before anything reads it. pub
+# reads that repository's ignore files when it selects what to publish, so the
+# same stage could publish a different file set from the one it was sealed with
+if git -C "$COPRODUCT_RELEASE_STAGE" rev-parse 2>/dev/null; then echo "ERROR: stage is inside a git repository" >&2; exit 1; fi
+
 # The seal check is not advisory. If the stage drifted since the pipeline
 # sealed it, there is nothing here worth publishing
 "$REPO_ROOT/scripts/release/flutter/verify-seal.sh"

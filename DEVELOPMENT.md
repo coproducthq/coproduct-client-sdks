@@ -1088,8 +1088,9 @@ applies to such an app.
 
 The gates are built so a failure names its own cause; read the status line that
 is missing rather than the last line of output. A failing gate-matrix step
-prints its last five lines and the path to its full log, one file per step under
-`/tmp/gate-suite-*.log`. Three failures are procedural rather than defects:
+prints its last five lines and the path to its full log, one
+`gate-suite-*.log` file per step in `$COPRODUCT_GATE_LOG_DIR`, which defaults to
+`/tmp`. Three failures are procedural rather than defects:
 
 - **"the release must start from a clean checkout"**, **"the binaries were built
   at X but HEAD is Y"**, or, at publish, **"this stage was built from X but HEAD
