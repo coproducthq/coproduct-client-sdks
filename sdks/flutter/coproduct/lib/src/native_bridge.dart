@@ -49,17 +49,24 @@ abstract interface class NativeBridge<H extends Object> {
 }
 
 /// The production NativeBridge over flutter_rust_bridge. Owns the single-flight
-/// RustLib load and the application cache directory. On iOS the podspec
-/// force-loads the prebuilt static library into the app executable, and macOS
-/// links its own static library the same way, so FRB is pointed at the process
-/// image rather than a non-existent framework bundle.
+/// RustLib load and the application cache directory. On iOS the podspec embeds
+/// the Rust core as CoproductFFI.framework, which is opened by name: FRB's
+/// default Apple loader would look for a framework named after the crate, and
+/// tries a `rust_builder` framework first, which another FRB plugin in the same
+/// app may provide. macOS links its own static library into the process image.
 class FrbNativeBridge implements NativeBridge<frb.CoproductClientHandle> {
   bool _libraryReady = false;
 
   @override
   Future<void> ensureInitialized() async {
     if (_libraryReady) return;
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isIOS) {
+      await RustLib.init(
+        externalLibrary: ExternalLibrary.open(
+          'CoproductFFI.framework/CoproductFFI',
+        ),
+      );
+    } else if (Platform.isMacOS) {
       await RustLib.init(
         externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true),
       );

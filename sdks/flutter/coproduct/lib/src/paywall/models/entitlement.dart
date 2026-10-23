@@ -19,7 +19,9 @@ class Entitlement {
   factory Entitlement.fromJson(Map<String, dynamic> json) => Entitlement(
     entitlementId: json['entitlementId'] as String,
     isActive: json['isActive'] as bool,
-    expiresAt: json['expiresAt'] == null ? null : DateTime.parse(json['expiresAt'] as String),
+    expiresAt: json['expiresAt'] == null
+        ? null
+        : DateTime.parse(json['expiresAt'] as String),
     willRenew: json['willRenew'] as bool,
     source: json['source'] as String,
   );

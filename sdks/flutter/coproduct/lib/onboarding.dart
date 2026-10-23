@@ -6,5 +6,11 @@ export 'src/onboarding/coproduct_client.dart';
 export 'src/onboarding/http_onboarding_client.dart';
 export 'src/onboarding/coproduct_onboarding.dart';
 export 'src/onboarding/splash_screen_widget.dart';
-export 'src/onboarding/flow_runtime.dart' show FlowNavigationDecision, EventCallback, PermissionCallback, OpenUrlCallback, PaywallCallback;
+export 'src/onboarding/flow_runtime.dart'
+    show
+        FlowNavigationDecision,
+        EventCallback,
+        PermissionCallback,
+        OpenUrlCallback,
+        PaywallCallback;
 export 'src/onboarding/local_progress_store.dart';

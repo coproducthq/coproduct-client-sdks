@@ -10,9 +10,12 @@ class Transition {
   const Transition({required this.condition, required this.next});
 
   factory Transition.fromJson(Map<String, dynamic> json) => Transition(
-        condition: json['condition'] as Map<String, dynamic>,
-        next: NextTarget.fromJson(json['next'] as Map<String, dynamic>),
-      );
+    condition: json['condition'] as Map<String, dynamic>,
+    next: NextTarget.fromJson(json['next'] as Map<String, dynamic>),
+  );
 
-  Map<String, dynamic> toJson() => {'condition': condition, 'next': next.toJson()};
+  Map<String, dynamic> toJson() => {
+    'condition': condition,
+    'next': next.toJson(),
+  };
 }

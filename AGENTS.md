@@ -266,6 +266,11 @@ Never:
 - edit a version, a marked version line, a tag, or a changelog by hand
 - run `npm publish`, `dart pub publish`, or `git tag`
 
+Releases go through the automated release pipeline. Publishing or tagging by
+hand is only for an urgent or emergency release, following the maintainer
+runbook in `DEVELOPMENT.md`. Flutter is not on the automated pipeline, so every
+Flutter release follows its runbook there.
+
 The PR checks run on every PR, and every failure states its fix. Read a failing
 check's summary with `gh pr checks`. Running `scripts/release/check-all.sh`
 before pushing is optional and takes under a minute plus any React Native
@@ -379,7 +384,7 @@ wrapped public APIs on each platform shield ordinary consumers.
 
 ## Flutter Rust Bridge Notes
 
-The Flutter plugin lives at `sdks/flutter/coproduct` and consumes the single FRB crate at `ffi/coproduct-ffi-frb` (parallel to how `sdks/react-native` consumes `ffi/coproduct-ffi-uniffi`). It does not contain its own Rust crate. `flutter_rust_bridge.yaml` points at `../../../ffi/coproduct-ffi-frb` by relative path. The plugin no longer compiles Rust during a consuming build: it ships prebuilt libraries, and the podspec stages a slice while the Android module packages `src/main/jniLibs`. The demo builds and runs on the iOS simulator and Android emulator.
+The Flutter plugin lives at `sdks/flutter/coproduct` and consumes the single FRB crate at `ffi/coproduct-ffi-frb` (parallel to how `sdks/react-native` consumes `ffi/coproduct-ffi-uniffi`). It does not contain its own Rust crate. `flutter_rust_bridge.yaml` points at `../../../ffi/coproduct-ffi-frb` by relative path. The plugin no longer compiles Rust during a consuming build: it ships prebuilt shared libraries, a dynamic framework per iOS slice that the podspec vendors and a `.so` per ABI that the Android module packages from `src/main/jniLibs`. Each iOS framework carries its own privacy manifest declaring the core's file timestamp reads, and the pod's `coproduct_privacy` bundle declares the plugin's UserDefaults use. The demo builds and runs on the iOS simulator and Android emulator.
 
 Load-bearing invariants. Breaking any of these breaks the build or runtime:
 
@@ -388,7 +393,7 @@ Load-bearing invariants. Breaking any of these breaks the build or runtime:
 - Host callbacks use `anyhow::Result<T>`, not custom error enums. FRB does not support a custom error type as the error of a `DartFnFuture<Result<T, E>>`. The Rust adapters convert `anyhow::Error` into the typed core errors. This is an intentional divergence from the UniFFI crate, which keeps typed errors.
 - Free functions take the client by reference (`&CoproductClientHandle`) and `initialize` / the typed observation registrations (`observe_bool` and its siblings) return bare handles, not `Arc<...>`. Passing the handle by value makes FRB move-and-dispose the Dart handle (`DroppableDisposedException`), and returning `Arc<...>` emits an `Arc`-prefixed Dart type that mismatches the borrowed-parameter type.
 - The plugin is a hybrid plugin: `pubspec.yaml` declares `ffiPlugin: true` for android and ios **and** a `pluginClass`, alongside a small registered plugin class on each platform, `CoproductHostContextPlugin` in Kotlin and in Swift, with the helpers it delegates to beside it (`DeviceClassifier`, `SessionStore`, `NetworkTypeClassifier`, and `NetworkTypeObserver`). FRB still loads the native library directly and must never be routed through a channel; the registered class exists only to answer host-context questions Dart cannot answer correctly on its own, such as the interface idiom behind `device_type`, to run the session transaction, and to stream `network_type` over its own event channel, `app.coproduct.flutter/network_type`, which has no task queue so all observation state stays on the main thread. Keep it that way: it performs no upsert and holds no SDK state beyond the session transaction's process-wide guard and failure latch and one network observation per engine, and knows nothing about the SDK key or the evaluation core.
-- On iOS and macOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.process(iKnowHowToUseIt: true))`, because the podspec force-loads the prebuilt static library into the app executable and the default Apple loader looks for a non-existent `<stem>.framework`. Android uses the default loader (`lib<crate>.so`).
+- On iOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.open('CoproductFFI.framework/CoproductFFI'))`. The podspec vendors `CoproductFFI.xcframework`, a dynamic `CoproductFFI.framework` per slice that CocoaPods embeds and signs with the app. FRB's default Apple loader is not used: it looks for a framework named after the crate, and first tries a `rust_builder` framework that another FRB plugin in the same app may provide. Android uses the default loader (`lib<crate>.so`).
 - Regenerate bindings with `flutter_rust_bridge_codegen generate` after editing `api.rs`. The codegen binary is pinned to the same version as the `flutter_rust_bridge` crate (`2.12.0`). Codegen rewrites `frb_generated.rs`, `lib/src/rust/*`, and re-injects the `mod frb_generated;` line.
 - Run `cargo fmt --all` after regenerating FRB bindings. `rustfmt.toml` lists `frb_generated.rs` in `ignore`, but `ignore` is a nightly-only feature, so on the stable toolchain rustfmt still formats the file. The committed `frb_generated.rs` must be fmt-formatted or `cargo fmt --all --check` fails the green gate, and the codegen output is not fmt-clean on its own.
 - Avoid FFI parameter names that are Dart reserved words. Do not use `default`; use `default_value`. This matches the UniFFI crate, where `default` is also a Swift keyword.
@@ -415,7 +420,7 @@ app asks for architectures the package must therefore provide.
 
 ## iOS Notes
 
-- `CoproductFFI.xcframework` is generated scaffold output from static Rust libraries.
+- `sdks/ios/CoproductFFI.xcframework` is generated scaffold output from static Rust libraries. The Flutter and React Native xcframeworks of the same name hold dynamic frameworks instead.
 - The iOS Swift package should use Swift 5 language mode for now. UniFFI-generated Swift currently trips Swift 6 strict-concurrency checks around static callback vtable pointers.
 - `swift build` targets macOS by default and is not the right verification for this iOS-only binary target. Any ad-hoc verification should use `xcodebuild -destination 'generic/platform=iOS Simulator'` like the build scripts do.
 - The generated UniFFI Swift bindings live in their own `CoproductFFI` target under `sdks/ios/Sources/CoproductFFI/`. That target is deliberately not a library product, which keeps the raw generated surface (the top-level `initialize`, `CoproductClient`, `FfiConfig`, `bucketForVectors`, the converters, and the handle types) out of autocomplete and out of a plain `import Coproduct`. This is hidden by default, not an enforced boundary: SwiftPM builds every target's module into the products directory, so `import CoproductFFI` still resolves for a determined consumer. Do not rely on the split for anything security-shaped. The wrapper re-exposes the genuinely public generated types via per-declaration `@_exported import` in `Sources/Coproduct/PublicFFISurface.swift` (per-declaration rather than typealiases so enum cases and struct members come across; `@_exported` is an accepted underscored-attribute risk). Add a line there when a new generated type legitimately joins the public contract, and never make `CoproductFFI` a product.

@@ -1,6 +1,6 @@
 {
   "name": "@coproduct/react-native-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Coproduct React Native SDK",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -48,11 +48,11 @@
   ],
   "scripts": {
     "example": "yarn workspace react-native-coproduct-example",
-    "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
+    "clean": "del-cli android/build android/generated ios/generated example/android/build example/android/app/build example/ios/build lib",
     "codegen": "react-native codegen --source library --path . --platform android --outputPath android/generated && react-native codegen --source library --path . --platform ios --outputPath ios/generated && prettier --write src/NativeCoproduct.ts",
     "build": "bob build --target module && bob build --target typescript && yarn codegen",
     "prepare": "yarn build",
-    "prepack": "node scripts/assert-native-artifacts.js && yarn build",
+    "prepack": "node scripts/assert-native-artifacts.js && del-cli android/generated ios/generated && yarn build",
     "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\""

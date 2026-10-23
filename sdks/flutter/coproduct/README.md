@@ -69,7 +69,7 @@ This adds the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  coproduct: ^1.0.0
+  coproduct: ^1.2.0
 ```
 
 The package ships prebuilt native libraries, so you do not need a Rust
@@ -840,6 +840,16 @@ arrives and rules that use it start matching a moment later, or the device has
 no value for it, such as `device_type` on a television or a Chromebook, in
 which case it stays unset. These lines appear in debug builds only.
 
+**`initialize` fails on iOS with `Failed to load dynamic library
+'CoproductFFI.framework/CoproductFFI'`.** The app does not contain the SDK's
+native framework. This happens in an existing iOS app that embeds a Flutter
+module built with `flutter build ios-framework` on Flutter 3.38 or 3.41,
+because those releases do not copy the framework into the output. Embed
+`CoproductFFI.xcframework` from the package's `ios/` directory in your host app
+alongside the other frameworks, with **Embed & Sign**, or build the module
+with Flutter 3.44 or later, which copies it for you. Apps that add the module
+through CocoaPods, and ordinary Flutter apps, embed it automatically.
+
 ## Example app
 
 [`example/lib/main.dart`](example/lib/main.dart) is a complete integration. It
@@ -851,7 +861,7 @@ the opposite of the quick start. Both approaches are supported. See
 
 ## Onboarding and paywall
 
-This package also includes an agentic onboarding flow runtime (`package:coproduct/onboarding.dart`) and a paywall/Apple Pay surface (`package:coproduct/paywall.dart`), both rendering platform-authored, WebView-driven content with no screen-building code in your app. See [`docs/flutter-onboarding-and-paywall.md`](../../../docs/flutter-onboarding-and-paywall.md) at the repository root for the full integration guide.
+This package also includes onboarding flows (`package:coproduct/onboarding.dart`) and paywalls (`package:coproduct/paywall.dart`). Both show content you author and publish on the Coproduct platform, so your app contains no screen-building code for them. Onboarding runs on iOS and Android. The paywall runs on iOS only, with StoreKit 2. See [Onboarding and paywall](doc/onboarding_and_paywall.md) for the integration guide.
 
 ## Building from source
 

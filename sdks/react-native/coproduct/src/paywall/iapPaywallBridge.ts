@@ -53,10 +53,10 @@ function storeTypeFor(kind: PackageKind): 'subs' | 'in-app' {
 // restoring the simple awaited shape every other file in this feature (and
 // Flutter) expects.
 // Purchase = PurchaseAndroid | PurchaseIOS; expirationDateIOS only exists on
-// the iOS variant. Safe to assume here because this bridge is iOS-only for
-// this sub-project (see Global Constraints) -- requestPurchase above never
-// requests an Android purchase, so every Purchase this bridge ever handles
-// is a PurchaseIOS.
+// the iOS variant. An Android purchase therefore always resolves
+// expirationDate as undefined here -- subscription expiry on Android is
+// computed server-side from the recorded transaction, not carried on the
+// purchase object itself.
 function expirationDateFor(purchase: Purchase): Date | undefined {
   const expirationDateIOS = (purchase as PurchaseIOS).expirationDateIOS;
   return expirationDateIOS != null ? new Date(expirationDateIOS) : undefined;
@@ -75,6 +75,11 @@ function ensureConnection(): Promise<boolean> {
   return connectionReady;
 }
 
+// Also owns the two Android-specific problems with no iOS equivalent: a
+// subscription purchase must name an explicit offer token (resolved via an
+// extra fetchProducts call before the purchase flow starts), and a pending
+// Android purchase arrives through this same purchaseUpdatedListener rather
+// than through purchaseErrorListener the way iOS pending does.
 export class IapPaywallBridge implements NativePaywallBridge {
   // Loads react-native-iap when a paywall mounts, so a missing install fails
   // with an actionable message before any purchase is attempted
@@ -95,11 +100,13 @@ export class IapPaywallBridge implements NativePaywallBridge {
     return price;
   }
 
-  async purchase(
+  purchase(
     productId: string,
     kind: PackageKind
   ): Promise<PurchaseResult> {
     const isConsumable = kind === 'consumable';
+    const isSubscription = kind === 'subscription';
+
     // Listener registration below must stay synchronous with this call (no
     // await ahead of it): requestPurchase is fire-and-forget and its outcome
     // only ever arrives through these listeners, so if a caller's purchase
@@ -110,6 +117,16 @@ export class IapPaywallBridge implements NativePaywallBridge {
       const updatedSubscription = iap().purchaseUpdatedListener(
         (purchase: Purchase) => {
           if (purchase.productId !== productId) return;
+          // Android reports a pending purchase (e.g. a cash-based payment
+          // method awaiting confirmation) through this same listener,
+          // unlike iOS's "Ask to Buy" pending, which purchaseErrorListener
+          // carries. A pending purchase isn't charged yet, so it must not
+          // be finished.
+          if (purchase.purchaseState === 'pending') {
+            cleanup();
+            resolve({ outcome: 'pending' });
+            return;
+          }
           cleanup();
           // Deliberately not awaited: this listener callback itself isn't
           // awaited by its caller, so there's nothing to block on besides
@@ -152,13 +169,48 @@ export class IapPaywallBridge implements NativePaywallBridge {
         errorSubscription.remove();
       }
 
+      // Play Billing has no bare "buy this subscription" call -- every
+      // subscription purchase must name a specific offer (its offerToken),
+      // which StoreKit2 has no equivalent of. A one-time purchase carries no
+      // such requirement on this library's Android surface, so this is skipped
+      // entirely outside the subscription case.
       ensureConnection()
-        .then(() =>
-          iap().requestPurchase({
-            request: { apple: { sku: productId } },
+        .then(async () => {
+          if (!isSubscription) {
+            return iap().requestPurchase({
+              request: {
+                apple: { sku: productId },
+                google: { skus: [productId] },
+              },
+              type: storeTypeFor(kind),
+            });
+          }
+
+          // Falls back to an empty offer list if the product lookup returns
+          // nothing, so a transient fetchProducts failure degrades to a
+          // plain subscription request rather than throwing.
+          const products =
+            (await iap().fetchProducts({ skus: [productId], type: 'subs' })) ??
+            [];
+          const offers = products[0]?.subscriptionOffers ?? [];
+          const subscriptionOffers = offers
+            .map((offer) => offer.offerTokenAndroid)
+            .filter((offerToken): offerToken is string => offerToken != null)
+            .map((offerToken) => ({ sku: productId, offerToken }));
+
+          return iap().requestPurchase({
+            request: {
+              apple: { sku: productId },
+              google: {
+                skus: [productId],
+                ...(subscriptionOffers.length > 0 && {
+                  subscriptionOffers,
+                }),
+              },
+            },
             type: storeTypeFor(kind),
-          })
-        )
+          });
+        })
         .catch((error: unknown) => {
           cleanup();
           reject(error instanceof Error ? error : new Error(String(error)));

@@ -22,17 +22,17 @@ flutter pub get
 flutter build ios --debug --no-codesign
 
 # A successful Xcode build proves nothing about whether Rust reached the app:
-# nothing references the archive's symbols at compile time, so the library
-# arrives only because OTHER_LDFLAGS force-loads it. Inspect the framework that
-# would ship rather than trusting the build to have linked it
+# nothing references the core's symbols at compile time, because Dart opens the
+# framework at runtime. Inspect the framework that would ship rather than
+# trusting the build to have embedded it
 APP="$(find build/ios -maxdepth 3 -name 'Runner.app' -type d | head -n1)"
 if [[ -z "$APP" ]]; then
     echo "ERROR: no Runner.app under build/ios after flutter build ios" >&2
     exit 1
 fi
-FRAMEWORK="$APP/Frameworks/coproduct.framework/coproduct"
+FRAMEWORK="$APP/Frameworks/CoproductFFI.framework/CoproductFFI"
 if [[ ! -f "$FRAMEWORK" ]]; then
-    echo "ERROR: $APP does not carry coproduct.framework. The plugin was not packaged." >&2
+    echo "ERROR: $APP does not embed CoproductFFI.framework. The Rust core was not packaged." >&2
     exit 1
 fi
 "$SCAFFOLD_ROOT/scripts/audit/frb-symbol-check.sh" macho "$FRAMEWORK"

@@ -33,18 +33,23 @@ class ShellAssembler {
     required String platformScriptJs,
   }) {
     final sections = graph.screens
-        .map((s) => '<section data-screen-id="${_escapeAttr(s.id)}" hidden>${s.html}</section>')
+        .map(
+          (s) =>
+              '<section data-screen-id="${_escapeAttr(s.id)}" hidden>${s.html}</section>',
+        )
         .join('\n');
 
     final data = {
       'initialScreenId': initialScreenId,
       'screens': graph.screens
-          .map((s) => {
-                'id': s.id,
-                'transitions': s.transitions.map((t) => t.toJson()).toList(),
-                'defaultNext': s.defaultNext.toJson(),
-                if (s.onLoad != null) 'onLoad': s.onLoad!.toJson(),
-              })
+          .map(
+            (s) => {
+              'id': s.id,
+              'transitions': s.transitions.map((t) => t.toJson()).toList(),
+              'defaultNext': s.defaultNext.toJson(),
+              if (s.onLoad != null) 'onLoad': s.onLoad!.toJson(),
+            },
+          )
           .toList(),
       'sdkContext': {
         'attributes': sdkContextAttributes,

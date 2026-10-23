@@ -110,7 +110,8 @@ NDK_REV="$(awk -F'= *' '/^Pkg.Revision/ {print $2}' "$ANDROID_NDK_HOME/source.pr
         [[ "$first" -eq 1 ]] || printf ',\n'
         first=0
         printf '    "%s": "%s"' "$rel" "$(shasum -a 256 "$binary" | awk '{print $1}')"
-    done < <(find "$COPRODUCT_RELEASE_STAGE/ios/CoproductFFI.xcframework" -name '*.a' -type f | sort
+    done < <(find "$COPRODUCT_RELEASE_STAGE/ios/CoproductFFI.xcframework" \
+                 -path '*/CoproductFFI.framework/CoproductFFI' -type f | sort
              find "$COPRODUCT_RELEASE_STAGE/android/src/main/jniLibs" -name '*.so' -type f | sort)
     printf '\n  }\n}\n'
 } > "$COPRODUCT_RELEASE_STAGE/PROVENANCE.json"

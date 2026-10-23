@@ -20,7 +20,10 @@ class PaywallShellAssembler {
 </body>
 </html>''';
 
-  static String assemble({required String bodyHtml, required String platformScriptJs}) {
+  static String assemble({
+    required String bodyHtml,
+    required String platformScriptJs,
+  }) {
     return _template
         .replaceFirst('{{BODY}}', bodyHtml)
         .replaceFirst('{{PLATFORM_SCRIPT}}', platformScriptJs);

@@ -22,34 +22,47 @@ void main() {
     expect(graph.screens.first.defaultNext, isA<CompleteTarget>());
   });
 
-  test('parses a transition with an answer condition, keeping it as raw JSON', () {
-    final graph = OnboardingFlowGraph.fromJson({
-      'startScreenId': 'goal',
-      'screens': [
-        {
-          'id': 'goal',
-          'html': '<p>?</p>',
-          'transitions': [
-            {
-              'condition': {'type': 'answer', 'questionKey': 'goal', 'operator': 'equals', 'values': ['lose_weight']},
-              'next': {'type': 'screen', 'screenId': 's3a'},
-            },
-          ],
-          'defaultNext': {'type': 'complete'},
-        },
-      ],
-    });
+  test(
+    'parses a transition with an answer condition, keeping it as raw JSON',
+    () {
+      final graph = OnboardingFlowGraph.fromJson({
+        'startScreenId': 'goal',
+        'screens': [
+          {
+            'id': 'goal',
+            'html': '<p>?</p>',
+            'transitions': [
+              {
+                'condition': {
+                  'type': 'answer',
+                  'questionKey': 'goal',
+                  'operator': 'equals',
+                  'values': ['lose_weight'],
+                },
+                'next': {'type': 'screen', 'screenId': 's3a'},
+              },
+            ],
+            'defaultNext': {'type': 'complete'},
+          },
+        ],
+      });
 
-    final transition = graph.screens.first.transitions.first;
-    expect(transition.condition['type'], 'answer');
-    expect(transition.next, isA<ScreenTarget>());
-  });
+      final transition = graph.screens.first.transitions.first;
+      expect(transition.condition['type'], 'answer');
+      expect(transition.next, isA<ScreenTarget>());
+    },
+  );
 
   test('screenById finds a screen by id and returns null otherwise', () {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'welcome',
       'screens': [
-        {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
+        {
+          'id': 'welcome',
+          'html': '<p>Hi</p>',
+          'transitions': [],
+          'defaultNext': {'type': 'complete'},
+        },
       ],
     });
 

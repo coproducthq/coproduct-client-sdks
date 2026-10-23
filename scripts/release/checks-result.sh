@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Decides "All checks passed" from the needs context on stdin. A skipped check
-# did not apply to this change, so it passes
+# did not apply to this change, so it passes. Every other result fails,
+# including ones GitHub reports for jobs that never ran, such as abandoned
 set -euo pipefail
 label() {
   case "$1" in
@@ -12,12 +13,21 @@ label() {
     rn-tests) echo 'React Native tests' ;;
     readme) echo 'README examples compile' ;;
     docs) echo 'Docs links' ;;
+    tooling) echo 'Release tooling tests' ;;
     *) echo "$1" ;;
   esac
 }
+needs=$(cat)
+# Input that is not a non-empty needs object proves nothing passed
+if ! jq -e 'type == "object" and length > 0 and all(.[]; type == "object")' >/dev/null 2>&1 <<< "$needs"; then
+  echo "The job results could not be read, so the checks cannot pass" | tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" >&2
+  exit 1
+fi
 failed=''
 count=0
-for job in $(jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | .key'); do
+# Captured first so a jq error stops the script instead of reading as no failures
+jobs=$(jq -r 'to_entries[] | select((.value.result // "") as $r | $r != "success" and $r != "skipped") | .key' <<< "$needs")
+for job in $jobs; do
   failed="${failed:+$failed, }$(label "$job")"
   count=$((count + 1))
 done

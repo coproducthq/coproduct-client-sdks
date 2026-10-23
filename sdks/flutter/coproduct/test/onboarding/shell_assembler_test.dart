@@ -7,8 +7,18 @@ void main() {
     final graph = OnboardingFlowGraph.fromJson({
       'startScreenId': 'welcome',
       'screens': [
-        {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
-        {'id': 'goal', 'html': '<p>?</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
+        {
+          'id': 'welcome',
+          'html': '<p>Hi</p>',
+          'transitions': [],
+          'defaultNext': {'type': 'complete'},
+        },
+        {
+          'id': 'goal',
+          'html': '<p>?</p>',
+          'transitions': [],
+          'defaultNext': {'type': 'complete'},
+        },
       ],
     });
 
@@ -29,27 +39,35 @@ void main() {
     expect(html, contains('/* script */'));
   });
 
-  test('embeds the injected data blob as inert JSON, escaping </script sequences', () {
-    final graph = OnboardingFlowGraph.fromJson({
-      'startScreenId': 'welcome',
-      'screens': [
-        {'id': 'welcome', 'html': '<p>Hi</p>', 'transitions': [], 'defaultNext': {'type': 'complete'}},
-      ],
-    });
+  test(
+    'embeds the injected data blob as inert JSON, escaping </script sequences',
+    () {
+      final graph = OnboardingFlowGraph.fromJson({
+        'startScreenId': 'welcome',
+        'screens': [
+          {
+            'id': 'welcome',
+            'html': '<p>Hi</p>',
+            'transitions': [],
+            'defaultNext': {'type': 'complete'},
+          },
+        ],
+      });
 
-    final html = ShellAssembler.assemble(
-      graph: graph,
-      // Device attribute values and in-flow answers are arbitrary strings
-      // that never go through server-side HTML sanitization (unlike a
-      // screen's own html) — this is the payload path the escaping guards
-      sdkContextAttributes: {'evil': '</script><script>alert(1)</script>'},
-      sdkContextSegmentKeys: {},
-      initialAnswers: {},
-      initialScreenId: 'welcome',
-      platformScriptJs: '',
-    );
+      final html = ShellAssembler.assemble(
+        graph: graph,
+        // Device attribute values and in-flow answers are arbitrary strings
+        // that never go through server-side HTML sanitization (unlike a
+        // screen's own html) — this is the payload path the escaping guards
+        sdkContextAttributes: {'evil': '</script><script>alert(1)</script>'},
+        sdkContextSegmentKeys: {},
+        initialAnswers: {},
+        initialScreenId: 'welcome',
+        platformScriptJs: '',
+      );
 
-    expect(html, isNot(contains('</script><script>alert')));
-    expect(html, contains('alert(1)'));
-  });
+      expect(html, isNot(contains('</script><script>alert')));
+      expect(html, contains('alert(1)'));
+    },
+  );
 }

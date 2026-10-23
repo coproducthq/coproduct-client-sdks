@@ -11,7 +11,11 @@ class PaywallServerError implements Exception {
   final String? code;
   final String message;
 
-  const PaywallServerError({required this.statusCode, this.code, required this.message});
+  const PaywallServerError({
+    required this.statusCode,
+    this.code,
+    required this.message,
+  });
 
   @override
   String toString() =>
@@ -42,5 +46,8 @@ abstract interface class PaywallClient {
   Future<List<Entitlement>> getEntitlements(String appUserId);
 
   /// POST /v1/identify. Throws [PaywallServerError] on a non-2xx response.
-  Future<void> identify({required String appUserId, required String targetingKey});
+  Future<void> identify({
+    required String appUserId,
+    required String targetingKey,
+  });
 }

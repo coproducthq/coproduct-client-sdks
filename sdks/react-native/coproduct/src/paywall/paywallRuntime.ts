@@ -1,5 +1,5 @@
 import type { Entitlement } from './models/entitlement';
-import type { PaywallSnapshot } from './models/paywallSnapshot';
+import type { PaywallPackageRef, PaywallSnapshot } from './models/paywallSnapshot';
 import type {
   NativePaywallBridge,
   PurchaseResult,
@@ -66,6 +66,14 @@ export class PaywallRuntime {
     this.platform = args.platform ?? 'IOS';
   }
 
+  // Resolves the store product id for this runtime's platform. 'ANDROID'
+  // reads androidProductId; every other platform value (including the
+  // 'IOS' default) reads iosProductId, preserving this feature's original
+  // iOS-only behavior exactly for callers that never pass platform.
+  private productIdFor(ref: PaywallPackageRef | undefined): string | undefined {
+    return this.platform === 'ANDROID' ? ref?.androidProductId : ref?.iosProductId;
+  }
+
   // Resolves a localized price for every cta with a known product id, then
   // hands the whole map to setPrices in one call. A cta with no resolvable
   // product id, or whose priceFor call fails, is silently skipped -- the
@@ -75,7 +83,7 @@ export class PaywallRuntime {
     const prices: Record<string, string> = {};
     for (const cta of snapshot.content.ctas) {
       const packageRef = snapshot.packages[cta.packageKey];
-      const productId = packageRef?.iosProductId;
+      const productId = this.productIdFor(packageRef);
       if (productId == null) continue;
       try {
         prices[cta.packageKey] = await this.bridge.priceFor(
@@ -111,7 +119,7 @@ export class PaywallRuntime {
 
   private async handlePurchase(packageKey: string): Promise<void> {
     const packageRef = this.snapshot?.packages[packageKey];
-    const productId = packageRef?.iosProductId;
+    const productId = this.productIdFor(packageRef);
     if (productId == null) {
       this.onPurchaseError?.({ reason: 'unresolvedProduct' });
       return;

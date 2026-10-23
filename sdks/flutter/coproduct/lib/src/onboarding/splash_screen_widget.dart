@@ -14,10 +14,17 @@ class SplashScreenWidget extends StatelessWidget {
     // Flutter's red error box, so a broken splash never blocks the flow
     // it's meant to precede
     return SizedBox.expand(
-      child: Image.asset(fallbackAssetPath, fit: BoxFit.cover, errorBuilder: _skipOnError),
+      child: Image.asset(
+        fallbackAssetPath,
+        fit: BoxFit.cover,
+        errorBuilder: _skipOnError,
+      ),
     );
   }
 
-  static Widget _skipOnError(BuildContext context, Object error, StackTrace? stackTrace) =>
-      const SizedBox.shrink();
+  static Widget _skipOnError(
+    BuildContext context,
+    Object error,
+    StackTrace? stackTrace,
+  ) => const SizedBox.shrink();
 }

@@ -21,14 +21,16 @@ class Screen {
   });
 
   factory Screen.fromJson(Map<String, dynamic> json) => Screen(
-        id: json['id'] as String,
-        html: json['html'] as String,
-        transitions: (json['transitions'] as List)
-            .map((t) => Transition.fromJson(t as Map<String, dynamic>))
-            .toList(),
-        defaultNext: NextTarget.fromJson(json['defaultNext'] as Map<String, dynamic>),
-        onLoad: json['onLoad'] == null
-            ? null
-            : NativeOnLoadRequest.fromJson(json['onLoad'] as Map<String, dynamic>),
-      );
+    id: json['id'] as String,
+    html: json['html'] as String,
+    transitions: (json['transitions'] as List)
+        .map((t) => Transition.fromJson(t as Map<String, dynamic>))
+        .toList(),
+    defaultNext: NextTarget.fromJson(
+      json['defaultNext'] as Map<String, dynamic>,
+    ),
+    onLoad: json['onLoad'] == null
+        ? null
+        : NativeOnLoadRequest.fromJson(json['onLoad'] as Map<String, dynamic>),
+  );
 }

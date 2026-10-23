@@ -32,7 +32,8 @@ class CoproductOnboardingFlow extends StatefulWidget {
     required this.flagKey,
     required this.client,
     required this.platformScriptJs,
-    this.fallbackSplashAssetPath = 'packages/coproduct/assets/onboarding/coproduct_fallback_splash.png',
+    this.fallbackSplashAssetPath =
+        'packages/coproduct/assets/onboarding/coproduct_fallback_splash.png',
     this.onEvent,
     this.onRequestPermission,
     this.onOpenUrl,
@@ -43,11 +44,13 @@ class CoproductOnboardingFlow extends StatefulWidget {
   /// Loads the platform script bundled as this package's own asset. A host
   /// app calls this once and passes the result into [platformScriptJs]
   /// rather than knowing the asset path itself.
-  static Future<String> loadPlatformScript() =>
-      rootBundle.loadString('packages/coproduct/assets/onboarding/platform-script.js');
+  static Future<String> loadPlatformScript() => rootBundle.loadString(
+    'packages/coproduct/assets/onboarding/platform-script.js',
+  );
 
   @override
-  State<CoproductOnboardingFlow> createState() => _CoproductOnboardingFlowState();
+  State<CoproductOnboardingFlow> createState() =>
+      _CoproductOnboardingFlowState();
 }
 
 class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
@@ -73,13 +76,20 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
     } else {
       await widget.client.refresh();
     }
-    if (mounted) setState(() { _ready = false; _controller = null; });
+    if (mounted) {
+      setState(() {
+        _ready = false;
+        _controller = null;
+      });
+    }
     await _boot();
   }
 
   Future<void> _boot() async {
     final flowId = widget.client.resolveStringFlag(widget.flagKey);
-    if (flowId == null) return; // no flow resolved for this device — caller decides the fallback UI
+    if (flowId == null) {
+      return; // no flow resolved for this device — caller decides the fallback UI
+    }
 
     // Independent of flag resolution above: the flag only ever carried
     // flowId, this is a live fetch of that flow's content, pinned to
@@ -121,14 +131,16 @@ class _CoproductOnboardingFlowState extends State<CoproductOnboardingFlow> {
 
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest: (request) async {
-          final decision = await runtime.handleNavigationRequest(request.url);
-          return decision == FlowNavigationDecision.prevent
-              ? NavigationDecision.prevent
-              : NavigationDecision.navigate;
-        },
-      ))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) async {
+            final decision = await runtime.handleNavigationRequest(request.url);
+            return decision == FlowNavigationDecision.prevent
+                ? NavigationDecision.prevent
+                : NavigationDecision.navigate;
+          },
+        ),
+      )
       ..loadHtmlString(html);
 
     runtime.attachResolver((requestId, response) async {

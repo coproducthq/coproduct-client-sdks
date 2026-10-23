@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Assert the SDK's privacy manifest is inside a consumer's release iOS app
+# Assert the SDK's privacy manifests are inside a consumer's release iOS app
 #
 # The package's own code reads UserDefaults, and the Rust core's file cache
 # reads file metadata through the stat family, which Apple lists as file
-# timestamp APIs. Both are required-reason APIs, so the pod must carry a privacy
-# manifest declaring them into the consuming app. Checked in the release
+# timestamp APIs. Both are required-reason APIs, and each binary declares its
+# own: the plugin pod's resource bundle declares UserDefaults, and the embedded
+# CoproductFFI.framework carries a manifest declaring file timestamps. Checked
+# in the release
 # device build, the configuration an App Store archive compiles, rather than in
 # an .xcarchive. Xcode's aggregated privacy report is generated from an archive
 # in the Organizer and has no command-line form, so this checks the input that
@@ -58,20 +60,12 @@ while IFS= read -r app; do apps+=("$app"); done \
         2>/dev/null | sort)
 [[ "${#apps[@]}" -gt 0 ]] || { echo "no release device app under $consumer/build/ios" >&2; exit 1; }
 
-for app in "${apps[@]}"; do
-    manifests=()
-    while IFS= read -r manifest; do manifests+=("$manifest"); done \
-        < <(find "$app" -path '*coproduct_privacy.bundle/PrivacyInfo.xcprivacy' | sort)
-    [[ "${#manifests[@]}" -eq 1 ]] \
-        || { echo "$app carries ${#manifests[@]} coproduct privacy manifests, expected one" >&2; exit 1; }
-    manifest="${manifests[0]}"
+require_declared() { # manifest, "category reason"...
+    local manifest="$1"; shift
+    local required category expected
     plutil -lint "$manifest" >/dev/null \
         || { echo "$manifest is not a valid property list" >&2; exit 1; }
-    # UserDefaults holds the launch record, and the file cache lives in the
-    # app's own caches directory, which is what C617.1 covers
-    for required in \
-        'NSPrivacyAccessedAPICategoryUserDefaults CA92.1' \
-        'NSPrivacyAccessedAPICategoryFileTimestamp C617.1'; do
+    for required in "$@"; do
         read -r category expected <<<"$required"
         case "$(api_declaration "$manifest" "$category" "$expected")" in
             declared) ;;
@@ -80,4 +74,22 @@ for app in "${apps[@]}"; do
         esac
     done
     echo "privacy manifest ok: $manifest"
+}
+
+for app in "${apps[@]}"; do
+    # The plugin's own Swift code holds the launch record in UserDefaults
+    manifests=()
+    while IFS= read -r manifest; do manifests+=("$manifest"); done \
+        < <(find "$app" -path '*coproduct_privacy.bundle/PrivacyInfo.xcprivacy' | sort)
+    [[ "${#manifests[@]}" -eq 1 ]] \
+        || { echo "$app carries ${#manifests[@]} coproduct privacy manifests, expected one" >&2; exit 1; }
+    require_declared "${manifests[0]}" 'NSPrivacyAccessedAPICategoryUserDefaults CA92.1'
+
+    # The Rust core is a separate embedded binary, so its manifest travels inside
+    # its framework. Its file cache lives in the app's own caches directory,
+    # which is what C617.1 covers
+    core_manifest="$app/Frameworks/CoproductFFI.framework/PrivacyInfo.xcprivacy"
+    [[ -f "$core_manifest" ]] \
+        || { echo "$app embeds no CoproductFFI framework privacy manifest" >&2; exit 1; }
+    require_declared "$core_manifest" 'NSPrivacyAccessedAPICategoryFileTimestamp C617.1'
 done
