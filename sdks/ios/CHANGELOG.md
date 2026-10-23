@@ -1,5 +1,13 @@
 ## Unreleased
 
+Added `CoproductOnboardingFlow`, a SwiftUI view that resolves and renders an
+authored onboarding flow, with native permission bridging and local progress
+persistence.
+
+Added `CoproductPaywall`, a SwiftUI view that resolves and renders an authored
+paywall, with StoreKit2-backed purchase and restore for subscription,
+consumable, and lifetime package kinds.
+
 `ProviderState` no longer carries a `reconciling` case. `state` never returned
 it, so the case described a condition a caller could not observe. Reconciliation
 remains observable as a lifecycle event.

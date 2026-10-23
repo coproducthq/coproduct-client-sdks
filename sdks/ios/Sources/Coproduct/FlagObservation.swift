@@ -135,9 +135,9 @@ public final class FlagBundleObservation: @unchecked Sendable {
 }
 
 // Internal, not public: the observe surface is exposed on the static Coproduct
-// API. Keeping these off CoproductClient avoids offering a second, registry
+// API. Keeping these off CoproductFFI.CoproductClient avoids offering a second, registry
 // bypassing API to anyone who reaches the generated client directly
-extension CoproductClient {
+extension CoproductFFI.CoproductClient {
     /// Observe a boolean flag. The session's seed is evaluated atomically with the
     /// registration, so there is no separate seed read that could disagree with a
     /// delivery. Unavailable, at the seed or in any delivery, resolves to the
@@ -232,14 +232,14 @@ extension CoproductClient {
         let native = observeBundle(keys: keys)
         let observation = FlagBundleObservation(
             keys: keys,
-            initial: CoproductClient.snapshot(from: native.seed())
+            initial: CoproductFFI.CoproductClient.snapshot(from: native.seed())
         )
         let drain = Task { [weak observation] in
             while true {
                 switch await native.pollNext() {
                 case let .value(_, values):
                     guard let observation else { return }
-                    observation.replace(with: CoproductClient.snapshot(from: values))
+                    observation.replace(with: CoproductFFI.CoproductClient.snapshot(from: values))
                 case .closed:
                     return
                 }
