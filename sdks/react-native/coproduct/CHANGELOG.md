@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.0.3...react-native-v1.1.0) (2026-10-23)
+
+
+### Features
+
+* **rn-paywall:** add Android (Google Play Billing) purchase support ([#22](https://github.com/coproducthq/coproduct-client-sdks/issues/22)) ([4b9b848](https://github.com/coproducthq/coproduct-client-sdks/commit/4b9b8480b0f7cbf2c08bf91dcd7ea60be0ed1006))
+
+
+### Bug Fixes
+
+* **rn:** point README links at the current dashboard and tool names ([#24](https://github.com/coproducthq/coproduct-client-sdks/issues/24)) ([16eb2d1](https://github.com/coproducthq/coproduct-client-sdks/commit/16eb2d16ccbe26026ac67734cf0d4a12ec0df75f))
+* **rn:** ship the onboarding platform script and fix shellAssembler's $-corruption ([#31](https://github.com/coproducthq/coproduct-client-sdks/issues/31)) ([4adac27](https://github.com/coproducthq/coproduct-client-sdks/commit/4adac27c07fb6afadc8db58f33c107ccba12d2a0))
+* **rn:** show the coproduct.app logo in the README on GitHub and npm ([#26](https://github.com/coproducthq/coproduct-client-sdks/issues/26)) ([7f800e8](https://github.com/coproducthq/coproduct-client-sdks/commit/7f800e84175307a384164456ead4e5ea2ab73356))
+
 ## [1.0.3](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.0.2...react-native-v1.0.3) (2026-10-20)
 
 
