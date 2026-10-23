@@ -1,16 +1,17 @@
 name: Release Please
 
-# On every push to main, opens or updates the release PR. When a release PR
-# merges, tags it, creates its draft GitHub release, and starts publish.yml on
-# that tag. Run it by hand with a tag to start publish.yml again for a release
-# whose dispatch was lost
+# On every push to main, opens or updates the release PRs. When a release PR
+# merges, tags it, creates its draft GitHub release, and starts that package's
+# publish workflow on the tag: publish.yml for React Native, publish-flutter.yml
+# for Flutter. Run it by hand with a tag to start that workflow again for a
+# release whose dispatch was lost
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to publish again, for example react-native-v1.1.0"
+        description: "Existing release tag to publish again, for example react-native-v1.1.0 or flutter-v1.3.0"
         required: true
         type: string
 
@@ -50,7 +51,7 @@ jobs:
       # read the tag, and publish.yml releases only when this App dispatched it.
       # It runs under the dispatch step's own condition
       - id: dispatch-token
-        if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || github.event_name == 'workflow_dispatch')
+        if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'react-native-v')))
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
@@ -62,7 +63,7 @@ jobs:
       # this workflow by hand with the tag. The tag is the run's ref, never an
       # input, because publish.yml releases only on a tag ref
       - name: Start publish.yml on the release tag
-        if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || github.event_name == 'workflow_dispatch')
+        if: always() && (steps.rp.outputs['sdks/react-native/coproduct--release_created'] == 'true' || (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'react-native-v')))
         env:
           GH_TOKEN: ${{ steps.dispatch-token.outputs.token }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || steps.rp.outputs['sdks/react-native/coproduct--tag_name'] }}
@@ -98,4 +99,63 @@ jobs:
             if [ "$attempt" -lt 3 ]; then sleep 10; fi
           done
           echo "::error::Could not start publish.yml on $TAG after 3 attempts. Re-run this workflow by hand with tag $TAG"
+          exit 1
+      # Flutter's pair mirrors React Native's, with its own token, so a manual
+      # run with a Flutter tag starts only publish-flutter.yml
+      - id: flutter-dispatch-token
+        if: always() && (steps.rp.outputs['sdks/flutter/coproduct--release_created'] == 'true' || (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'flutter-v')))
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-actions: write
+          permission-contents: read
+      - name: Start publish-flutter.yml on the release tag
+        if: always() && (steps.rp.outputs['sdks/flutter/coproduct--release_created'] == 'true' || (github.event_name == 'workflow_dispatch' && startsWith(inputs.tag, 'flutter-v')))
+        env:
+          GH_TOKEN: ${{ steps.flutter-dispatch-token.outputs.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || steps.rp.outputs['sdks/flutter/coproduct--tag_name'] }}
+        shell: bash
+        run: |
+          # The tag can come from a person, so it is checked before anything
+          # prints it, and printed only escaped until then
+          if ! [[ "$TAG" =~ ^flutter-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            printf '::error::%q is not a release tag like flutter-v1.2.3\n' "$TAG"
+            exit 1
+          fi
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::No release App token, so publish-flutter.yml cannot be started. Re-run this workflow by hand with tag $TAG once the token step works"
+            exit 1
+          fi
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null; then
+            echo "::error::Tag $TAG does not exist"
+            exit 1
+          fi
+          for attempt in 1 2 3; do
+            if response=$(gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/publish-flutter.yml/dispatches" \
+              -f ref="$TAG" -F return_run_details=true); then
+              url=$(jq -r '.html_url // empty' <<< "$response" 2>/dev/null || true)
+              if [ -z "$url" ]; then
+                echo "::error::The dispatch returned no run URL: $response"
+                exit 1
+              fi
+              echo "Started publish-flutter.yml on $TAG: $url"
+              echo "Publish run for $TAG: $url" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Dispatch attempt $attempt failed"
+            if [ "$attempt" -lt 3 ]; then sleep 10; fi
+          done
+          echo "::error::Could not start publish-flutter.yml on $TAG after 3 attempts. Re-run this workflow by hand with tag $TAG"
+          exit 1
+      # Each dispatch above runs by hand only for its own tag prefix, so a tag
+      # with neither prefix would otherwise end a manual run green with nothing
+      # started
+      - name: Refuse a manual tag no publish workflow takes
+        if: github.event_name == 'workflow_dispatch' && !startsWith(inputs.tag, 'react-native-v') && !startsWith(inputs.tag, 'flutter-v')
+        env:
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          printf '::error::%q is not a release tag like react-native-v1.2.3 or flutter-v1.2.3, so nothing was started\n' "$TAG"
           exit 1

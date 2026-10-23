@@ -1,0 +1,511 @@
+name: Publish Flutter
+
+# Builds the Flutter package once from one commit, seals it, and proves that
+# sealed package builds in real apps, on both supported Flutter versions, with
+# no Rust present, and loads its native library on an iOS simulator. A run
+# started by the release automation on its own release tag then publishes that
+# same package to pub.dev through GitHub OIDC, after approval, confirms pub.dev
+# serves exactly the sealed files, and finishes the GitHub release and the docs.
+# Every other run only checks
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit to check (default: the branch you run it on)"
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # The release automation's runs on one release tag queue behind each
+  # other, so a re-dispatch never races a publish already in flight. Every
+  # other run, including a person's checks on a release tag, gets its own
+  # group, so it can never displace a pending release run
+  group: ${{ github.ref_type == 'tag' && github.actor_id == '345134390' && format('publish-flutter-{0}', github.ref_name) || format('publish-flutter-checks-{0}', github.run_id) }}
+  cancel-in-progress: false
+
+jobs:
+  # Every job checks out this one commit, so a push that lands mid-run can't
+  # mix two commits into one result
+  resolve:
+    name: Resolve the commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # Decides whether this run may release. Anything short of the release
+  # automation's own tag on its release commit only runs the checks
+  mode:
+    name: Decide the run mode
+    needs: resolve
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+      version: ${{ steps.mode.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - id: mode
+        env:
+          # actor_id stays the original dispatcher when someone re-runs a job
+          ACTOR_ID: ${{ github.actor_id }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          RESOLVED_SHA: ${{ needs.resolve.outputs.sha }}
+          RUN_SHA: ${{ github.sha }}
+        shell: bash
+        run: node scripts/release/flutter/release-mode.mjs | tee -a "$GITHUB_OUTPUT"
+
+  # Builds the binaries from a clean checkout, stages and seals the package,
+  # runs the CI gate set against the archive pub would publish, then packs the
+  # stage and its seal into one tar whose SHA-256 every later job checks. The
+  # stage, the output, and every scratch directory live under the runner temp
+  # directory, outside the checkout
+  pipeline:
+    name: Build, seal, and check the package
+    needs: resolve
+    runs-on: macos-26
+    timeout-minutes: 240
+    outputs:
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      # This Dart only bootstraps FVM, which installs the pinned Flutter
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - name: Install the release toolchains
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          scripts/release/flutter/ci/setup-toolchains.sh
+      # Picked by UDID, because a name alone can match a simulator on another
+      # runtime
+      - id: sim
+        name: Boot the iOS 26.5 iPhone 17 simulator
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          ID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices["com.apple.CoreSimulator.SimRuntime.iOS-26-5"] // [] | .[] | select(.name == "iPhone 17") | .udid] | first // empty')
+          if [ -z "$ID" ]; then
+            echo "::error::No available iPhone 17 simulator on the iOS 26.5 runtime"
+            xcrun simctl list runtimes
+            exit 1
+          fi
+          xcrun simctl boot "$ID"
+          xcrun simctl bootstatus "$ID" -b
+          echo "Booted iPhone 17 on iOS 26.5: $ID"
+          echo "udid=$ID" >> "$GITHUB_OUTPUT"
+      - name: Record disk space before the build
+        run: df -h / "$RUNNER_TEMP"
+      - name: Run the release pipeline with the CI gate set
+        env:
+          COPRODUCT_RELEASE_GATES: ci
+          COPRODUCT_RELEASE_OUT: ${{ runner.temp }}/release/out
+          COPRODUCT_RELEASE_STAGE: ${{ runner.temp }}/release/stage/pkg
+          COPRODUCT_FLUTTER_ARCHIVE_DIR: ${{ runner.temp }}/release/archive
+          COPRODUCT_CONSUMER_DIR: ${{ runner.temp }}/release/consumer
+          COPRODUCT_GATE_LOG_DIR: ${{ runner.temp }}/gate-logs
+          COPRODUCT_RELEASE_LOG: ${{ runner.temp }}/gate-logs/release.log
+          COPRODUCT_ACCEPTANCE_IOS_DEVICE: ${{ steps.sim.outputs.udid }}
+          # A cold simulator on a hosted runner starts slower than a warm one
+          # on a developer machine
+          COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES: 15
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          mkdir -p "$COPRODUCT_GATE_LOG_DIR"
+          scripts/release/flutter/measure.sh
+      - id: pack
+        name: Pack the sealed package for the later jobs
+        env:
+          COPRODUCT_RELEASE_OUT: ${{ runner.temp }}/release/out
+          COPRODUCT_RELEASE_STAGE: ${{ runner.temp }}/release/stage/pkg
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          sha=$(scripts/release/flutter/ci/handoff.sh pack "$COPRODUCT_RELEASE_STAGE" "$COPRODUCT_RELEASE_OUT" "$RUNNER_TEMP/flutter-package.tar")
+          if ! [[ "$sha" =~ ^[0-9a-f]{64}$ ]]; then
+            printf '::error::handoff.sh pack printed %q, not a SHA-256\n' "$sha"
+            exit 1
+          fi
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+          {
+            echo "### flutter-package.tar"
+            echo '```'
+            echo "$sha  flutter-package.tar"
+            echo "$(wc -l < "$COPRODUCT_RELEASE_OUT/seal.txt" | tr -d ' ') sealed files, $(stat -f %z "$RUNNER_TEMP/flutter-package.tar") bytes"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Unarchived, so the artifact is the tar itself and its name is the
+      # file name, which is what every download asks for
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ runner.temp }}/flutter-package.tar
+          archive: false
+          retention-days: 90
+          if-no-files-found: error
+      - name: Record disk space after the build
+        if: always()
+        run: df -h / "$RUNNER_TEMP"
+      - name: Upload the gate logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flutter-gate-logs-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gate-logs
+          retention-days: 14
+          if-no-files-found: warn
+
+  # Unpacks the tar exactly as publish will, then checks the seal and runs
+  # pub's dry run on the unpacked stage. It runs in every mode, so a checks
+  # run rehearses everything publish does short of uploading
+  verify-package:
+    name: Verify the package publish would upload
+    needs: [resolve, pipeline]
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - run: scripts/release/flutter/ci/setup-toolchains.sh --publish
+      - run: dart pub get
+        working-directory: scripts/release/flutter
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: flutter-package.tar
+          path: ${{ runner.temp }}/handoff
+      - name: Unpack the package
+        env:
+          PACKAGE_SHA256: ${{ needs.pipeline.outputs.sha256 }}
+        run: |
+          scripts/release/flutter/ci/handoff.sh unpack "$RUNNER_TEMP/handoff/flutter-package.tar" "$PACKAGE_SHA256" "$RUNNER_TEMP/package"
+      - name: Verify the seal
+        env:
+          COPRODUCT_RELEASE_STAGE: ${{ runner.temp }}/package/stage
+          COPRODUCT_RELEASE_OUT: ${{ runner.temp }}/package/out
+        run: scripts/release/flutter/verify-seal.sh
+      - name: Run pub's dry run on the stage
+        run: |
+          scripts/release/flutter/ci/dry-run-check.sh "$RUNNER_TEMP/package/stage"
+
+  publish:
+    name: Publish to pub.dev
+    needs: [resolve, mode, pipeline, verify-package]
+    if: needs.mode.outputs.mode == 'release'
+    runs-on: macos-26
+    environment: pub.dev
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      # With the OIDC permission, setup-dart mints a pub.dev token, registers
+      # it, and exports it to every later step. The publish step mints its own
+      # fresh token, so this one is dropped before any other step runs
+      - name: Drop the pub.dev token setup-dart created
+        run: |
+          dart pub token remove --all
+          echo "PUB_TOKEN=" >> "$GITHUB_ENV"
+      - run: scripts/release/flutter/ci/setup-toolchains.sh --publish
+      - run: dart pub get
+        working-directory: scripts/release/flutter
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: flutter-package.tar
+          path: ${{ runner.temp }}/handoff
+      - name: Unpack the package
+        env:
+          PACKAGE_SHA256: ${{ needs.pipeline.outputs.sha256 }}
+        run: |
+          scripts/release/flutter/ci/handoff.sh unpack "$RUNNER_TEMP/handoff/flutter-package.tar" "$PACKAGE_SHA256" "$RUNNER_TEMP/package"
+      # The mode job checked the manifest. This checks the package itself, so
+      # a package staged at another version can never go out under this tag
+      - name: Verify the package carries the release version
+        env:
+          VERSION: ${{ needs.mode.outputs.version }}
+        shell: bash
+        run: |
+          pubspec="$RUNNER_TEMP/package/stage/pubspec.yaml"
+          if [ "$(grep -c '^version:' "$pubspec")" -ne 1 ]; then
+            echo "::error::The staged pubspec.yaml does not have exactly one version line, so nothing was published"
+            exit 1
+          fi
+          actual=$(sed -n 's/^version:[[:space:]]*//p' "$pubspec")
+          if [ -z "$VERSION" ] || [ "$actual" != "$VERSION" ]; then
+            printf '::error::The package is version %q, but this release is %q, so nothing was published\n' "$actual" "$VERSION"
+            exit 1
+          fi
+          echo "The package is version $actual"
+      - id: state
+        name: Read pub.dev's state for this version
+        env:
+          VERSION: ${{ needs.mode.outputs.version }}
+        shell: bash
+        run: node scripts/release/flutter/registry.mjs state coproduct "$VERSION" "$RUNNER_TEMP/package/out/seal.txt" | tee -a "$GITHUB_OUTPUT"
+      # The OIDC token exists only in this step, and pub reads it from the
+      # environment, so it is never written to disk. publish.sh verifies the
+      # seal again and publishes from the stage, never the source package
+      - name: Publish, or explain why not
+        env:
+          STATE: ${{ steps.state.outputs.state }}
+          VERSION: ${{ needs.mode.outputs.version }}
+          COPRODUCT_RELEASE_STAGE: ${{ runner.temp }}/package/stage
+          COPRODUCT_RELEASE_OUT: ${{ runner.temp }}/package/out
+        shell: bash
+        run: |
+          case "$STATE" in
+            publish)
+              response=$(curl -sSf --get --data-urlencode 'audience=https://pub.dev' \
+                -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL")
+              token=$(jq -r '.value // empty' <<< "$response")
+              if [ -z "$token" ]; then
+                echo "::error::GitHub returned no OIDC token for pub.dev, so nothing was published"
+                exit 1
+              fi
+              echo "::add-mask::$token"
+              export PUB_TOKEN="$token"
+              flutter pub token add https://pub.dev --env-var PUB_TOKEN
+              scripts/release/flutter/publish.sh --force
+              ;;
+            already-published)
+              echo "$VERSION is already on pub.dev with exactly the sealed files, so the run continues to confirm it"
+              ;;
+            mismatch)
+              echo "::error::pub.dev already holds different files for $VERSION. Follow the bad-version runbook in DEVELOPMENT.md"
+              exit 1
+              ;;
+            stale)
+              echo "::error::pub.dev already has a release newer than $VERSION, so publishing it would be stale. Follow the bad-version runbook in DEVELOPMENT.md"
+              exit 1
+              ;;
+            retracted)
+              echo "::error::pub.dev holds $VERSION retracted, so it cannot be published again. Follow the bad-version runbook in DEVELOPMENT.md"
+              exit 1
+              ;;
+            *)
+              echo "::error::The pub.dev check gave no usable state ($STATE), so nothing was published"
+              exit 1
+              ;;
+          esac
+
+  confirm:
+    name: Confirm pub.dev serves the sealed files
+    needs: [resolve, mode, pipeline, publish]
+    if: needs.mode.outputs.mode == 'release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: flutter-package.tar
+          path: ${{ runner.temp }}/handoff
+      - name: Unpack the seal
+        env:
+          PACKAGE_SHA256: ${{ needs.pipeline.outputs.sha256 }}
+        run: |
+          scripts/release/flutter/ci/handoff.sh unpack "$RUNNER_TEMP/handoff/flutter-package.tar" "$PACKAGE_SHA256" "$RUNNER_TEMP/package"
+      - env:
+          VERSION: ${{ needs.mode.outputs.version }}
+        run: node scripts/release/flutter/registry.mjs confirm coproduct "$VERSION" "$RUNNER_TEMP/package/out/seal.txt"
+
+  finish-release:
+    name: Publish the GitHub release
+    needs: [mode, confirm]
+    if: needs.mode.outputs.mode == 'release'
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 5
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-contents: write
+      # The title also clears a "(not published)" left by an earlier failed run
+      - env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ needs.mode.outputs.version }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft=false --title "flutter: v$VERSION"
+
+  release-docs:
+    name: Release the docs
+    needs: [resolve, mode, finish-release]
+    if: needs.mode.outputs.mode == 'release'
+    runs-on: ubuntu-24.04
+    environment: release
+    # Leaves room for the platform run it watches, whose own job limit is 45
+    # minutes. Time that run spends queued is not covered by that limit
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      # pub.dev caches its API answers, so the new version can take a while to
+      # show as latest after the confirm job sees its archive
+      - name: Wait for pub.dev to serve the version as latest
+        env:
+          VERSION: ${{ needs.mode.outputs.version }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while :; do
+            latest=$(node scripts/release/flutter/registry.mjs latest coproduct || true)
+            if [ "$latest" = "$VERSION" ]; then
+              echo "pub.dev serves $VERSION as latest"
+              exit 0
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::pub.dev did not serve $VERSION as latest within 10 minutes (it serves ${latest:-nothing})"
+              exit 1
+            fi
+            sleep 15
+          done
+      - id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.DISPATCH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DISPATCH_APP_KEY }}
+          owner: coproducthq
+          repositories: coproduct-platform
+          permission-actions: write
+      - name: Dispatch the docs release and watch it
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ needs.mode.outputs.version }}
+        shell: bash
+        run: |
+          response=$(gh api -X POST repos/coproducthq/coproduct-platform/actions/workflows/sdk-docs-release.yml/dispatches \
+            -f ref=main -F return_run_details=true -f 'inputs[sdk]=flutter' -f "inputs[version]=$VERSION")
+          id=$(jq -r '.workflow_run_id // empty' <<< "$response")
+          url=$(jq -r '.html_url // empty' <<< "$response")
+          case "$id" in
+            '' | *[!0-9]*)
+              echo "::error::The dispatch returned no run ID: $response"
+              exit 1
+              ;;
+          esac
+          echo "Docs release run: $url" >> "$GITHUB_STEP_SUMMARY"
+          gh run watch "$id" -R coproducthq/coproduct-platform --exit-status
+
+  # Fails unless every check and release job succeeded or was skipped. In a
+  # checks-only run the release jobs are skipped, and skipped jobs pass
+  summary:
+    name: Result
+    if: always()
+    needs: [resolve, mode, pipeline, verify-package, publish, confirm, finish-release, release-docs]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      action: ${{ steps.finalize.outputs.action }}
+      version: ${{ needs.mode.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.14.0
+      # Runs before the checks step, so a failed build can still be marked
+      - id: finalize
+        name: Decide what happens to the draft release
+        env:
+          MODE: ${{ needs.mode.outputs.mode }}
+          NEEDS: ${{ toJSON(needs) }}
+          PKG: coproduct
+          VERSION: ${{ needs.mode.outputs.version }}
+        shell: bash
+        run: node scripts/release/flutter/finalize.mjs | tee -a "$GITHUB_OUTPUT"
+      # The CI gate set leaves some gates to the developer's own devices, and
+      # this names them, so a passing run is never read as covering them
+      - name: Record the gates left to the local run
+        if: always()
+        env:
+          COPRODUCT_RELEASE_GATES: ci
+        shell: bash
+        run: |
+          source scripts/release/flutter/lib/gates.sh
+          {
+            echo "### Release gates"
+            echo '```'
+            gates_summary_line
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        shell: bash
+        run: printf '%s' "$NEEDS" | scripts/release/checks-result.sh
+      - name: Record the final state
+        if: always()
+        env:
+          MODE: ${{ needs.mode.outputs.mode }}
+          VERSION: ${{ needs.mode.outputs.version }}
+          PUBLISH: ${{ needs.publish.result }}
+          CONFIRM: ${{ needs.confirm.result }}
+          FINISH: ${{ needs.finish-release.result }}
+          DOCS: ${{ needs.release-docs.result }}
+          ACTION: ${{ steps.finalize.outputs.action }}
+        run: |
+          {
+            echo "### Final state"
+            if [ "$MODE" = release ]; then
+              echo "Release of $VERSION: pub.dev $PUBLISH, served files $CONFIRM, GitHub release $FINISH, docs $DOCS."
+              echo "Draft release action: ${ACTION:-none}"
+            else
+              echo "Checks only. Nothing was published."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  mark-not-published:
+    name: Mark the release not published
+    needs: summary
+    if: always() && needs.summary.outputs.action == 'mark-not-published'
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 5
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-contents: write
+      - env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ needs.summary.outputs.version }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --title "flutter: v$VERSION (not published)"
