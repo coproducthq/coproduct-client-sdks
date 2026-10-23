@@ -68,10 +68,12 @@ flutter pub add coproduct
 
 This adds the dependency to your `pubspec.yaml`:
 
+<!-- x-release-please-start-version -->
 ```yaml
 dependencies:
   coproduct: ^1.2.0
 ```
+<!-- x-release-please-end -->
 
 The package ships prebuilt native libraries, so you do not need a Rust
 toolchain.

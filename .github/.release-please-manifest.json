@@ -1,3 +1,4 @@
 {
-  "sdks/react-native/coproduct": "1.1.2"
+  "sdks/react-native/coproduct": "1.1.2",
+  "sdks/flutter/coproduct": "1.2.0"
 }

@@ -10,6 +10,15 @@
       "release-type": "node",
       "component": "react-native",
       "extra-files": [{ "type": "generic", "path": "src/index.tsx" }]
+    },
+    "sdks/flutter/coproduct": {
+      "release-type": "dart",
+      "component": "flutter",
+      "extra-files": [
+        { "type": "generic", "path": "lib/src/sdk_version.dart" },
+        { "type": "generic", "path": "ios/coproduct.podspec" },
+        { "type": "generic", "path": "README.md" }
+      ]
     }
   }
 }
