@@ -73,7 +73,13 @@ export function assembleShell(args: AssembleShellArgs): string {
   // browser's HTML parser from ever seeing "</script"
   const dataJson = JSON.stringify(data).replaceAll('</', '<\\/');
 
-  return TEMPLATE.replace('{{SECTIONS}}', sections)
-    .replace('{{DATA_JSON}}', dataJson)
-    .replace('{{PLATFORM_SCRIPT}}', platformScriptJs);
+  // A function replacer, not a plain string, because String.replace
+  // interprets $-prefixed sequences ($&, $`, $', $$) in a string
+  // replacement as special patterns. The bundled platform script is
+  // large enough to contain these incidentally (e.g. from a bundled
+  // semver implementation's regex source), which silently corrupts the
+  // assembled shell when passed as a plain string.
+  return TEMPLATE.replace('{{SECTIONS}}', () => sections)
+    .replace('{{DATA_JSON}}', () => dataJson)
+    .replace('{{PLATFORM_SCRIPT}}', () => platformScriptJs);
 }

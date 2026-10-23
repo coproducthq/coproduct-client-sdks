@@ -66,4 +66,37 @@ describe('assembleShell', () => {
     expect(html).not.toContain('</script><script>alert');
     expect(html).toContain('alert(1)');
   });
+
+  it('inserts the platform script verbatim even when it contains $-prefixed sequences', () => {
+    // String.replace treats a plain-string replacement specially: $&, $`,
+    // $', and $$ are substitution patterns, not literal text. A bundled/
+    // minified platform script is large enough to contain these
+    // incidentally (regex source literals, template-literal internals),
+    // so assembleShell must not pass it straight into .replace().
+    const graph = parseOnboardingFlowGraph({
+      startScreenId: 'welcome',
+      screens: [
+        {
+          id: 'welcome',
+          html: '<p>Hi</p>',
+          transitions: [],
+          defaultNext: { type: 'complete' },
+        },
+      ],
+    });
+
+    const dollarLadenScript =
+      'const re = /^v?(?<major>\\d+)$/; const x = "$`$&$$";';
+
+    const html = assembleShell({
+      graph,
+      sdkContextAttributes: {},
+      sdkContextSegmentKeys: new Set(),
+      initialAnswers: {},
+      initialScreenId: 'welcome',
+      platformScriptJs: dollarLadenScript,
+    });
+
+    expect(html).toContain(dollarLadenScript);
+  });
 });
