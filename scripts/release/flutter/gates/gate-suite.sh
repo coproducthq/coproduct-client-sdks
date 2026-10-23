@@ -331,9 +331,10 @@ fi
 # runs build-only where there is no emulator, and the run with acceptance builds
 # too, so it covers both ids
 #
-# The gate runs the flutter on PATH rather than a pinned toolchain. Under ci it
-# is the only iOS acceptance run, so it must run on the primary toolchain, and
-# the gate checks that before building anything
+# The gate runs the flutter on PATH rather than a pinned toolchain. Under ci the
+# iOS run is the only iOS acceptance run and the Android build is the only
+# Rust-free Android build, so both must run on the primary toolchain, and the
+# gate checks that before building anything
 if gate_enabled ios-no-rust; then
     if gate_set_is ci; then
         run "ios with no Rust toolchain on Flutter $PRIMARY" \
@@ -347,8 +348,13 @@ if gate_enabled android-no-rust-runtime; then
     run "android with no Rust toolchain" \
         "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" android
 elif gate_enabled android-no-rust-build; then
-    run "android with no Rust toolchain, build only" \
-        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" --build-only android
+    if gate_set_is ci; then
+        run "android with no Rust toolchain, build only, on Flutter $PRIMARY" \
+            "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" --build-only --require-flutter "$PRIMARY" android
+    else
+        run "android with no Rust toolchain, build only" \
+            "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" --build-only android
+    fi
 fi
 
 gates_list_only && exit 0

@@ -31,13 +31,16 @@ sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }
 
 # Prints the header listing to stderr, then fails naming every unsafe entry.
 # The verbose listing gives each entry's type and the plain listing its name,
-# and both list the same entries in the same order. Both tars escape a name
-# holding a control character with a backslash, so any backslash means the
-# printed name is not the stored one and the entry is refused
+# and both list the same entries in the same order. Both are taken in the C
+# locale, where bsdtar and GNU tar both print a control character or any
+# non-ASCII byte as a backslash escape. Under a UTF-8 locale both print
+# non-ASCII names raw, so the locale is fixed here rather than inherited. Any
+# backslash means the printed name is not the stored one, so a name with a
+# control character or a non-ASCII character is refused
 check_entries() { # tar
     local tar="$1" verbose names v n type problems="" seen=""
-    verbose="$(tar -tvf "$tar")" || die "could not list $tar"
-    names="$(tar -tf "$tar")" || die "could not list $tar"
+    verbose="$(LC_ALL=C tar -tvf "$tar")" || die "could not list $tar"
+    names="$(LC_ALL=C tar -tf "$tar")" || die "could not list $tar"
     echo "headers in $tar:" >&2
     printf '%s\n' "$verbose" >&2
 

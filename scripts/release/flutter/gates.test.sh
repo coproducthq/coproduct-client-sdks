@@ -269,7 +269,7 @@ fvm 3.38.1 artifact-linked-flutter-consumer-test-android.sh
 fvm 3.44.0 artifact-linked-flutter-consumer-test-ios.sh
 fvm 3.44.0 artifact-linked-flutter-consumer-test-android.sh
 no-rust-gate.sh --require-flutter 3.44.0 ios
-no-rust-gate.sh --build-only android" "$(recorded_run ci)"
+no-rust-gate.sh --build-only --require-flutter 3.44.0 android" "$(recorded_run ci)"
 
 # The gates that need a real build fail in the stub tree, so a run always
 # leaves step logs behind to look for

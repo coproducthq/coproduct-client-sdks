@@ -121,8 +121,10 @@ else
     bad "the tar holds: $names"
 fi
 
+# Under umask 077 an extraction that drops the archived modes turns 755 into
+# 700, so the mode check below only passes if unpack restores them
 RT="$T/rt"
-out="$(bash "$HANDOFF" unpack "$TAR" "$packed" "$RT" 2>&1)"; rc=$?
+out="$(umask 077 && bash "$HANDOFF" unpack "$TAR" "$packed" "$RT" 2>&1)"; rc=$?
 if [[ $rc -eq 0 ]]; then
     ok 'unpack accepts the tar pack wrote'
 else
@@ -220,12 +222,14 @@ with tarfile.open(path, "w", format=tarfile.PAX_FORMAT) as t:
         add(t, "stage/pubspec.yaml", data=b"second\n")
     elif kind == "stray":
         add(t, "elsewhere/file")
+    elif kind == "nonascii":
+        add(t, "stage/caf\u00e9.txt")
 PY
 }
 
 for case_ in "symlink:symlink" "hardlink:hard link" "dotdot:parent directory" \
              "absolute:absolute path" "device:device" "duplicate:duplicate" \
-             "stray:outside stage/ and out/"; do
+             "stray:outside stage/ and out/" "nonascii:escaped name"; do
     kind="${case_%%:*}" reason="${case_#*:}"
     bad_tar="$T/bad-$kind.tar"
     make_tar "$kind" "$bad_tar" || { bad "could not build the $kind archive"; continue; }
@@ -239,6 +243,17 @@ for case_ in "symlink:symlink" "hardlink:hard link" "dotdot:parent directory" \
         printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
     fi
 done
+
+# The non-ASCII case runs under a UTF-8 locale too, the one a caller is most
+# likely to have, where a tar would print the name unescaped if left to it
+out="$(LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 bash "$HANDOFF" unpack "$T/bad-nonascii.tar" \
+    "$(sha_of "$T/bad-nonascii.tar")" "$T/bad-nonascii/utf8" 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] && printf '%s' "$out" | grep -q -F 'escaped name' && nothing_in "$T/bad-nonascii/utf8"; then
+    ok 'a non-ASCII name is refused under a UTF-8 locale too'
+else
+    bad "a non-ASCII name under a UTF-8 locale exited $rc"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
 
 # The control: the same builder with no unsafe entry unpacks, so the failures
 # above are the entries and not the builder
@@ -270,8 +285,9 @@ cp -Rp "$SRC/stage" "$GITREPO/stage"
 : > "$DART_CALLS"
 out="$(PATH="$STUB_PATH" COPRODUCT_RELEASE_STAGE="$GITREPO/stage" COPRODUCT_RELEASE_OUT="$SRC/out" \
     bash "$STUB_ROOT/scripts/release/flutter/publish.sh" --force 2>&1)"; rc=$?
-if [[ $rc -ne 0 ]] && printf '%s' "$out" | grep -q 'stage is inside a git repository'; then
-    ok 'publish.sh refuses a stage inside a git repository'
+GITREPO_TOP="$(cd "$GITREPO" && pwd -P)"
+if [[ $rc -ne 0 ]] && printf '%s' "$out" | grep -q -F "stage is inside a git repository at $GITREPO_TOP"; then
+    ok 'publish.sh refuses a stage inside a git repository, naming the repository'
 else
     bad "publish.sh accepted a stage inside a git repository (exit $rc)"
     printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
@@ -280,6 +296,27 @@ if [[ ! -s "$FLUTTER_CALLS" && ! -s "$DART_CALLS" ]]; then
     ok 'it refuses before the seal check and before flutter runs'
 else
     bad 'publish.sh ran the seal check or flutter before refusing the stage'
+fi
+
+# The guard needs git to answer. Without it, the guard must not read a failed
+# lookup as a stage outside any repository
+NOGIT_BIN="$T/nogit"
+mkdir -p "$NOGIT_BIN"
+for tool in dirname python3 shasum mktemp diff awk sort sed find stat; do
+    real="$(command -v "$tool" 2>/dev/null)" && ln -sf "$real" "$NOGIT_BIN/$tool"
+done
+ln -sf "$T/bin/flutter" "$NOGIT_BIN/flutter"
+ln -sf "$T/bin/dart" "$NOGIT_BIN/dart"
+: > "$FLUTTER_CALLS"
+: > "$DART_CALLS"
+out="$(PATH="$NOGIT_BIN" COPRODUCT_RELEASE_STAGE="$RT/stage" COPRODUCT_RELEASE_OUT="$RT/out" \
+    /bin/bash "$STUB_ROOT/scripts/release/flutter/publish.sh" --force 2>&1)"; rc=$?
+if [[ $rc -ne 0 && ! -s "$FLUTTER_CALLS" && ! -s "$DART_CALLS" ]] \
+        && printf '%s' "$out" | grep -q 'git is required to check the stage'; then
+    ok 'publish.sh with no git refuses before the seal check and before flutter runs'
+else
+    bad "publish.sh with no git exited $rc, or ran the seal check or flutter"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
 fi
 
 [[ "$fail" -eq 0 ]] || { echo "handoff.test: FAIL" >&2; exit 1; }

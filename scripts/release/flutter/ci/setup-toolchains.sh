@@ -82,7 +82,14 @@ command -v dart >/dev/null 2>&1 \
 dart pub global activate fvm "$PINNED_FVM"
 add_path "$HOME/.pub-cache/bin"
 set_env FVM_CACHE_PATH "$HOME/fvm"
-fvm_version="$(fvm --version 2>/dev/null | tail -1)"
+# Checked explicitly, because under set -e a failing substitution would end the
+# script with no output at all
+if ! fvm_output="$(fvm --version 2>&1)"; then
+    echo "ERROR: fvm --version failed after activating fvm $PINNED_FVM:" >&2
+    printf '%s\n' "$fvm_output" | tail -5 >&2
+    exit 1
+fi
+fvm_version="$(printf '%s\n' "$fvm_output" | tail -1)"
 [[ "$fvm_version" == "$PINNED_FVM" ]] \
     || { echo "ERROR: fvm reports $fvm_version, expected $PINNED_FVM" >&2; exit 1; }
 
