@@ -17,7 +17,7 @@ run() {
   fi
 }
 run "node tests" node --test 'scripts/release/**/*.test.mjs'
-for t in scripts/release/*.test.sh scripts/release/react-native/*.test.sh scripts/docs/*.test.sh; do
+for t in scripts/release/*.test.sh scripts/release/react-native/*.test.sh scripts/release/flutter/*.test.sh scripts/docs/*.test.sh; do
   run "$t" bash "$t"
 done
 if [ -n "$failed" ]; then

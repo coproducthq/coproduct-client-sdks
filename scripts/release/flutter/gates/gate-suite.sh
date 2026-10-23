@@ -5,6 +5,9 @@
 # dark-mode pass, the native unit suites, a fresh template app at the floor, and
 # both no-Rust gates
 #
+# COPRODUCT_RELEASE_GATES=ci runs the subset a hosted runner can, with one iOS
+# simulator and no Android emulator. lib/gates.sh owns which gates each set runs
+#
 # Package-facing stages consume the extracted archive rather than the staging
 # directory, because a file the stage holds but pub excludes is still present
 # for anything built against the stage. The native unit suites are the
@@ -14,10 +17,12 @@ set -uo pipefail
 
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
 : "${COPRODUCT_CONSUMER_DIR:?must be the disposable consumer directory}"
-: "${COPRODUCT_ACCEPTANCE_IOS_DEVICE:?must be a booted iOS simulator device id}"
-: "${COPRODUCT_ACCEPTANCE_ANDROID_DEVICE:?must be a booted Android emulator id}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+# shellcheck source=SCRIPTDIR/../lib/gates.sh
+source "$REPO_ROOT/scripts/release/flutter/lib/gates.sh"
+gates_require_devices
+
 PRIMARY=3.44.0
 FLOOR=3.38.1
 fail=0
@@ -49,14 +54,23 @@ clean_between_toolchains() {
     rm -rf "$HOME/Library/Developer/Xcode/DerivedData/Runner-"*
 }
 
-for version in "$PRIMARY" "$FLOOR"; do
-    clean_between_toolchains
-    for platform in ios android; do
-        run "consumer build $platform on Flutter $version" \
-            "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$version" -- \
-            "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
+# ci builds the floor first, so the matrix ends on the primary toolchain and
+# the inspection rebuild below is not needed
+if gate_enabled consumer-builds; then
+    if gate_set_is ci; then
+        versions="$FLOOR $PRIMARY"
+    else
+        versions="$PRIMARY $FLOOR"
+    fi
+    for version in $versions; do
+        clean_between_toolchains
+        for platform in ios android; do
+            run "consumer build $platform on Flutter $version" \
+                "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$version" -- \
+                "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
+        done
     done
-done
+fi
 
 # A fresh app at the floor, with the Android toolchain flutter create generates
 # left untouched. The consumer builds above pin a newer Android Gradle Plugin by
@@ -100,17 +114,22 @@ floor_template_gate() {
     rm -rf "$work"
     return $code
 }
-run "fresh template app on Flutter $FLOOR, Android toolchain untouched" floor_template_gate
+if gate_enabled floor-template; then
+    run "fresh template app on Flutter $FLOOR, Android toolchain untouched" floor_template_gate
+fi
 
-# The toolchain loop ends on the floor version, so rebuild on the primary one
-# before inspecting artifacts or running acceptance. Inspecting a build left by a
-# different toolchain would report on something the release does not ship
-clean_between_toolchains
-for platform in ios android; do
-    run "rebuild $platform on Flutter $PRIMARY for inspection" \
-        "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
-        "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
-done
+# Under full the toolchain loop ends on the floor version, so rebuild on the
+# primary one before inspecting artifacts or running acceptance. Inspecting a
+# build left by a different toolchain would report on something the release
+# does not ship
+if gate_enabled consumer-builds && gate_set_is full; then
+    clean_between_toolchains
+    for platform in ios android; do
+        run "rebuild $platform on Flutter $PRIMARY for inspection" \
+            "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+            "$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$platform.sh"
+    done
+fi
 
 # The published testing library, imported from the installed package. Every
 # other gate reaches the SDK through package:coproduct/coproduct.dart, so
@@ -123,7 +142,9 @@ testing_library_gate() {
         && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
             flutter test --no-pub test/testing_library_test.dart )
 }
-run 'testing library from the installed package' testing_library_gate
+if gate_enabled testing-library; then
+    run 'testing library from the installed package' testing_library_gate
+fi
 
 # The published surface, imported only through the public barrels. A dropped
 # export analyzes clean and passes the SDK's own tests, several of which import
@@ -133,7 +154,9 @@ public_surface_gate() {
         && "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
             flutter test --no-pub test/public_surface_test.dart )
 }
-run 'public surface from the installed package' public_surface_gate
+if gate_enabled public-surface; then
+    run 'public surface from the installed package' public_surface_gate
+fi
 
 # Symbols in the artifacts that ship, not in the libraries they came from. The
 # Rust core is its own embedded framework, so it is read there rather than in
@@ -169,31 +192,39 @@ check_app_framework() { # label, sdk path fragment, expected architectures
 
 # The device slice is arm64 only: the package ships no x86_64 device
 # architecture, so a universal device framework would mean something is wrong
-check_app_framework 'iOS device' 'iphoneos' 'arm64'
-check_app_framework 'iOS simulator' 'iphonesimulator' 'arm64 x86_64'
+if gate_enabled ios-symbols; then
+    check_app_framework 'iOS device' 'iphoneos' 'arm64'
+    check_app_framework 'iOS simulator' 'iphonesimulator' 'arm64 x86_64'
+fi
 
-run 'iOS privacy manifest in the release app' \
-    "$REPO_ROOT/scripts/release/flutter/gates/privacy-manifest-check.sh" "$COPRODUCT_CONSUMER_DIR"
+if gate_enabled ios-privacy-manifest; then
+    run 'iOS privacy manifest in the release app' \
+        "$REPO_ROOT/scripts/release/flutter/gates/privacy-manifest-check.sh" "$COPRODUCT_CONSUMER_DIR"
+fi
 
-run 'iOS App Store readiness of the embedded framework' \
-    "$REPO_ROOT/scripts/release/flutter/gates/app-store-readiness-check.sh" "$COPRODUCT_CONSUMER_DIR"
+if gate_enabled ios-app-store-readiness; then
+    run 'iOS App Store readiness of the embedded framework' \
+        "$REPO_ROOT/scripts/release/flutter/gates/app-store-readiness-check.sh" "$COPRODUCT_CONSUMER_DIR"
+fi
 
-APK="$(find "$COPRODUCT_CONSUMER_DIR/build/app/outputs" -name '*.apk' 2>/dev/null | head -1)"
-if [[ -n "$APK" ]]; then
-    UNZ="$(mktemp -d)"
-    unzip -q -o "$APK" 'lib/*' -d "$UNZ"
-    libs=()
-    while IFS= read -r lib; do libs+=("$lib"); done \
-        < <(find "$UNZ/lib" -name 'libcoproduct_ffi_frb.so' -type f | sort)
-    if [[ "${#libs[@]}" -eq 3 ]]; then
-        run 'Android symbols in the packaged APK' \
-            "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" elf "${libs[@]}"
+if gate_enabled android-symbols; then
+    APK="$(find "$COPRODUCT_CONSUMER_DIR/build/app/outputs" -name '*.apk' 2>/dev/null | head -1)"
+    if [[ -n "$APK" ]]; then
+        UNZ="$(mktemp -d)"
+        unzip -q -o "$APK" 'lib/*' -d "$UNZ"
+        libs=()
+        while IFS= read -r lib; do libs+=("$lib"); done \
+            < <(find "$UNZ/lib" -name 'libcoproduct_ffi_frb.so' -type f | sort)
+        if [[ "${#libs[@]}" -eq 3 ]]; then
+            run 'Android symbols in the packaged APK' \
+                "$REPO_ROOT/scripts/audit/frb-symbol-check.sh" elf "${libs[@]}"
+        else
+            printf '  FAIL APK carries %s coproduct libraries, expected three\n' "${#libs[@]}"; fail=1
+        fi
+        rm -rf "$UNZ"
     else
-        printf '  FAIL APK carries %s coproduct libraries, expected three\n' "${#libs[@]}"; fail=1
+        printf '  FAIL no APK found for symbol inspection\n'; fail=1
     fi
-    rm -rf "$UNZ"
-else
-    printf '  FAIL no APK found for symbol inspection\n'; fail=1
 fi
 
 # The native unit suites. Neither runs anywhere else, so the Kotlin and Swift
@@ -204,7 +235,9 @@ android_native_unit_gate() {
     ( cd "$REPO_ROOT/sdks/flutter/coproduct/example/android" \
         && ./gradlew --quiet :coproduct:testDebugUnitTest )
 }
-run 'Android native unit suite' android_native_unit_gate
+if gate_enabled native-unit; then
+    run 'Android native unit suite' android_native_unit_gate
+fi
 
 # Serial, on the named simulator itself. The scheme allows parallel testing,
 # which runs the tests on a clone and shuts the original simulator down, and
@@ -223,14 +256,23 @@ ios_native_unit_gate() {
             -parallel-testing-enabled NO \
             -destination "platform=iOS Simulator,id=$COPRODUCT_ACCEPTANCE_IOS_DEVICE" )
 }
-run 'iOS native unit suite' ios_native_unit_gate
+if gate_enabled native-unit; then
+    run 'iOS native unit suite' ios_native_unit_gate
+fi
 
-# Runtime acceptance on the primary toolchain
-for platform in ios android; do
-    run "$platform acceptance on Flutter $PRIMARY" \
+# Runtime acceptance on the primary toolchain. Under ci the no-Rust iOS gate
+# below is the iOS acceptance run: it runs this same suite against a fresh
+# consumer, and running both would repeat the slowest gate on a hosted runner
+if gate_enabled ios-acceptance && gate_set_is full; then
+    run "ios acceptance on Flutter $PRIMARY" \
         "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
-        "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-$platform.sh"
-done
+        "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-ios.sh"
+fi
+if gate_enabled android-acceptance; then
+    run "android acceptance on Flutter $PRIMARY" \
+        "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
+        "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-android.sh"
+fi
 
 # Android again in dark mode. device_type is read from uiMode masked with
 # UI_MODE_TYPE_MASK, and dropping that mask sends a dark-mode device into the
@@ -278,13 +320,25 @@ android_dark_mode_gate() {
     fi
     return $code
 }
-run "android acceptance in dark mode on Flutter $PRIMARY" android_dark_mode_gate
+if gate_enabled android-dark-mode; then
+    run "android acceptance in dark mode on Flutter $PRIMARY" android_dark_mode_gate
+fi
 
-# Both platforms with no Rust reachable, each on a consumer of its own
-for platform in ios android; do
-    run "$platform with no Rust toolchain" \
-        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" "$platform"
-done
+# Both platforms with no Rust reachable, each on a consumer of its own. Android
+# runs build-only where there is no emulator, and the run with acceptance builds
+# too, so it covers both ids
+if gate_enabled ios-no-rust; then
+    run "ios with no Rust toolchain" \
+        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" ios
+fi
+if gate_enabled android-no-rust-runtime; then
+    run "android with no Rust toolchain" \
+        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" android
+elif gate_enabled android-no-rust-build; then
+    run "android with no Rust toolchain, build only" \
+        "$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" --build-only android
+fi
 
+gates_list_only && exit 0
 [[ "$fail" -eq 0 ]] || exit 1
 echo "COPRODUCT_FLUTTER_GATE_SUITE_STATUS pass=true"

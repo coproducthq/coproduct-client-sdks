@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Build and run the archive-backed consumer with no Rust toolchain reachable.
 #
+# Usage: no-rust-gate.sh [--build-only] <ios|android>
+#
+# --build-only keeps everything that makes the build Rust-free, the fresh HOME,
+# PUB_CACHE, and consumer, the sanitized PATH, and the absence probes, but runs
+# the artifact-linked consumer build instead of acceptance. It is for a machine
+# with no device to run on
+#
 # Each tool is probed separately: `command -v cargo rustc rustup` exits zero when
 # any one of them resolves, so a combined test passes on a machine that has Rust.
 # The lookup runs inside an explicit shell because `command` is a builtin and
@@ -13,10 +20,15 @@
 # a clean adopter build needs no Rust
 set -euo pipefail
 
-PLATFORM="${1:?ios or android}"
+BUILD_ONLY=0
+if [[ "${1:-}" == "--build-only" ]]; then
+    BUILD_ONLY=1
+    shift
+fi
+PLATFORM="${1:-}"
 case "$PLATFORM" in
     ios|android) ;;
-    *) echo "usage: no-rust-gate.sh <ios|android>" >&2; exit 2 ;;
+    *) echo "usage: no-rust-gate.sh [--build-only] <ios|android>" >&2; exit 2 ;;
 esac
 
 : "${COPRODUCT_FLUTTER_ARCHIVE_DIR:?must be the extracted archive directory}"
@@ -36,7 +48,9 @@ trap restore_acceptance_packages EXIT
 
 SANITIZED_PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -v -E '\.cargo|\.rustup' | paste -sd: -)"
 
-echo "no-Rust gate ($PLATFORM)"
+MODE=acceptance
+[[ "$BUILD_ONLY" -eq 1 ]] && MODE=build-only
+echo "no-Rust gate ($PLATFORM, $MODE)"
 echo "  HOME:      $FRESH_HOME"
 echo "  PUB_CACHE: $FRESH_PUB_CACHE"
 echo "  consumer:  $FRESH_CONSUMER"
@@ -58,6 +72,11 @@ COPRODUCT_CONSUMER_DIR="$FRESH_CONSUMER" \
     "$REPO_ROOT/scripts/release/flutter/stages/consumer-from-archive.sh" >/dev/null
 echo "  fresh consumer resolves to the archive"
 
+if [[ "$BUILD_ONLY" -eq 1 ]]; then
+    GATE_SCRIPT="$REPO_ROOT/scripts/build/artifact-linked-flutter-consumer-test-$PLATFORM.sh"
+else
+    GATE_SCRIPT="$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-$PLATFORM.sh"
+fi
 DEVICE_VAR="COPRODUCT_ACCEPTANCE_$(printf '%s' "$PLATFORM" | tr '[:lower:]' '[:upper:]')_DEVICE"
 env -i \
     HOME="$FRESH_HOME" PUB_CACHE="$FRESH_PUB_CACHE" PATH="$SANITIZED_PATH" \
@@ -67,6 +86,10 @@ env -i \
     COPRODUCT_FLUTTER_ARCHIVE_DIR="$COPRODUCT_FLUTTER_ARCHIVE_DIR" \
     COPRODUCT_CONSUMER_DIR="$FRESH_CONSUMER" \
     "$DEVICE_VAR"="${!DEVICE_VAR:-}" \
-    "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-$PLATFORM.sh"
+    "$GATE_SCRIPT"
 
-echo "COPRODUCT_FLUTTER_NO_RUST_$(printf '%s' "$PLATFORM" | tr '[:lower:]' '[:upper:]')_STATUS pass=true"
+STATUS="COPRODUCT_FLUTTER_NO_RUST_$(printf '%s' "$PLATFORM" | tr '[:lower:]' '[:upper:]')_STATUS pass=true"
+if [[ "$BUILD_ONLY" -eq 1 ]]; then
+    STATUS="$STATUS mode=build-only"
+fi
+echo "$STATUS"
