@@ -122,7 +122,12 @@ test('runs checks only for a ref name carrying a newline', () => {
 });
 
 const FLUTTER = 'sdks/flutter/coproduct';
+const RN = 'sdks/react-native/coproduct';
 const CLI = join(dirname(fileURLToPath(import.meta.url)), 'release-mode.mjs');
+
+// The repo also holds a React Native package whose version line disagrees
+// with the manifest, so a release here proves the identity check reads only
+// Flutter's lines
 
 function repo({ pubspecVersion = '1.3.0', manifestVersion = '1.3.0', manifest = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'flutter-release-mode-'));
@@ -132,6 +137,7 @@ function repo({ pubspecVersion = '1.3.0', manifestVersion = '1.3.0', manifest = 
   };
   write('.github/release-please-config.json', JSON.stringify({
     packages: {
+      [RN]: { 'release-type': 'node', component: 'react-native' },
       [FLUTTER]: {
         'release-type': 'dart',
         component: 'flutter',
@@ -139,7 +145,10 @@ function repo({ pubspecVersion = '1.3.0', manifestVersion = '1.3.0', manifest = 
       },
     },
   }));
-  if (manifest) write('.github/.release-please-manifest.json', JSON.stringify({ [FLUTTER]: manifestVersion }));
+  if (manifest) {
+    write('.github/.release-please-manifest.json', JSON.stringify({ [RN]: '1.0.3', [FLUTTER]: manifestVersion }));
+  }
+  write(`${RN}/package.json`, JSON.stringify({ name: 'x', version: '9.9.9' }));
   write(`${FLUTTER}/pubspec.yaml`, `name: coproduct\nversion: ${pubspecVersion}\n`);
   write(
     `${FLUTTER}/lib/src/sdk_version.dart`,

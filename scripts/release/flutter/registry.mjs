@@ -58,20 +58,22 @@ export function parseSeal(text) {
 // Returns the versions entry, or undefined when the version is absent. An
 // answer without a versions list is not a package answer, so it throws
 function findVersion(pkgJson, version) {
-  if (pkgJson === null) return undefined;
   if (!Array.isArray(pkgJson?.versions)) throw new Error('the pub.dev answer lists no versions');
   return pkgJson.versions.find((entry) => entry?.version === version);
 }
 
 /**
  * Returns 'publish', 'already-published', 'mismatch', 'stale', or
- * 'retracted'. pkgJson is null when pub.dev does not know the package.
- * archive maps each regular file pub.dev serves to { sha256, mode }, and is
- * needed only when the version is present and not retracted
+ * 'retracted'. pkgJson is pub.dev's answer for the package, and an answer
+ * without a latest version throws. archive maps each regular file pub.dev
+ * serves to { sha256, mode }, and is needed only when the version is present
+ * and not retracted
  */
 export function pubState({ pkgJson, version, seal, archive }) {
   // Comparing a version with itself rejects one that is not plain X.Y.Z
   compareVersions(version, version);
+  const latest = pkgJson?.latest?.version;
+  if (typeof latest !== 'string') throw new Error('the pub.dev answer names no latest version');
   const entry = findVersion(pkgJson, version);
   if (entry !== undefined) {
     if (entry.retracted === true) return 'retracted';
@@ -85,12 +87,9 @@ export function pubState({ pkgJson, version, seal, archive }) {
     }
     return 'already-published';
   }
-  const latest = pkgJson?.latest?.version ?? null;
-  if (latest !== null && compareVersions(latest, version) > 0) return 'stale';
+  if (compareVersions(latest, version) > 0) return 'stale';
   return 'publish';
 }
-
-class Absent extends Error {}
 
 // An archive with unsafe entries stays unsafe, so it is never retried
 class Refused extends Error {}
@@ -104,7 +103,7 @@ async function withRetries(attempts, fn) {
     try {
       return await fn();
     } catch (error) {
-      if (error instanceof Absent || error instanceof Refused || i >= attempts) throw error;
+      if (error instanceof Refused || i >= attempts) throw error;
       console.error(`attempt ${i} of ${attempts} failed (${error.message}), retrying`);
       await sleep(retryMs());
     }
@@ -117,12 +116,12 @@ async function fetchBytes(url) {
   return Buffer.from(await response.arrayBuffer());
 }
 
-// Returns the package answer. Only a 404 means pub.dev does not know the
-// package, and it throws Absent. Every other failure is a plain Error
+// Returns pub.dev's answer for the package, or throws. The package is
+// already on pub.dev, so a 404 is not absence but a wrong host, a wrong
+// name, or an outage, and it is an error like any other
 async function fetchPackage(pkg) {
   const url = `${baseUrl()}/api/packages/${encodeURIComponent(pkg)}`;
   const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (response.status === 404) throw new Absent(`${pkg} is not on pub.dev`);
   if (!response.ok) throw new Error(`fetching ${url} returned ${response.status}`);
   const text = await response.text();
   let pkgJson;
@@ -134,29 +133,21 @@ async function fetchPackage(pkg) {
   if (pkgJson === null || typeof pkgJson !== 'object' || !Array.isArray(pkgJson.versions)) {
     throw new Error(`${url} did not return a package answer`);
   }
+  if (pkgJson.name !== pkg) throw new Error(`${url} answered for ${pkgJson.name}, not ${pkg}`);
+  if (typeof pkgJson.latest?.version !== 'string') throw new Error(`${url} names no latest version`);
   return pkgJson;
 }
 
-// Returns the package answer, or null when pub.dev does not know the package
-async function readPackage(pkg) {
-  try {
-    return await fetchPackage(pkg);
-  } catch (error) {
-    if (error instanceof Absent) return null;
-    throw error;
-  }
-}
-
 /**
- * Returns 'absent' only when pub.dev answers that the package or version is
- * missing, 'present' when it lists the version, and 'error' for anything
- * else, because silence is not absence
+ * Returns 'absent' only when pub.dev's answer for the package lacks the
+ * version, 'present' when it lists the version, and 'error' for anything
+ * else, a 404 included, because silence is not absence
  */
 export async function pubPresence(pkg, version) {
   try {
     return findVersion(await fetchPackage(pkg), version) === undefined ? 'absent' : 'present';
-  } catch (error) {
-    return error instanceof Absent ? 'absent' : 'error';
+  } catch {
+    return 'error';
   }
 }
 
@@ -261,7 +252,7 @@ async function readArchive(entry) {
 }
 
 async function stateOnce(pkg, version, seal, attempts) {
-  const pkgJson = await withRetries(attempts, () => readPackage(pkg));
+  const pkgJson = await withRetries(attempts, () => fetchPackage(pkg));
   const entry = findVersion(pkgJson, version);
   const archive =
     entry !== undefined && entry.retracted !== true ? await withRetries(attempts, () => readArchive(entry)) : null;

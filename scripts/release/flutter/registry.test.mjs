@@ -48,8 +48,21 @@ test('publishes when the version is absent and latest is equal', () => {
   assert.equal(state({ pkgJson, archive: null }), 'publish');
 });
 
-test('publishes when the package is new to pub.dev', () => {
-  assert.equal(state({ pkgJson: null, version: '1.0.0', archive: null }), 'publish');
+test('refuses a missing package answer or one without a latest version', () => {
+  assert.throws(() => state({ pkgJson: null, version: '1.3.0', archive: null }));
+  for (const latest of [undefined, null, {}, { version: 1.2 }]) {
+    const pkgJson = clone(fixture);
+    pkgJson.latest = latest;
+    assert.throws(() => state({ pkgJson, version: '1.3.0', archive: null }), JSON.stringify(latest));
+    assert.throws(() => state({ pkgJson }), /no latest version/);
+  }
+});
+
+test('is a mismatch when a path is renamed and the file count still agrees', () => {
+  const different = archive();
+  different.delete('lib/coproduct.dart');
+  different.set('lib/renamed.dart', { sha256: A, mode: 0o644 });
+  assert.equal(state({ archive: different }), 'mismatch');
 });
 
 test('compares versions numerically, not as text', () => {
@@ -324,12 +337,52 @@ test('cli prints publish and stale for an absent version without downloading', a
   );
 });
 
-test('cli prints publish when pub.dev does not know the package', async () => {
-  await withPub({ answer: () => ({ status: 404, body: '{"error":{"code":"NotFound"}}' }) }, async (base) => {
+test('cli prints no state when pub.dev does not know the package, after retrying', async () => {
+  await withPub({ answer: () => ({ status: 404, body: '{"error":{"code":"NotFound"}}' }) }, async (base, counts) => {
     const r = await cli(base, STATE());
-    assert.equal(r.status, 0, r.stderr);
-    assert.deepEqual(r.stdout.trim().split('\n'), ['state=publish']);
+    assert.notEqual(r.status, 0);
+    assert.doesNotMatch(r.stdout, /state=/);
+    assert.equal(counts.api, 5);
   });
+});
+
+test('cli prints no state for a package answer without a latest version', async () => {
+  const bytes = makeArchive(GOOD_ENTRIES);
+  await withPub(
+    {
+      answer: (base) => {
+        const body = pkgJsonFor(base, [{ version: '1.2.0', bytes }]);
+        delete body.latest;
+        return { body };
+      },
+      archives: { '1.2.0': bytes },
+    },
+    async (base) => {
+      for (const version of ['1.2.0', '1.3.0']) {
+        const r = await cli(base, STATE(version));
+        assert.notEqual(r.status, 0, version);
+        assert.doesNotMatch(r.stdout, /state=/, version);
+      }
+    },
+  );
+});
+
+test('cli prints no state for a package answer that names another package', async () => {
+  const bytes = makeArchive(GOOD_ENTRIES);
+  await withPub(
+    {
+      answer: (base) => ({ body: { ...pkgJsonFor(base, [{ version: '1.2.0', bytes }]), name: 'other' } }),
+      archives: { '1.2.0': bytes },
+    },
+    async (base, counts) => {
+      for (const version of ['1.2.0', '1.3.0']) {
+        const r = await cli(base, STATE(version));
+        assert.notEqual(r.status, 0, version);
+        assert.doesNotMatch(r.stdout, /state=/, version);
+      }
+      assert.equal(counts.archive, 0);
+    },
+  );
 });
 
 test('cli prints retracted for a retracted version without downloading', async () => {
@@ -422,12 +475,13 @@ async function refuses(entries, pattern) {
   const bytes = makeArchive(entries);
   await withPub(
     { answer: (base) => ({ body: pkgJsonFor(base, [{ version: '1.2.0', bytes }]) }), archives: { '1.2.0': bytes } },
-    async (base) => {
+    async (base, counts) => {
       const r = await cli(base, STATE());
       assert.notEqual(r.status, 0);
       assert.doesNotMatch(r.stdout, /state=/);
       assert.match(r.stderr, pattern);
       assert.deepEqual(extractions(), []);
+      assert.equal(counts.archive, 1, 'an unsafe archive is not retried');
       assert.ok(readFileSync(tarLog, 'utf8').includes('-t'), 'the headers were listed');
     },
   );
@@ -442,7 +496,7 @@ test('cli refuses an archive holding a parent reference and extracts nothing', a
 });
 
 test('cli refuses hard links, absolute paths, and duplicate entries', async () => {
-  await refuses([...GOOD_ENTRIES, { name: 'lib/hard', type: '1', linkname: 'pubspec.yaml' }], /hard link/);
+  await refuses([...GOOD_ENTRIES, { name: 'lib/hard', type: '1', linkname: 'pubspec.yaml' }], /^  lib\/hard: hard link$/m);
   await refuses([...GOOD_ENTRIES, { name: '/tmp/abs', body: Buffer.from('x') }], /absolute path/);
   await refuses([...GOOD_ENTRIES, FILES[1]], /duplicate path/);
 });
@@ -499,6 +553,23 @@ test('cli confirm fails at once on a mismatching archive and names the runbook',
   );
 });
 
+test('cli confirm fails at once on an unsafe archive and names the runbook', async () => {
+  const bytes = makeArchive([...GOOD_ENTRIES, { name: 'lib/link', type: '2', linkname: '/etc/passwd' }]);
+  await withPub(
+    { answer: (base) => ({ body: pkgJsonFor(base, [{ version: '1.2.0', bytes }]) }), archives: { '1.2.0': bytes } },
+    async (base, counts) => {
+      const r = await cli(base, CONFIRM, { REGISTRY_CONFIRM_MS: '3000', REGISTRY_RETRY_MS: '1000' });
+      assert.equal(r.status, 1);
+      assert.doesNotMatch(r.stdout, /confirmed=/);
+      assert.match(r.stderr, /lib\/link: symlink/);
+      assert.match(r.stderr, /bad-version runbook in DEVELOPMENT\.md/);
+      assert.deepEqual(extractions(), []);
+      assert.equal(counts.archive, 1);
+      assert.ok(r.ms < 2500, `took ${r.ms} ms`);
+    },
+  );
+});
+
 test('cli confirm fails at once on a retracted version and names the runbook', async () => {
   const bytes = makeArchive(GOOD_ENTRIES);
   await withPub(
@@ -538,7 +609,16 @@ test('cli latest prints pub latest version and nothing else', async () => {
 });
 
 test('cli latest fails for an unknown package or an uncertain answer', async () => {
-  for (const answer of [() => ({ status: 404, body: '{}' }), () => ({ status: 500, body: '' }), () => ({ body: 'nope' })]) {
+  const withLatest = (latest) => () => ({ body: { ...fixture, latest } });
+  const { latest: _dropped, ...noLatest } = fixture;
+  for (const answer of [
+    () => ({ status: 404, body: '{}' }),
+    () => ({ status: 500, body: '' }),
+    () => ({ body: 'nope' }),
+    withLatest({ version: '1.3.0-beta.1' }),
+    () => ({ body: noLatest }),
+    () => ({ body: { ...fixture, name: 'other' } }),
+  ]) {
     await withPub({ answer }, async (base) => {
       const r = await cli(base, ['latest', 'coproduct']);
       assert.notEqual(r.status, 0);
@@ -601,15 +681,20 @@ test('pubPresence reports present when pub.dev lists the version', async () => {
   assert.equal(await presenceAgainst(() => ({ body: fixture })), 'present');
 });
 
-test('pubPresence reports absent when the version or the package is missing', async () => {
+test('pubPresence reports absent when pub.dev lists the package without the version', async () => {
   const without = clone(fixture);
   without.versions = without.versions.filter((v) => v.version !== '1.2.0');
   assert.equal(await presenceAgainst(() => ({ body: without })), 'absent');
-  assert.equal(await presenceAgainst(() => ({ status: 404, body: '{}' })), 'absent');
+});
+
+test('pubPresence reports error when pub.dev does not know the package', async () => {
+  assert.equal(await presenceAgainst(() => ({ status: 404, body: '{}' })), 'error');
 });
 
 test('pubPresence reports error for a server error or an unreadable answer', async () => {
   assert.equal(await presenceAgainst(() => ({ status: 500, body: '' })), 'error');
   assert.equal(await presenceAgainst(() => ({ body: 'not json' })), 'error');
   assert.equal(await presenceAgainst(() => ({ body: '{"name":"coproduct"}' })), 'error');
+  assert.equal(await presenceAgainst(() => ({ body: { ...fixture, name: 'other' } })), 'error');
+  assert.equal(await presenceAgainst(() => ({ body: { ...fixture, latest: {} } })), 'error');
 });

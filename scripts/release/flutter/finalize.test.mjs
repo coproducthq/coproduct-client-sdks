@@ -140,11 +140,12 @@ test('cli prints mark-not-published after three spaced absent answers', async ()
   });
 });
 
-test('cli prints mark-not-published when pub.dev does not know the package', async () => {
+test('cli prints none with a warning when pub.dev does not know the package', async () => {
   await withPub([{ status: 404, body: '{}' }], async (base) => {
     const r = await cli(base);
     assert.equal(r.status, 0, r.stderr);
-    assert.deepEqual(actions(r), ['action=mark-not-published']);
+    assert.deepEqual(actions(r), ['action=none']);
+    assert.match(r.stderr, /warning/i);
   });
 });
 
