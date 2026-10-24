@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Install the release toolchains on a hosted macOS runner, then run preflight
+# Install the release toolchains, then run preflight
 #
 # Usage: setup-toolchains.sh [--publish]
 #
 # The job runs dart-lang/setup-dart first, and that Dart only bootstraps FVM.
 # Flutter comes from FVM at the exact versions the gates pin. --publish installs
 # only the primary Flutter, which is all a job that verifies or publishes an
-# already built package needs, and skips the native toolchains and preflight
+# already built package, or checks the Dart code, needs. It skips the native
+# toolchains and preflight and works on any hosted runner. Full mode needs the
+# macOS runner's JDK 17 (JAVA_HOME_17_arm64), Android SDK (ANDROID_HOME), and Xcode
 #
 # Every variable is exported in this shell and also appended to $GITHUB_ENV or
 # $GITHUB_PATH when those are set, so later steps of the same job see it too
@@ -67,15 +69,6 @@ flutter_version_of() { # sdk bin directory
         | sed -n 's/.*"frameworkVersion": *"\([^"]*\)".*/\1/p' | head -1
 }
 
-: "${JAVA_HOME_17_arm64:?must be the runner JDK 17 home}"
-: "${ANDROID_HOME:?must be the Android SDK root}"
-
-step "environment"
-set_env JAVA_HOME "$JAVA_HOME_17_arm64"
-set_env ANDROID_NDK_HOME "$ANDROID_HOME/ndk/$PINNED_NDK"
-add_path "$ANDROID_HOME/platform-tools"
-add_path "$HOME/.cargo/bin"
-
 step "FVM $PINNED_FVM"
 command -v dart >/dev/null 2>&1 \
     || { echo "ERROR: no dart on PATH. Run dart-lang/setup-dart before this script" >&2; exit 1; }
@@ -113,6 +106,15 @@ if [[ "$PUBLISH" -eq 1 ]]; then
     echo "COPRODUCT_FLUTTER_CI_SETUP_STATUS pass=true mode=publish"
     exit 0
 fi
+
+: "${JAVA_HOME_17_arm64:?must be the runner JDK 17 home}"
+: "${ANDROID_HOME:?must be the Android SDK root}"
+
+step "environment"
+set_env JAVA_HOME "$JAVA_HOME_17_arm64"
+set_env ANDROID_NDK_HOME "$ANDROID_HOME/ndk/$PINNED_NDK"
+add_path "$ANDROID_HOME/platform-tools"
+add_path "$HOME/.cargo/bin"
 
 step "Rust"
 # With no argument rustup installs the toolchain rust-toolchain.toml names,

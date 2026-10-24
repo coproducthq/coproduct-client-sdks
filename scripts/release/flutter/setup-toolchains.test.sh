@@ -49,5 +49,38 @@ else
     printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
 fi
 
+echo "the variables only full mode needs"
+
+# A fake fvm that reports the pinned version and a fake Flutter that reports
+# the pinned framework version, so the run gets past the Flutter step
+for v in 3.44.0 3.38.1; do
+    mkdir -p "$T/home/fvm/versions/$v/bin"
+    printf '%s\n' '#!/bin/sh' "echo '{\"frameworkVersion\": \"$v\"}'" > "$T/home/fvm/versions/$v/bin/flutter"
+    chmod +x "$T/home/fvm/versions/$v/bin/flutter"
+done
+printf '#!/bin/sh\ncase "$1" in --version) echo 4.3.2 ;; *) exit 0 ;; esac\n' > "$T/home/.pub-cache/bin/fvm"
+chmod +x "$T/home/.pub-cache/bin/fvm"
+
+run_without_toolchains() { # setup arguments
+    env -i HOME="$T/home" PATH="$T/bin:/usr/bin:/bin" TMPDIR="$T" \
+        bash "$SETUP" "$@" 2>&1
+}
+
+out="$(run_without_toolchains --publish)"; rc=$?
+if [[ $rc -eq 0 ]] && printf '%s' "$out" | grep -q -F 'COPRODUCT_FLUTTER_CI_SETUP_STATUS pass=true mode=publish'; then
+    ok '--publish finishes with no JDK or Android SDK variables set'
+else
+    bad "--publish without JAVA_HOME_17_arm64 and ANDROID_HOME exited $rc"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
+
+out="$(run_without_toolchains)"; rc=$?
+if [[ $rc -ne 0 ]] && printf '%s' "$out" | grep -q -F 'JAVA_HOME_17_arm64'; then
+    ok 'full mode without the JDK variable stops, naming it'
+else
+    bad "full mode without JAVA_HOME_17_arm64 exited $rc without naming it"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
+
 [[ "$fail" -eq 0 ]] || { echo "setup-toolchains.test: FAIL" >&2; exit 1; }
 echo "setup-toolchains.test: PASS"
