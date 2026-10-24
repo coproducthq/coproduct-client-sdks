@@ -12,6 +12,7 @@ commits merged to `main`, so nobody edits them by hand.
    | Title | Release |
    |---|---|
    | `fix(rn): handle an empty flag key` | patch |
+   | `fix(flutter): handle an empty flag key` | patch |
    | `feat(rn): add typed getters` | minor |
    | `feat(rn)!: remove the legacy observer` | major |
    | `refactor:`, `test:`, `chore:`, `docs:`, `build:`, `ci:`, `style:` | none |
@@ -48,6 +49,8 @@ Commit first, because the title and shared core checks read commits. Set
 
 ## Platforms
 
-React Native versions are managed by
-[release-please](https://github.com/googleapis/release-please). Flutter is
-published through its release pipeline in `scripts/release/flutter/`.
+React Native and Flutter versions are managed by
+[release-please](https://github.com/googleapis/release-please). Merging the
+Flutter release PR starts the `Publish Flutter` workflow, which publishes to
+pub.dev after a maintainer approves the `pub.dev` deployment. The maintainer
+steps are in `DEVELOPMENT.md`.
