@@ -6,7 +6,9 @@
 # iOS simulator and no Android emulator. Every full gate is either in ci or in
 # GATES_LOCAL, the list a developer runs on their own devices before merging,
 # so dropping a gate from ci without naming it there stops it running anywhere.
-# gates.test.sh holds the two lists to that
+# gates.test.sh holds the two lists to that. ios-acceptance is in both: the
+# no-Rust iOS run stands in for it under ci, and the developer still runs the
+# real one
 #
 # Under COPRODUCT_GATES_LIST_ONLY=1 each guard prints its id instead of
 # running, so the lists are read from the guards a real run takes, with two
@@ -21,7 +23,7 @@
 GATES_FULL="consumer-builds floor-template testing-library public-surface ios-symbols ios-privacy-manifest ios-app-store-readiness android-symbols native-unit ios-acceptance android-acceptance android-dark-mode ios-no-rust android-no-rust-runtime android-no-rust-build mutations"
 GATES_CI="consumer-builds floor-template testing-library public-surface ios-symbols ios-privacy-manifest ios-app-store-readiness android-symbols ios-acceptance ios-no-rust android-no-rust-build"
 # Printed in this order on the local= line
-GATES_LOCAL="android-acceptance android-dark-mode android-no-rust-runtime native-unit mutations"
+GATES_LOCAL="ios-acceptance android-acceptance android-dark-mode android-no-rust-runtime native-unit mutations"
 
 GATE_SET="${COPRODUCT_RELEASE_GATES:-full}"
 case "$GATE_SET" in
