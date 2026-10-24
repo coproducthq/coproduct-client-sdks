@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       react_native: ${{ steps.pick.outputs.react_native }}
+      flutter: ${{ steps.pick.outputs.flutter }}
       release_config: ${{ steps.pick.outputs.release_config }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,14 +30,19 @@ jobs:
           changed=$(git diff --no-renames --name-only "$BASE_SHA"...HEAD)
           watched=$(jq -r '.packages | to_entries[] | .key as $p | (if .value["release-type"] == "dart" then $p + "/pubspec.yaml" else $p + "/package.json" end), (.value["extra-files"][]? | $p + "/" + (if type == "string" then . else .path end))' .github/release-please-config.json)
           watched=$(printf '%s\n%s\n%s\n' .github/release-please-config.json .github/.release-please-manifest.json "$watched")
-          rn=false; cfg=false
+          rn=false; fl=false; cfg=false
           if printf '%s\n' "$changed" | grep -qE '^(sdks/react-native/|scripts/release/react-native/)'; then rn=true; fi
+          if printf '%s\n' "$changed" | grep -qE '^(sdks/flutter/|ffi/coproduct-ffi-frb/|core/|scripts/release/flutter/)'; then fl=true; fi
           if printf '%s\n' "$changed" | grep -qxF -f <(printf '%s\n' "$watched"); then cfg=true; fi
-          echo "react_native=$rn" >> "$GITHUB_OUTPUT"
-          echo "release_config=$cfg" >> "$GITHUB_OUTPUT"
+          {
+            echo "react_native=$rn"
+            echo "flutter=$fl"
+            echo "release_config=$cfg"
+          } >> "$GITHUB_OUTPUT"
           {
             echo "### Checks selected"
             echo "- React Native tests and README examples: $rn"
+            echo "- Flutter format, analysis, and tests: $fl"
             echo "- Release config: $cfg"
             scripts/release/core-changed.sh --check "$BASE_SHA" "chore: describe" | sed 's/^/- shared core: /'
           } >> "$GITHUB_STEP_SUMMARY"
@@ -125,6 +131,27 @@ jobs:
       - run: corepack enable && yarn install --immutable && yarn build
       - run: ../../../scripts/release/ci-report.sh "README examples compile" -- scripts/readme-typecheck.sh
 
+  flutter:
+    name: Flutter checks
+    needs: select
+    if: needs.select.outputs.flutter == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # This Dart only bootstraps FVM, which installs the pinned Flutter
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - run: scripts/release/flutter/ci/setup-toolchains.sh --publish
+      - run: |
+          cd sdks/flutter/coproduct
+          ../../../scripts/release/ci-report.sh "Flutter format" -- dart format --set-exit-if-changed .
+          ../../../scripts/release/ci-report.sh "Flutter analyze" -- flutter analyze
+          ../../../scripts/release/ci-report.sh "Flutter tests" -- flutter test
+      - run: |
+          cd scripts/release/flutter
+          dart pub get
+          ../ci-report.sh "Flutter release tooling tests" -- dart test
+
   tooling:
     name: Release tooling tests
     runs-on: ubuntu-24.04
@@ -148,7 +175,7 @@ jobs:
   all:
     name: All checks passed
     if: always()
-    needs: [select, title, identity, core, release-config, rn-tests, readme, tooling, docs]
+    needs: [select, title, identity, core, release-config, rn-tests, readme, flutter, tooling, docs]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
