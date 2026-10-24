@@ -65,7 +65,6 @@ ios-symbols
 ios-privacy-manifest
 ios-app-store-readiness
 android-symbols
-ios-acceptance
 ios-no-rust
 android-no-rust-build"
 CI_RELEASE="$CI_SUITE"
@@ -142,13 +141,10 @@ same_list 'release.sh leaves nothing to the developer under full' \
 
 # ci plus local= is full, and the two do not overlap
 local_ids="$(printf '%s' "$got_line" | sed -n 's/.* local=//p' | tr ',' '\n')"
-union="$( { printf '%s\n' "$out_release_ci" | ids_of; printf '%s\n' "$local_ids"; } | sort -u)"
+union="$( { printf '%s\n' "$out_release_ci" | ids_of; printf '%s\n' "$local_ids"; } | sort)"
 same_list 'the ci gates plus the local= gates are the full gates' \
     "$(printf '%s\n' "$FULL_RELEASE" | sort)" "$union"
-# ios-acceptance is the one gate in both lists: list-only mode prints it under
-# ci, where the no-Rust iOS run stands in for it, and a developer still runs the
-# real one
-overlap="$(printf '%s\n' "$out_release_ci" | ids_of | sort | comm -12 - <(printf '%s\n' "$local_ids" | sort) | grep -vx 'ios-acceptance' || true)"
+overlap="$(printf '%s\n' "$out_release_ci" | ids_of | sort | comm -12 - <(printf '%s\n' "$local_ids" | sort))"
 if [[ -z "$overlap" ]]; then
     ok 'no gate is both run in ci and left to the developer'
 else

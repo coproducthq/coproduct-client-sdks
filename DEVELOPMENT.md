@@ -1328,8 +1328,8 @@ path runs by hand, split across jobs:
 The gates CI leaves to a developer are iOS and Android device acceptance, the
 Android dark mode and no-Rust runtime gates, the native unit suites, and the
 mutation gates, because a hosted macOS runner has one iOS simulator and no
-Android emulator. Under the `ci` gate set the no-Rust iOS run stands in for iOS
-acceptance, and it is the iOS runtime smoke test in the table above. `scripts/release/flutter/lib/gates.sh` holds both lists and a test
+Android emulator. CI runs the no-Rust iOS gate (`ios-no-rust`) as its iOS runtime
+smoke test, and does not run iOS acceptance, so a developer does. `scripts/release/flutter/lib/gates.sh` holds both lists and a test
 keeps every full gate in one of them, so a gate dropped from CI can't stop
 running everywhere.
 

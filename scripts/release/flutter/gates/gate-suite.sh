@@ -266,7 +266,7 @@ fi
 # Runtime acceptance on the primary toolchain. Under ci the no-Rust iOS gate
 # below is the iOS acceptance run: it runs this same suite against a fresh
 # consumer, and running both would repeat the slowest gate on a hosted runner
-if gate_enabled ios-acceptance && gate_set_is full; then
+if gate_set_is full && gate_enabled ios-acceptance; then
     run "ios acceptance on Flutter $PRIMARY" \
         "$REPO_ROOT/scripts/build/with-fvm-toolchain.sh" "$PRIMARY" -- \
         "$REPO_ROOT/scripts/build/artifact-linked-flutter-acceptance-ios.sh"

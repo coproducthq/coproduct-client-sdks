@@ -6,22 +6,20 @@
 # iOS simulator and no Android emulator. Every full gate is either in ci or in
 # GATES_LOCAL, the list a developer runs on their own devices before merging,
 # so dropping a gate from ci without naming it there stops it running anywhere.
-# gates.test.sh holds the two lists to that. ios-acceptance is in both: the
-# no-Rust iOS run stands in for it under ci, and the developer still runs the
-# real one
+# gates.test.sh holds the two lists to that. iOS acceptance is local only: under
+# ci the no-Rust iOS run is the iOS runtime check
 #
 # Under COPRODUCT_GATES_LIST_ONLY=1 each guard prints its id instead of
-# running, so the lists are read from the guards a real run takes, with two
-# exceptions that are listed although a real run of that set skips their block.
-# Under ci, ios-acceptance is listed, but its block also requires the full set,
-# because the no-Rust iOS run stands in for it. Under full,
-# android-no-rust-build is listed from the elif behind android-no-rust-runtime,
-# which a real full run never reaches, because the runtime run builds too
+# running, so the lists are read from the guards a real run takes, with one
+# exception that is listed although a real run of that set skips its block.
+# Under full, android-no-rust-build is listed from the elif behind
+# android-no-rust-runtime, which a real full run never reaches, because the
+# runtime run builds too
 #
 # Deliberately not a script of its own: sourcing must not change shell options
 
 GATES_FULL="consumer-builds floor-template testing-library public-surface ios-symbols ios-privacy-manifest ios-app-store-readiness android-symbols native-unit ios-acceptance android-acceptance android-dark-mode ios-no-rust android-no-rust-runtime android-no-rust-build mutations"
-GATES_CI="consumer-builds floor-template testing-library public-surface ios-symbols ios-privacy-manifest ios-app-store-readiness android-symbols ios-acceptance ios-no-rust android-no-rust-build"
+GATES_CI="consumer-builds floor-template testing-library public-surface ios-symbols ios-privacy-manifest ios-app-store-readiness android-symbols ios-no-rust android-no-rust-build"
 # Printed in this order on the local= line
 GATES_LOCAL="ios-acceptance android-acceptance android-dark-mode android-no-rust-runtime native-unit mutations"
 
