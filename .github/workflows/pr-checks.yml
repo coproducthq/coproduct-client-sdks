@@ -32,7 +32,7 @@ jobs:
           watched=$(printf '%s\n%s\n%s\n' .github/release-please-config.json .github/.release-please-manifest.json "$watched")
           rn=false; fl=false; cfg=false
           if printf '%s\n' "$changed" | grep -qE '^(sdks/react-native/|scripts/release/react-native/)'; then rn=true; fi
-          if printf '%s\n' "$changed" | grep -qE '^(sdks/flutter/|ffi/coproduct-ffi-frb/|core/|scripts/release/flutter/)'; then fl=true; fi
+          if printf '%s\n' "$changed" | grep -qE '^(sdks/flutter/|ffi/coproduct-ffi-frb/|core/|scripts/release/flutter/|Cargo\.lock$|Cargo\.toml$|rust-toolchain\.toml$)'; then fl=true; fi
           if printf '%s\n' "$changed" | grep -qxF -f <(printf '%s\n' "$watched"); then cfg=true; fi
           {
             echo "react_native=$rn"
