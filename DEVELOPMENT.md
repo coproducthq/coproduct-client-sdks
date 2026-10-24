@@ -755,7 +755,8 @@ hand is only for an emergency, through the runbook below.
 The "Publish Flutter" run uses the `ci` gate set (`COPRODUCT_RELEASE_GATES=ci`),
 because a hosted macOS runner has one iOS simulator and no Android emulator. Its
 "Result" job prints the gates left to your own run. Every pull request that
-touches the package, the bridge, the shared core, or the release tooling also
+touches the package, the bridge, the shared core, the root Rust manifests and
+toolchain pin, or the release tooling also
 runs the "Flutter checks" job: `dart format`, `flutter analyze`, and
 `flutter test` in `sdks/flutter/coproduct`, and `dart test` in
 `scripts/release/flutter`.
@@ -968,7 +969,7 @@ iOS simulator and an Android emulator.
 | Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
 | An iPhone simulator, and an Android Virtual Device (`$ANDROID_HOME/emulator/emulator -list-avds` lists one) | step 3 boots them, and the acceptance gates neither boot nor provision a device |
 | A pub.dev account with rights to publish `coproduct` | needed only at step 5, but it is the step where a first-time publisher discovers they lack them |
-| `gh` signed in (`gh auth status`) | steps 1, 6, and the cancel in step 1 use it |
+| `gh` signed in (`gh auth status`) | step 1's cancel and step 6 use it |
 
 Every command runs from the repository root, in this order. Steps 1 and 3 write
 their settings to one environment file, and every later block starts by sourcing
@@ -1324,10 +1325,11 @@ path runs by hand, split across jobs:
 - **Result** fails unless every job succeeded or was skipped, and prints the
   gates left to a local run.
 
-The gates CI leaves to a developer are the Android device gates (acceptance, dark
-mode, and the no-Rust runtime run), the native unit suites, and the mutation
-gates, because a hosted macOS runner has one iOS simulator and no Android
-emulator. `scripts/release/flutter/lib/gates.sh` holds both lists and a test
+The gates CI leaves to a developer are iOS and Android device acceptance, the
+Android dark mode and no-Rust runtime gates, the native unit suites, and the
+mutation gates, because a hosted macOS runner has one iOS simulator and no
+Android emulator. Under the `ci` gate set the no-Rust iOS run stands in for iOS
+acceptance, and it is the iOS runtime smoke test in the table above. `scripts/release/flutter/lib/gates.sh` holds both lists and a test
 keeps every full gate in one of them, so a gate dropped from CI can't stop
 running everywhere.
 
