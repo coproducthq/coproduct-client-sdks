@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.1.0...react-native-v1.1.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **rn:** clarify the integration agent runs in the app code directory ([#34](https://github.com/coproducthq/coproduct-client-sdks/issues/34)) ([be0730f](https://github.com/coproducthq/coproduct-client-sdks/commit/be0730fa04674aaa73c534a546b62f02eaf030a5))
+
 ## [1.1.0](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.0.3...react-native-v1.1.0) (2026-10-23)
 
 
