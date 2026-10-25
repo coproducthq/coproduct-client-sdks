@@ -11,7 +11,7 @@
    ```bash
    claude mcp add --transport http coproduct https://mcp.coproduct.app/mcp
    ```
-3. **Prompt** your agent: `Integrate @coproduct/react-native-sdk`
+3. **Prompt** your agent opened in your app code directory: `Integrate @coproduct/react-native-sdk`
    - Generates your project key and wires the SDK into your app.
 4. **Prompt** your agent: `Create a new onboarding with 5 steps`
 5. **Prompt** your agent: `Rebuild and open the app`
