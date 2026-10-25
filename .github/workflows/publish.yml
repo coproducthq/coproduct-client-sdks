@@ -319,7 +319,7 @@ jobs:
         run: |
           case "$STATE" in
             publish)
-              npm publish pkg/react-native.tgz --access public --provenance
+              npm publish ./pkg/react-native.tgz --access public --provenance
               ;;
             already-published)
               echo "$VERSION is already on npm with this exact package, so the run continues to confirm it"
