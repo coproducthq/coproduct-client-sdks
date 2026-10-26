@@ -13,6 +13,12 @@ void main() {
 // flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 const String _sdkKey = String.fromEnvironment('COPRODUCT_SDK_KEY');
 
+// Optional: a real paywallId deployed in Coproduct. When set, the paywall demo
+// fetches that live paywall from the backend via the real HttpPaywallClient
+// instead of the bundled local snapshot:
+// flutter run --dart-define=COPRODUCT_PAYWALL_ID=<paywallId>
+const String _paywallId = String.fromEnvironment('COPRODUCT_PAYWALL_ID');
+
 // Demo flag keys, one per value type. When the key's project has none of these
 // flags, the reads return the defaults passed here, so every read and mutate
 // surface still runs end to end
@@ -381,18 +387,28 @@ class _FlagDemo extends StatelessWidget {
     // here and only then push the route
     final platformScriptJs = await CoproductPaywall.loadPlatformScript();
     if (!context.mounted) return;
+    // With COPRODUCT_PAYWALL_ID set, fetch the live paywall from the backend
+    // (default HttpPaywallClient, keyed by the SDK key). Otherwise fall back to
+    // the bundled local demo snapshot so the example runs with no backend.
+    final live = _paywallId.isNotEmpty;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (routeContext) => Scaffold(
           body: SafeArea(
             child: CoproductPaywall(
-              paywallId: 'demo',
+              paywallId: live ? _paywallId : 'demo',
               appUserId: 'demo-user',
               sdkKey: _sdkKey,
               platformScriptJs: platformScriptJs,
-              client: _DemoPaywallClient(),
+              client: live ? null : _DemoPaywallClient(),
               onDismiss: () => Navigator.of(routeContext).maybePop(),
+              onLoadError: (error) {
+                developer.log(
+                  'COPRODUCT_FLUTTER_DEMO_PAYWALL_LOAD_ERROR ${error.message}',
+                  name: 'coproduct',
+                );
+              },
               onPurchaseResult: (result, entitlements) {
                 developer.log(
                   'COPRODUCT_FLUTTER_DEMO_PAYWALL_RESULT outcome=${result.outcome}',
