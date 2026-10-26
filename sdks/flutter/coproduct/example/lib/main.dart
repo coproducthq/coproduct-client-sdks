@@ -19,6 +19,13 @@ const String _sdkKey = String.fromEnvironment('COPRODUCT_SDK_KEY');
 // flutter run --dart-define=COPRODUCT_PAYWALL_ID=<paywallId>
 const String _paywallId = String.fromEnvironment('COPRODUCT_PAYWALL_ID');
 
+// Optional environment slug. When set alongside COPRODUCT_PAYWALL_ID, the demo
+// reads the published paywall straight from the public content CDN for that
+// environment (no SDK key needed for the fetch) instead of the authenticated
+// edge api. Set it to the environment the paywall was deployed to, e.g.
+// --dart-define=COPRODUCT_ENV_SLUG=production
+const String _envSlug = String.fromEnvironment('COPRODUCT_ENV_SLUG');
+
 // Demo flag keys, one per value type. When the key's project has none of these
 // flags, the reads return the defaults passed here, so every read and mutate
 // surface still runs end to end
@@ -400,6 +407,7 @@ class _FlagDemo extends StatelessWidget {
               paywallId: live ? _paywallId : 'demo',
               appUserId: 'demo-user',
               sdkKey: _sdkKey,
+              envSlug: live && _envSlug.isNotEmpty ? _envSlug : null,
               platformScriptJs: platformScriptJs,
               client: live ? null : _DemoPaywallClient(),
               onDismiss: () => Navigator.of(routeContext).maybePop(),
