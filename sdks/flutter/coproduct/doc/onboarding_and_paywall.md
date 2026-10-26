@@ -15,7 +15,7 @@ Both render an experience you author and publish on the Coproduct platform, in a
 | Feature | iOS | Android |
 |---|---|---|
 | Onboarding | Supported | Supported |
-| Paywall | Supported (StoreKit 2) | Not available |
+| Paywall | Supported (StoreKit 2) | Supported (Google Play Billing) |
 
 ## Prerequisites
 
@@ -87,7 +87,7 @@ Progress, meaning the current screen and the answers so far, is saved on the dev
 
 ## Paywall
 
-`CoproductPaywall` shows one paywall and handles the purchase or restore through StoreKit 2. It runs on iOS only. Show it only on iOS, for example behind `Platform.isIOS` from `dart:io`. On Android it still renders, but its purchase buttons do nothing.
+`CoproductPaywall` shows one paywall and handles the purchase or restore through StoreKit 2 on iOS and Google Play Billing on Android.
 
 ```dart
 final platformScript = await CoproductPaywall.loadPlatformScript();
