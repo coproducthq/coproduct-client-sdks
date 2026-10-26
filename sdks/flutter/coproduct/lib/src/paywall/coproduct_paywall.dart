@@ -1,5 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -21,8 +22,9 @@ class PaywallLoadError {
 }
 
 /// Renders and drives one resolved paywall: fetches it, loads its html into
-/// a WebView, resolves and injects live StoreKit2 prices, and completes a
-/// purchase or restore when the user taps a cta. [paywallId] is resolved
+/// a WebView, resolves and injects live store prices (StoreKit 2 on iOS,
+/// Google Play Billing on Android), and completes a purchase or restore when
+/// the user taps a cta. [paywallId] is resolved
 /// the same way coproduct_onboarding resolves a flowId: from an ordinary
 /// flag read, done by the caller before constructing this widget.
 class CoproductPaywall extends StatefulWidget {
@@ -44,7 +46,7 @@ class CoproductPaywall extends StatefulWidget {
   final String? envSlug;
 
   /// Overridable for tests. Defaults to the real HTTP client and the real
-  /// StoreKit2 MethodChannel bridge.
+  /// MethodChannel bridge (StoreKit 2 on iOS, Play Billing on Android).
   final PaywallClient? client;
   final NativePaywallBridge? bridge;
 
@@ -123,6 +125,7 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       bridge: bridge,
       client: client,
       appUserId: widget.appUserId,
+      platform: Platform.isAndroid ? 'ANDROID' : 'IOS',
       setPrices: (prices) async {
         try {
           await _controller?.runJavaScript(
