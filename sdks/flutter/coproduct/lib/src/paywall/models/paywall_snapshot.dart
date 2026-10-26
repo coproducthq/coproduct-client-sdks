@@ -1,3 +1,5 @@
+import '../native_paywall_bridge.dart' show PackageKind;
+
 /// One purchase option a paywall offers, e.g. monthly or annual. packageKey
 /// matches the backend's abstract key (@coproduct/snapshot-spec's
 /// PaywallCta) -- native resolves it to a real store product id via the
@@ -41,18 +43,22 @@ class PaywallContent {
 }
 
 /// One packageKey's store product ids, as resolved server-side from the
-/// offering the paywall's content.offeringKey points at. Every field is
-/// optional -- an offering may only have an iOS product configured, which
-/// this P1 is the only platform that reads.
+/// offering the paywall's content.offeringKey points at. Every product id
+/// field is optional -- an offering may only have an iOS product configured.
+/// kind is absent on a server that predates consumable support, which
+/// defaults it to subscription, preserving this feature's original
+/// subscription-only behavior exactly.
 class PaywallPackageRef {
   final String? iosProductId;
   final String? androidProductId;
   final String? webProductId;
+  final PackageKind kind;
 
   const PaywallPackageRef({
     this.iosProductId,
     this.androidProductId,
     this.webProductId,
+    this.kind = PackageKind.subscription,
   });
 
   factory PaywallPackageRef.fromJson(Map<String, dynamic> json) =>
@@ -60,8 +66,15 @@ class PaywallPackageRef {
         iosProductId: json['iosProductId'] as String?,
         androidProductId: json['androidProductId'] as String?,
         webProductId: json['webProductId'] as String?,
+        kind: _parsePackageKind(json['kind'] as String?),
       );
 }
+
+PackageKind _parsePackageKind(String? value) => switch (value) {
+  'consumable' => PackageKind.consumable,
+  'lifetime' => PackageKind.lifetime,
+  _ => PackageKind.subscription,
+};
 
 /// The resolved paywall a device fetches from GET /paywalls/:paywallId,
 /// mirroring @coproduct/snapshot-spec's PaywallSnapshot exactly, field for
