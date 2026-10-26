@@ -29,6 +29,24 @@ const String _jsonFlag = 'theme';
 /// recordPurchase/getEntitlements just log, matching this demo's
 /// bridge-level verification goal rather than a backend integration test.
 class _DemoPaywallClient implements PaywallClient {
+  // CoproductPaywall loads the top-level snapshot.html into the WebView
+  // (content.html is never read directly), so the demo markup lives here and
+  // the top-level html carries the identical string, mirroring the server.
+  static const _demoHtml = '''
+<section style="font-family: sans-serif; padding: 24px; text-align: center;">
+  <h1>Coproduct demo paywall</h1>
+  <p>This exercises the real MethodChannelPaywallBridge and, on Android,
+     the Play Billing plugin.</p>
+  <button data-cp-cta="test"
+          style="font-size: 18px; padding: 14px 28px; margin: 12px;">
+    Buy <span data-cp-price="test"></span>
+  </button>
+  <br/>
+  <button data-cp-restore style="padding: 10px 20px; margin: 8px;">Restore</button>
+  <button data-cp-dismiss style="padding: 10px 20px; margin: 8px;">Close</button>
+</section>
+''';
+
   @override
   Future<PaywallSnapshot?> fetchPaywall(String paywallId) async {
     return const PaywallSnapshot(
@@ -38,14 +56,7 @@ class _DemoPaywallClient implements PaywallClient {
       content: PaywallContent(
         offeringKey: 'default',
         ctas: [PaywallCta(packageKey: 'test', label: 'Buy (test)')],
-        html: '''
-<section>
-  <h1>Coproduct demo paywall</h1>
-  <button data-cp-cta="test">Buy <span data-cp-price="test"></span></button>
-  <button data-cp-restore>Restore</button>
-  <button data-cp-dismiss>Close</button>
-</section>
-''',
+        html: _demoHtml,
       ),
       packages: {
         'test': PaywallPackageRef(
@@ -53,7 +64,7 @@ class _DemoPaywallClient implements PaywallClient {
           kind: PackageKind.consumable,
         ),
       },
-      html: '',
+      html: _demoHtml,
     );
   }
 
