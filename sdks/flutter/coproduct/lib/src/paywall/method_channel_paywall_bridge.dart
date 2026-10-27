@@ -2,19 +2,21 @@ import 'package:flutter/services.dart';
 
 import 'native_paywall_bridge.dart';
 
-/// The Dart side of the CoproductPaywallPlugin (iOS-only StoreKit2 bridge).
-/// Request and response only, with no state of its own -- mirrors
-/// coproduct's HostContextChannel in shape.
+/// The Dart side of the CoproductPaywallPlugin: StoreKit 2 on iOS and
+/// Google Play Billing on Android, over one method channel. Request and
+/// response only, with no state of its own -- mirrors coproduct's
+/// HostContextChannel in shape.
 class MethodChannelPaywallBridge implements NativePaywallBridge {
   const MethodChannelPaywallBridge();
 
   static const _channel = MethodChannel('app.coproduct.flutter/paywall');
 
   @override
-  Future<String> priceFor(String productId) async {
+  Future<String> priceFor(String productId, PackageKind kind) async {
     try {
       final price = await _channel.invokeMethod<String>('priceFor', {
         'productId': productId,
+        'kind': kind.name.toUpperCase(),
       });
       if (price == null) throw const PaywallBridgeUnavailable();
       return price;
@@ -24,11 +26,12 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
   }
 
   @override
-  Future<PurchaseResult> purchase(String productId) async {
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
     final Map<Object?, Object?>? raw;
     try {
       raw = await _channel.invokeMethod<Map<Object?, Object?>>('purchase', {
         'productId': productId,
+        'kind': kind.name.toUpperCase(),
       });
     } on MissingPluginException {
       throw const PaywallBridgeUnavailable();
@@ -80,9 +83,9 @@ RestoredTransaction _restoredTransactionFromChannel(Map<Object?, Object?> raw) {
   );
 }
 
-// Swift sends milliseconds-since-epoch (Int) for every date, matching
-// StandardMethodCodec's native number representation -- no string date
-// parsing crosses the bridge
+// The native side (Swift or Kotlin) sends milliseconds-since-epoch (Int)
+// for every date, matching StandardMethodCodec's native number
+// representation -- no string date parsing crosses the bridge
 DateTime? _parseChannelDate(Object? raw) {
   if (raw == null) return null;
   return DateTime.fromMillisecondsSinceEpoch(raw as int, isUtc: true);

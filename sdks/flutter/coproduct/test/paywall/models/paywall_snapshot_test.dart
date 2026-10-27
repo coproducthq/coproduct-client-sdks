@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:coproduct/src/paywall/models/paywall_snapshot.dart';
+import 'package:coproduct/src/paywall/native_paywall_bridge.dart';
 
 void main() {
   test('parses a full snapshot, including packages', () {
@@ -58,5 +59,50 @@ void main() {
     });
 
     expect(snapshot.packages, isEmpty);
+  });
+
+  test('defaults kind to subscription when absent', () {
+    final snapshot = PaywallSnapshot.fromJson({
+      'paywallId': 'p-1',
+      'version': 1,
+      'templateType': 'hero_single_offer',
+      'content': {
+        'offeringKey': 'default',
+        'ctas': [
+          {'packageKey': 'monthly', 'label': 'Subscribe'},
+        ],
+        'html': '<section></section>',
+      },
+      'packages': {
+        'monthly': {'iosProductId': 'premium_monthly'},
+      },
+      'html': '<section></section>',
+    });
+
+    expect(snapshot.packages['monthly']!.kind, PackageKind.subscription);
+  });
+
+  test('parses consumable and lifetime kinds', () {
+    final snapshot = PaywallSnapshot.fromJson({
+      'paywallId': 'p-1',
+      'version': 1,
+      'templateType': 'hero_single_offer',
+      'content': {
+        'offeringKey': 'default',
+        'ctas': [
+          {'packageKey': 'coins', 'label': 'Buy coins'},
+          {'packageKey': 'lifetime', 'label': 'Buy forever'},
+        ],
+        'html': '<section></section>',
+      },
+      'packages': {
+        'coins': {'androidProductId': 'coins_100', 'kind': 'consumable'},
+        'lifetime': {'androidProductId': 'lifetime_unlock', 'kind': 'lifetime'},
+      },
+      'html': '<section></section>',
+    });
+
+    expect(snapshot.packages['coins']!.kind, PackageKind.consumable);
+    expect(snapshot.packages['lifetime']!.kind, PackageKind.lifetime);
   });
 }
