@@ -19,8 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.coproduct.AndroidHostSecureStore
+import app.coproduct.AndroidHostTransport
 import app.coproduct.Cancellable
 import app.coproduct.Coproduct
+import app.coproduct.CoproductConfig
 import app.coproduct.MockSecureStore
 import app.coproduct.MockTransport
 import app.coproduct.demo.android.ui.theme.CoproductAndroidDemoTheme
@@ -43,6 +46,10 @@ class MainActivity : ComponentActivity() {
                 val client = Coproduct.initialize(
                     sdkKey = "cpk_mob_test_scaffold",
                     context = applicationContext,
+                    config = CoproductConfig(
+                        transport = AndroidHostTransport,
+                        secureStore = AndroidHostSecureStore,
+                    ),
                 )
 
                 ready = "SDK ready: yes"
@@ -50,7 +57,7 @@ class MainActivity : ComponentActivity() {
                     "Host callbacks: ${yesNo(MockTransport.requestCount == 1 && MockSecureStore.completedHandshake)}"
                 getBool = "getBool: ${client.getBool("test-flag", false)}"
 
-                subscription = client.observe("test-flag", false) {}
+                subscription = client.observeBool("test-flag", false) {}
                 observer = "Observer registered: yes"
             }
 

@@ -4,7 +4,10 @@ Kotlin SDK for the [Coproduct](https://coproduct.app) feature flag and experimen
 
 ## Status
 
-Pre-1.0. The customer-facing API is specified separately and not yet implemented at production polish. Do not adopt for production use until v1.0.
+Pre-1.0. Flags are at production parity with the iOS SDK: typed getters,
+identity, per-type observation, host-driven polling, automatic attributes,
+and production transport/secure-store defaults. Onboarding and paywall are
+not yet implemented. Do not adopt for production use until v1.0.
 
 ## Compatibility
 
@@ -27,22 +30,30 @@ dependencies {
 ## Quickstart
 
 ```kotlin
+import app.coproduct.AttributeValue
 import app.coproduct.Coproduct
 
-val client = Coproduct.initialize(sdkKey = "cpk_mob_...")
+val client = Coproduct.initialize(sdkKey = "cpk_mob_...", context = applicationContext)
 client.identify(userId = "alice")
 
 if (client.getBool("new-checkout", default = false)) {
     showNewCheckoutFlow()
 }
+
+val cancellable = client.observeBool("new-checkout", default = false) { enabled ->
+    // called once immediately with the current value, then on every change
+}
+// cancellable.cancel() when the observer is no longer needed
 ```
 
 For Jetpack Compose integration:
 
 ```kotlin
+import app.coproduct.compose.rememberBoolFlag
+
 @Composable
-fun CheckoutScreen() {
-    val newCheckout by Coproduct.rememberFlag("new-checkout", default = false)
+fun CheckoutScreen(client: CoproductClient) {
+    val newCheckout by client.rememberBoolFlag("new-checkout", default = false)
     if (newCheckout) NewCheckoutFlow() else OldCheckoutFlow()
 }
 ```
