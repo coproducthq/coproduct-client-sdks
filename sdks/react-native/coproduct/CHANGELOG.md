@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.1.1...react-native-v1.1.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **paywall:** remove white-flash on load with reveal-gating and prefetch ([#38](https://github.com/coproducthq/coproduct-client-sdks/issues/38)) ([20ffca5](https://github.com/coproducthq/coproduct-client-sdks/commit/20ffca50b0f9f7a7627c8c97ac19781a32ff4a7d))
+
 ## [1.1.1](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.1.0...react-native-v1.1.1) (2026-10-25)
 
 
