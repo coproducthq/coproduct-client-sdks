@@ -26,6 +26,21 @@ export interface PaywallPrefetchArgs {
   client?: PaywallClient;
 }
 
+// Minimal flag-reader surface this module needs from the base client, declared
+// structurally so the paywall module keeps its independence from the base SDK.
+// The base CoproductClient satisfies it.
+export interface FlagReader {
+  getString(key: string, defaultValue: string): string;
+}
+
+export interface PaywallPrefetchPlacementsArgs {
+  client: FlagReader;
+  flagKeys: string[];
+  sdkKey: string;
+  envSlug?: string;
+  paywallClient?: PaywallClient;
+}
+
 export interface CoproductPaywallProps {
   paywallId: string;
   appUserId: string;
@@ -299,6 +314,30 @@ CoproductPaywall.prefetch = async (
     new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
   await snapshotCache.warm(snapshotCacheKey(args.paywallId, args.envSlug), () =>
     client.fetchPaywall(args.paywallId)
+  );
+};
+
+// Warms every paywall the given placement flags currently resolve to. A
+// placement is an ordinary string flag whose value is a paywallId, resolved
+// here through the base client so targeting is respected. Call once at launch
+// with the app's paywall flag keys. Best-effort; failures leave the cache cold.
+CoproductPaywall.prefetchPlacements = async (
+  args: PaywallPrefetchPlacementsArgs
+): Promise<void> => {
+  const paywallClient =
+    args.paywallClient ??
+    new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
+  const seen = new Set<string>();
+  await Promise.all(
+    args.flagKeys.map(async (flagKey) => {
+      const paywallId = args.client.getString(flagKey, '');
+      if (paywallId.length === 0 || seen.has(paywallId)) return;
+      seen.add(paywallId);
+      await snapshotCache.warm(
+        snapshotCacheKey(paywallId, args.envSlug),
+        () => paywallClient.fetchPaywall(paywallId)
+      );
+    })
   );
 };
 

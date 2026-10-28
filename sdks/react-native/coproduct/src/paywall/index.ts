@@ -26,3 +26,13 @@ export type {
   PaywallPackageRef,
   PaywallSnapshot,
 } from './models/paywallSnapshot';
+export {
+  snapshotCache,
+  snapshotCacheKey,
+  SnapshotCache,
+  SNAPSHOT_TTL_MS,
+} from './snapshotCache';
+export type {
+  FlagReader,
+  PaywallPrefetchPlacementsArgs,
+} from './CoproductPaywall';
