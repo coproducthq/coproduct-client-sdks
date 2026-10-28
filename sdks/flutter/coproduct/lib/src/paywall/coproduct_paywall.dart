@@ -22,6 +22,14 @@ class PaywallLoadError {
   const PaywallLoadError(this.message);
 }
 
+/// Minimal flag-reading surface the placement warm needs. The base
+/// [CoproductClient] implements it (its `getString` has this exact shape), so a
+/// host passes its client directly, and a test can supply a lightweight fake
+/// without a native handle. Mirrors the React Native `FlagReader`.
+abstract interface class FlagReader {
+  String getString(String key, {required String defaultValue});
+}
+
 /// Renders and drives one resolved paywall: fetches it, loads its html into
 /// a WebView, resolves and injects live store prices (StoreKit 2 on iOS,
 /// Google Play Billing on Android), and completes a purchase or restore when
@@ -95,6 +103,31 @@ class CoproductPaywall extends StatefulWidget {
       snapshotCacheKey(paywallId, envSlug),
       () => c.fetchPaywall(paywallId),
     );
+  }
+
+  /// Warms every paywall the given placement flags currently resolve to. A
+  /// placement is an ordinary string flag whose value is a paywallId, resolved
+  /// here through [client] so targeting is respected. Call once at launch with
+  /// the app's paywall flag keys. Best-effort; failures leave the cache cold.
+  static Future<void> prefetchPlacements({
+    required FlagReader client,
+    required List<String> flagKeys,
+    required String sdkKey,
+    String? envSlug,
+    PaywallClient? paywallClient,
+  }) async {
+    final c =
+        paywallClient ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
+    final seen = <String>{};
+    await Future.wait(flagKeys.map((flagKey) async {
+      final paywallId = client.getString(flagKey, defaultValue: '');
+      if (paywallId.isEmpty || seen.contains(paywallId)) return;
+      seen.add(paywallId);
+      await snapshotCache.warm(
+        snapshotCacheKey(paywallId, envSlug),
+        () => c.fetchPaywall(paywallId),
+      );
+    }));
   }
 
   @override

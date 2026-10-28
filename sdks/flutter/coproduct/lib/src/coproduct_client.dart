@@ -15,6 +15,7 @@ import 'isolate_probe.dart';
 import 'http_transport.dart';
 import 'json_value.dart';
 import 'native_bridge.dart';
+import 'paywall/coproduct_paywall.dart' show FlagReader;
 import 'platform_metadata.dart';
 import 'provider_state.dart';
 import 'rust/api.dart' as frb;
@@ -48,7 +49,7 @@ CoproductClient createClientForBackend(
 /// an ignored future that fails becomes an unhandled asynchronous error.
 /// Identity is not saved between launches, so call [identify] again after
 /// `initialize` on each launch
-final class CoproductClient {
+final class CoproductClient implements FlagReader {
   CoproductClient._(this._backend, this._identityQueue);
 
   final CoproductClientBackend _backend;
@@ -79,6 +80,7 @@ final class CoproductClient {
   /// Returns [defaultValue] when the SDK cannot resolve the flag, including
   /// when the flag is not a string. See [getBool] for what a read serves.
   /// Never throws, and does not rebuild a widget when the flag changes
+  @override
   String getString(String key, {required String defaultValue}) =>
       _backend.getString(key, defaultValue: defaultValue);
 
