@@ -9,10 +9,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/**
- * Hard cap on how stale a cached paywall snapshot may be served. Beyond it, an
- * open block-fetches fresh content rather than serving from cache.
- */
+/** How stale a cached snapshot may be served before an open block-fetches. */
 const val SNAPSHOT_TTL_MS: Long = 6L * 60 * 60 * 1000
 
 fun snapshotCacheKey(paywallId: String, envSlug: String?): String =
@@ -21,17 +18,9 @@ fun snapshotCacheKey(paywallId: String, envSlug: String?): String =
 typealias SnapshotFetch = suspend () -> PaywallSnapshot?
 
 /**
- * Process-level warm cache of fetched snapshots. A snapshot is the paywall's
- * html plus its product-id map -- never a price, which is resolved live from
- * the store on every open -- so a stale entry only risks stale content, not a
- * stale price. Reads are stale-while-revalidate: a fresh entry renders now and
- * refetches in the background; an entry past the ttl block-fetches. Mirrors
- * sdks/react-native/coproduct/src/paywall/snapshotCache.ts and
- * sdks/flutter/coproduct/lib/src/paywall/snapshot_cache.dart.
- *
- * [now] and [scope] are injectable so a test can step time across the ttl
- * boundary and drive the background revalidation deterministically; production
- * uses the wall clock and an own background scope.
+ * Process-level cache of fetched snapshots, with a TTL and stale-while-revalidate
+ * reads. A snapshot is html plus a product-id map, never a price, so a stale
+ * entry risks stale content, not a stale price. [now]/[scope] are injectable for tests.
  */
 class SnapshotCache(
     private val now: () -> Long = System::currentTimeMillis,
@@ -42,17 +31,15 @@ class SnapshotCache(
     private val mutex = Mutex()
     private val entries = mutableMapOf<String, Entry>()
 
-    // A key's in-flight background revalidation, if any. Doubles as the dedup
-    // guard -- a second fresh read for the same key while one is running does
-    // not start another -- and as the handle [awaitRevalidation] joins.
+    // A key's in-flight revalidation: both the dedup guard and the handle
+    // awaitRevalidation joins.
     private val revalidations = mutableMapOf<String, Job>()
 
     suspend fun resolve(key: String, fetchFn: SnapshotFetch): PaywallSnapshot? {
         val entry = mutex.withLock { entries[key] }
         if (entry != null) {
             if (now() - entry.fetchedAt < SNAPSHOT_TTL_MS) {
-                // Fresh: serve immediately, refresh for next open (at most one
-                // revalidation per key in flight).
+                // Fresh: serve now, refresh for the next open (one at a time).
                 mutex.withLock {
                     if (revalidations[key] == null) {
                         revalidations[key] = scope.launch { revalidate(key, fetchFn) }
@@ -60,8 +47,8 @@ class SnapshotCache(
                 }
                 return entry.snapshot
             }
-            // Stale: try to refresh, but fall back to the stale snapshot rather
-            // than failing the open if the refetch errors or returns nothing.
+            // Stale: refresh, but fall back to the stale snapshot if the
+            // refetch errors or returns nothing rather than failing the open.
             val refreshed = safeFetch(fetchFn)
             if (refreshed != null) {
                 mutex.withLock { entries[key] = Entry(refreshed, now()) }
@@ -80,11 +67,7 @@ class SnapshotCache(
         if (fetched != null) mutex.withLock { entries[key] = Entry(fetched, now()) }
     }
 
-    /**
-     * Joins any in-flight background revalidation for [key], so a caller that
-     * needs the stale-while-revalidate refresh to have settled can observe it
-     * deterministically. Returns immediately when none is running.
-     */
+    /** Joins any in-flight revalidation for [key]; returns at once if none runs. */
     suspend fun awaitRevalidation(key: String) {
         mutex.withLock { revalidations[key] }?.join()
     }

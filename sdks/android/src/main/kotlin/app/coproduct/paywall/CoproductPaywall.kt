@@ -22,11 +22,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Minimal flag-reading surface [CoproductPaywall.prefetchPlacements] needs to
- * resolve a placement flag to a paywallId. Declared here so the paywall feature
- * keeps its independence from the base flag SDK; the base [app.coproduct.CoproductClient]
- * implements it, so a host passes its client directly. Mirrors the React Native
- * and Flutter `FlagReader`.
+ * Flag-reading surface [CoproductPaywall.prefetchPlacements] uses to resolve a
+ * placement flag to a paywallId. The base [app.coproduct.CoproductClient]
+ * implements it, so a host passes its client directly.
  */
 interface FlagReader {
     fun getString(key: String, default: String): String
@@ -47,11 +45,9 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
     private var webView: WebView? = null
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
 
-    // The WebView is added hidden and transparent beneath this loading
-    // indicator, and revealed only once it has painted its html and had live
-    // prices applied (see reveal). Until then the user never sees the WebView's
-    // blank first paint (a white flash) nor the half-rendered, price-less
-    // intermediate frame.
+    // The WebView is added hidden and transparent beneath this spinner, and
+    // revealed only once it has painted and had prices applied (see reveal), so
+    // the user never sees a white flash or a price-less frame.
     private var progressBar: ProgressBar? = null
     private var revealed = false
     private var revealJob: Job? = null
@@ -102,10 +98,8 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
 
             val webView = WebView(context).also {
                 it.settings.javaScriptEnabled = true
-                // Transparent so the WebView's own blank first paint is never a
-                // white flash: while hidden there is nothing to see through to
-                // but the host background, and the paywall html paints its own
-                // background once loaded.
+                // Transparent so the hidden WebView's blank first paint is never
+                // a white flash; the html paints its own background once loaded.
                 it.setBackgroundColor(Color.TRANSPARENT)
                 it.visibility = View.INVISIBLE
                 this@CoproductPaywall.webView = it
@@ -126,10 +120,8 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
                 setPrices = { prices ->
                     val json = org.json.JSONObject(prices).toString()
                     webView.evaluateJavascript("window.__coproductSetPrices__($json);", null)
-                    // Prices are the last thing to land, so the paywall is now
-                    // fully formed -- reveal it. The onPageFinished fallback
-                    // still covers the case where prices never resolve (e.g.
-                    // the store is unreachable).
+                    // Prices are the last thing to land, so reveal now.
+                    // onPageFinished still covers the case where they never resolve.
                     reveal()
                 },
                 // The default [data-cp-result] sections (success/cancel/fail)
@@ -164,17 +156,10 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
                 }
 
                 override fun onPageFinished(view: WebView, url: String?) {
-                    // The whole document has loaded, so reveal if prices have
-                    // not already. setPrices reveals sooner once prices land.
+                    // Reveal if prices have not already; setPrices reveals sooner.
                     reveal()
-                    // Price injection runs JS against the page's own global,
-                    // so it must wait for the inline <script> to have
-                    // actually executed -- firing right after loadDataWithBaseURL
-                    // returns (which only means the load was *initiated*)
-                    // races a cold WebView's first paint and can silently
-                    // miss, especially since a cached Play Billing price can
-                    // resolve faster than that paint. Mirrors Flutter's
-                    // onPageFinished placement and RN's onLoadEnd exactly.
+                    // Inject prices only now the page's inline script has run, so
+                    // the global it defines exists.
                     scope.launch { runtime.onSnapshotLoaded(snapshot) }
                 }
             }
@@ -197,14 +182,9 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
             addView(webView)
             addView(spinner)
 
-            // Hang guard only. The paywall is revealed when its content has
-            // actually painted (onPageFinished) or its prices land (setPrices)
-            // -- never on a fixed delay, because the WebView is transparent
-            // while hidden, so revealing it before it has painted shows through
-            // to the host background until paint catches up. This timer exists
-            // solely so a WebView that never finishes (load hung, no network)
-            // still reveals rather than spinning forever; it is deliberately
-            // far longer than any real load.
+            // Hang guard only: reveal is driven by paint (onPageFinished) or
+            // prices (setPrices), never a fixed delay. This fires only if the
+            // WebView never finishes, so a hung load reveals instead of spinning.
             revealJob?.cancel()
             revealJob = scope.launch {
                 delay(8000)
@@ -214,9 +194,8 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
     }
 
     /**
-     * Reveals the fully-formed, priced paywall in a single cut from the
-     * spinner. Idempotent: the first of the paint signal, the price signal,
-     * and the hang guard wins and the rest are no-ops.
+     * Reveals the finished paywall in one cut from the spinner. Idempotent: the
+     * first of paint, prices, or the hang guard wins.
      */
     private fun reveal() {
         if (revealed) return
@@ -278,17 +257,9 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
 
     companion object {
         /**
-         * Fetches a paywall's snapshot and holds it in a process-level cache so
-         * a later [CoproductPaywall] for the same id and environment renders
-         * without a network round-trip. Call this once at app launch (right
-         * after the SDK is initialized) for any paywall the user is likely to
-         * reach, so the first open is instant instead of showing a spinner
-         * while the snapshot downloads.
-         *
-         * Best-effort: a failed fetch is swallowed, leaving the cache cold so
-         * the paywall's own load fetches and reports errors normally. Safe to
-         * call more than once; a later call simply refreshes the cached
-         * snapshot.
+         * Fetches a paywall's snapshot into the process-level cache so a later
+         * [CoproductPaywall] for the same id and environment opens without a
+         * network round-trip. Best-effort; safe to call more than once.
          */
         suspend fun prefetch(
             paywallId: String,
@@ -301,11 +272,8 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
         }
 
         /**
-         * Warms every paywall the given placement flags currently resolve to. A
-         * placement is an ordinary string flag whose value is a paywallId,
-         * resolved here through [client] so targeting is respected. Call once at
-         * launch with the app's paywall flag keys. Best-effort; failures leave
-         * the cache cold.
+         * Warms every paywall the given placement flags resolve to, reading each
+         * paywallId through [client] so targeting is respected. Best-effort.
          */
         suspend fun prefetchPlacements(
             client: FlagReader,
