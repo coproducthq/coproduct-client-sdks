@@ -13,22 +13,10 @@ import {
 } from './paywallRuntime';
 import { assemblePaywallShell } from './paywallShellAssembler';
 import { platformScriptJs as bundledPlatformScriptJs } from './platformScript.generated';
+import { snapshotCache, snapshotCacheKey } from './snapshotCache';
 
 export interface PaywallLoadError {
   message: string;
-}
-
-// Process-level warm cache of fetched snapshots, keyed by paywall + the
-// environment it was resolved for. A snapshot is the paywall's html plus its
-// product list -- everything needed to assemble the WebView shell -- so
-// caching it lets a later mount skip the fetch entirely and render on the
-// first frame. CoproductPaywall.prefetch populates it at app launch;
-// boot() reads it and, on a miss, fills it after its own fetch. Mirrors
-// sdks/flutter/coproduct/lib/src/paywall/coproduct_paywall.dart's cache.
-const snapshotCache = new Map<string, PaywallSnapshot>();
-
-function snapshotCacheKey(paywallId: string, envSlug?: string): string {
-  return `${paywallId}|${envSlug ?? 'api'}`;
 }
 
 export interface PaywallPrefetchArgs {
@@ -121,15 +109,14 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     if (bridge == null) return;
 
     const cacheKey = snapshotCacheKey(paywallId, envSlug);
-    let snapshot = snapshotCache.get(cacheKey);
-    if (snapshot == null) {
-      try {
-        snapshot = await client.fetchPaywall(paywallId);
-      } catch (error) {
-        onLoadError?.({ message: String(error) });
-        return;
-      }
-      if (snapshot != null) snapshotCache.set(cacheKey, snapshot);
+    let snapshot: PaywallSnapshot | undefined;
+    try {
+      snapshot = await snapshotCache.resolve(cacheKey, () =>
+        client.fetchPaywall(paywallId)
+      );
+    } catch (error) {
+      onLoadError?.({ message: String(error) });
+      return;
     }
     if (snapshot == null) {
       onLoadError?.({ message: 'Paywall not found for this environment.' });
@@ -310,14 +297,9 @@ CoproductPaywall.prefetch = async (
   const client =
     args.client ??
     new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
-  try {
-    const snapshot = await client.fetchPaywall(args.paywallId);
-    if (snapshot != null) {
-      snapshotCache.set(snapshotCacheKey(args.paywallId, args.envSlug), snapshot);
-    }
-  } catch {
-    // Best-effort warm -- a cold cache just means boot() fetches on open.
-  }
+  await snapshotCache.warm(snapshotCacheKey(args.paywallId, args.envSlug), () =>
+    client.fetchPaywall(args.paywallId)
+  );
 };
 
 const styles = StyleSheet.create({
