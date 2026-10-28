@@ -13,22 +13,10 @@ import {
 } from './paywallRuntime';
 import { assemblePaywallShell } from './paywallShellAssembler';
 import { platformScriptJs as bundledPlatformScriptJs } from './platformScript.generated';
+import { snapshotCache, snapshotCacheKey } from './snapshotCache';
 
 export interface PaywallLoadError {
   message: string;
-}
-
-// Process-level warm cache of fetched snapshots, keyed by paywall + the
-// environment it was resolved for. A snapshot is the paywall's html plus its
-// product list -- everything needed to assemble the WebView shell -- so
-// caching it lets a later mount skip the fetch entirely and render on the
-// first frame. CoproductPaywall.prefetch populates it at app launch;
-// boot() reads it and, on a miss, fills it after its own fetch. Mirrors
-// sdks/flutter/coproduct/lib/src/paywall/coproduct_paywall.dart's cache.
-const snapshotCache = new Map<string, PaywallSnapshot>();
-
-function snapshotCacheKey(paywallId: string, envSlug?: string): string {
-  return `${paywallId}|${envSlug ?? 'api'}`;
 }
 
 export interface PaywallPrefetchArgs {
@@ -36,6 +24,21 @@ export interface PaywallPrefetchArgs {
   sdkKey: string;
   envSlug?: string;
   client?: PaywallClient;
+}
+
+// Minimal flag-reader surface this module needs from the base client, declared
+// structurally so the paywall module keeps its independence from the base SDK.
+// The base CoproductClient satisfies it.
+export interface FlagReader {
+  getString(key: string, defaultValue: string): string;
+}
+
+export interface PaywallPrefetchPlacementsArgs {
+  client: FlagReader;
+  flagKeys: string[];
+  sdkKey: string;
+  envSlug?: string;
+  paywallClient?: PaywallClient;
 }
 
 export interface CoproductPaywallProps {
@@ -121,15 +124,14 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     if (bridge == null) return;
 
     const cacheKey = snapshotCacheKey(paywallId, envSlug);
-    let snapshot = snapshotCache.get(cacheKey);
-    if (snapshot == null) {
-      try {
-        snapshot = await client.fetchPaywall(paywallId);
-      } catch (error) {
-        onLoadError?.({ message: String(error) });
-        return;
-      }
-      if (snapshot != null) snapshotCache.set(cacheKey, snapshot);
+    let snapshot: PaywallSnapshot | undefined;
+    try {
+      snapshot = await snapshotCache.resolve(cacheKey, () =>
+        client.fetchPaywall(paywallId)
+      );
+    } catch (error) {
+      onLoadError?.({ message: String(error) });
+      return;
     }
     if (snapshot == null) {
       onLoadError?.({ message: 'Paywall not found for this environment.' });
@@ -310,14 +312,33 @@ CoproductPaywall.prefetch = async (
   const client =
     args.client ??
     new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
-  try {
-    const snapshot = await client.fetchPaywall(args.paywallId);
-    if (snapshot != null) {
-      snapshotCache.set(snapshotCacheKey(args.paywallId, args.envSlug), snapshot);
-    }
-  } catch {
-    // Best-effort warm -- a cold cache just means boot() fetches on open.
-  }
+  await snapshotCache.warm(snapshotCacheKey(args.paywallId, args.envSlug), () =>
+    client.fetchPaywall(args.paywallId)
+  );
+};
+
+// Warms every paywall the given placement flags currently resolve to. A
+// placement is an ordinary string flag whose value is a paywallId, resolved
+// here through the base client so targeting is respected. Call once at launch
+// with the app's paywall flag keys. Best-effort; failures leave the cache cold.
+CoproductPaywall.prefetchPlacements = async (
+  args: PaywallPrefetchPlacementsArgs
+): Promise<void> => {
+  const paywallClient =
+    args.paywallClient ??
+    new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
+  const seen = new Set<string>();
+  await Promise.all(
+    args.flagKeys.map(async (flagKey) => {
+      const paywallId = args.client.getString(flagKey, '');
+      if (paywallId.length === 0 || seen.has(paywallId)) return;
+      seen.add(paywallId);
+      await snapshotCache.warm(
+        snapshotCacheKey(paywallId, args.envSlug),
+        () => paywallClient.fetchPaywall(paywallId)
+      );
+    })
+  );
 };
 
 const styles = StyleSheet.create({

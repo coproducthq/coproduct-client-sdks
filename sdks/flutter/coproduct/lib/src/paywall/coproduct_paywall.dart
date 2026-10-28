@@ -13,6 +13,7 @@ import 'native_paywall_bridge.dart';
 import 'paywall_client.dart';
 import 'paywall_runtime.dart';
 import 'paywall_shell_assembler.dart';
+import 'snapshot_cache.dart';
 
 /// Thrown through [CoproductPaywall.onLoadError] when a paywall can't be
 /// fetched -- not found for this environment, or the request itself failed.
@@ -21,17 +22,13 @@ class PaywallLoadError {
   const PaywallLoadError(this.message);
 }
 
-/// Process-level warm cache of fetched snapshots, keyed by paywall + the
-/// environment it was resolved for. A snapshot is the paywall's html plus its
-/// product list -- everything needed to assemble the WebView shell -- so
-/// caching it lets a later mount skip the fetch entirely and render on the
-/// first frame. [CoproductPaywall.prefetch] populates it at app launch;
-/// [_CoproductPaywallState._boot] reads it and, on a miss, fills it after its
-/// own fetch. Mirrors the React Native SDK's snapshotCache.
-final Map<String, PaywallSnapshot> _snapshotCache = {};
-
-String _snapshotCacheKey(String paywallId, String? envSlug) =>
-    '$paywallId|${envSlug ?? 'api'}';
+/// Minimal flag-reading surface the placement warm needs. The base
+/// [CoproductClient] implements it (its `getString` has this exact shape), so a
+/// host passes its client directly, and a test can supply a lightweight fake
+/// without a native handle. Mirrors the React Native `FlagReader`.
+abstract interface class FlagReader {
+  String getString(String key, {required String defaultValue});
+}
 
 /// Renders and drives one resolved paywall: fetches it, loads its html into
 /// a WebView, resolves and injects live store prices (StoreKit 2 on iOS,
@@ -102,14 +99,35 @@ class CoproductPaywall extends StatefulWidget {
     PaywallClient? client,
   }) async {
     final c = client ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
-    try {
-      final snapshot = await c.fetchPaywall(paywallId);
-      if (snapshot != null) {
-        _snapshotCache[_snapshotCacheKey(paywallId, envSlug)] = snapshot;
-      }
-    } catch (_) {
-      // Best-effort warm -- a cold cache just means boot fetches on open.
-    }
+    await snapshotCache.warm(
+      snapshotCacheKey(paywallId, envSlug),
+      () => c.fetchPaywall(paywallId),
+    );
+  }
+
+  /// Warms every paywall the given placement flags currently resolve to. A
+  /// placement is an ordinary string flag whose value is a paywallId, resolved
+  /// here through [client] so targeting is respected. Call once at launch with
+  /// the app's paywall flag keys. Best-effort; failures leave the cache cold.
+  static Future<void> prefetchPlacements({
+    required FlagReader client,
+    required List<String> flagKeys,
+    required String sdkKey,
+    String? envSlug,
+    PaywallClient? paywallClient,
+  }) async {
+    final c =
+        paywallClient ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
+    final seen = <String>{};
+    await Future.wait(flagKeys.map((flagKey) async {
+      final paywallId = client.getString(flagKey, defaultValue: '');
+      if (paywallId.isEmpty || seen.contains(paywallId)) return;
+      seen.add(paywallId);
+      await snapshotCache.warm(
+        snapshotCacheKey(paywallId, envSlug),
+        () => c.fetchPaywall(paywallId),
+      );
+    }));
   }
 
   @override
@@ -149,16 +167,16 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
         HttpPaywallClient(sdkKey: widget.sdkKey, envSlug: widget.envSlug);
     final bridge = widget.bridge ?? const MethodChannelPaywallBridge();
 
-    final cacheKey = _snapshotCacheKey(widget.paywallId, widget.envSlug);
-    PaywallSnapshot? snapshot = _snapshotCache[cacheKey];
-    if (snapshot == null) {
-      try {
-        snapshot = await client.fetchPaywall(widget.paywallId);
-      } catch (e) {
-        widget.onLoadError?.call(PaywallLoadError(e.toString()));
-        return;
-      }
-      if (snapshot != null) _snapshotCache[cacheKey] = snapshot;
+    final cacheKey = snapshotCacheKey(widget.paywallId, widget.envSlug);
+    PaywallSnapshot? snapshot;
+    try {
+      snapshot = await snapshotCache.resolve(
+        cacheKey,
+        () => client.fetchPaywall(widget.paywallId),
+      );
+    } catch (e) {
+      widget.onLoadError?.call(PaywallLoadError(e.toString()));
+      return;
     }
     if (snapshot == null) {
       widget.onLoadError?.call(

@@ -11,3 +11,5 @@ export 'src/paywall/paywall_runtime.dart'
         PurchaseErrorCallback,
         PaywallPurchaseError,
         PaywallPurchaseErrorReason;
+export 'src/paywall/snapshot_cache.dart'
+    show SnapshotCache, snapshotCache, snapshotCacheKey, snapshotTtl;

@@ -1,6 +1,7 @@
 package app.coproduct
 
 import android.util.Log
+import app.coproduct.paywall.FlagReader
 import uniffi.coproduct_ffi_uniffi.BoolDelivery
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
 import uniffi.coproduct_ffi_uniffi.EvaluationHook
@@ -53,12 +54,12 @@ private class ClosureEvaluationHook(
 /** The full ergonomic wrapper around the generated native client. */
 class CoproductClient internal constructor(
     private val inner: NativeCoproductClient,
-) {
+) : FlagReader {
     private val identitySerializer = IdentitySerializer()
 
     // --- Typed getters (never throw) ---
     fun getBool(key: String, default: Boolean): Boolean = inner.getBool(key, default)
-    fun getString(key: String, default: String): String = inner.getString(key, default)
+    override fun getString(key: String, default: String): String = inner.getString(key, default)
     fun getInt(key: String, default: Long): Long = inner.getInt(key, default)
     fun getNumber(key: String, default: Double): Double = inner.getNumber(key, default)
     fun getJson(key: String, default: String): String = inner.getJson(key, default)

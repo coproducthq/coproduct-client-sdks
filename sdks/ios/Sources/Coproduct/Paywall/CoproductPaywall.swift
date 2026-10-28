@@ -1,10 +1,26 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 /// Reported through `onLoadError` when the paywall itself could not be
 /// fetched -- never a blank or broken WebView.
 public struct PaywallLoadError: Equatable, Sendable {
     public let message: String
+}
+
+/// Flag-reading surface `prefetchPlacements` uses to resolve a placement flag
+/// to a paywallId. The process-wide `Coproduct` flag surface backs the default
+/// reader.
+public protocol FlagReader {
+    func getString(_ key: String, default defaultValue: String) -> String
+}
+
+/// Default `FlagReader` for `prefetchPlacements`, reading through the
+/// process-wide `Coproduct` flag surface. A test injects a fake instead.
+struct CoproductFlagReader: FlagReader {
+    func getString(_ key: String, default defaultValue: String) -> String {
+        Coproduct.getString(key, default: defaultValue)
+    }
 }
 
 /// Renders and drives one resolved paywall: fetches it, loads its html into
@@ -62,6 +78,48 @@ public struct CoproductPaywall: View {
     public static func loadPlatformScript() async -> String {
         paywallPlatformScriptJs
     }
+
+    /// Fetches a paywall's snapshot into the process-level cache so a later
+    /// `CoproductPaywall` for the same id and environment opens without a
+    /// network round-trip. Best-effort; safe to call more than once.
+    public static func prefetch(
+        paywallId: String,
+        sdkKey: String,
+        envSlug: String? = nil,
+        client: PaywallClient? = nil
+    ) async {
+        let client = client ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug)
+        await snapshotCache.warm(snapshotCacheKey(paywallId, envSlug)) {
+            await client.fetchPaywall(paywallId)
+        }
+    }
+
+    /// Warms every paywall the given placement flags resolve to, reading each
+    /// paywallId through `client` (the flag surface by default) so targeting is
+    /// respected. Best-effort.
+    public static func prefetchPlacements(
+        flagKeys: [String],
+        sdkKey: String,
+        envSlug: String? = nil,
+        client: FlagReader? = nil,
+        paywallClient: PaywallClient? = nil
+    ) async {
+        let reader: FlagReader = client ?? CoproductFlagReader()
+        let paywallClient = paywallClient ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug)
+        var seen = Set<String>()
+        await withTaskGroup(of: Void.self) { group in
+            for flagKey in flagKeys {
+                let paywallId = reader.getString(flagKey, default: "")
+                if paywallId.isEmpty || seen.contains(paywallId) { continue }
+                seen.insert(paywallId)
+                group.addTask {
+                    await snapshotCache.warm(snapshotCacheKey(paywallId, envSlug)) {
+                        await paywallClient.fetchPaywall(paywallId)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Owns the `WKWebView` and its navigation delegate, fetches the paywall,
@@ -87,14 +145,43 @@ struct PaywallWebViewHost: UIViewRepresentable {
         )
     }
 
-    func makeUIView(context: Context) -> WKWebView {
+    // The WebView is mounted hidden and transparent beneath a spinner, and
+    // revealed only once it has painted and had prices applied (see
+    // Coordinator.reveal), so the user never sees a white flash or a price-less frame.
+    func makeUIView(context: Context) -> UIView {
+        let container = UIView()
+        container.backgroundColor = .clear
+
         let webView = WKWebView()
         webView.navigationDelegate = context.coordinator
-        context.coordinator.attach(to: webView)
-        return webView
+        // Transparent so the hidden WebView's blank first paint is never a
+        // white flash; the html paints its own background once loaded.
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.alpha = 0
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(webView)
+
+        let spinner = UIActivityIndicatorView(style: .medium)
+        spinner.startAnimating()
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(spinner)
+
+        NSLayoutConstraint.activate([
+            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            webView.topAnchor.constraint(equalTo: container.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            spinner.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        ])
+
+        context.coordinator.attach(webView: webView, spinner: spinner)
+        return container
     }
 
-    func updateUIView(_: WKWebView, context _: Context) {}
+    func updateUIView(_: UIView, context _: Context) {}
 
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
@@ -108,8 +195,11 @@ struct PaywallWebViewHost: UIViewRepresentable {
         private let client: PaywallClient
         private let bridge: NativePaywallBridge
         private weak var webView: WKWebView?
+        private weak var spinner: UIActivityIndicatorView?
         private var runtime: PaywallRuntime?
         private var loadedSnapshot: PaywallSnapshot?
+        private var revealed = false
+        private var revealTask: Task<Void, Never>?
 
         init(
             paywallId: String, appUserId: String, envSlug: String?,
@@ -130,13 +220,29 @@ struct PaywallWebViewHost: UIViewRepresentable {
             self.bridge = bridge
         }
 
-        func attach(to webView: WKWebView) {
+        func attach(webView: WKWebView, spinner: UIActivityIndicatorView) {
             self.webView = webView
+            self.spinner = spinner
             Task { await boot() }
         }
 
+        /// Reveals the finished paywall in one cut from the spinner. Idempotent:
+        /// the first of paint, prices, or the hang guard wins.
+        private func reveal() {
+            guard !revealed else { return }
+            revealed = true
+            revealTask?.cancel()
+            revealTask = nil
+            spinner?.stopAnimating()
+            spinner?.isHidden = true
+            webView?.alpha = 1
+        }
+
         private func boot() async {
-            guard let snapshot = await client.fetchPaywall(paywallId) else {
+            let snapshot = await snapshotCache.resolve(snapshotCacheKey(paywallId, envSlug)) { [client, paywallId] in
+                await client.fetchPaywall(paywallId)
+            }
+            guard let snapshot else {
                 onLoadError?(PaywallLoadError(message: "Paywall not found for this environment."))
                 return
             }
@@ -177,6 +283,15 @@ struct PaywallWebViewHost: UIViewRepresentable {
                 bodyHtml: snapshot.html, platformScriptJs: await CoproductPaywall.loadPlatformScript()
             )
             webView?.loadHTMLString(shellHtml, baseURL: nil)
+
+            // Hang guard only: reveal is driven by paint (didFinish) or prices
+            // (injectPrices), never a fixed delay. This fires only if the
+            // WebView never finishes, so a hung load reveals instead of spinning.
+            revealTask?.cancel()
+            revealTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
+                self?.reveal()
+            }
         }
 
         private static func resultState(for result: PurchaseResult) -> (state: String, message: String?) {
@@ -208,6 +323,9 @@ struct PaywallWebViewHost: UIViewRepresentable {
             // `async` function would otherwise resolve to -- this call
             // stays fire-and-forget, matching `reportToWebView` below.
             webView?.evaluateJavaScript("window.__coproductSetPrices__(\(json));", completionHandler: nil)
+            // Prices are the last thing to land, so reveal now. didFinish still
+            // covers the case where they never resolve.
+            reveal()
         }
 
         /// Encodes a Swift string as a properly escaped JS string literal
@@ -228,6 +346,8 @@ struct PaywallWebViewHost: UIViewRepresentable {
         // miss, especially since a cached StoreKit price can resolve
         // faster than that paint.
         func webView(_: WKWebView, didFinish _: WKNavigation!) {
+            // Reveal if prices have not already; injectPrices reveals sooner.
+            reveal()
             guard let snapshot = loadedSnapshot, let runtime else { return }
             Task { await runtime.onSnapshotLoaded(snapshot) }
         }
