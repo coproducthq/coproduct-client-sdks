@@ -63,3 +63,39 @@ fn last_occurrence_of_a_duplicate_key_wins() {
     let m = parse_utm_parameters("utm_source=first&utm_source=second");
     assert_eq!(m.get("utm_source").map(String::as_str), Some("second"));
 }
+
+#[test]
+fn trailing_percent_does_not_panic_and_passes_through_literally() {
+    let m = parse_utm_parameters("utm_source=ab%");
+    assert_eq!(m.get("utm_source").map(String::as_str), Some("ab%"));
+}
+
+#[test]
+fn percent_with_single_following_char_passes_through() {
+    let m = parse_utm_parameters("utm_source=x%2");
+    assert_eq!(m.get("utm_source").map(String::as_str), Some("x%2"));
+}
+
+#[test]
+fn invalid_hex_after_percent_passes_through_literally() {
+    let m = parse_utm_parameters("utm_campaign=%zz");
+    assert_eq!(m.get("utm_campaign").map(String::as_str), Some("%zz"));
+}
+
+#[test]
+fn a_fragment_containing_more_pairs_does_not_leak_keys() {
+    // The fragment is stripped before the query is split, so utm_medium here is
+    // inside the fragment and must not be captured
+    let m = parse_utm_parameters("https://app.example.com/x?utm_source=a#x&utm_medium=b");
+    assert_eq!(m.get("utm_source").map(String::as_str), Some("a"));
+    assert!(!m.contains_key("utm_medium"));
+    assert_eq!(m.len(), 1);
+}
+
+#[test]
+fn an_empty_later_occurrence_does_not_erase_an_earlier_value() {
+    // An empty value is skipped before insert, so the earlier non-empty value
+    // for the same key survives
+    let m = parse_utm_parameters("utm_source=first&utm_source=");
+    assert_eq!(m.get("utm_source").map(String::as_str), Some("first"));
+}
