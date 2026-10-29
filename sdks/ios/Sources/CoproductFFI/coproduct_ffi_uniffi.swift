@@ -6713,6 +6713,32 @@ fileprivate struct FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
+    public static func write(_ value: [String: String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterString.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: String] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: String]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDictionaryStringTypeContextValue: FfiConverterRustBuffer {
     public static func write(_ value: [String: ContextValue], into buf: inout [UInt8]) {
         let len = Int32(value.count)
@@ -6952,6 +6978,18 @@ public func initialize(sdkKey: String, userAgent: String, cacheDir: String, conf
             errorHandler: FfiConverterTypeInitError_lift
         )
 }
+/**
+ * Parses UTM acquisition parameters from a URL or install-referrer query
+ * string. The SDK captures the launch URL or install referrer and calls this
+ * so every platform extracts the same five keys identically
+ */
+public func parseUtmParameters(url: String) -> [String: String]  {
+    return try!  FfiConverterDictionaryStringString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(
+        FfiConverterString.lower(url),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -6972,6 +7010,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters() != 61873) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel() != 7578) {

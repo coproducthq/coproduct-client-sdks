@@ -897,6 +897,11 @@ uint32_t uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(RustBuffer rule_
 uint64_t uniffi_coproduct_ffi_uniffi_fn_func_initialize(RustBuffer sdk_key, RustBuffer user_agent, RustBuffer cache_dir, RustBuffer config, uint64_t transport, uint64_t secure_store
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_COPRODUCT_FFI_UNIFFI_FN_FUNC_PARSE_UTM_PARAMETERS
+#define UNIFFI_FFIDEF_UNIFFI_COPRODUCT_FFI_UNIFFI_FN_FUNC_PARSE_UTM_PARAMETERS
+RustBuffer uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(RustBuffer url, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_FFI_COPRODUCT_FFI_UNIFFI_RUSTBUFFER_ALLOC
 #define UNIFFI_FFIDEF_FFI_COPRODUCT_FFI_UNIFFI_RUSTBUFFER_ALLOC
 RustBuffer ffi_coproduct_ffi_uniffi_rustbuffer_alloc(uint64_t size, RustCallStatus *_Nonnull out_status
@@ -1166,6 +1171,12 @@ uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_COPRODUCT_FFI_UNIFFI_CHECKSUM_FUNC_INITIALIZE
 #define UNIFFI_FFIDEF_UNIFFI_COPRODUCT_FFI_UNIFFI_CHECKSUM_FUNC_INITIALIZE
 uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_initialize(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_COPRODUCT_FFI_UNIFFI_CHECKSUM_FUNC_PARSE_UTM_PARAMETERS
+#define UNIFFI_FFIDEF_UNIFFI_COPRODUCT_FFI_UNIFFI_CHECKSUM_FUNC_PARSE_UTM_PARAMETERS
+uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(void
     
 );
 #endif

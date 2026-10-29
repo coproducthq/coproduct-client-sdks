@@ -760,163 +760,165 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckApiChecksums(this)
     }
     external fun uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_func_initialize(
-    ): Short
+    ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int_details(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_snapshot_view(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_set_attribute(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_id(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_write(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed(
-    ): Short
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new(
-    ): Short
+    ): Int
     external fun ffi_coproduct_ffi_uniffi_uniffi_contract_version(
     ): Int
 
@@ -1168,6 +1170,8 @@ external fun uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(`ruleId`: Ru
 ): Int
 external fun uniffi_coproduct_ffi_uniffi_fn_func_initialize(`sdkKey`: RustBuffer.ByValue,`userAgent`: RustBuffer.ByValue,`cacheDir`: RustBuffer.ByValue,`config`: RustBuffer.ByValue,`transport`: Long,`secureStore`: Long,
 ): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(`url`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 external fun ffi_coproduct_ffi_uniffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun ffi_coproduct_ffi_uniffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1183,7 +1187,7 @@ external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u8(`handle`: Long,
 external fun ffi_coproduct_ffi_uniffi_rust_future_free_u8(`handle`: Long,
 ): Unit
 external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Byte
+): Int
 external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
 external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i8(`handle`: Long,
@@ -1199,7 +1203,7 @@ external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_u16(`handle`: Long,
 external fun ffi_coproduct_ffi_uniffi_rust_future_free_u16(`handle`: Long,
 ): Unit
 external fun ffi_coproduct_ffi_uniffi_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-): Short
+): Int
 external fun ffi_coproduct_ffi_uniffi_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
 ): Unit
 external fun ffi_coproduct_ffi_uniffi_rust_future_cancel_i16(`handle`: Long,
@@ -1287,241 +1291,244 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors() != 46291.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors() != 46291) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel() != 7578.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters() != 61873) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled() != 43875.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel() != 7578) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys() != 36135.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled() != 43875) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next() != 181.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys() != 36135) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed() != 35025.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_poll_next() != 181) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel() != 59207.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_seed() != 35025) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled() != 50480.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_cancel() != 59207) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys() != 57071.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_is_cancelled() != 50480) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next() != 19403.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_keys() != 57071) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed() != 50471.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_poll_next() != 19403) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook() != 40101.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_bundleobservation_seed() != 50471) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler() != 19994.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook() != 40101) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values() != 36853.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler() != 19994) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values() != 36853) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details() != 52006.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int() != 11663.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details() != 52006) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int_details() != 45983.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int() != 11663) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json() != 47890.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int_details() != 45983) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details() != 57801.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json() != 47890) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number() != 22829.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details() != 57801) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details() != 55106.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number() != 22829) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string() != 49273.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details() != 55106) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details() != 55912.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string() != 49273) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details() != 55912) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool() != 9702.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle() != 16193.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool() != 9702) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int() != 65401.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle() != 16193) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json() != 51107.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_int() != 65401) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number() != 1811.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_json() != 51107) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string() != 4265.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_number() != 1811) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now() != 20968.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_string() != 4265) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id() != 54885.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_poll_now() != 20968) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes() != 44822.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_previous_anonymous_id() != 54885) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes() != 3097.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_remove_attributes() != 44822) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_auto_populated_attributes() != 3097) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener() != 40640.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_context() != 48089) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown() != 35784.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_set_evaluation_listener() != 40640) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out() != 19109.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_shutdown() != 35784) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_snapshot_view() != 3540.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_sign_out() != 19109) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state() != 23491.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_snapshot_view() != 3540) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes() != 28839.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_state() != 23491) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute() != 55087.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_update_attributes() != 28839) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_set_attribute() != 49057.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_get_attribute() != 55087) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key() != 63268.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_set_attribute() != 49057) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage() != 42144.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationcontexthandle_targeting_key() != 63268) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation() != 49466.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationhook_on_stage() != 42144) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel() != 5211.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_evaluationlistener_on_evaluation() != 49466) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id() != 34719.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_cancel() != 5211) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled() != 24796.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_id() != 34719) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_cancel() != 34361.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_handlerhandle_is_cancelled() != 24796) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_id() != 54555.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_cancel() != 34361) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_is_cancelled() != 40394.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_id() != 54555) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read() != 59578.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hookhandle_is_cancelled() != 40394) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_write() != 41873.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_read() != 59578) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request() != 50214.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hostsecurestore_write() != 41873) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel() != 20818.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_hosttransport_request() != 50214) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled() != 21365.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_cancel() != 20818) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys() != 30549.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_is_cancelled() != 21365) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next() != 51624.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_keys() != 30549) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed() != 35687.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_poll_next() != 51624) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel() != 53018.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_intobservation_seed() != 35687) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled() != 37538.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_cancel() != 53018) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys() != 11338.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_is_cancelled() != 37538) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next() != 33187.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_keys() != 11338) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed() != 39229.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_poll_next() != 33187) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event() != 35580.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_jsonobservation_seed() != 39229) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel() != 11288.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_lifecyclehandler_on_event() != 35580) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled() != 17054.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_cancel() != 11288) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys() != 63781.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_is_cancelled() != 17054) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next() != 16582.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_keys() != 63781) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed() != 50333.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_poll_next() != 16582) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel() != 1914.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_numberobservation_seed() != 50333) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled() != 30604.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_cancel() != 1914) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys() != 5437.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_is_cancelled() != 30604) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next() != 37274.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_keys() != 5437) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed() != 19901.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_poll_next() != 37274) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new() != 4096.toShort()) {
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_stringobservation_seed() != 19901) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_constructor_evaluationcontexthandle_new() != 4096) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1846,6 +1853,10 @@ private class JavaLangRefCleanable(
  */
 public object FfiConverterUShort: FfiConverter<UShort, Short> {
     override fun lift(value: Short): UShort {
+        return value.toUShort()
+    }
+
+    fun lift(value: Int): UShort {
         return value.toUShort()
     }
 
@@ -10171,6 +10182,45 @@ public object FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer<List<Ht
 /**
  * @suppress
  */
+public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<kotlin.String, kotlin.String>> {
+    override fun read(buf: ByteBuffer): Map<kotlin.String, kotlin.String> {
+        val len = buf.getInt()
+        return buildMap<kotlin.String, kotlin.String>(len) {
+            repeat(len) {
+                val k = FfiConverterString.read(buf)
+                val v = FfiConverterString.read(buf)
+                this[k] = v
+            }
+        }
+    }
+
+    override fun allocationSize(value: Map<kotlin.String, kotlin.String>): ULong {
+        val spaceForMapSize = 4UL
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterString.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<kotlin.String, kotlin.String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterString.write(v, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterMapStringTypeContextValue: FfiConverterRustBuffer<Map<kotlin.String, ContextValue>> {
     override fun read(buf: ByteBuffer): Map<kotlin.String, ContextValue> {
         val len = buf.getInt()
@@ -10317,5 +10367,20 @@ public object FfiConverterMapStringOptionalTypeFlagValue: FfiConverterRustBuffer
         InitException.ErrorHandler,
     )
     }
+
+        /**
+         * Parses UTM acquisition parameters from a URL or install-referrer query
+         * string. The SDK captures the launch URL or install referrer and calls this
+         * so every platform extracts the same five keys identically
+         */ fun `parseUtmParameters`(`url`: kotlin.String): Map<kotlin.String, kotlin.String> {
+            return FfiConverterMapStringString.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(
+    
+        FfiConverterString.lower(`url`),_status)
+}
+    )
+    }
+    
 
 
