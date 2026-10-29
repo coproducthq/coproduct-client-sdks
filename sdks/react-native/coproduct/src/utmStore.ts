@@ -74,7 +74,7 @@ export async function captureUtm(
   url: string,
   _now: number = Date.now()
 ): Promise<Record<string, AttributeValue>> {
-  let parsed: Record<string, string> = {};
+  let parsed: Map<string, string> = new Map();
 
   try {
     parsed = parseUtmParameters(url);
@@ -84,7 +84,9 @@ export async function captureUtm(
 
   const existing = await readUtmFile();
 
-  const parsedEntries = Object.entries(parsed).filter(([, value]) => value);
+  const parsedEntries = Array.from(parsed.entries()).filter(
+    ([, value]) => value
+  );
   if (parsedEntries.length === 0) {
     return flatten(existing);
   }

@@ -38,10 +38,14 @@ describe('captureUtm', () => {
   });
 
   it('sets first-touch and last-touch for each parsed key on first capture', async () => {
-    (parseUtmParameters as jest.Mock).mockReturnValue({
-      utm_source: 'google',
-      utm_medium: 'cpc',
-    });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(
+        Object.entries({
+          utm_source: 'google',
+          utm_medium: 'cpc',
+        })
+      )
+    );
 
     const attrs = await captureUtm(
       'https://example.com?utm_source=google&utm_medium=cpc'
@@ -56,12 +60,14 @@ describe('captureUtm', () => {
   });
 
   it('overwrites last-touch but freezes first-touch on a later capture with different values', async () => {
-    (parseUtmParameters as jest.Mock).mockReturnValue({ utm_source: 'google' });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(Object.entries({ utm_source: 'google' }))
+    );
     await captureUtm('https://example.com?utm_source=google');
 
-    (parseUtmParameters as jest.Mock).mockReturnValue({
-      utm_source: 'facebook',
-    });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(Object.entries({ utm_source: 'facebook' }))
+    );
     const attrs = await captureUtm('https://example.com?utm_source=facebook');
 
     expect(attrs.utm_source).toBe('google');
@@ -69,13 +75,19 @@ describe('captureUtm', () => {
   });
 
   it('keeps first-touch for a key absent from a later capture, and last-touch reflects only the latest capture keys', async () => {
-    (parseUtmParameters as jest.Mock).mockReturnValue({
-      utm_source: 'google',
-      utm_medium: 'cpc',
-    });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(
+        Object.entries({
+          utm_source: 'google',
+          utm_medium: 'cpc',
+        })
+      )
+    );
     await captureUtm('https://example.com?utm_source=google&utm_medium=cpc');
 
-    (parseUtmParameters as jest.Mock).mockReturnValue({ utm_medium: 'email' });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(Object.entries({ utm_medium: 'email' }))
+    );
     const attrs = await captureUtm('https://example.com?utm_medium=email');
 
     expect(attrs.utm_source).toBe('google');
@@ -85,11 +97,13 @@ describe('captureUtm', () => {
   });
 
   it('makes no changes and returns the current stored attributes when parse is empty', async () => {
-    (parseUtmParameters as jest.Mock).mockReturnValue({ utm_source: 'google' });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(Object.entries({ utm_source: 'google' }))
+    );
     await captureUtm('https://example.com?utm_source=google');
     (RNFS.writeFile as jest.Mock).mockClear();
 
-    (parseUtmParameters as jest.Mock).mockReturnValue({});
+    (parseUtmParameters as jest.Mock).mockReturnValue(new Map());
     const attrs = await captureUtm('https://example.com/no-utm');
 
     expect(attrs).toEqual({
@@ -100,10 +114,14 @@ describe('captureUtm', () => {
   });
 
   it('omits empty values from the flattened result', async () => {
-    (parseUtmParameters as jest.Mock).mockReturnValue({
-      utm_source: 'google',
-      utm_medium: '',
-    });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(
+        Object.entries({
+          utm_source: 'google',
+          utm_medium: '',
+        })
+      )
+    );
 
     const attrs = await captureUtm(
       'https://example.com?utm_source=google&utm_medium='
@@ -128,10 +146,14 @@ describe('readUtmAttributes', () => {
   });
 
   it('returns the persisted flattened set without mutating it', async () => {
-    (parseUtmParameters as jest.Mock).mockReturnValue({
-      utm_source: 'google',
-      utm_campaign: 'spring',
-    });
+    (parseUtmParameters as jest.Mock).mockReturnValue(
+      new Map(
+        Object.entries({
+          utm_source: 'google',
+          utm_campaign: 'spring',
+        })
+      )
+    );
     await captureUtm(
       'https://example.com?utm_source=google&utm_campaign=spring'
     );
