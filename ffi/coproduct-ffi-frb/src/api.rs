@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
@@ -307,6 +308,13 @@ impl FrbContextValue {
 #[frb(sync)]
 pub fn bucket_for_vectors(rule_id: String, targeting_key: String, suffix: String) -> u32 {
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
+}
+
+/// Parses UTM acquisition parameters from a URL or install-referrer query
+/// string, for the Flutter SDK to fold into the auto-populated context
+#[frb(sync)]
+pub fn parse_utm_parameters(url: String) -> HashMap<String, String> {
+    coproduct_core::utm::parse_utm_parameters(&url)
 }
 
 // Host lifecycle config crossing the boundary. Durations are microseconds so a

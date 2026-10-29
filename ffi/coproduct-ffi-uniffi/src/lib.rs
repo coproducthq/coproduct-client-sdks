@@ -1487,6 +1487,14 @@ pub fn bucket_for_vectors(rule_id: String, targeting_key: String, suffix: String
     coproduct_core::bucketing::bucket_for_vectors(&rule_id, &targeting_key, &suffix)
 }
 
+/// Parses UTM acquisition parameters from a URL or install-referrer query
+/// string. The SDK captures the launch URL or install referrer and calls this
+/// so every platform extracts the same five keys identically
+#[uniffi::export]
+pub fn parse_utm_parameters(url: String) -> std::collections::HashMap<String, String> {
+    coproduct_core::utm::parse_utm_parameters(&url)
+}
+
 #[derive(Debug)]
 struct TransportAdapter {
     host: Arc<dyn HostTransport>,
