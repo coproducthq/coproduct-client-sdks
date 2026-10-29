@@ -93,11 +93,12 @@ object Coproduct {
             )
 
         val serializer = IdentitySerializer(scope)
-        val client = CoproductClient(nativeClient, scope, serializer)
+        val client = CoproductClient(nativeClient, context, scope, serializer)
 
         val autoAttributes =
             DeviceContext.staticAttributes(context) +
-                SessionStore(SharedPreferencesSessionStorage(context)).begin()
+                SessionStore(SharedPreferencesSessionStorage(context)).begin() +
+                UtmStore(context).utmAttributes()
         client.setAutoPopulatedNow(autoAttributes)
 
         val timer =
@@ -115,6 +116,7 @@ object Coproduct {
         client.attachLifecycle(timer, networkMonitor) { instances.clearIfCurrent(client) }
         timer.start()
         networkMonitor.start()
+        InstallReferrerCapture.start(context, UtmStore(context), scope, client::setAutoPopulated)
         return client
     }
 
@@ -175,6 +177,27 @@ object Coproduct {
     private fun logIdentityBeforeInitialize(method: String) {
         Log.w(LOG_TAG, "$method called before initialize; ignoring")
     }
+
+    /**
+     * Persists UTM acquisition attribution parsed from [url], even before
+     * [initialize] is called, so a deep link opened ahead of SDK startup is
+     * never lost. Unlike the other static identity facades this one needs
+     * [context] directly: there is no default instance yet to borrow one
+     * from, and Android, unlike iOS's UserDefaults.standard, has no
+     * ambient storage location that does not require one. Only
+     * [Context.getApplicationContext] is retained, and only for the
+     * duration of this call. Publishes into the auto-populated context
+     * immediately when a default instance already exists; otherwise the
+     * capture is folded into the auto-populated context the next time
+     * [initialize] runs, matching [CoproductClient.captureAttribution]
+     */
+    fun captureAttribution(context: Context, url: String) {
+        val attributes = UtmStore(context.applicationContext).capture(url)
+        val client = instances.defaultInstance() ?: return
+        if (attributes.isNotEmpty()) {
+            client.setAutoPopulated(attributes)
+        }
+    }
 }
 
 /**
@@ -185,6 +208,9 @@ object Coproduct {
  */
 class CoproductClient internal constructor(
     private val inner: NativeCoproductClient,
+    // Named distinctly from the identity methods' local `context` (their
+    // converted ContextValue map) so neither shadows the other
+    private val appContext: Context,
     private val scope: CoroutineScope,
     private val serializer: IdentitySerializer = IdentitySerializer(scope),
 ) {
@@ -275,6 +301,22 @@ class CoproductClient internal constructor(
 
     fun removeAttributes(keys: List<String>) {
         serializer.enqueue { inner.removeAttributes(keys) }
+    }
+
+    /**
+     * Persists UTM acquisition attribution parsed from [url] via [UtmStore],
+     * then, if anything was found, publishes it into the auto-populated
+     * context through the identity serializer so a targeting attribute such
+     * as `utm_source` resolves on the next evaluation. Matches the public
+     * `captureAttribution` name used by the iOS, React Native, and Flutter
+     * SDKs. A deep link that carries no UTM parameters is a no-op beyond the
+     * persistence [UtmStore.capture] already performed unconditionally
+     */
+    fun captureAttribution(url: String) {
+        val attributes = UtmStore(appContext).capture(url)
+        if (attributes.isNotEmpty()) {
+            setAutoPopulated(attributes)
+        }
     }
 
     // Auto-populated context

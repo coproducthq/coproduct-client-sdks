@@ -41,6 +41,8 @@ dependencies {
     // ProcessLifecycleOwner, the foreground signal HostTimer's default
     // ForegroundSource observes
     implementation("androidx.lifecycle:lifecycle-process:2.9.1")
+    // Play Install Referrer Library, the one-shot source InstallReferrerCapture reads
+    implementation("com.android.installreferrer:installreferrer:2.2")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
