@@ -25,4 +25,5 @@ pub mod secure_store;
 pub mod snapshot;
 pub mod state;
 pub mod transport;
+pub mod utm;
 pub mod variation_select;
