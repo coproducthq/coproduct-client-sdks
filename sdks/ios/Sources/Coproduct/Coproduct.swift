@@ -99,6 +99,26 @@ public enum Coproduct {
         client.setContext(targetingKey: targetingKey, attributes: attributes)
     }
 
+    /// Capture UTM acquisition parameters from a URL for attribution.
+    ///
+    /// Parses `url` for `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`,
+    /// and `utm_content`. The first value ever captured per key is frozen as
+    /// first-touch attribution on the bare key. Every capture also overwrites
+    /// last-touch attribution on the `_last` variant of the key (for example
+    /// `utm_source_last`). Call this with the launch URL or a deep link URL;
+    /// a URL with none of these parameters leaves prior attribution untouched.
+    /// Fire-and-forget; a call before initialize logs and does nothing.
+    public static func captureAttribution(url: String) {
+        guard let client = Instances.shared.defaultInstance() else {
+            logIdentityBeforeInitialize("captureAttribution")
+            return
+        }
+        let attributes = UtmStore().capture(url: url)
+        if !attributes.isEmpty {
+            client.setAutoPopulated(attributes: attributes)
+        }
+    }
+
     /// The anonymous id recorded by the first linked identify since initialize or
     /// the last signOut, or `nil`. A later identify does not overwrite it, and
     /// signOut or an identify with `linkAnonymous: false` clears it. Held in
@@ -633,6 +653,9 @@ final class Instances: @unchecked Sendable {
         // live network fact arrives later through NetworkMonitor
         var autoAttributes = DeviceContext.staticAttributes()
         for (key, value) in SessionStore().sessionAttributes() {
+            autoAttributes[key] = value
+        }
+        for (key, value) in UtmStore().utmAttributes() {
             autoAttributes[key] = value
         }
         await client.setAutoPopulatedNow(attributes: autoAttributes)
