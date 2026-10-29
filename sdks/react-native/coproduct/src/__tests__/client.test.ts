@@ -1,4 +1,9 @@
+jest.mock('../utmStore', () => ({
+  captureUtm: jest.fn(),
+}));
+
 import { CoproductClient } from '../client';
+import { captureUtm } from '../utmStore';
 import {
   BoolDelivery,
   FlagEvaluationDetailsBool,
@@ -242,6 +247,40 @@ describe('CoproductClient identity', () => {
     const client = new CoproductClient(native);
 
     expect(client.previousAnonymousId).toBe('anon-1');
+  });
+});
+
+describe('CoproductClient.captureAttribution', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('publishes the captured attributes as auto-populated attributes', async () => {
+    (captureUtm as jest.Mock).mockResolvedValue({
+      utm_source: 'google',
+      utm_source_last: 'google',
+    });
+    const native = fakeNativeClient();
+    const client = new CoproductClient(native);
+
+    await client.captureAttribution('https://example.com?utm_source=google');
+
+    expect(captureUtm).toHaveBeenCalledWith(
+      'https://example.com?utm_source=google'
+    );
+    expect(native.setAutoPopulatedAttributes).toHaveBeenCalledWith(
+      expect.anything()
+    );
+  });
+
+  it('skips publishing when nothing was captured', async () => {
+    (captureUtm as jest.Mock).mockResolvedValue({});
+    const native = fakeNativeClient();
+    const client = new CoproductClient(native);
+
+    await client.captureAttribution('https://example.com/no-utm');
+
+    expect(native.setAutoPopulatedAttributes).not.toHaveBeenCalled();
   });
 });
 

@@ -20,6 +20,7 @@ import {
 import { attributesToContext, type AttributeValue } from './attributeValue';
 import { IdentitySerializer } from './identitySerializer';
 import { observeDrain, type Cancellable } from './observation';
+import { captureUtm } from './utmStore';
 
 // Int flag values travel as bigint over FFI (Rust's Int64). RN callers use
 // plain numbers, matching every other typed getter's ergonomics and avoiding
@@ -147,6 +148,20 @@ export class CoproductClient {
 
   get previousAnonymousId(): string | undefined {
     return this.native.previousAnonymousId();
+  }
+
+  /**
+   * Captures UTM parameters from a URL (install link, deep link, or web
+   * referrer) into first-touch and last-touch attribution attributes, then
+   * publishes them as auto-populated attributes. First-touch is captured
+   * once and frozen thereafter, while last-touch is overwritten on every
+   * call. A no-op when the URL carries no UTM parameters
+   */
+  async captureAttribution(url: string): Promise<void> {
+    const attrs = await captureUtm(url);
+    if (Object.keys(attrs).length) {
+      await this.setAutoPopulatedAttributes(attrs);
+    }
   }
 
   // MARK: Observation (returns a Cancellable; seeds with the current value,

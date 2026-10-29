@@ -15,6 +15,7 @@ import { CoproductClient } from './client';
 import { HostTimer } from './hostTimer';
 import { staticDeviceAttributes } from './deviceContext';
 import { readSessionAttributes } from './sessionStore';
+import { readUtmAttributes } from './utmStore';
 import { NetworkMonitor } from './networkMonitor';
 import { FetchTransport } from './defaultTransport';
 import { KeychainSecureStore } from './defaultSecureStore';
@@ -236,9 +237,11 @@ async function runInitialize(
   const client = new CoproductClient(nativeClient);
 
   const sessionAttributes = await readSessionAttributes();
+  const utmAttributes = await readUtmAttributes();
   await client.setAutoPopulatedAttributes({
     ...staticDeviceAttributes(),
     ...sessionAttributes,
+    ...utmAttributes,
   });
 
   const timer = new HostTimer({
