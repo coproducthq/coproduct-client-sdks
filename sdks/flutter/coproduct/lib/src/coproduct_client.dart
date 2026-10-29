@@ -21,6 +21,7 @@ import 'rust/api.dart' as frb;
 import 'secure_identity_store.dart';
 import 'sdk_version.dart';
 import 'serial_queue.dart';
+import 'utm_store.dart';
 
 /// Builds a client over a backend.
 ///
@@ -372,6 +373,7 @@ final class Coproduct {
         beginSession: const HostContextChannel().beginSession,
         networkTypeEvents: const HostContextChannel().networkTypeEvents,
         bindNetworkResume: appLifecycleForegroundBinder,
+        readUtmAttributes: UtmStore().readAttributes,
       );
 
   /// Starts the SDK and returns a client for reading flags.

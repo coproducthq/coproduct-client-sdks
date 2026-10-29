@@ -291,6 +291,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   Future<SessionPair> Function()? beginSession,
   NetworkTypeEvents? networkTypeEvents,
   _RecordingForeground? networkResume,
+  Future<Map<String, frb.FrbContextValue>> Function()? readUtmAttributes,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -316,6 +317,9 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
     initClock: initClock,
     networkTypeEvents: networkTypeEvents ?? _silentNetwork,
     bindNetworkResume: networkResume?.binder ?? (onResume) => null,
+    readUtmAttributes:
+        readUtmAttributes ??
+        () async => const <String, frb.FrbContextValue>{},
   );
 }
 
@@ -787,6 +791,7 @@ void main() {
         reportError: (e, s) {},
         networkTypeEvents: _silentNetwork,
         bindNetworkResume: (onResume) => null,
+        readUtmAttributes: () async => const <String, frb.FrbContextValue>{},
       );
 
       final pending = host.initialize(sdkKey: 'cpk_mob_a');
@@ -952,6 +957,7 @@ void main() {
         reportError: (e, s) {},
         networkTypeEvents: _silentNetwork,
         bindNetworkResume: (onResume) => null,
+        readUtmAttributes: () async => const <String, frb.FrbContextValue>{},
       );
 
       await expectLater(
