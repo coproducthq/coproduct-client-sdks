@@ -80,7 +80,16 @@ internal class SharedPreferencesUtmStorage(context: Context) : UtmStorage {
  *
  * [parse] defaults to the generated `parseUtmParameters`, which needs the
  * native library loaded through JNA. It is injectable so a JVM unit test can
- * exercise the capture logic without that native dependency
+ * exercise the capture logic without that native dependency.
+ *
+ * The read-modify-write in [capture], and the read in [utmAttributes], run
+ * under [lock], a lock shared across every [UtmStore] instance over this
+ * prefs file. Install referrer capture and a deep-link capture now both run
+ * off the main thread, so two captures can genuinely race, which the lock
+ * resolves by serializing them rather than letting one overwrite the
+ * other's merge. The iOS port's UtmStore documents relying on its captures
+ * all running on the main thread for this same serialization. This lock
+ * removes that assumption on Android
  */
 internal class UtmStore(
     private val storage: UtmStorage,
@@ -97,7 +106,9 @@ internal class UtmStore(
      */
     fun utmAttributes(): Map<String, AttributeValue> =
         try {
-            flatten(storage.readFirstTouch(), storage.readLastTouch())
+            synchronized(lock) {
+                flatten(storage.readFirstTouch(), storage.readLastTouch())
+            }
         } catch (error: Exception) {
             logFailure(error)
             emptyMap()
@@ -111,23 +122,25 @@ internal class UtmStore(
      * whether a client instance exists yet, so a deep link or install
      * referrer captured before initialize is never lost. When the parse
      * finds nothing, nothing is persisted and the already-stored set is
-     * returned unchanged. A storage error fails closed to an empty map
-     * rather than falling back to a possibly stale read
+     * returned unchanged. A storage error, or a write that reports it did
+     * not commit, fails closed to an empty map rather than falling back to
+     * a possibly stale read or returning a merge that was never persisted
      */
     fun capture(url: String): Map<String, AttributeValue> {
         val parsed = parse(url)
         if (parsed.isEmpty()) return utmAttributes()
 
         return try {
-            val first = storage.readFirstTouch().toMutableMap()
-            val last = storage.readLastTouch().toMutableMap()
-            for ((key, value) in parsed) {
-                if (value.isEmpty()) continue
-                last[key] = value
-                if (!first.containsKey(key)) first[key] = value
+            synchronized(lock) {
+                val first = storage.readFirstTouch().toMutableMap()
+                val last = storage.readLastTouch().toMutableMap()
+                for ((key, value) in parsed) {
+                    if (value.isEmpty()) continue
+                    last[key] = value
+                    if (!first.containsKey(key)) first[key] = value
+                }
+                if (!storage.write(first, last)) emptyMap() else flatten(first, last)
             }
-            storage.write(first, last)
-            flatten(first, last)
         } catch (error: Exception) {
             logFailure(error)
             emptyMap()
@@ -153,5 +166,12 @@ internal class UtmStore(
         const val FIRST_TOUCH_KEY = "app.coproduct.utm.first"
         const val LAST_TOUCH_KEY = "app.coproduct.utm.last"
         private const val LOG_TAG = "Coproduct"
+
+        /**
+         * Guards every [UtmStore] instance's read-modify-write over this
+         * prefs file. `capture` is not a suspend fun, so a plain
+         * `synchronized` block never holds this lock across a suspension
+         */
+        private val lock = Any()
     }
 }

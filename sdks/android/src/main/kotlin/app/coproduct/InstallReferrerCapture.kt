@@ -18,6 +18,15 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  */
 internal interface ReferrerSource {
     fun fetch(onResult: (String?) -> Unit)
+
+    /**
+     * Releases whatever [fetch] opened, if [fetch] has not already finished
+     * on its own. Called when the coroutine awaiting the result is
+     * cancelled, so a shutdown racing an in-flight fetch still releases the
+     * service binding. The default is a no-op, which is enough for a fake
+     * that never opens anything a cancellation would need to close
+     */
+    fun cancel() {}
 }
 
 /**
@@ -27,8 +36,15 @@ internal interface ReferrerSource {
  * disconnects before responding, reports `null` rather than throwing
  */
 internal class PlayInstallReferrerSource(private val context: Context) : ReferrerSource {
+    // Set for the duration of an in-flight fetch so a cancellation racing
+    // the service callback can still reach the same client and end the
+    // connection. There is at most one fetch per instance, since
+    // InstallReferrerCapture.run only calls it once
+    @Volatile private var activeClient: InstallReferrerClient? = null
+
     override fun fetch(onResult: (String?) -> Unit) {
         val client = InstallReferrerClient.newBuilder(context).build()
+        activeClient = client
         var settled = false
 
         fun finish(result: String?) {
@@ -39,6 +55,7 @@ internal class PlayInstallReferrerSource(private val context: Context) : Referre
             } catch (error: Exception) {
                 Log.w(LOG_TAG, "install referrer end connection failed", error)
             }
+            activeClient = null
             onResult(result)
         }
 
@@ -68,6 +85,18 @@ internal class PlayInstallReferrerSource(private val context: Context) : Referre
         } catch (error: Exception) {
             Log.w(LOG_TAG, "install referrer connection failed", error)
             finish(null)
+        }
+    }
+
+    // Best-effort: a cancellation after fetch already settled finds
+    // activeClient already cleared and does nothing
+    override fun cancel() {
+        val client = activeClient ?: return
+        activeClient = null
+        try {
+            client.endConnection()
+        } catch (error: Exception) {
+            Log.w(LOG_TAG, "install referrer end connection failed", error)
         }
     }
 
@@ -109,8 +138,12 @@ internal class InstallReferrerCapture(
         }
     }
 
+    // A shutdown that cancels [scope] mid-fetch runs the cancellation handler
+    // rather than the onResult callback, so without this the service
+    // connection PlayInstallReferrerSource opened would never be released
     private suspend fun fetchReferrer(): String? =
         suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation { runCatching { source.cancel() } }
             source.fetch { result -> continuation.resume(result) }
         }
 

@@ -38,6 +38,15 @@ object Coproduct {
             logWarning = { message -> Log.w(LOG_TAG, message) },
         )
 
+    // Owns the static captureAttribution facade's background work. Pre-init
+    // there is no instance scope yet to borrow, since no client exists, so
+    // this dedicated scope carries the capture (a blocking SharedPreferences
+    // commit) off whichever thread the caller, often a deep-link handler on
+    // the main thread, called from. Used by the static facade only. The
+    // per-instance facade on CoproductClient enqueues onto that client's own
+    // IdentitySerializer instead
+    private val captureScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
      * Initialize the SDK.
      *
@@ -186,16 +195,24 @@ object Coproduct {
      * from, and Android, unlike iOS's UserDefaults.standard, has no
      * ambient storage location that does not require one. Only
      * [Context.getApplicationContext] is retained, and only for the
-     * duration of this call. Publishes into the auto-populated context
-     * immediately when a default instance already exists; otherwise the
-     * capture is folded into the auto-populated context the next time
+     * duration of this call.
+     *
+     * Returns immediately: the capture, a blocking SharedPreferences
+     * commit, and the publish both run on [captureScope], so a caller such
+     * as a deep-link handler on the main thread is never blocked on disk
+     * I/O. The capture persists unconditionally on that scope even when no
+     * default instance exists yet to publish into. A capture before
+     * [initialize] is folded into the auto-populated context the next time
      * [initialize] runs, matching [CoproductClient.captureAttribution]
      */
     fun captureAttribution(context: Context, url: String) {
-        val attributes = UtmStore(context.applicationContext).capture(url)
-        val client = instances.defaultInstance() ?: return
-        if (attributes.isNotEmpty()) {
-            client.setAutoPopulated(attributes)
+        val appContext = context.applicationContext
+        captureScope.launch {
+            val attrs = UtmStore(appContext).capture(url)
+            val client = instances.defaultInstance()
+            if (client != null && attrs.isNotEmpty()) {
+                client.setAutoPopulated(attrs)
+            }
         }
     }
 }
@@ -306,16 +323,26 @@ class CoproductClient internal constructor(
     /**
      * Persists UTM acquisition attribution parsed from [url] via [UtmStore],
      * then, if anything was found, publishes it into the auto-populated
-     * context through the identity serializer so a targeting attribute such
-     * as `utm_source` resolves on the next evaluation. Matches the public
-     * `captureAttribution` name used by the iOS, React Native, and Flutter
-     * SDKs. A deep link that carries no UTM parameters is a no-op beyond the
-     * persistence [UtmStore.capture] already performed unconditionally
+     * context so a targeting attribute such as `utm_source` resolves on the
+     * next evaluation. Matches the public `captureAttribution` name used by
+     * the iOS, React Native, and Flutter SDKs. A deep link that carries no
+     * UTM parameters is a no-op beyond the persistence [UtmStore.capture]
+     * already performed unconditionally.
+     *
+     * Returns immediately: the capture, a blocking SharedPreferences
+     * commit, and the publish both run through [serializer], the same
+     * off-main queue the other identity mutators enqueue onto, so a caller
+     * such as a deep-link handler on the main thread is never blocked on
+     * disk I/O. The capture runs, and persists, ahead of the publish within
+     * that same enqueued block, so a [url] with no UTM parameters still
+     * skips only the publish, never the persistence
      */
     fun captureAttribution(url: String) {
-        val attributes = UtmStore(appContext).capture(url)
-        if (attributes.isNotEmpty()) {
-            setAutoPopulated(attributes)
+        serializer.enqueue {
+            val attributes = UtmStore(appContext).capture(url)
+            if (attributes.isNotEmpty()) {
+                inner.setAutoPopulatedAttributes(attributes.toContextValues())
+            }
         }
     }
 

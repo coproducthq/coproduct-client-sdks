@@ -130,4 +130,17 @@ class UtmStoreTest {
 
         assertTrue(result.isEmpty())
     }
+
+    @Test
+    fun aFailedCommitFailsClosedToAnEmptyMapRatherThanTheUnpersistedMerge() {
+        val storage = FakeUtmStorage()
+        storage.commits = false
+        val store = storeOf(storage) { mapOf("utm_source" to "google") }
+
+        val result = store.capture("url")
+
+        assertTrue(result.isEmpty())
+        // write was still attempted, it just reported it never committed
+        assertEquals(1, storage.writes)
+    }
 }
