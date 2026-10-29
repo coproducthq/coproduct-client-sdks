@@ -136,6 +136,7 @@ class NativeCoproductFfiUniffi : public jsi::HostObject {
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_method_stringobservation_seed(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_func_initialize(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
+    jsi::Value cpp_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_ffi_coproduct_ffi_uniffi_rust_future_poll_u8(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_ffi_coproduct_ffi_uniffi_rust_future_cancel_u8(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_ffi_coproduct_ffi_uniffi_rust_future_free_u8(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
@@ -186,6 +187,7 @@ class NativeCoproductFfiUniffi : public jsi::HostObject {
     jsi::Value cpp_ffi_coproduct_ffi_uniffi_rust_future_complete_void(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_func_initialize(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
+    jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);
     jsi::Value cpp_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count);

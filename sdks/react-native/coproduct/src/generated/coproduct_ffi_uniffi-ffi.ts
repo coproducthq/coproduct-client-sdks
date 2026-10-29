@@ -317,6 +317,10 @@ interface NativeModuleInterface {
     transport: bigint,
     secureStore: bigint
   ): bigint;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(
+    url: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_boolobservation_cancel(
     uniffiSelf: bigint,
     uniffi_out_err: UniffiRustCallStatus
@@ -660,6 +664,7 @@ interface NativeModuleInterface {
   ubrn_ffi_coproduct_ffi_uniffi_uniffi_contract_version(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_initialize(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_keys(): number;

@@ -685,6 +685,10 @@ extern "C" {
         /*handle*/ uint64_t transport, 
         /*handle*/ uint64_t secure_store
     );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(
+        RustBuffer url, 
+        RustCallStatus *uniffi_out_err
+    );
     RustBuffer ffi_coproduct_ffi_uniffi_rustbuffer_alloc(
         uint64_t size, 
         RustCallStatus *uniffi_out_err
@@ -885,6 +889,8 @@ extern "C" {
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_bucket_for_vectors(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_initialize(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(
     );
@@ -5684,6 +5690,14 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_func_initialize(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters"),
+        1,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_ffi_coproduct_ffi_uniffi_rust_future_poll_u8"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_ffi_coproduct_ffi_uniffi_rust_future_poll_u8"),
@@ -6082,6 +6096,14 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_func_initialize(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel"] = jsi::Function::createFromHostFunction(
@@ -8248,6 +8270,16 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_func_ini
         
         return uniffi_jsi::Bridging</*handle*/ uint64_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[0]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_ffi_coproduct_ffi_uniffi_rust_future_poll_u8(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         ffi_coproduct_ffi_uniffi_rust_future_poll_u8(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<UniffiRustFutureContinuationCallback>::fromJs(rt, callInvoker, args[1]), uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[2])
         );
@@ -8629,6 +8661,13 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_fu
 }
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_func_initialize(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_func_initialize(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(
         );
 
         

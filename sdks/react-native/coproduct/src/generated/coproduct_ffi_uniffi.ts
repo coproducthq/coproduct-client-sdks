@@ -159,6 +159,28 @@ export async function initialize(
   }
 }
 
+/**
+ * Parses UTM acquisition parameters from a URL or install-referrer query
+ * string. The SDK captures the launch URL or install referrer and calls this
+ * so every platform extracts the same five keys identically
+ */
+export function parseUtmParameters(url: string): Map<string, string> {
+  const __rb: Uint8Array = uniffiCaller.rustCall(
+    /*caller:*/ (callStatus) => {
+      return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(
+        FfiConverterString.lower(url, nativeModule().rustbuffer_alloc),
+        callStatus
+      );
+    },
+    /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString)
+  );
+  try {
+    return FfiConverterMapStringString.lift(__rb);
+  } finally {
+    nativeModule().rustbuffer_free(__rb);
+  }
+}
+
 // Hermes (React Native ≥ 0.74) ships TextEncoder and encodeInto, but not
 // TextDecoder. For single-string decode (bytesToString), we polyfill via the
 // C++ string_from_buffer helper using a duck-typed object matching the
@@ -8078,6 +8100,12 @@ const FfiConverterOptionalTypeAttributeValueFfi = new FfiConverterOptional(
   FfiConverterTypeAttributeValueFfi
 );
 
+// FfiConverter for Map<string, string>
+const FfiConverterMapStringString = new FfiConverterMap(
+  FfiConverterString,
+  FfiConverterString
+);
+
 /**
  * This should be called before anything else.
  *
@@ -8114,6 +8142,14 @@ function uniffiEnsureInitialized() {
   ) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_coproduct_ffi_uniffi_checksum_func_initialize'
+    );
+  }
+  if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters() !==
+    61873
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters'
     );
   }
   if (
