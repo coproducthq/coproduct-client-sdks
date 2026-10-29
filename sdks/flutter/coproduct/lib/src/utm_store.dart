@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'attribute_value.dart';
 import 'rust/api.dart' as frb;
 
 /// Persists UTM attribution across launches and flattens it into the
@@ -29,7 +30,7 @@ class UtmStore {
   ///
   /// An empty parse (no UTM parameters on [url]) persists nothing and
   /// returns whatever is already stored
-  Future<Map<String, frb.FrbContextValue>> capture(String url) async {
+  Future<Map<String, AttributeValue>> capture(String url) async {
     final parsed = Map<String, String>.of(_parse(url))
       ..removeWhere((_, value) => value.isEmpty);
     final prefs = await SharedPreferences.getInstance();
@@ -59,7 +60,7 @@ class UtmStore {
   /// Returns the persisted UTM attributes, flattened, without capturing
   /// anything. Used to seed the auto-populated layer at initialize from
   /// whatever an earlier launch captured
-  Future<Map<String, frb.FrbContextValue>> readAttributes() async {
+  Future<Map<String, AttributeValue>> readAttributes() async {
     final prefs = await SharedPreferences.getInstance();
     return _flatten(
       _readMap(prefs, _firstTouchKey),
@@ -84,17 +85,17 @@ class UtmStore {
     return {};
   }
 
-  Map<String, frb.FrbContextValue> _flatten(
+  Map<String, AttributeValue> _flatten(
     Map<String, String> first,
     Map<String, String> last,
   ) {
-    final result = <String, frb.FrbContextValue>{};
+    final result = <String, AttributeValue>{};
     first.forEach((key, value) {
-      if (value.isNotEmpty) result[key] = frb.FrbContextValue.string(value);
+      if (value.isNotEmpty) result[key] = AttributeValue.string(value);
     });
     last.forEach((key, value) {
       if (value.isNotEmpty) {
-        result['${key}_last'] = frb.FrbContextValue.string(value);
+        result['${key}_last'] = AttributeValue.string(value);
       }
     });
     return result;

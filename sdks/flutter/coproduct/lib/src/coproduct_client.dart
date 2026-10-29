@@ -32,7 +32,12 @@ import 'utm_store.dart';
 CoproductClient createClientForBackend(
   CoproductClientBackend backend, {
   SerialQueue? identityQueue,
-}) => CoproductClient._(backend, identityQueue ?? SerialQueue());
+  UtmStore? utmStore,
+}) => CoproductClient._(
+  backend,
+  identityQueue ?? SerialQueue(),
+  utmStore ?? UtmStore(),
+);
 
 /// Reads flags and sets who they are evaluated for. Get one from
 /// [Coproduct.initialize], or from `CoproductTestHarness` in a widget test.
@@ -50,13 +55,14 @@ CoproductClient createClientForBackend(
 /// Identity is not saved between launches, so call [identify] again after
 /// `initialize` on each launch
 final class CoproductClient {
-  CoproductClient._(this._backend, this._identityQueue);
+  CoproductClient._(this._backend, this._identityQueue, this._utmStore);
 
   final CoproductClientBackend _backend;
   // Supplied by the host so machine-initiated writes to the automatic layer
   // order against the identity mutators instead of racing them. A second queue
   // would reintroduce exactly the interleaving this one exists to prevent
   final SerialQueue _identityQueue;
+  final UtmStore _utmStore;
 
   /// Reads a boolean flag.
   ///
@@ -217,6 +223,25 @@ final class CoproductClient {
   Future<void> removeAttributes(List<String> keys) {
     final snapshot = snapshotKeys(keys);
     return _identityQueue.add(() => _backend.removeAttributes(snapshot));
+  }
+
+  /// Captures UTM parameters from [url] and publishes them into the
+  /// automatic attribute layer.
+  ///
+  /// Persists before publishing, so a capture made just before [Coproduct]
+  /// tears down or before `initialize` finishes still seeds the automatic
+  /// layer on the next `initialize`. A [url] with no UTM parameters leaves
+  /// whatever was captured earlier untouched and publishes nothing new.
+  /// Enqueued on the same queue as [identify], [setContext], and
+  /// [updateAttributes], so a capture orders against them rather than
+  /// racing
+  Future<void> captureAttribution(String url) async {
+    final attributes = await _utmStore.capture(url);
+    if (attributes.isEmpty) return;
+    final snapshot = Map<String, AttributeValue>.unmodifiable(attributes);
+    await _identityQueue.add(
+      () => _backend.setAutoPopulatedAttributes(snapshot),
+    );
   }
 
   /// Polls the server immediately, ahead of the scheduler's own timer.

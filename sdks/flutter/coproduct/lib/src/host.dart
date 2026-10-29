@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'attribute_value.dart';
 import 'auto_upsert.dart';
 import 'cancellation.dart';
 import 'config.dart';
@@ -78,8 +79,7 @@ class CoproductHost<H extends Object, C extends Object> {
     required Future<SessionPair> Function() beginSession,
     required NetworkTypeEvents networkTypeEvents,
     required ForegroundBinder bindNetworkResume,
-    required Future<Map<String, frb.FrbContextValue>> Function()
-    readUtmAttributes,
+    required Future<Map<String, AttributeValue>> Function() readUtmAttributes,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
   }) : _bridge = bridge, // ignore: prefer_initializing_formals
@@ -123,8 +123,7 @@ class CoproductHost<H extends Object, C extends Object> {
   final ForegroundBinder _bindNetworkResume;
   // Injected like every other native-touching collaborator, so a test builds
   // a host without a SharedPreferences plugin binding
-  final Future<Map<String, frb.FrbContextValue>> Function()
-  _readUtmAttributes;
+  final Future<Map<String, AttributeValue>> Function() _readUtmAttributes;
   final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
@@ -313,7 +312,7 @@ class CoproductHost<H extends Object, C extends Object> {
           // A local read, not bounded by the shared startup budget: the
           // value was already captured and persisted by an earlier
           // captureAttribution call, so there is nothing here to wait on
-          final utmAttributes = await _readUtmAttributes();
+          final utmAttributes = toFrbAttributes(await _readUtmAttributes());
           await _bridge.setAutoPopulatedAttributes(handle, {
             ...(outcome as _MetadataSuccess).attributes,
             ...sessionAttributes,

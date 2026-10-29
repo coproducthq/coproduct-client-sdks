@@ -172,6 +172,7 @@ final class InMemoryBackend implements CoproductClientBackend {
 
   String _targetingKey;
   final Map<String, AttributeValue> _developerAttributes = {};
+  final Map<String, AttributeValue> _autoPopulatedAttributes = {};
   String? _previousAnonymousId;
 
   static const _reservedNames = {'user_id', 'targetingKey'};
@@ -188,6 +189,11 @@ final class InMemoryBackend implements CoproductClientBackend {
 
   Map<String, AttributeValue> get developerAttributes =>
       Map<String, AttributeValue>.unmodifiable(_developerAttributes);
+
+  /// The automatic attributes a test harness has published through
+  /// [setAutoPopulatedAttributes], merged across every call
+  Map<String, AttributeValue> get autoPopulatedAttributes =>
+      Map<String, AttributeValue>.unmodifiable(_autoPopulatedAttributes);
 
   /// Applies one mutation.
   ///
@@ -399,6 +405,14 @@ final class InMemoryBackend implements CoproductClientBackend {
     for (final name in names) {
       _developerAttributes.remove(name);
     }
+  }
+
+  @override
+  Future<void> setAutoPopulatedAttributes(
+    Map<String, AttributeValue> attributes,
+  ) async {
+    if (_shutdown) return;
+    _autoPopulatedAttributes.addAll(attributes);
   }
 
   @override

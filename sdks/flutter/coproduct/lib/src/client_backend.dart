@@ -68,6 +68,13 @@ abstract interface class CoproductClientBackend {
   Future<void> updateAttributes(Map<String, AttributeValue> attributes);
   Future<void> removeAttributes(List<String> names);
 
+  /// Merges [attributes] into the automatic layer, distinct from
+  /// [updateAttributes]'s developer layer. Used to publish a capture that
+  /// arrives after the initial batch, such as a live attribution capture
+  Future<void> setAutoPopulatedAttributes(
+    Map<String, AttributeValue> attributes,
+  );
+
   /// Polls immediately, independent of the scheduler's own timer. The core
   /// dedupes an overlapping in-flight poll (PollOutcome.dedupedSkipped), so
   /// this is safe to call even while a scheduled poll is already in flight

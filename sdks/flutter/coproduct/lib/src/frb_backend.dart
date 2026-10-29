@@ -133,6 +133,14 @@ final class FrbBackend implements CoproductClientBackend {
       frb.removeAttributes(handle: handle, names: names);
 
   @override
+  Future<void> setAutoPopulatedAttributes(
+    Map<String, AttributeValue> attributes,
+  ) => frb.setAutoPopulatedAttributes(
+    handle: handle,
+    attributes: toFrbAttributes(attributes),
+  );
+
+  @override
   Future<void> pollNow() async {
     await frb.pollNow(client: handle);
   }

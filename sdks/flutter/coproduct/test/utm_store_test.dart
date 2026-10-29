@@ -1,4 +1,4 @@
-import 'package:coproduct/src/rust/api.dart' as frb;
+import 'package:coproduct/src/attribute_value.dart';
 import 'package:coproduct/src/utm_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// native library loaded under `flutter test`
 Map<String, String> Function(String url) _fakeParser(
   Map<String, Map<String, String>> byUrl,
-) => (url) => byUrl[url] ?? const {};
+) =>
+    (url) => byUrl[url] ?? const {};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -16,20 +17,23 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('freezes first-touch across two captures with different values', () async {
-    final store = UtmStore(
-      parse: _fakeParser({
-        'https://a.test': {'utm_source': 'google'},
-        'https://b.test': {'utm_source': 'facebook'},
-      }),
-    );
+  test(
+    'freezes first-touch across two captures with different values',
+    () async {
+      final store = UtmStore(
+        parse: _fakeParser({
+          'https://a.test': {'utm_source': 'google'},
+          'https://b.test': {'utm_source': 'facebook'},
+        }),
+      );
 
-    final first = await store.capture('https://a.test');
-    expect(first['utm_source'], frb.FrbContextValue.string('google'));
+      final first = await store.capture('https://a.test');
+      expect(first['utm_source'], AttributeValue.string('google'));
 
-    final second = await store.capture('https://b.test');
-    expect(second['utm_source'], frb.FrbContextValue.string('google'));
-  });
+      final second = await store.capture('https://b.test');
+      expect(second['utm_source'], AttributeValue.string('google'));
+    },
+  );
 
   test('overwrites last-touch on every capture', () async {
     final store = UtmStore(
@@ -42,7 +46,7 @@ void main() {
     await store.capture('https://a.test');
     final second = await store.capture('https://b.test');
 
-    expect(second['utm_source_last'], frb.FrbContextValue.string('facebook'));
+    expect(second['utm_source_last'], AttributeValue.string('facebook'));
   });
 
   test('omits an empty value from both first-touch and last-touch', () async {
@@ -69,16 +73,13 @@ void main() {
     await store.capture('https://a.test');
     final afterBare = await store.capture('https://bare.test');
 
-    expect(afterBare['utm_source'], frb.FrbContextValue.string('google'));
-    expect(
-      afterBare['utm_source_last'],
-      frb.FrbContextValue.string('google'),
-    );
+    expect(afterBare['utm_source'], AttributeValue.string('google'));
+    expect(afterBare['utm_source_last'], AttributeValue.string('google'));
 
     final fresh = UtmStore(parse: _fakeParser(const {}));
     expect(
       (await fresh.readAttributes())['utm_source'],
-      frb.FrbContextValue.string('google'),
+      AttributeValue.string('google'),
     );
   });
 
@@ -95,36 +96,30 @@ void main() {
       final reader = UtmStore(parse: _fakeParser(const {}));
       final attributes = await reader.readAttributes();
 
-      expect(attributes['utm_source'], frb.FrbContextValue.string('google'));
-      expect(
-        attributes['utm_source_last'],
-        frb.FrbContextValue.string('google'),
-      );
+      expect(attributes['utm_source'], AttributeValue.string('google'));
+      expect(attributes['utm_source_last'], AttributeValue.string('google'));
     },
   );
 
-  test('persistence survives a fresh UtmStore instance over the same mock prefs', () async {
-    final writer = UtmStore(
-      parse: _fakeParser({
-        'https://a.test': {
-          'utm_source': 'google',
-          'utm_campaign': 'spring_sale',
-        },
-      }),
-    );
-    await writer.capture('https://a.test');
+  test(
+    'persistence survives a fresh UtmStore instance over the same mock prefs',
+    () async {
+      final writer = UtmStore(
+        parse: _fakeParser({
+          'https://a.test': {
+            'utm_source': 'google',
+            'utm_campaign': 'spring_sale',
+          },
+        }),
+      );
+      await writer.capture('https://a.test');
 
-    final reader = UtmStore(parse: _fakeParser(const {}));
-    final attributes = await reader.readAttributes();
+      final reader = UtmStore(parse: _fakeParser(const {}));
+      final attributes = await reader.readAttributes();
 
-    expect(attributes['utm_source'], frb.FrbContextValue.string('google'));
-    expect(
-      attributes['utm_campaign'],
-      frb.FrbContextValue.string('spring_sale'),
-    );
-    expect(
-      attributes['utm_source_last'],
-      frb.FrbContextValue.string('google'),
-    );
-  });
+      expect(attributes['utm_source'], AttributeValue.string('google'));
+      expect(attributes['utm_campaign'], AttributeValue.string('spring_sale'));
+      expect(attributes['utm_source_last'], AttributeValue.string('google'));
+    },
+  );
 }

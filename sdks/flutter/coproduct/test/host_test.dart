@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:coproduct/src/attribute_value.dart';
 import 'package:coproduct/src/config.dart';
 import 'package:coproduct/src/errors.dart';
 import 'package:coproduct/src/host.dart';
@@ -291,7 +292,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
   Future<SessionPair> Function()? beginSession,
   NetworkTypeEvents? networkTypeEvents,
   _RecordingForeground? networkResume,
-  Future<Map<String, frb.FrbContextValue>> Function()? readUtmAttributes,
+  Future<Map<String, AttributeValue>> Function()? readUtmAttributes,
 }) {
   return CoproductHost<_FakeHandle, _FakeClient>(
     bridge: bridge,
@@ -318,8 +319,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
     networkTypeEvents: networkTypeEvents ?? _silentNetwork,
     bindNetworkResume: networkResume?.binder ?? (onResume) => null,
     readUtmAttributes:
-        readUtmAttributes ??
-        () async => const <String, frb.FrbContextValue>{},
+        readUtmAttributes ?? () async => const <String, AttributeValue>{},
   );
 }
 
@@ -791,7 +791,7 @@ void main() {
         reportError: (e, s) {},
         networkTypeEvents: _silentNetwork,
         bindNetworkResume: (onResume) => null,
-        readUtmAttributes: () async => const <String, frb.FrbContextValue>{},
+        readUtmAttributes: () async => const <String, AttributeValue>{},
       );
 
       final pending = host.initialize(sdkKey: 'cpk_mob_a');
@@ -957,7 +957,7 @@ void main() {
         reportError: (e, s) {},
         networkTypeEvents: _silentNetwork,
         bindNetworkResume: (onResume) => null,
-        readUtmAttributes: () async => const <String, frb.FrbContextValue>{},
+        readUtmAttributes: () async => const <String, AttributeValue>{},
       );
 
       await expectLater(
