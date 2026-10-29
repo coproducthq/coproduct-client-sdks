@@ -148,6 +148,11 @@ int bucketForVectors({
   suffix: suffix,
 );
 
+/// Parses UTM acquisition parameters from a URL or install-referrer query
+/// string, for the Flutter SDK to fold into the auto-populated context
+Map<String, String> parseUtmParameters({required String url}) =>
+    RustLib.instance.api.crateApiParseUtmParameters(url: url);
+
 ProviderState state({required CoproductClientHandle client}) =>
     RustLib.instance.api.crateApiState(client: client);
 
