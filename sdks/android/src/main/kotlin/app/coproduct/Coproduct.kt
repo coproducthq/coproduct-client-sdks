@@ -129,6 +129,22 @@ object Coproduct {
         return client
     }
 
+    /**
+     * Tears down the default instance, if any, through the generation-fenced
+     * [Instances.shutdown]: cancels an in-flight [initialize] if one is
+     * running, then stops the host timer and the network monitor, cancels
+     * the per-instance coroutine scope, and calls the generated `shutdown`.
+     * Mirrors [CoproductClient.shutdown] for a caller that does not hold on
+     * to the client. Called before [initialize], or after a previous
+     * shutdown, it logs and does nothing
+     */
+    suspend fun shutdown() {
+        if (instances.defaultInstance() == null) {
+            return logIdentityBeforeInitialize("shutdown")
+        }
+        instances.shutdown()
+    }
+
     // Identity
     // Fire-and-forget: each call returns immediately and is applied in the
     // background in call order. A failure is logged, not thrown. Called
