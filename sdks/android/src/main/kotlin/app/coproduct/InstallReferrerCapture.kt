@@ -5,9 +5,9 @@ import android.util.Log
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerClient.InstallReferrerResponse
 import com.android.installreferrer.api.InstallReferrerStateListener
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
