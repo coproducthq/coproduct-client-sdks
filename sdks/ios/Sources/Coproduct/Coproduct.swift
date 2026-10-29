@@ -107,13 +107,15 @@ public enum Coproduct {
     /// last-touch attribution on the `_last` variant of the key (for example
     /// `utm_source_last`). Call this with the launch URL or a deep link URL;
     /// a URL with none of these parameters leaves prior attribution untouched.
-    /// Fire-and-forget; a call before initialize logs and does nothing.
+    /// The capture always persists, even before initialize, so a cold-start
+    /// deep link is not lost. A call before initialize logs and defers applying
+    /// the attributes to the client until the next initialize fold.
     public static func captureAttribution(url: String) {
+        let attributes = UtmStore().capture(url: url)
         guard let client = Instances.shared.defaultInstance() else {
             logIdentityBeforeInitialize("captureAttribution")
             return
         }
-        let attributes = UtmStore().capture(url: url)
         if !attributes.isEmpty {
             client.setAutoPopulated(attributes: attributes)
         }

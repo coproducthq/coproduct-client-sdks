@@ -34,7 +34,8 @@ final class UtmStore {
     // always takes the new value, first-touch only fills a key that is still
     // absent. Empty values are never written or returned. When the parse finds
     // nothing, nothing is persisted and the already-stored set is returned
-    // unchanged
+    // unchanged. Assumes serialized (main-thread) deep-link delivery, unlike
+    // SessionStore this has no lock around its read-modify-write
     func capture(url: String) -> [String: AttributeValue] {
         let parsed = parseUtmParameters(url: url)
         guard !parsed.isEmpty else {

@@ -91,4 +91,24 @@ final class UtmStoreTests: XCTestCase {
         XCTAssertEqual(attributes["utm_source_last"], .string("google"))
         XCTAssertEqual(attributes["utm_campaign_last"], .string("bf"))
     }
+
+    // Coproduct.captureAttribution(url:) always calls UtmStore().capture(url:)
+    // before checking for an initialized client, so a cold-start deep link
+    // captured before initialize still persists and is not dropped. The public
+    // static wrapper constructs its own UtmStore() against UserDefaults.standard
+    // and cannot take an injected suite, so it is not directly unit-testable here.
+    // This test instead proves the persistence contract it relies on, that
+    // capture persists independent of whether any client has applied it yet
+    func testCaptureBeforeAnyClientAppliesItStillPersists() {
+        let store = UtmStore(defaults: defaults)
+        _ = store.capture(url: "https://x.com/?utm_source=google&utm_campaign=bf")
+
+        // A fresh store reading the same suite sees the captured values even
+        // though nothing ever "applied" them to a client
+        let reloaded = UtmStore(defaults: defaults).utmAttributes()
+        XCTAssertEqual(reloaded["utm_source"], .string("google"))
+        XCTAssertEqual(reloaded["utm_source_last"], .string("google"))
+        XCTAssertEqual(reloaded["utm_campaign"], .string("bf"))
+        XCTAssertEqual(reloaded["utm_campaign_last"], .string("bf"))
+    }
 }
