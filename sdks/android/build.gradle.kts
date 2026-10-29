@@ -38,6 +38,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    // ProcessLifecycleOwner, the foreground signal HostTimer's default
+    // ForegroundSource observes
+    implementation("androidx.lifecycle:lifecycle-process:2.9.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
