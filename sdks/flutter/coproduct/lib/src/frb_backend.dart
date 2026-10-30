@@ -35,12 +35,16 @@ final class FrbBackend implements CoproductClientBackend {
       frb.getNumber(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  List<String> getStringList(String key, {required List<String> defaultValue}) =>
-      frb.getStringList(client: handle, key: key, defaultValue: defaultValue);
+  List<String> getStringList(
+    String key, {
+    required List<String> defaultValue,
+  }) => frb.getStringList(client: handle, key: key, defaultValue: defaultValue);
 
   @override
-  List<double> getNumberList(String key, {required List<double> defaultValue}) =>
-      frb.getNumberList(client: handle, key: key, defaultValue: defaultValue);
+  List<double> getNumberList(
+    String key, {
+    required List<double> defaultValue,
+  }) => frb.getNumberList(client: handle, key: key, defaultValue: defaultValue);
 
   @override
   String getJson(String key, {required String defaultValueJson}) =>

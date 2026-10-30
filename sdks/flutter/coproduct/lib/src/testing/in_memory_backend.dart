@@ -334,11 +334,17 @@ final class InMemoryBackend implements CoproductClientBackend {
       _shutdown ? defaultValue : projectNumber(_flags[key]) ?? defaultValue;
 
   @override
-  List<String> getStringList(String key, {required List<String> defaultValue}) =>
+  List<String> getStringList(
+    String key, {
+    required List<String> defaultValue,
+  }) =>
       _shutdown ? defaultValue : projectStringList(_flags[key]) ?? defaultValue;
 
   @override
-  List<double> getNumberList(String key, {required List<double> defaultValue}) =>
+  List<double> getNumberList(
+    String key, {
+    required List<double> defaultValue,
+  }) =>
       _shutdown ? defaultValue : projectNumberList(_flags[key]) ?? defaultValue;
 
   @override

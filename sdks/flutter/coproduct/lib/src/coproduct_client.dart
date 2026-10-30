@@ -109,8 +109,10 @@ final class CoproductClient implements FlagReader {
   /// when the flag is not a string list. See [getBool] for what a read
   /// serves. Never throws, and does not rebuild a widget when the flag
   /// changes
-  List<String> getStringList(String key, {required List<String> defaultValue}) =>
-      _backend.getStringList(key, defaultValue: defaultValue);
+  List<String> getStringList(
+    String key, {
+    required List<String> defaultValue,
+  }) => _backend.getStringList(key, defaultValue: defaultValue);
 
   /// Reads a number-list flag.
   ///
@@ -118,8 +120,10 @@ final class CoproductClient implements FlagReader {
   /// when the flag is not a number list. See [getBool] for what a read
   /// serves. Never throws, and does not rebuild a widget when the flag
   /// changes
-  List<double> getNumberList(String key, {required List<double> defaultValue}) =>
-      _backend.getNumberList(key, defaultValue: defaultValue);
+  List<double> getNumberList(
+    String key, {
+    required List<double> defaultValue,
+  }) => _backend.getNumberList(key, defaultValue: defaultValue);
 
   /// Reads a JSON flag as a Dart value: a map, list, string, number, bool, or
   /// null.

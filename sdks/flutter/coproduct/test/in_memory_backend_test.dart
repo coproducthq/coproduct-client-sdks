@@ -68,10 +68,9 @@ void main() {
     });
 
     test('getStringList serves the caller default when the flag is absent', () {
-      expect(
-        backend.getStringList('missing', defaultValue: const ['d']),
-        ['d'],
-      );
+      expect(backend.getStringList('missing', defaultValue: const ['d']), [
+        'd',
+      ]);
     });
 
     test('getStringList serves the caller default for a wrong-type flag', () {
@@ -85,10 +84,7 @@ void main() {
     });
 
     test('getNumberList serves the caller default when the flag is absent', () {
-      expect(
-        backend.getNumberList('missing', defaultValue: const [9]),
-        [9],
-      );
+      expect(backend.getNumberList('missing', defaultValue: const [9]), [9]);
     });
 
     test('getNumberList serves the caller default for a wrong-type flag', () {
