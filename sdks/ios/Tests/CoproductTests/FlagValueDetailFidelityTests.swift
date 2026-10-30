@@ -10,6 +10,8 @@ final class FlagValueDetailFidelityTests: XCTestCase {
         XCTAssertEqual(FlagValue.string(value: "s").detailValue, .string("s"))
         XCTAssertEqual(FlagValue.number(value: 1.5).detailValue, .number(1.5))
         XCTAssertEqual(FlagValue.json(value: "{\"a\":1}").detailValue, .json("{\"a\":1}"))
+        XCTAssertEqual(FlagValue.stringList(value: ["a", "b"]).detailValue, .stringList(["a", "b"]))
+        XCTAssertEqual(FlagValue.numberList(value: [1.5, 2.5]).detailValue, .numberList([1.5, 2.5]))
     }
 
     func testDetailValueKeepsLargeIntegerPrecision() {

@@ -41,6 +41,8 @@ public enum FlagDetailValue: Sendable, Equatable {
     case int(Int64)
     case number(Double)
     case json(String)
+    case stringList([String])
+    case numberList([Double])
 }
 
 /// Evaluation details returned by every detail getter (getBoolDetails and the
@@ -123,6 +125,28 @@ public struct FlagEvaluationDetails: Sendable, Equatable {
             flagKey: ffi.flagKey
         )
     }
+
+    init(_ ffi: FlagEvaluationDetailsStringList) {
+        self.init(
+            value: .stringList(ffi.value),
+            variant: ffi.variant,
+            reason: ffi.reason,
+            errorCode: ffi.errorCode,
+            errorMessage: ffi.errorMessage,
+            flagKey: ffi.flagKey
+        )
+    }
+
+    init(_ ffi: FlagEvaluationDetailsNumberList) {
+        self.init(
+            value: .numberList(ffi.value),
+            variant: ffi.variant,
+            reason: ffi.reason,
+            errorCode: ffi.errorCode,
+            errorMessage: ffi.errorMessage,
+            flagKey: ffi.flagKey
+        )
+    }
 }
 
 extension FlagValue {
@@ -134,6 +158,8 @@ extension FlagValue {
         case let .int(value): return .int(value)
         case let .number(value): return .number(value)
         case let .json(value): return .json(value)
+        case let .stringList(value): return .stringList(value)
+        case let .numberList(value): return .numberList(value)
         }
     }
 }
