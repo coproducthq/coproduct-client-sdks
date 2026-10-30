@@ -322,6 +322,18 @@ extern "C" {
         double default_value, 
         RustCallStatus *uniffi_out_err
     );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustBuffer default_value, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustBuffer default_value, 
+        RustCallStatus *uniffi_out_err
+    );
     RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(
         /*handle*/ uint64_t ptr, 
         RustBuffer key, 
@@ -329,6 +341,18 @@ extern "C" {
         RustCallStatus *uniffi_out_err
     );
     RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustBuffer default_value, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(
+        /*handle*/ uint64_t ptr, 
+        RustBuffer key, 
+        RustBuffer default_value, 
+        RustCallStatus *uniffi_out_err
+    );
+    RustBuffer uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(
         /*handle*/ uint64_t ptr, 
         RustBuffer key, 
         RustBuffer default_value, 
@@ -928,9 +952,17 @@ extern "C" {
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details(
     );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details(
+    );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(
     );
@@ -4988,6 +5020,22 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_details(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list"),
+        3,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details"),
+        3,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string"),
@@ -5002,6 +5050,22 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
         3,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list"),
+        3,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details"),
+        3,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_identify"] = jsi::Function::createFromHostFunction(
@@ -6252,6 +6316,22 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string"),
@@ -6266,6 +6346,22 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
         0,
         [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list(rt, thisVal, args, count);
+        }
+    );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details(rt, thisVal, args, count);
         }
     );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify"] = jsi::Function::createFromHostFunction(
@@ -7394,6 +7490,26 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_c
         
         return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
@@ -7407,6 +7523,26 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_c
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
         auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[1]), uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::fromJs(rt, callInvoker, args[2]), 
             &status
         );
         uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
@@ -8781,6 +8917,20 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
         
         return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
 }
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(
         );
@@ -8790,6 +8940,20 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
 }
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details(
         );
 
         
