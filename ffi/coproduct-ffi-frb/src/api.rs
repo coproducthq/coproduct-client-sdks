@@ -302,6 +302,7 @@ pub enum FrbContextValue {
     Number(f64),
     Bool(bool),
     StringList(Vec<String>),
+    NumberList(Vec<f64>),
     Null,
 }
 
@@ -314,6 +315,9 @@ impl FrbContextValue {
             FrbContextValue::Bool(v) => AttributeValue::Bool(v),
             FrbContextValue::StringList(v) => {
                 AttributeValue::Array(v.into_iter().map(AttributeValue::String).collect())
+            }
+            FrbContextValue::NumberList(v) => {
+                AttributeValue::Array(v.into_iter().map(AttributeValue::Number).collect())
             }
             FrbContextValue::Null => AttributeValue::Null,
         }
@@ -1153,5 +1157,24 @@ mod init_error_conversion_tests {
             assert!(!rendered.contains("hunter2"), "{rendered:?}");
             assert!(!rendered.contains("password"), "{rendered:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod frb_context_value_tests {
+    use super::FrbContextValue;
+    use coproduct_core::context::AttributeValue;
+
+    #[test]
+    fn number_list_maps_to_array_of_numbers() {
+        let v = FrbContextValue::NumberList(vec![1.0, 2.0, 3.0]);
+        assert_eq!(
+            v.into_core(),
+            AttributeValue::Array(vec![
+                AttributeValue::Number(1.0),
+                AttributeValue::Number(2.0),
+                AttributeValue::Number(3.0),
+            ])
+        );
     }
 }
