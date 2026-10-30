@@ -311,6 +311,18 @@ public enum Coproduct {
         return AnyCancellable { handle.cancel() }
     }
 
+    /// Set (or replace) the evaluation listener. Unlike addHandler/addEvaluationHook,
+    /// there is only one evaluation listener slot: setting a new one replaces the
+    /// previous one rather than stacking. The listener fires for every flag
+    /// evaluation, after the evaluation hooks run
+    public static func setEvaluationListener(
+        _ onEvaluation: @escaping @Sendable (EvaluationEvent) -> Void
+    ) {
+        Instances.shared.requireDefault().setEvaluationListener(
+            listener: ClosureEvaluationListener(closure: onEvaluation)
+        )
+    }
+
     // MARK: - State / snapshot / shutdown
 
     /// The current provider lifecycle state. Reports `.notReady` before initialize.
@@ -382,6 +394,20 @@ final class ClosureEvaluationHook: EvaluationHook, @unchecked Sendable {
         case .error: return .error
         case .finally: return .finally
         }
+    }
+}
+
+/// Bridges a caller-supplied closure to the generated EvaluationListener protocol.
+/// UniFFI does not auto-bridge Swift closures to Rust traits, so this wrapper is needed
+final class ClosureEvaluationListener: EvaluationListener, @unchecked Sendable {
+    private let closure: @Sendable (EvaluationEvent) -> Void
+
+    init(closure: @escaping @Sendable (EvaluationEvent) -> Void) {
+        self.closure = closure
+    }
+
+    func onEvaluation(event: EvaluationEvent) {
+        closure(event)
     }
 }
 
