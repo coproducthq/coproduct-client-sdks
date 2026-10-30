@@ -314,7 +314,9 @@ public enum Coproduct {
     /// Set (or replace) the evaluation listener. Unlike addHandler/addEvaluationHook,
     /// there is only one evaluation listener slot: setting a new one replaces the
     /// previous one rather than stacking. The listener fires for every flag
-    /// evaluation, after the evaluation hooks run
+    /// evaluation, after the evaluation hooks run. It fires synchronously, inline
+    /// with the evaluation, so keep it cheap and non-blocking -- do not do
+    /// expensive or blocking work directly in it
     public static func setEvaluationListener(
         _ onEvaluation: @escaping @Sendable (EvaluationEvent) -> Void
     ) {

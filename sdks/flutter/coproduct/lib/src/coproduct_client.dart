@@ -388,7 +388,7 @@ final class CoproductClient implements FlagReader {
     _evaluationSubscription = _backend.evaluationEvents().listen(
       onEvaluation,
     );
-    unawaited(previous?.cancel());
+    unawaited(previous?.cancel().catchError(_reportError));
   }
 }
 

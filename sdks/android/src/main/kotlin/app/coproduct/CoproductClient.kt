@@ -229,6 +229,10 @@ class CoproductClient internal constructor(
         return Cancellable { handle.cancel() }
     }
 
+    /**
+     * Fires synchronously on every evaluation, so keep [onEvaluation] cheap and
+     * non-blocking -- do not do expensive or blocking work directly in it.
+     */
     fun setEvaluationListener(onEvaluation: (EvaluationEvent) -> Unit) {
         inner.setEvaluationListener(ClosureEvaluationListener(onEvaluation))
     }
