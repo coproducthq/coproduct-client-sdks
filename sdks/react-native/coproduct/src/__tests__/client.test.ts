@@ -11,6 +11,8 @@ import {
   type EvaluationHook,
   type EvaluationStage,
   type HookContext,
+  type FlagEvaluationDetailsNumberList,
+  type FlagEvaluationDetailsStringList,
   type HookHandleLike,
   type LifecycleEvent,
   type LifecycleHandler,
@@ -69,6 +71,10 @@ function fakeNativeClient(
     getIntDetails: jest.fn(),
     getNumber: jest.fn(),
     getNumberDetails: jest.fn(),
+    getStringList: jest.fn(),
+    getStringListDetails: jest.fn(),
+    getNumberList: jest.fn(),
+    getNumberListDetails: jest.fn(),
     getJson: jest.fn(),
     getJsonDetails: jest.fn(),
     identify: jest.fn().mockResolvedValue(undefined),
@@ -155,6 +161,56 @@ describe('CoproductClient typed getters', () => {
     expect(client.getString('k', '')).toBe('x');
     expect(client.getNumber('k', 0)).toBe(1.5);
     expect(client.getJson('k', 'null')).toBe('{"a":1}');
+  });
+
+  it('passes getStringList through to the native client', () => {
+    const native = fakeNativeClient({
+      getStringList: jest.fn().mockReturnValue(['a@x.com']),
+    });
+    const client = new CoproductClient(native);
+
+    expect(client.getStringList('flag', [])).toEqual(['a@x.com']);
+    expect(native.getStringList).toHaveBeenCalledWith('flag', []);
+  });
+
+  it('passes getStringListDetails through to the native client', () => {
+    const details: FlagEvaluationDetailsStringList = {
+      value: ['a@x.com'],
+      reason: 'TARGETING_MATCH',
+      flagKey: 'flag',
+    };
+    const native = fakeNativeClient({
+      getStringListDetails: jest.fn().mockReturnValue(details),
+    });
+    const client = new CoproductClient(native);
+
+    expect(client.getStringListDetails('flag', [])).toEqual(details);
+    expect(native.getStringListDetails).toHaveBeenCalledWith('flag', []);
+  });
+
+  it('passes getNumberList through to the native client', () => {
+    const native = fakeNativeClient({
+      getNumberList: jest.fn().mockReturnValue([1, 2, 3]),
+    });
+    const client = new CoproductClient(native);
+
+    expect(client.getNumberList('flag', [])).toEqual([1, 2, 3]);
+    expect(native.getNumberList).toHaveBeenCalledWith('flag', []);
+  });
+
+  it('passes getNumberListDetails through to the native client', () => {
+    const details: FlagEvaluationDetailsNumberList = {
+      value: [1, 2, 3],
+      reason: 'TARGETING_MATCH',
+      flagKey: 'flag',
+    };
+    const native = fakeNativeClient({
+      getNumberListDetails: jest.fn().mockReturnValue(details),
+    });
+    const client = new CoproductClient(native);
+
+    expect(client.getNumberListDetails('flag', [])).toEqual(details);
+    expect(native.getNumberListDetails).toHaveBeenCalledWith('flag', []);
   });
 });
 
