@@ -56,6 +56,8 @@ pub fn evaluate_for_observer(
         FlagType::String => RequestedType::String,
         FlagType::Number => RequestedType::Number,
         FlagType::Json => RequestedType::Json,
+        FlagType::StringList => RequestedType::StringList,
+        FlagType::NumberList => RequestedType::NumberList,
         // An unknown flag type has no usable value, so it is omitted from
         // observation the same way its getters fail closed to the default
         FlagType::Unknown => return None,
@@ -90,6 +92,16 @@ pub fn evaluate_for_observer(
         FlagType::Json => match resolved {
             Some(VariationValue::Json(j)) => FlagValue::Json(j),
             _ => return None,
+        },
+        // Empty-aware: an empty NUMBER_LIST flag whose wire value parsed as
+        // StringList(vec![]) still projects as an empty list here
+        FlagType::StringList => match resolved.as_ref().and_then(VariationValue::as_string_list) {
+            Some(list) => FlagValue::StringList(list),
+            None => return None,
+        },
+        FlagType::NumberList => match resolved.as_ref().and_then(VariationValue::as_number_list) {
+            Some(list) => FlagValue::NumberList(list),
+            None => return None,
         },
         // Unreachable: an unknown type returned above. Kept for exhaustiveness
         FlagType::Unknown => return None,

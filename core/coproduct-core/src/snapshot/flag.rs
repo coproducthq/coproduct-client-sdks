@@ -42,6 +42,10 @@ pub enum FlagType {
     Number,
     #[serde(rename = "JSON")]
     Json,
+    #[serde(rename = "STRING_LIST")]
+    StringList,
+    #[serde(rename = "NUMBER_LIST")]
+    NumberList,
     /// A flag type this SDK build does not understand. A newer server can add a
     /// flag type without a schema bump, so an unknown type is retained rather
     /// than rejecting the snapshot, and fails closed: `RequestedType::matches`

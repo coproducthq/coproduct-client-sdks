@@ -28,6 +28,8 @@ pub enum FlagType {
     Int,
     Number,
     Json,
+    StringList,
+    NumberList,
 }
 
 /// Snapshot of one getter evaluation handed to every hook stage. The context is
