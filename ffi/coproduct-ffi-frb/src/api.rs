@@ -181,6 +181,24 @@ pub fn get_json(client: &CoproductClientHandle, key: String, default_value_json:
     client.inner.get_json(key, default).to_string()
 }
 
+#[frb(sync)]
+pub fn get_string_list(
+    client: &CoproductClientHandle,
+    key: String,
+    default_value: Vec<String>,
+) -> Vec<String> {
+    client.inner.get_string_list(key, default_value)
+}
+
+#[frb(sync)]
+pub fn get_number_list(
+    client: &CoproductClientHandle,
+    key: String,
+    default_value: Vec<f64>,
+) -> Vec<f64> {
+    client.inner.get_number_list(key, default_value)
+}
+
 // The onboarding flow graph a `flowId` resolves to in the cached snapshot's
 // onboardingFlows section, JSON-encoded like get_json above. Unlike get_json
 // this is a direct snapshot lookup, not a flag evaluation -- there is no
