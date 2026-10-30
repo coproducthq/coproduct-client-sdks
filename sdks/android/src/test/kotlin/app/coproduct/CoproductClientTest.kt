@@ -6,8 +6,12 @@ import org.junit.Test
 import uniffi.coproduct_ffi_uniffi.BoolObservation
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
 import uniffi.coproduct_ffi_uniffi.ContextValue
+import uniffi.coproduct_ffi_uniffi.EvaluationEvent
 import uniffi.coproduct_ffi_uniffi.EvaluationHook
+import uniffi.coproduct_ffi_uniffi.EvaluationReason
 import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsBool
+import uniffi.coproduct_ffi_uniffi.FlagType
+import uniffi.coproduct_ffi_uniffi.FlagValue
 import uniffi.coproduct_ffi_uniffi.HandlerHandle
 import uniffi.coproduct_ffi_uniffi.HookHandle
 import uniffi.coproduct_ffi_uniffi.LifecycleEvent
@@ -46,6 +50,31 @@ class CoproductClientTest {
         serializer.drain()
 
         assertEquals(listOf("alice", "bob"), fake.identifyOrder)
+    }
+
+    @Test
+    fun setEvaluationListenerForwardsEventsThroughTheWrappedListener() {
+        // Exercises ClosureEvaluationListener directly rather than through
+        // CoproductClient, since NativeCoproductClient cannot be faked (see
+        // above); this mirrors the adapter's own forwarding contract the way
+        // addHandler/addEvaluationHook's adapters are not separately covered.
+        val seen = mutableListOf<EvaluationEvent>()
+        val listener = ClosureEvaluationListener { event -> seen.add(event) }
+
+        val event = EvaluationEvent(
+            flagKey = "new-checkout",
+            flagType = FlagType.BOOL,
+            value = FlagValue.Bool(true),
+            defaultValue = FlagValue.Bool(false),
+            variant = "on",
+            reason = EvaluationReason.TARGETING_MATCH,
+            ruleId = null,
+            errorCode = null,
+            evaluatedAt = "2024-01-01T00:00:00Z",
+        )
+        listener.onEvaluation(event)
+
+        assertEquals(listOf(event), seen)
     }
 
     @Test

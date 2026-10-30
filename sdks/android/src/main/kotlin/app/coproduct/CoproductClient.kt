@@ -4,7 +4,9 @@ import android.util.Log
 import app.coproduct.paywall.FlagReader
 import uniffi.coproduct_ffi_uniffi.BoolDelivery
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
+import uniffi.coproduct_ffi_uniffi.EvaluationEvent
 import uniffi.coproduct_ffi_uniffi.EvaluationHook
+import uniffi.coproduct_ffi_uniffi.EvaluationListener
 import uniffi.coproduct_ffi_uniffi.EvaluationStage
 import uniffi.coproduct_ffi_uniffi.HandlerHandle
 import uniffi.coproduct_ffi_uniffi.HookContext
@@ -24,6 +26,15 @@ private class ClosureLifecycleHandler(
     private val closure: (LifecycleEvent) -> Unit,
 ) : LifecycleHandler {
     override suspend fun onEvent(event: LifecycleEvent) = closure(event)
+}
+
+// internal (rather than private, like the handlers above) so unit tests can
+// exercise the forwarding contract directly, since NativeCoproductClient
+// cannot be faked to drive it through CoproductClient itself.
+internal class ClosureEvaluationListener(
+    private val closure: (EvaluationEvent) -> Unit,
+) : EvaluationListener {
+    override fun onEvaluation(event: EvaluationEvent) = closure(event)
 }
 
 private class ClosureEvaluationHook(
@@ -216,5 +227,9 @@ class CoproductClient internal constructor(
     fun addEvaluationHook(stage: EvaluationHookStage, handler: (EvaluationHookContext) -> Unit): Cancellable {
         val handle: HookHandle = inner.addEvaluationHook(ClosureEvaluationHook(stage, handler))
         return Cancellable { handle.cancel() }
+    }
+
+    fun setEvaluationListener(onEvaluation: (EvaluationEvent) -> Unit) {
+        inner.setEvaluationListener(ClosureEvaluationListener(onEvaluation))
     }
 }
