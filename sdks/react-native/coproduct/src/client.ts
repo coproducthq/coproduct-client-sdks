@@ -1,7 +1,9 @@
 import {
   type CoproductClientLike,
   type CoproductSnapshot,
+  type EvaluationEvent,
   type EvaluationHook,
+  type EvaluationListener,
   type EvaluationStage,
   type FlagEvaluationDetailsBool,
   type FlagEvaluationDetailsJson,
@@ -283,6 +285,15 @@ export class CoproductClient {
     };
     const handle = this.native.addEvaluationHook(wrapped);
     return { cancel: () => handle.cancel() };
+  }
+
+  setEvaluationListener(onEvaluation: (event: EvaluationEvent) => void): void {
+    const wrapped: EvaluationListener = {
+      onEvaluation: (event) => {
+        onEvaluation(event);
+      },
+    };
+    this.native.setEvaluationListener(wrapped);
   }
 
   // MARK: State / snapshot / shutdown
