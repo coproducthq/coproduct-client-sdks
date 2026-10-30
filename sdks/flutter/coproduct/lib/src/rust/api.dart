@@ -299,6 +299,8 @@ sealed class FrbContextValue with _$FrbContextValue {
   const factory FrbContextValue.bool(bool field0) = FrbContextValue_Bool;
   const factory FrbContextValue.stringList(List<String> field0) =
       FrbContextValue_StringList;
+  const factory FrbContextValue.numberList(Float64List field0) =
+      FrbContextValue_NumberList;
   const factory FrbContextValue.null_() = FrbContextValue_Null;
 }
 

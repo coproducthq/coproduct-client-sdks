@@ -55,14 +55,15 @@ extension FrbContextValuePatterns on FrbContextValue {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbContextValue_String value)?  string,TResult Function( FrbContextValue_Number value)?  number,TResult Function( FrbContextValue_Bool value)?  bool,TResult Function( FrbContextValue_StringList value)?  stringList,TResult Function( FrbContextValue_Null value)?  null_,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbContextValue_String value)?  string,TResult Function( FrbContextValue_Number value)?  number,TResult Function( FrbContextValue_Bool value)?  bool,TResult Function( FrbContextValue_StringList value)?  stringList,TResult Function( FrbContextValue_NumberList value)?  numberList,TResult Function( FrbContextValue_Null value)?  null_,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that);case FrbContextValue_Number() when number != null:
 return number(_that);case FrbContextValue_Bool() when bool != null:
 return bool(_that);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that);case FrbContextValue_Null() when null_ != null:
+return stringList(_that);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that);case FrbContextValue_Null() when null_ != null:
 return null_(_that);case _:
   return orElse();
 
@@ -81,14 +82,15 @@ return null_(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbContextValue_String value)  string,required TResult Function( FrbContextValue_Number value)  number,required TResult Function( FrbContextValue_Bool value)  bool,required TResult Function( FrbContextValue_StringList value)  stringList,required TResult Function( FrbContextValue_Null value)  null_,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbContextValue_String value)  string,required TResult Function( FrbContextValue_Number value)  number,required TResult Function( FrbContextValue_Bool value)  bool,required TResult Function( FrbContextValue_StringList value)  stringList,required TResult Function( FrbContextValue_NumberList value)  numberList,required TResult Function( FrbContextValue_Null value)  null_,}){
 final _that = this;
 switch (_that) {
 case FrbContextValue_String():
 return string(_that);case FrbContextValue_Number():
 return number(_that);case FrbContextValue_Bool():
 return bool(_that);case FrbContextValue_StringList():
-return stringList(_that);case FrbContextValue_Null():
+return stringList(_that);case FrbContextValue_NumberList():
+return numberList(_that);case FrbContextValue_Null():
 return null_(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -103,14 +105,15 @@ return null_(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbContextValue_String value)?  string,TResult? Function( FrbContextValue_Number value)?  number,TResult? Function( FrbContextValue_Bool value)?  bool,TResult? Function( FrbContextValue_StringList value)?  stringList,TResult? Function( FrbContextValue_Null value)?  null_,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbContextValue_String value)?  string,TResult? Function( FrbContextValue_Number value)?  number,TResult? Function( FrbContextValue_Bool value)?  bool,TResult? Function( FrbContextValue_StringList value)?  stringList,TResult? Function( FrbContextValue_NumberList value)?  numberList,TResult? Function( FrbContextValue_Null value)?  null_,}){
 final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that);case FrbContextValue_Number() when number != null:
 return number(_that);case FrbContextValue_Bool() when bool != null:
 return bool(_that);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that);case FrbContextValue_Null() when null_ != null:
+return stringList(_that);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that);case FrbContextValue_Null() when null_ != null:
 return null_(_that);case _:
   return null;
 
@@ -128,13 +131,14 @@ return null_(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field0)?  string,TResult Function( double field0)?  number,TResult Function( bool field0)?  bool,TResult Function( List<String> field0)?  stringList,TResult Function()?  null_,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field0)?  string,TResult Function( double field0)?  number,TResult Function( bool field0)?  bool,TResult Function( List<String> field0)?  stringList,TResult Function( Float64List field0)?  numberList,TResult Function()?  null_,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that.field0);case FrbContextValue_Number() when number != null:
 return number(_that.field0);case FrbContextValue_Bool() when bool != null:
 return bool(_that.field0);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that.field0);case FrbContextValue_Null() when null_ != null:
+return stringList(_that.field0);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that.field0);case FrbContextValue_Null() when null_ != null:
 return null_();case _:
   return orElse();
 
@@ -153,13 +157,14 @@ return null_();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field0)  string,required TResult Function( double field0)  number,required TResult Function( bool field0)  bool,required TResult Function( List<String> field0)  stringList,required TResult Function()  null_,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field0)  string,required TResult Function( double field0)  number,required TResult Function( bool field0)  bool,required TResult Function( List<String> field0)  stringList,required TResult Function( Float64List field0)  numberList,required TResult Function()  null_,}) {final _that = this;
 switch (_that) {
 case FrbContextValue_String():
 return string(_that.field0);case FrbContextValue_Number():
 return number(_that.field0);case FrbContextValue_Bool():
 return bool(_that.field0);case FrbContextValue_StringList():
-return stringList(_that.field0);case FrbContextValue_Null():
+return stringList(_that.field0);case FrbContextValue_NumberList():
+return numberList(_that.field0);case FrbContextValue_Null():
 return null_();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -174,13 +179,14 @@ return null_();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field0)?  string,TResult? Function( double field0)?  number,TResult? Function( bool field0)?  bool,TResult? Function( List<String> field0)?  stringList,TResult? Function()?  null_,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field0)?  string,TResult? Function( double field0)?  number,TResult? Function( bool field0)?  bool,TResult? Function( List<String> field0)?  stringList,TResult? Function( Float64List field0)?  numberList,TResult? Function()?  null_,}) {final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that.field0);case FrbContextValue_Number() when number != null:
 return number(_that.field0);case FrbContextValue_Bool() when bool != null:
 return bool(_that.field0);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that.field0);case FrbContextValue_Null() when null_ != null:
+return stringList(_that.field0);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that.field0);case FrbContextValue_Null() when null_ != null:
 return null_();case _:
   return null;
 
@@ -453,6 +459,72 @@ class _$FrbContextValue_StringListCopyWithImpl<$Res>
   return _then(FrbContextValue_StringList(
 null == field0 ? _self._field0 : field0 // ignore: cast_nullable_to_non_nullable
 as List<String>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbContextValue_NumberList extends FrbContextValue {
+  const FrbContextValue_NumberList(this.field0): super._();
+  
+
+ final  Float64List field0;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbContextValue_NumberListCopyWith<FrbContextValue_NumberList> get copyWith => _$FrbContextValue_NumberListCopyWithImpl<FrbContextValue_NumberList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_NumberList&&const DeepCollectionEquality().equals(other.field0, field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(field0));
+
+@override
+String toString() {
+  return 'FrbContextValue.numberList(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbContextValue_NumberListCopyWith<$Res> implements $FrbContextValueCopyWith<$Res> {
+  factory $FrbContextValue_NumberListCopyWith(FrbContextValue_NumberList value, $Res Function(FrbContextValue_NumberList) _then) = _$FrbContextValue_NumberListCopyWithImpl;
+@useResult
+$Res call({
+ Float64List field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbContextValue_NumberListCopyWithImpl<$Res>
+    implements $FrbContextValue_NumberListCopyWith<$Res> {
+  _$FrbContextValue_NumberListCopyWithImpl(this._self, this._then);
+
+  final FrbContextValue_NumberList _self;
+  final $Res Function(FrbContextValue_NumberList) _then;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FrbContextValue_NumberList(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as Float64List,
   ));
 }
 
