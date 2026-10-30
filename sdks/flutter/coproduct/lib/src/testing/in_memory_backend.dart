@@ -57,6 +57,48 @@ final class StoredNumber extends StoredValue {
   int get hashCode => value.hashCode;
 }
 
+final class StoredStringList extends StoredValue {
+  const StoredStringList(this.value);
+  final List<String> value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StoredStringList && _listEquals(other.value, value);
+
+  @override
+  int get hashCode => Object.hashAll(value);
+}
+
+final class StoredNumberList extends StoredValue {
+  const StoredNumberList(this.value);
+  final List<double> value;
+
+  // Element-wise, with NaN treated as equal to NaN, matching StoredNumber's
+  // rule that a redelivered NaN does not register as a change
+  @override
+  bool operator ==(Object other) {
+    if (other is! StoredNumberList) return false;
+    if (other.value.length != value.length) return false;
+    for (var i = 0; i < value.length; i++) {
+      final a = other.value[i];
+      final b = value[i];
+      if (a != b && !(a.isNaN && b.isNaN)) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(value);
+}
+
+bool _listEquals(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 /// Holds both encodings on purpose. [json] is the text handed across the seam,
 /// matching the generated surface. [decoded] is what equality compares, because
 /// the core compares a parsed JSON value rather than serialized text, so two
@@ -256,6 +298,12 @@ final class InMemoryBackend implements CoproductClientBackend {
 
   static String? projectJson(StoredValue? v) => v is StoredJson ? v.json : null;
 
+  static List<String>? projectStringList(StoredValue? v) =>
+      v is StoredStringList ? v.value : null;
+
+  static List<double>? projectNumberList(StoredValue? v) =>
+      v is StoredNumberList ? v.value : null;
+
   /// Reproduces the native NUMBER to integer projection: truncate toward zero,
   /// accept the signed 64-bit lower bound, reject at or above 2^63, and reject a
   /// non-finite value as unavailable
@@ -284,6 +332,14 @@ final class InMemoryBackend implements CoproductClientBackend {
   @override
   double getNumber(String key, {required double defaultValue}) =>
       _shutdown ? defaultValue : projectNumber(_flags[key]) ?? defaultValue;
+
+  @override
+  List<String> getStringList(String key, {required List<String> defaultValue}) =>
+      _shutdown ? defaultValue : projectStringList(_flags[key]) ?? defaultValue;
+
+  @override
+  List<double> getNumberList(String key, {required List<double> defaultValue}) =>
+      _shutdown ? defaultValue : projectNumberList(_flags[key]) ?? defaultValue;
 
   @override
   String getJson(String key, {required String defaultValueJson}) => _shutdown
