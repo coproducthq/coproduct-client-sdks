@@ -63,6 +63,8 @@ class CoproductClient internal constructor(
     fun getInt(key: String, default: Long): Long = inner.getInt(key, default)
     fun getNumber(key: String, default: Double): Double = inner.getNumber(key, default)
     fun getJson(key: String, default: String): String = inner.getJson(key, default)
+    fun getStringList(key: String, default: List<String>): List<String> = inner.getStringList(key, default)
+    fun getNumberList(key: String, default: List<Double>): List<Double> = inner.getNumberList(key, default)
 
     fun getBoolDetails(key: String, default: Boolean): FlagEvaluationDetails =
         inner.getBoolDetails(key, default).toPublic()
@@ -78,6 +80,12 @@ class CoproductClient internal constructor(
 
     fun getJsonDetails(key: String, default: String): FlagEvaluationDetails =
         inner.getJsonDetails(key, default).toPublic()
+
+    fun getStringListDetails(key: String, default: List<String>): FlagEvaluationDetails =
+        inner.getStringListDetails(key, default).toPublic()
+
+    fun getNumberListDetails(key: String, default: List<Double>): FlagEvaluationDetails =
+        inner.getNumberListDetails(key, default).toPublic()
 
     // --- Identity (fire-and-forget) ---
     fun identify(userId: String, attributes: Map<String, AttributeValue> = emptyMap(), linkAnonymous: Boolean = true) {
