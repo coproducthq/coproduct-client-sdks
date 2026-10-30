@@ -125,6 +125,52 @@ fn typed_getter_conformance_cases_pass() {
                     case.name
                 );
             }
+            "getStringList" => {
+                let default: Vec<String> = case
+                    .default
+                    .as_array()
+                    .expect("string list default")
+                    .iter()
+                    .map(|v| v.as_str().expect("string list default entry").to_string())
+                    .collect();
+                let expected: Vec<String> = case
+                    .expected_value
+                    .as_array()
+                    .expect("string list expected")
+                    .iter()
+                    .map(|v| v.as_str().expect("string list expected entry").to_string())
+                    .collect();
+                let details = client.get_string_list_details(case.flag_key.clone(), default);
+                assert_eq!(details.value, expected, "case={}", case.name);
+                assert_eq!(
+                    details.error_code, case.expected_error_code,
+                    "case={}",
+                    case.name
+                );
+            }
+            "getNumberList" => {
+                let default: Vec<f64> = case
+                    .default
+                    .as_array()
+                    .expect("number list default")
+                    .iter()
+                    .map(|v| v.as_f64().expect("number list default entry"))
+                    .collect();
+                let expected: Vec<f64> = case
+                    .expected_value
+                    .as_array()
+                    .expect("number list expected")
+                    .iter()
+                    .map(|v| v.as_f64().expect("number list expected entry"))
+                    .collect();
+                let details = client.get_number_list_details(case.flag_key.clone(), default);
+                assert_eq!(details.value, expected, "case={}", case.name);
+                assert_eq!(
+                    details.error_code, case.expected_error_code,
+                    "case={}",
+                    case.name
+                );
+            }
             other => panic!("unknown getter {other} in case {}", case.name),
         }
     }
