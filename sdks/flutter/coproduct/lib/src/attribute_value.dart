@@ -1,3 +1,5 @@
+import 'dart:typed_data' show Float64List;
+
 import 'package:flutter/foundation.dart' show listEquals;
 
 import 'rust/api.dart' as frb;
@@ -31,6 +33,11 @@ sealed class AttributeValue {
   /// change an attribute you already set
   factory AttributeValue.stringList(Iterable<String> values) =>
       StringListAttributeValue(List<String>.unmodifiable(values));
+
+  /// A list-of-numbers attribute. Like [stringList] this cannot be `const`,
+  /// because it copies [values]
+  factory AttributeValue.numberList(Iterable<double> values) =>
+      NumberListAttributeValue(List<double>.unmodifiable(values));
 
   /// An explicit null attribute value. This is distinct from leaving the key
   /// out of a map, whose effect depends on the call, and from removing the key
@@ -86,6 +93,18 @@ final class StringListAttributeValue extends AttributeValue {
   int get hashCode => Object.hashAll(values);
 }
 
+final class NumberListAttributeValue extends AttributeValue {
+  const NumberListAttributeValue(this.values);
+  final List<double> values;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NumberListAttributeValue && listEquals(other.values, values);
+
+  @override
+  int get hashCode => Object.hashAll(values);
+}
+
 final class NullAttributeValue extends AttributeValue {
   const NullAttributeValue();
 
@@ -104,6 +123,9 @@ frb.FrbContextValue toFrbContextValue(AttributeValue value) => switch (value) {
   BoolAttributeValue(:final value) => frb.FrbContextValue.bool(value),
   StringListAttributeValue(:final values) => frb.FrbContextValue.stringList(
     values,
+  ),
+  NumberListAttributeValue(:final values) => frb.FrbContextValue.numberList(
+    Float64List.fromList(values),
   ),
   NullAttributeValue() => frb.FrbContextValue.null_(),
 };
