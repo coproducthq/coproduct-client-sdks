@@ -1,5 +1,6 @@
 import 'attribute_value.dart';
 import 'client_backend.dart';
+import 'evaluation_event.dart';
 import 'identity_error_translation.dart';
 import 'provider_state.dart';
 import 'rust/api.dart' as frb;
@@ -103,6 +104,10 @@ final class FrbBackend implements CoproductClientBackend {
       cancel: () => frb.cancelJsonObservation(session: session),
     );
   }
+
+  @override
+  Stream<EvaluationEvent> evaluationEvents() =>
+      frb.setEvaluationListener(client: handle).map(evaluationEventFromFrb);
 
   @override
   Future<void> identify({

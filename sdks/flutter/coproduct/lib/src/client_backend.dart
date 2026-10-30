@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'attribute_value.dart';
+import 'evaluation_event.dart';
 import 'provider_state.dart';
 
 /// One flag observation's registration, in the shape [FlagObservation] consumes.
@@ -56,6 +57,13 @@ abstract interface class CoproductClientBackend {
 
   /// Carries encoded JSON text, decoded above this boundary by `jsonObservation`
   ObservationHandle<String> observeJson(String key);
+
+  /// A fresh stream of every evaluation event this client reports from the
+  /// point of the call onward, mirroring the generated FRB bridge's single
+  /// evaluation-listener slot: starting a new stream replaces whatever was
+  /// registered on it before. Used by `CoproductClient.setEvaluationListener`,
+  /// which owns the subscription above this boundary
+  Stream<EvaluationEvent> evaluationEvents();
 
   Future<void> identify({
     required String userId,

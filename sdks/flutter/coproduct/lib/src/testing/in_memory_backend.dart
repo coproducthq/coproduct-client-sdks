@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../attribute_value.dart';
 import '../client_backend.dart';
 import '../errors.dart';
+import '../evaluation_event.dart';
 import '../provider_state.dart';
 
 /// One stored flag value, tagged by the flag type the core would report.
@@ -399,6 +400,13 @@ final class InMemoryBackend implements CoproductClientBackend {
   @override
   ObservationHandle<String> observeJson(String key) =>
       _observe(key, projectJson);
+
+  // This harness has no evaluation engine, so it reports no flag reads as
+  // analytics-style events -- there is nothing here for a test built on it to
+  // listen for. A test that needs evaluation events exercises `FrbBackend`
+  // directly instead
+  @override
+  Stream<EvaluationEvent> evaluationEvents() => const Stream.empty();
 
   Map<String, AttributeValue> _withoutReserved(
     Map<String, AttributeValue> attributes,
