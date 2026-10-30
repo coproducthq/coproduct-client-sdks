@@ -564,6 +564,514 @@ String toString() {
 
 
 /// @nodoc
+mixin _$FrbFlagValue {
+
+ Object get value;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue&&const DeepCollectionEquality().equals(other.value, value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(value));
+
+@override
+String toString() {
+  return 'FrbFlagValue(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+class $FrbFlagValueCopyWith<$Res>  {
+$FrbFlagValueCopyWith(FrbFlagValue _, $Res Function(FrbFlagValue) __);
+}
+
+
+/// Adds pattern-matching-related methods to [FrbFlagValue].
+extension FrbFlagValuePatterns on FrbFlagValue {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbFlagValue_Bool value)?  bool,TResult Function( FrbFlagValue_String value)?  string,TResult Function( FrbFlagValue_Int value)?  int,TResult Function( FrbFlagValue_Number value)?  number,TResult Function( FrbFlagValue_Json value)?  json,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that);case FrbFlagValue_String() when string != null:
+return string(_that);case FrbFlagValue_Int() when int != null:
+return int(_that);case FrbFlagValue_Number() when number != null:
+return number(_that);case FrbFlagValue_Json() when json != null:
+return json(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbFlagValue_Bool value)  bool,required TResult Function( FrbFlagValue_String value)  string,required TResult Function( FrbFlagValue_Int value)  int,required TResult Function( FrbFlagValue_Number value)  number,required TResult Function( FrbFlagValue_Json value)  json,}){
+final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool():
+return bool(_that);case FrbFlagValue_String():
+return string(_that);case FrbFlagValue_Int():
+return int(_that);case FrbFlagValue_Number():
+return number(_that);case FrbFlagValue_Json():
+return json(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbFlagValue_Bool value)?  bool,TResult? Function( FrbFlagValue_String value)?  string,TResult? Function( FrbFlagValue_Int value)?  int,TResult? Function( FrbFlagValue_Number value)?  number,TResult? Function( FrbFlagValue_Json value)?  json,}){
+final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that);case FrbFlagValue_String() when string != null:
+return string(_that);case FrbFlagValue_Int() when int != null:
+return int(_that);case FrbFlagValue_Number() when number != null:
+return number(_that);case FrbFlagValue_Json() when json != null:
+return json(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( bool value)?  bool,TResult Function( String value)?  string,TResult Function( PlatformInt64 value)?  int,TResult Function( double value)?  number,TResult Function( String value)?  json,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that.value);case FrbFlagValue_String() when string != null:
+return string(_that.value);case FrbFlagValue_Int() when int != null:
+return int(_that.value);case FrbFlagValue_Number() when number != null:
+return number(_that.value);case FrbFlagValue_Json() when json != null:
+return json(_that.value);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( bool value)  bool,required TResult Function( String value)  string,required TResult Function( PlatformInt64 value)  int,required TResult Function( double value)  number,required TResult Function( String value)  json,}) {final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool():
+return bool(_that.value);case FrbFlagValue_String():
+return string(_that.value);case FrbFlagValue_Int():
+return int(_that.value);case FrbFlagValue_Number():
+return number(_that.value);case FrbFlagValue_Json():
+return json(_that.value);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( bool value)?  bool,TResult? Function( String value)?  string,TResult? Function( PlatformInt64 value)?  int,TResult? Function( double value)?  number,TResult? Function( String value)?  json,}) {final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that.value);case FrbFlagValue_String() when string != null:
+return string(_that.value);case FrbFlagValue_Int() when int != null:
+return int(_that.value);case FrbFlagValue_Number() when number != null:
+return number(_that.value);case FrbFlagValue_Json() when json != null:
+return json(_that.value);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Bool extends FrbFlagValue {
+  const FrbFlagValue_Bool({required this.value}): super._();
+  
+
+@override final  bool value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_BoolCopyWith<FrbFlagValue_Bool> get copyWith => _$FrbFlagValue_BoolCopyWithImpl<FrbFlagValue_Bool>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Bool&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.bool(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_BoolCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_BoolCopyWith(FrbFlagValue_Bool value, $Res Function(FrbFlagValue_Bool) _then) = _$FrbFlagValue_BoolCopyWithImpl;
+@useResult
+$Res call({
+ bool value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_BoolCopyWithImpl<$Res>
+    implements $FrbFlagValue_BoolCopyWith<$Res> {
+  _$FrbFlagValue_BoolCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Bool _self;
+  final $Res Function(FrbFlagValue_Bool) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Bool(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_String extends FrbFlagValue {
+  const FrbFlagValue_String({required this.value}): super._();
+  
+
+@override final  String value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_StringCopyWith<FrbFlagValue_String> get copyWith => _$FrbFlagValue_StringCopyWithImpl<FrbFlagValue_String>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_String&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.string(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_StringCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_StringCopyWith(FrbFlagValue_String value, $Res Function(FrbFlagValue_String) _then) = _$FrbFlagValue_StringCopyWithImpl;
+@useResult
+$Res call({
+ String value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_StringCopyWithImpl<$Res>
+    implements $FrbFlagValue_StringCopyWith<$Res> {
+  _$FrbFlagValue_StringCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_String _self;
+  final $Res Function(FrbFlagValue_String) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_String(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Int extends FrbFlagValue {
+  const FrbFlagValue_Int({required this.value}): super._();
+  
+
+@override final  PlatformInt64 value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_IntCopyWith<FrbFlagValue_Int> get copyWith => _$FrbFlagValue_IntCopyWithImpl<FrbFlagValue_Int>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Int&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.int(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_IntCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_IntCopyWith(FrbFlagValue_Int value, $Res Function(FrbFlagValue_Int) _then) = _$FrbFlagValue_IntCopyWithImpl;
+@useResult
+$Res call({
+ PlatformInt64 value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_IntCopyWithImpl<$Res>
+    implements $FrbFlagValue_IntCopyWith<$Res> {
+  _$FrbFlagValue_IntCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Int _self;
+  final $Res Function(FrbFlagValue_Int) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Int(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Number extends FrbFlagValue {
+  const FrbFlagValue_Number({required this.value}): super._();
+  
+
+@override final  double value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_NumberCopyWith<FrbFlagValue_Number> get copyWith => _$FrbFlagValue_NumberCopyWithImpl<FrbFlagValue_Number>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Number&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.number(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_NumberCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_NumberCopyWith(FrbFlagValue_Number value, $Res Function(FrbFlagValue_Number) _then) = _$FrbFlagValue_NumberCopyWithImpl;
+@useResult
+$Res call({
+ double value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_NumberCopyWithImpl<$Res>
+    implements $FrbFlagValue_NumberCopyWith<$Res> {
+  _$FrbFlagValue_NumberCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Number _self;
+  final $Res Function(FrbFlagValue_Number) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Number(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as double,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Json extends FrbFlagValue {
+  const FrbFlagValue_Json({required this.value}): super._();
+  
+
+@override final  String value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_JsonCopyWith<FrbFlagValue_Json> get copyWith => _$FrbFlagValue_JsonCopyWithImpl<FrbFlagValue_Json>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Json&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.json(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_JsonCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_JsonCopyWith(FrbFlagValue_Json value, $Res Function(FrbFlagValue_Json) _then) = _$FrbFlagValue_JsonCopyWithImpl;
+@useResult
+$Res call({
+ String value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_JsonCopyWithImpl<$Res>
+    implements $FrbFlagValue_JsonCopyWith<$Res> {
+  _$FrbFlagValue_JsonCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Json _self;
+  final $Res Function(FrbFlagValue_Json) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Json(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$InitError {
 
 

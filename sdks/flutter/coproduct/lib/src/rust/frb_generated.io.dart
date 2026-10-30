@@ -180,6 +180,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<FrbEvaluationEvent>
+  dco_decode_StreamSink_frb_evaluation_event_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<String?> dco_decode_StreamSink_opt_String_Sse(dynamic raw);
 
   @protected
@@ -223,6 +227,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FrbContextValue dco_decode_frb_context_value(dynamic raw);
+
+  @protected
+  FrbEvaluationEvent dco_decode_frb_evaluation_event(dynamic raw);
+
+  @protected
+  FrbEvaluationReason dco_decode_frb_evaluation_reason(dynamic raw);
+
+  @protected
+  FrbFlagType dco_decode_frb_flag_type(dynamic raw);
+
+  @protected
+  FrbFlagValue dco_decode_frb_flag_value(dynamic raw);
 
   @protected
   HttpHeader dco_decode_http_header(dynamic raw);
@@ -431,6 +447,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<FrbEvaluationEvent>
+  sse_decode_StreamSink_frb_evaluation_event_Sse(SseDeserializer deserializer);
+
+  @protected
   RustStreamSink<String?> sse_decode_StreamSink_opt_String_Sse(
     SseDeserializer deserializer,
   );
@@ -476,6 +496,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FrbContextValue sse_decode_frb_context_value(SseDeserializer deserializer);
+
+  @protected
+  FrbEvaluationEvent sse_decode_frb_evaluation_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbEvaluationReason sse_decode_frb_evaluation_reason(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbFlagType sse_decode_frb_flag_type(SseDeserializer deserializer);
+
+  @protected
+  FrbFlagValue sse_decode_frb_flag_value(SseDeserializer deserializer);
 
   @protected
   HttpHeader sse_decode_http_header(SseDeserializer deserializer);
@@ -725,6 +761,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_frb_evaluation_event_Sse(
+    RustStreamSink<FrbEvaluationEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_opt_String_Sse(
     RustStreamSink<String?> self,
     SseSerializer serializer,
@@ -783,6 +825,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     FrbContextValue self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_frb_evaluation_event(
+    FrbEvaluationEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_evaluation_reason(
+    FrbEvaluationReason self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_flag_type(FrbFlagType self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_flag_value(FrbFlagValue self, SseSerializer serializer);
 
   @protected
   void sse_encode_http_header(HttpHeader self, SseSerializer serializer);
