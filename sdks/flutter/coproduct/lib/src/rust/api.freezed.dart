@@ -607,7 +607,7 @@ extension FrbFlagValuePatterns on FrbFlagValue {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbFlagValue_Bool value)?  bool,TResult Function( FrbFlagValue_String value)?  string,TResult Function( FrbFlagValue_Int value)?  int,TResult Function( FrbFlagValue_Number value)?  number,TResult Function( FrbFlagValue_Json value)?  json,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbFlagValue_Bool value)?  bool,TResult Function( FrbFlagValue_String value)?  string,TResult Function( FrbFlagValue_Int value)?  int,TResult Function( FrbFlagValue_Number value)?  number,TResult Function( FrbFlagValue_Json value)?  json,TResult Function( FrbFlagValue_StringList value)?  stringList,TResult Function( FrbFlagValue_NumberList value)?  numberList,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case FrbFlagValue_Bool() when bool != null:
@@ -615,7 +615,9 @@ return bool(_that);case FrbFlagValue_String() when string != null:
 return string(_that);case FrbFlagValue_Int() when int != null:
 return int(_that);case FrbFlagValue_Number() when number != null:
 return number(_that);case FrbFlagValue_Json() when json != null:
-return json(_that);case _:
+return json(_that);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that);case _:
   return orElse();
 
 }
@@ -633,7 +635,7 @@ return json(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbFlagValue_Bool value)  bool,required TResult Function( FrbFlagValue_String value)  string,required TResult Function( FrbFlagValue_Int value)  int,required TResult Function( FrbFlagValue_Number value)  number,required TResult Function( FrbFlagValue_Json value)  json,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbFlagValue_Bool value)  bool,required TResult Function( FrbFlagValue_String value)  string,required TResult Function( FrbFlagValue_Int value)  int,required TResult Function( FrbFlagValue_Number value)  number,required TResult Function( FrbFlagValue_Json value)  json,required TResult Function( FrbFlagValue_StringList value)  stringList,required TResult Function( FrbFlagValue_NumberList value)  numberList,}){
 final _that = this;
 switch (_that) {
 case FrbFlagValue_Bool():
@@ -641,7 +643,9 @@ return bool(_that);case FrbFlagValue_String():
 return string(_that);case FrbFlagValue_Int():
 return int(_that);case FrbFlagValue_Number():
 return number(_that);case FrbFlagValue_Json():
-return json(_that);}
+return json(_that);case FrbFlagValue_StringList():
+return stringList(_that);case FrbFlagValue_NumberList():
+return numberList(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -655,7 +659,7 @@ return json(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbFlagValue_Bool value)?  bool,TResult? Function( FrbFlagValue_String value)?  string,TResult? Function( FrbFlagValue_Int value)?  int,TResult? Function( FrbFlagValue_Number value)?  number,TResult? Function( FrbFlagValue_Json value)?  json,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbFlagValue_Bool value)?  bool,TResult? Function( FrbFlagValue_String value)?  string,TResult? Function( FrbFlagValue_Int value)?  int,TResult? Function( FrbFlagValue_Number value)?  number,TResult? Function( FrbFlagValue_Json value)?  json,TResult? Function( FrbFlagValue_StringList value)?  stringList,TResult? Function( FrbFlagValue_NumberList value)?  numberList,}){
 final _that = this;
 switch (_that) {
 case FrbFlagValue_Bool() when bool != null:
@@ -663,7 +667,9 @@ return bool(_that);case FrbFlagValue_String() when string != null:
 return string(_that);case FrbFlagValue_Int() when int != null:
 return int(_that);case FrbFlagValue_Number() when number != null:
 return number(_that);case FrbFlagValue_Json() when json != null:
-return json(_that);case _:
+return json(_that);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that);case _:
   return null;
 
 }
@@ -680,14 +686,16 @@ return json(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( bool value)?  bool,TResult Function( String value)?  string,TResult Function( PlatformInt64 value)?  int,TResult Function( double value)?  number,TResult Function( String value)?  json,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( bool value)?  bool,TResult Function( String value)?  string,TResult Function( PlatformInt64 value)?  int,TResult Function( double value)?  number,TResult Function( String value)?  json,TResult Function( List<String> value)?  stringList,TResult Function( Float64List value)?  numberList,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case FrbFlagValue_Bool() when bool != null:
 return bool(_that.value);case FrbFlagValue_String() when string != null:
 return string(_that.value);case FrbFlagValue_Int() when int != null:
 return int(_that.value);case FrbFlagValue_Number() when number != null:
 return number(_that.value);case FrbFlagValue_Json() when json != null:
-return json(_that.value);case _:
+return json(_that.value);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that.value);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that.value);case _:
   return orElse();
 
 }
@@ -705,14 +713,16 @@ return json(_that.value);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( bool value)  bool,required TResult Function( String value)  string,required TResult Function( PlatformInt64 value)  int,required TResult Function( double value)  number,required TResult Function( String value)  json,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( bool value)  bool,required TResult Function( String value)  string,required TResult Function( PlatformInt64 value)  int,required TResult Function( double value)  number,required TResult Function( String value)  json,required TResult Function( List<String> value)  stringList,required TResult Function( Float64List value)  numberList,}) {final _that = this;
 switch (_that) {
 case FrbFlagValue_Bool():
 return bool(_that.value);case FrbFlagValue_String():
 return string(_that.value);case FrbFlagValue_Int():
 return int(_that.value);case FrbFlagValue_Number():
 return number(_that.value);case FrbFlagValue_Json():
-return json(_that.value);}
+return json(_that.value);case FrbFlagValue_StringList():
+return stringList(_that.value);case FrbFlagValue_NumberList():
+return numberList(_that.value);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -726,14 +736,16 @@ return json(_that.value);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( bool value)?  bool,TResult? Function( String value)?  string,TResult? Function( PlatformInt64 value)?  int,TResult? Function( double value)?  number,TResult? Function( String value)?  json,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( bool value)?  bool,TResult? Function( String value)?  string,TResult? Function( PlatformInt64 value)?  int,TResult? Function( double value)?  number,TResult? Function( String value)?  json,TResult? Function( List<String> value)?  stringList,TResult? Function( Float64List value)?  numberList,}) {final _that = this;
 switch (_that) {
 case FrbFlagValue_Bool() when bool != null:
 return bool(_that.value);case FrbFlagValue_String() when string != null:
 return string(_that.value);case FrbFlagValue_Int() when int != null:
 return int(_that.value);case FrbFlagValue_Number() when number != null:
 return number(_that.value);case FrbFlagValue_Json() when json != null:
-return json(_that.value);case _:
+return json(_that.value);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that.value);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that.value);case _:
   return null;
 
 }
@@ -1065,6 +1077,144 @@ class _$FrbFlagValue_JsonCopyWithImpl<$Res>
   return _then(FrbFlagValue_Json(
 value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
 as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_StringList extends FrbFlagValue {
+  const FrbFlagValue_StringList({required final  List<String> value}): _value = value,super._();
+  
+
+ final  List<String> _value;
+@override List<String> get value {
+  if (_value is EqualUnmodifiableListView) return _value;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_value);
+}
+
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_StringListCopyWith<FrbFlagValue_StringList> get copyWith => _$FrbFlagValue_StringListCopyWithImpl<FrbFlagValue_StringList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_StringList&&const DeepCollectionEquality().equals(other._value, _value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_value));
+
+@override
+String toString() {
+  return 'FrbFlagValue.stringList(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_StringListCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_StringListCopyWith(FrbFlagValue_StringList value, $Res Function(FrbFlagValue_StringList) _then) = _$FrbFlagValue_StringListCopyWithImpl;
+@useResult
+$Res call({
+ List<String> value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_StringListCopyWithImpl<$Res>
+    implements $FrbFlagValue_StringListCopyWith<$Res> {
+  _$FrbFlagValue_StringListCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_StringList _self;
+  final $Res Function(FrbFlagValue_StringList) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_StringList(
+value: null == value ? _self._value : value // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_NumberList extends FrbFlagValue {
+  const FrbFlagValue_NumberList({required this.value}): super._();
+  
+
+@override final  Float64List value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_NumberListCopyWith<FrbFlagValue_NumberList> get copyWith => _$FrbFlagValue_NumberListCopyWithImpl<FrbFlagValue_NumberList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_NumberList&&const DeepCollectionEquality().equals(other.value, value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(value));
+
+@override
+String toString() {
+  return 'FrbFlagValue.numberList(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_NumberListCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_NumberListCopyWith(FrbFlagValue_NumberList value, $Res Function(FrbFlagValue_NumberList) _then) = _$FrbFlagValue_NumberListCopyWithImpl;
+@useResult
+$Res call({
+ Float64List value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_NumberListCopyWithImpl<$Res>
+    implements $FrbFlagValue_NumberListCopyWith<$Res> {
+  _$FrbFlagValue_NumberListCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_NumberList _self;
+  final $Res Function(FrbFlagValue_NumberList) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_NumberList(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as Float64List,
   ));
 }
 

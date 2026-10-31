@@ -439,6 +439,8 @@ pub enum FrbFlagValue {
     Int { value: i64 },
     Number { value: f64 },
     Json { value: String },
+    StringList { value: Vec<String> },
+    NumberList { value: Vec<f64> },
 }
 
 impl From<CoreFlagValue> for FrbFlagValue {
@@ -451,6 +453,8 @@ impl From<CoreFlagValue> for FrbFlagValue {
             CoreFlagValue::Json(value) => FrbFlagValue::Json {
                 value: value.to_string(),
             },
+            CoreFlagValue::StringList(value) => FrbFlagValue::StringList { value },
+            CoreFlagValue::NumberList(value) => FrbFlagValue::NumberList { value },
         }
     }
 }
@@ -464,6 +468,8 @@ pub enum FrbFlagType {
     Int,
     Number,
     Json,
+    StringList,
+    NumberList,
 }
 
 impl From<core_hooks::FlagType> for FrbFlagType {
@@ -475,6 +481,8 @@ impl From<core_hooks::FlagType> for FrbFlagType {
             C::Int => FrbFlagType::Int,
             C::Number => FrbFlagType::Number,
             C::Json => FrbFlagType::Json,
+            C::StringList => FrbFlagType::StringList,
+            C::NumberList => FrbFlagType::NumberList,
         }
     }
 }

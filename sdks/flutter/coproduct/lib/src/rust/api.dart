@@ -376,7 +376,7 @@ enum FrbEvaluationReason {
 
 /// The requested-getter type that triggered an evaluation, mirroring the core
 /// and UniFFI `FlagType`
-enum FrbFlagType { bool, string, int, number, json }
+enum FrbFlagType { bool, string, int, number, json, stringList, numberList }
 
 @freezed
 sealed class FrbFlagValue with _$FrbFlagValue {
@@ -390,6 +390,10 @@ sealed class FrbFlagValue with _$FrbFlagValue {
   const factory FrbFlagValue.number({required double value}) =
       FrbFlagValue_Number;
   const factory FrbFlagValue.json({required String value}) = FrbFlagValue_Json;
+  const factory FrbFlagValue.stringList({required List<String> value}) =
+      FrbFlagValue_StringList;
+  const factory FrbFlagValue.numberList({required Float64List value}) =
+      FrbFlagValue_NumberList;
 }
 
 class HttpHeader {

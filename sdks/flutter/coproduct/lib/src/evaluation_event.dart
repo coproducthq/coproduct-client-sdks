@@ -21,7 +21,7 @@ enum EvaluationReason {
 }
 
 /// The getter type that triggered an evaluation, on [EvaluationEvent.flagType].
-enum FlagType { bool, string, int, number, json }
+enum FlagType { bool, string, int, number, json, stringList, numberList }
 
 /// A flag's value as it appears on an [EvaluationEvent]: a bool, string, int,
 /// number, or encoded JSON text.
@@ -49,6 +49,12 @@ sealed class FlagValue {
   /// A JSON value, carried as encoded JSON text rather than a decoded Dart
   /// value
   const factory FlagValue.json(String value) = JsonFlagValue;
+
+  /// A list of string values
+  const factory FlagValue.stringList(List<String> value) = StringListFlagValue;
+
+  /// A list of numeric values
+  const factory FlagValue.numberList(List<double> value) = NumberListFlagValue;
 }
 
 final class BoolFlagValue extends FlagValue {
@@ -109,6 +115,39 @@ final class JsonFlagValue extends FlagValue {
 
   @override
   int get hashCode => value.hashCode;
+}
+
+final class StringListFlagValue extends FlagValue {
+  const StringListFlagValue(this.value);
+  final List<String> value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StringListFlagValue && _listEquals(other.value, value);
+
+  @override
+  int get hashCode => Object.hashAll(value);
+}
+
+final class NumberListFlagValue extends FlagValue {
+  const NumberListFlagValue(this.value);
+  final List<double> value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NumberListFlagValue && _listEquals(other.value, value);
+
+  @override
+  int get hashCode => Object.hashAll(value);
+}
+
+bool _listEquals<T>(List<T> a, List<T> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 /// One flag evaluation, delivered to the callback registered with
@@ -196,6 +235,8 @@ FlagValue flagValueFromFrb(frb.FrbFlagValue value) => switch (value) {
   frb.FrbFlagValue_Int(:final value) => FlagValue.int(value),
   frb.FrbFlagValue_Number(:final value) => FlagValue.number(value),
   frb.FrbFlagValue_Json(:final value) => FlagValue.json(value),
+  frb.FrbFlagValue_StringList(:final value) => FlagValue.stringList(value),
+  frb.FrbFlagValue_NumberList(:final value) => FlagValue.numberList(value),
 };
 
 /// Converts a generated evaluation reason into the public [EvaluationReason]
@@ -217,6 +258,8 @@ FlagType flagTypeFromFrb(frb.FrbFlagType type) => switch (type) {
   frb.FrbFlagType.int => FlagType.int,
   frb.FrbFlagType.number => FlagType.number,
   frb.FrbFlagType.json => FlagType.json,
+  frb.FrbFlagType.stringList => FlagType.stringList,
+  frb.FrbFlagType.numberList => FlagType.numberList,
 };
 
 /// Converts a generated evaluation event into the public [EvaluationEvent].
