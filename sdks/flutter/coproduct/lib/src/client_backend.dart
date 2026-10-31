@@ -38,6 +38,8 @@ abstract interface class CoproductClientBackend {
   String getString(String key, {required String defaultValue});
   int getInt(String key, {required int defaultValue});
   double getNumber(String key, {required double defaultValue});
+  List<String> getStringList(String key, {required List<String> defaultValue});
+  List<double> getNumberList(String key, {required List<double> defaultValue});
 
   /// Takes and returns encoded JSON text, matching the generated surface.
   /// Decoding happens above this boundary

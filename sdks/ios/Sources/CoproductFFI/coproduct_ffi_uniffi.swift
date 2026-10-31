@@ -978,9 +978,17 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
     
     func getNumberDetails(key: String, defaultValue: Double)  -> FlagEvaluationDetailsNumber
     
+    func getNumberList(key: String, defaultValue: [Double])  -> [Double]
+    
+    func getNumberListDetails(key: String, defaultValue: [Double])  -> FlagEvaluationDetailsNumberList
+    
     func getString(key: String, defaultValue: String)  -> String
     
     func getStringDetails(key: String, defaultValue: String)  -> FlagEvaluationDetailsString
+    
+    func getStringList(key: String, defaultValue: [String])  -> [String]
+    
+    func getStringListDetails(key: String, defaultValue: [String])  -> FlagEvaluationDetailsStringList
     
     func identify(userId: String, attributes: [String: ContextValue], linkAnonymous: Bool) async throws 
     
@@ -1196,6 +1204,26 @@ open func getNumberDetails(key: String, defaultValue: Double) -> FlagEvaluationD
 })
 }
     
+open func getNumberList(key: String, defaultValue: [Double]) -> [Double]  {
+    return try!  FfiConverterSequenceDouble.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),
+        FfiConverterSequenceDouble.lower(defaultValue),$0
+    )
+})
+}
+    
+open func getNumberListDetails(key: String, defaultValue: [Double]) -> FlagEvaluationDetailsNumberList  {
+    return try!  FfiConverterTypeFlagEvaluationDetailsNumberList_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),
+        FfiConverterSequenceDouble.lower(defaultValue),$0
+    )
+})
+}
+    
 open func getString(key: String, defaultValue: String) -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(
@@ -1212,6 +1240,26 @@ open func getStringDetails(key: String, defaultValue: String) -> FlagEvaluationD
             self.uniffiCloneHandle(),
         FfiConverterString.lower(key),
         FfiConverterString.lower(defaultValue),$0
+    )
+})
+}
+    
+open func getStringList(key: String, defaultValue: [String]) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),
+        FfiConverterSequenceString.lower(defaultValue),$0
+    )
+})
+}
+    
+open func getStringListDetails(key: String, defaultValue: [String]) -> FlagEvaluationDetailsStringList  {
+    return try!  FfiConverterTypeFlagEvaluationDetailsStringList_lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),
+        FfiConverterSequenceString.lower(defaultValue),$0
     )
 })
 }
@@ -4330,6 +4378,76 @@ public func FfiConverterTypeFlagEvaluationDetailsNumber_lower(_ value: FlagEvalu
 }
 
 
+public struct FlagEvaluationDetailsNumberList: Equatable, Hashable {
+    public var value: [Double]
+    public var variant: String?
+    public var reason: String
+    public var errorCode: String?
+    public var errorMessage: String?
+    public var flagKey: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(value: [Double], variant: String?, reason: String, errorCode: String?, errorMessage: String?, flagKey: String) {
+        self.value = value
+        self.variant = variant
+        self.reason = reason
+        self.errorCode = errorCode
+        self.errorMessage = errorMessage
+        self.flagKey = flagKey
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FlagEvaluationDetailsNumberList: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFlagEvaluationDetailsNumberList: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlagEvaluationDetailsNumberList {
+        return
+            try FlagEvaluationDetailsNumberList(
+                value: FfiConverterSequenceDouble.read(from: &buf), 
+                variant: FfiConverterOptionString.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf), 
+                errorCode: FfiConverterOptionString.read(from: &buf), 
+                errorMessage: FfiConverterOptionString.read(from: &buf), 
+                flagKey: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FlagEvaluationDetailsNumberList, into buf: inout [UInt8]) {
+        FfiConverterSequenceDouble.write(value.value, into: &buf)
+        FfiConverterOptionString.write(value.variant, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+        FfiConverterOptionString.write(value.errorCode, into: &buf)
+        FfiConverterOptionString.write(value.errorMessage, into: &buf)
+        FfiConverterString.write(value.flagKey, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagEvaluationDetailsNumberList_lift(_ buf: RustBuffer) throws -> FlagEvaluationDetailsNumberList {
+    return try FfiConverterTypeFlagEvaluationDetailsNumberList.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagEvaluationDetailsNumberList_lower(_ value: FlagEvaluationDetailsNumberList) -> RustBuffer {
+    return FfiConverterTypeFlagEvaluationDetailsNumberList.lower(value)
+}
+
+
 public struct FlagEvaluationDetailsString: Equatable, Hashable {
     public var value: String
     public var variant: String?
@@ -4397,6 +4515,76 @@ public func FfiConverterTypeFlagEvaluationDetailsString_lift(_ buf: RustBuffer) 
 #endif
 public func FfiConverterTypeFlagEvaluationDetailsString_lower(_ value: FlagEvaluationDetailsString) -> RustBuffer {
     return FfiConverterTypeFlagEvaluationDetailsString.lower(value)
+}
+
+
+public struct FlagEvaluationDetailsStringList: Equatable, Hashable {
+    public var value: [String]
+    public var variant: String?
+    public var reason: String
+    public var errorCode: String?
+    public var errorMessage: String?
+    public var flagKey: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(value: [String], variant: String?, reason: String, errorCode: String?, errorMessage: String?, flagKey: String) {
+        self.value = value
+        self.variant = variant
+        self.reason = reason
+        self.errorCode = errorCode
+        self.errorMessage = errorMessage
+        self.flagKey = flagKey
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FlagEvaluationDetailsStringList: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFlagEvaluationDetailsStringList: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlagEvaluationDetailsStringList {
+        return
+            try FlagEvaluationDetailsStringList(
+                value: FfiConverterSequenceString.read(from: &buf), 
+                variant: FfiConverterOptionString.read(from: &buf), 
+                reason: FfiConverterString.read(from: &buf), 
+                errorCode: FfiConverterOptionString.read(from: &buf), 
+                errorMessage: FfiConverterOptionString.read(from: &buf), 
+                flagKey: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FlagEvaluationDetailsStringList, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.value, into: &buf)
+        FfiConverterOptionString.write(value.variant, into: &buf)
+        FfiConverterString.write(value.reason, into: &buf)
+        FfiConverterOptionString.write(value.errorCode, into: &buf)
+        FfiConverterOptionString.write(value.errorMessage, into: &buf)
+        FfiConverterString.write(value.flagKey, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagEvaluationDetailsStringList_lift(_ buf: RustBuffer) throws -> FlagEvaluationDetailsStringList {
+    return try FfiConverterTypeFlagEvaluationDetailsStringList.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlagEvaluationDetailsStringList_lower(_ value: FlagEvaluationDetailsStringList) -> RustBuffer {
+    return FfiConverterTypeFlagEvaluationDetailsStringList.lower(value)
 }
 
 
@@ -5248,6 +5436,8 @@ public enum FlagType: Equatable, Hashable {
     case int
     case number
     case json
+    case stringList
+    case numberList
 
 
 
@@ -5279,6 +5469,10 @@ public struct FfiConverterTypeFlagType: FfiConverterRustBuffer {
         
         case 5: return .json
         
+        case 6: return .stringList
+        
+        case 7: return .numberList
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -5305,6 +5499,14 @@ public struct FfiConverterTypeFlagType: FfiConverterRustBuffer {
         
         case .json:
             writeInt(&buf, Int32(5))
+        
+        
+        case .stringList:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .numberList:
+            writeInt(&buf, Int32(7))
         
         }
     }
@@ -5347,6 +5549,10 @@ public enum FlagValue: Equatable, Hashable {
     )
     case json(value: String
     )
+    case stringList(value: [String]
+    )
+    case numberList(value: [Double]
+    )
 
 
 
@@ -5383,6 +5589,12 @@ public struct FfiConverterTypeFlagValue: FfiConverterRustBuffer {
         case 5: return .json(value: try FfiConverterString.read(from: &buf)
         )
         
+        case 6: return .stringList(value: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 7: return .numberList(value: try FfiConverterSequenceDouble.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -5414,6 +5626,16 @@ public struct FfiConverterTypeFlagValue: FfiConverterRustBuffer {
         case let .json(value):
             writeInt(&buf, Int32(5))
             FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .stringList(value):
+            writeInt(&buf, Int32(6))
+            FfiConverterSequenceString.write(value, into: &buf)
+            
+        
+        case let .numberList(value):
+            writeInt(&buf, Int32(7))
+            FfiConverterSequenceDouble.write(value, into: &buf)
             
         }
     }
@@ -6663,6 +6885,31 @@ fileprivate struct FfiConverterOptionTypeFlagValue: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceDouble: FfiConverterRustBuffer {
+    typealias SwiftType = [Double]
+
+    public static func write(_ value: [Double], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterDouble.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Double] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Double]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterDouble.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
@@ -7037,10 +7284,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details() != 55106) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list() != 44253) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details() != 44721) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string() != 49273) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details() != 55912) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list() != 7990) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details() != 15168) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130) {

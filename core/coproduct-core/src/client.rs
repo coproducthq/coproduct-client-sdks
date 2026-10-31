@@ -1189,6 +1189,80 @@ impl CoproductClient {
         })
     }
 
+    /// Returns the STRING_LIST flag value, or `default` on any failure path such as
+    /// not-ready, not-found, type-mismatch, or circuit-break. An empty list is a
+    /// valid served value distinct from the default: see `VariationValue::as_string_list`
+    pub fn get_string_list(&self, key: String, default: Vec<String>) -> Vec<String> {
+        if self.is_shutdown() {
+            return default;
+        }
+        let hook_ctx = (!self.hooks.is_empty()).then(|| {
+            let ctx = HookContext::new(
+                key.clone(),
+                FlagType::StringList,
+                FlagValue::StringList(default.clone()),
+            );
+            self.hooks.fire(EvaluationStage::Before, &ctx);
+            ctx
+        });
+        let (value, meta) = self.resolve_string_list(&key, default.clone());
+        if let Some(ctx) = hook_ctx {
+            let ctx = ctx.with_value(FlagValue::StringList(value.clone()));
+            fire_terminal_stages(&self.hooks, ctx, meta.error_code);
+        }
+        self.emit_event(
+            key,
+            FlagType::StringList,
+            FlagValue::StringList(value.clone()),
+            FlagValue::StringList(default),
+            meta,
+        );
+        value
+    }
+
+    fn resolve_string_list(&self, key: &str, default: Vec<String>) -> (Vec<String>, EvalMeta) {
+        self.resolve_typed(key, RequestedType::StringList, default, |value| {
+            value.as_string_list()
+        })
+    }
+
+    /// Returns the NUMBER_LIST flag value, or `default` on any failure path such as
+    /// not-ready, not-found, type-mismatch, or circuit-break. An empty list is a
+    /// valid served value distinct from the default: see `VariationValue::as_number_list`
+    pub fn get_number_list(&self, key: String, default: Vec<f64>) -> Vec<f64> {
+        if self.is_shutdown() {
+            return default;
+        }
+        let hook_ctx = (!self.hooks.is_empty()).then(|| {
+            let ctx = HookContext::new(
+                key.clone(),
+                FlagType::NumberList,
+                FlagValue::NumberList(default.clone()),
+            );
+            self.hooks.fire(EvaluationStage::Before, &ctx);
+            ctx
+        });
+        let (value, meta) = self.resolve_number_list(&key, default.clone());
+        if let Some(ctx) = hook_ctx {
+            let ctx = ctx.with_value(FlagValue::NumberList(value.clone()));
+            fire_terminal_stages(&self.hooks, ctx, meta.error_code);
+        }
+        self.emit_event(
+            key,
+            FlagType::NumberList,
+            FlagValue::NumberList(value.clone()),
+            FlagValue::NumberList(default),
+            meta,
+        );
+        value
+    }
+
+    fn resolve_number_list(&self, key: &str, default: Vec<f64>) -> (Vec<f64>, EvalMeta) {
+        self.resolve_typed(key, RequestedType::NumberList, default, |value| {
+            value.as_number_list()
+        })
+    }
+
     /// Returns the onboarding flow graph for `flow_id` from the cached
     /// snapshot's `onboardingFlows` section, or `None` when not ready, not
     /// present in the snapshot (unresolved flowId, or shut down). Unlike
@@ -1440,6 +1514,108 @@ impl CoproductClient {
         let details = build_details(key.to_string(), outcome, value, default, |v| match v {
             VariationValue::Json(j) => Ok(j),
             _ => Err(()),
+        });
+        let meta = meta_from_details(outcome_reason, &details);
+        (details, meta)
+    }
+
+    /// Returns the STRING_LIST flag value along with the full evaluation details:
+    /// served variant, reason, and any OpenFeature error code
+    pub fn get_string_list_details(
+        &self,
+        key: String,
+        default: Vec<String>,
+    ) -> FlagEvaluationDetails<Vec<String>> {
+        if self.is_shutdown() {
+            return shutdown_details(key, default);
+        }
+        let hook_ctx = (!self.hooks.is_empty()).then(|| {
+            let ctx = HookContext::new(
+                key.clone(),
+                FlagType::StringList,
+                FlagValue::StringList(default.clone()),
+            );
+            self.hooks.fire(EvaluationStage::Before, &ctx);
+            ctx
+        });
+        let (details, meta) = self.resolve_string_list_details(&key, default.clone());
+        if let Some(ctx) = hook_ctx {
+            let ctx = ctx.with_value(FlagValue::StringList(details.value.clone()));
+            fire_terminal_stages(&self.hooks, ctx, meta.error_code);
+        }
+        self.emit_event(
+            key,
+            FlagType::StringList,
+            FlagValue::StringList(details.value.clone()),
+            FlagValue::StringList(default),
+            meta,
+        );
+        details
+    }
+
+    fn resolve_string_list_details(
+        &self,
+        key: &str,
+        default: Vec<String>,
+    ) -> (FlagEvaluationDetails<Vec<String>>, EvalMeta) {
+        let snapshot = self.current_snapshot();
+        let ctx = self.build_evaluation_context();
+        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::StringList, &ctx);
+        let outcome_reason = outcome.reason;
+        let value = resolve_variation(snapshot.as_deref(), key, outcome.variation_key.as_deref());
+        let details = build_details(key.to_string(), outcome, value, default, |v| {
+            v.as_string_list().ok_or(())
+        });
+        let meta = meta_from_details(outcome_reason, &details);
+        (details, meta)
+    }
+
+    /// Returns the NUMBER_LIST flag value along with the full evaluation details:
+    /// served variant, reason, and any OpenFeature error code
+    pub fn get_number_list_details(
+        &self,
+        key: String,
+        default: Vec<f64>,
+    ) -> FlagEvaluationDetails<Vec<f64>> {
+        if self.is_shutdown() {
+            return shutdown_details(key, default);
+        }
+        let hook_ctx = (!self.hooks.is_empty()).then(|| {
+            let ctx = HookContext::new(
+                key.clone(),
+                FlagType::NumberList,
+                FlagValue::NumberList(default.clone()),
+            );
+            self.hooks.fire(EvaluationStage::Before, &ctx);
+            ctx
+        });
+        let (details, meta) = self.resolve_number_list_details(&key, default.clone());
+        if let Some(ctx) = hook_ctx {
+            let ctx = ctx.with_value(FlagValue::NumberList(details.value.clone()));
+            fire_terminal_stages(&self.hooks, ctx, meta.error_code);
+        }
+        self.emit_event(
+            key,
+            FlagType::NumberList,
+            FlagValue::NumberList(details.value.clone()),
+            FlagValue::NumberList(default),
+            meta,
+        );
+        details
+    }
+
+    fn resolve_number_list_details(
+        &self,
+        key: &str,
+        default: Vec<f64>,
+    ) -> (FlagEvaluationDetails<Vec<f64>>, EvalMeta) {
+        let snapshot = self.current_snapshot();
+        let ctx = self.build_evaluation_context();
+        let outcome = evaluate(snapshot.as_deref(), key, RequestedType::NumberList, &ctx);
+        let outcome_reason = outcome.reason;
+        let value = resolve_variation(snapshot.as_deref(), key, outcome.variation_key.as_deref());
+        let details = build_details(key.to_string(), outcome, value, default, |v| {
+            v.as_number_list().ok_or(())
         });
         let meta = meta_from_details(outcome_reason, &details);
         (details, meta)

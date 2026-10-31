@@ -80,6 +80,26 @@ String getJson({
   defaultValueJson: defaultValueJson,
 );
 
+List<String> getStringList({
+  required CoproductClientHandle client,
+  required String key,
+  required List<String> defaultValue,
+}) => RustLib.instance.api.crateApiGetStringList(
+  client: client,
+  key: key,
+  defaultValue: defaultValue,
+);
+
+Float64List getNumberList({
+  required CoproductClientHandle client,
+  required String key,
+  required List<double> defaultValue,
+}) => RustLib.instance.api.crateApiGetNumberList(
+  client: client,
+  key: key,
+  defaultValue: defaultValue,
+);
+
 String? getOnboardingFlowGraph({
   required CoproductClientHandle client,
   required String flowId,

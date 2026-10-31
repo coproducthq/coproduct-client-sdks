@@ -136,3 +136,79 @@ fn get_json_returns_default_on_type_mismatch() {
     let default = json!({ "fallback": true });
     assert_eq!(client.get_json("b".to_string(), default.clone()), default);
 }
+
+#[test]
+fn get_string_list_returns_typed_value() {
+    let s = snapshot(vec![flag(
+        "emails",
+        FlagType::StringList,
+        VariationValue::StringList(vec!["a@x.com".to_string()]),
+    )]);
+    let client = CoproductClient::with_snapshot_for_test(s);
+    assert_eq!(
+        client.get_string_list("emails".to_string(), vec!["fallback".to_string()]),
+        vec!["a@x.com".to_string()]
+    );
+}
+
+#[test]
+fn get_number_list_returns_typed_value() {
+    let s = snapshot(vec![flag(
+        "weights",
+        FlagType::NumberList,
+        VariationValue::NumberList(vec![1.5, 2.5]),
+    )]);
+    let client = CoproductClient::with_snapshot_for_test(s);
+    assert_eq!(
+        client.get_number_list("weights".to_string(), vec![0.0]),
+        vec![1.5, 2.5]
+    );
+}
+
+#[test]
+fn get_string_list_returns_default_on_type_mismatch() {
+    let s = snapshot(vec![flag(
+        "n",
+        FlagType::Number,
+        VariationValue::Number(1.0),
+    )]);
+    let client = CoproductClient::with_snapshot_for_test(s);
+    assert_eq!(
+        client.get_string_list("n".to_string(), vec!["fallback".to_string()]),
+        vec!["fallback".to_string()]
+    );
+}
+
+// A NUMBER_LIST flag whose variation value is the wire JSON array `[]`.
+// Deserializing it exercises the untagged VariationValue matcher directly: an
+// empty array binds to StringList(vec![]) because StringList precedes
+// NumberList in declaration order. The empty-aware as_number_list projection
+// must still treat that as a valid empty number list rather than falling back
+// to the caller default
+#[test]
+fn get_number_list_returns_empty_list_for_empty_number_list_flag_from_wire_json() {
+    let wire = r#"{
+        "schemaVersion": 1,
+        "version": 1,
+        "flags": [
+            {
+                "key": "scores",
+                "type": "NUMBER_LIST",
+                "enabled": true,
+                "isPaused": false,
+                "variations": [{ "key": "on", "value": [] }],
+                "offVariation": "on",
+                "fallthroughVariation": "on",
+                "prerequisites": [],
+                "targetingRules": []
+            }
+        ],
+        "segments": []
+    }"#;
+    let s: Snapshot = serde_json::from_str(wire).expect("wire snapshot deserializes");
+    let client = CoproductClient::with_snapshot_for_test(s);
+    assert_eq!(
+        client.get_number_list("scores".to_string(), vec![99.0]),
+        Vec::<f64>::new()
+    );
+}

@@ -6,7 +6,9 @@ import {
   type FlagEvaluationDetailsBool,
   type FlagEvaluationDetailsJson,
   type FlagEvaluationDetailsNumber,
+  type FlagEvaluationDetailsNumberList,
   type FlagEvaluationDetailsString,
+  type FlagEvaluationDetailsStringList,
   type HookContext,
   type LifecycleEvent,
   type LifecycleHandler,
@@ -81,6 +83,28 @@ export class CoproductClient {
     defaultValue: number
   ): FlagEvaluationDetailsNumber {
     return this.native.getNumberDetails(key, defaultValue);
+  }
+
+  getStringList(key: string, defaultValue: string[]): string[] {
+    return this.native.getStringList(key, defaultValue);
+  }
+
+  getStringListDetails(
+    key: string,
+    defaultValue: string[]
+  ): FlagEvaluationDetailsStringList {
+    return this.native.getStringListDetails(key, defaultValue);
+  }
+
+  getNumberList(key: string, defaultValue: number[]): number[] {
+    return this.native.getNumberList(key, defaultValue);
+  }
+
+  getNumberListDetails(
+    key: string,
+    defaultValue: number[]
+  ): FlagEvaluationDetailsNumberList {
+    return this.native.getNumberListDetails(key, defaultValue);
   }
 
   getJson(key: string, defaultValueJson: string): string {

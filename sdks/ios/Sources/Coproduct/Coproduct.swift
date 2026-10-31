@@ -145,6 +145,18 @@ public enum Coproduct {
         Instances.shared.defaultInstance()?.getNumber(key: key, defaultValue: defaultValue) ?? defaultValue
     }
 
+    /// Evaluate a string-list flag, returning `defaultValue` if the flag is
+    /// missing, the wrong type, or the SDK is not ready.
+    public static func getStringList(_ key: String, default defaultValue: [String]) -> [String] {
+        Instances.shared.defaultInstance()?.getStringList(key: key, defaultValue: defaultValue) ?? defaultValue
+    }
+
+    /// Evaluate a number-list flag, returning `defaultValue` if the flag is
+    /// missing, the wrong type, or the SDK is not ready.
+    public static func getNumberList(_ key: String, default defaultValue: [Double]) -> [Double] {
+        Instances.shared.defaultInstance()?.getNumberList(key: key, defaultValue: defaultValue) ?? defaultValue
+    }
+
     /// Evaluate a JSON flag and decode it into `T`, returning `defaultValue` if
     /// the flag is missing, cannot be decoded, or the SDK is not ready.
     public static func getJSON<T: Codable>(_ key: String, default defaultValue: T) -> T {
@@ -190,6 +202,22 @@ public enum Coproduct {
             return notReadyDetails(value: .number(defaultValue), flagKey: key)
         }
         return FlagEvaluationDetails(client.getNumberDetails(key: key, defaultValue: defaultValue))
+    }
+
+    /// Evaluate a string-list flag and return full ``FlagEvaluationDetails``.
+    public static func getStringListDetails(_ key: String, default defaultValue: [String]) -> FlagEvaluationDetails {
+        guard let client = Instances.shared.defaultInstance() else {
+            return notReadyDetails(value: .stringList(defaultValue), flagKey: key)
+        }
+        return FlagEvaluationDetails(client.getStringListDetails(key: key, defaultValue: defaultValue))
+    }
+
+    /// Evaluate a number-list flag and return full ``FlagEvaluationDetails``.
+    public static func getNumberListDetails(_ key: String, default defaultValue: [Double]) -> FlagEvaluationDetails {
+        guard let client = Instances.shared.defaultInstance() else {
+            return notReadyDetails(value: .numberList(defaultValue), flagKey: key)
+        }
+        return FlagEvaluationDetails(client.getNumberListDetails(key: key, defaultValue: defaultValue))
     }
 
     /// Evaluate a JSON flag and return full ``FlagEvaluationDetails``, with the

@@ -4,7 +4,9 @@ import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsBool
 import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsInt
 import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsJson
 import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsNumber
+import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsNumberList
 import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsString
+import uniffi.coproduct_ffi_uniffi.FlagEvaluationDetailsStringList
 import uniffi.coproduct_ffi_uniffi.FlagValue
 
 /**
@@ -18,6 +20,8 @@ sealed class FlagDetailValue {
     data class Int(val value: Long) : FlagDetailValue()
     data class Num(val value: Double) : FlagDetailValue()
     data class Json(val value: String) : FlagDetailValue()
+    data class StrList(val value: List<String>) : FlagDetailValue()
+    data class NumList(val value: List<Double>) : FlagDetailValue()
 }
 
 internal fun FlagValue.toDetailValue(): FlagDetailValue = when (this) {
@@ -26,6 +30,8 @@ internal fun FlagValue.toDetailValue(): FlagDetailValue = when (this) {
     is FlagValue.Int -> FlagDetailValue.Int(value)
     is FlagValue.Number -> FlagDetailValue.Num(value)
     is FlagValue.Json -> FlagDetailValue.Json(value)
+    is FlagValue.StringList -> FlagDetailValue.StrList(value)
+    is FlagValue.NumberList -> FlagDetailValue.NumList(value)
 }
 
 /** Evaluation details returned by every detail getter: one details type for all flag types. */
@@ -52,6 +58,12 @@ internal fun FlagEvaluationDetailsNumber.toPublic() =
 
 internal fun FlagEvaluationDetailsJson.toPublic() =
     FlagEvaluationDetails(FlagDetailValue.Json(valueJson), variant, reason, errorCode, errorMessage, flagKey)
+
+internal fun FlagEvaluationDetailsStringList.toPublic() =
+    FlagEvaluationDetails(FlagDetailValue.StrList(value), variant, reason, errorCode, errorMessage, flagKey)
+
+internal fun FlagEvaluationDetailsNumberList.toPublic() =
+    FlagEvaluationDetails(FlagDetailValue.NumList(value), variant, reason, errorCode, errorMessage, flagKey)
 
 /** Details returned before initialize: the supplied default plus provider-not-ready metadata. */
 internal fun notReadyDetails(value: FlagDetailValue, flagKey: String): FlagEvaluationDetails =

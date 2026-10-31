@@ -58,6 +58,39 @@ void main() {
       expect(backend.getInt('max-items', defaultValue: 0), 42);
       expect(backend.getNumber('max-items', defaultValue: 0), 42.75);
     });
+
+    test('getStringList serves its stored value', () {
+      backend.set('sl', const StoredStringList(['a@x.com', 'b@x.com']));
+      expect(backend.getStringList('sl', defaultValue: const []), [
+        'a@x.com',
+        'b@x.com',
+      ]);
+    });
+
+    test('getStringList serves the caller default when the flag is absent', () {
+      expect(backend.getStringList('missing', defaultValue: const ['d']), [
+        'd',
+      ]);
+    });
+
+    test('getStringList serves the caller default for a wrong-type flag', () {
+      backend.set('k', const StoredString('x'));
+      expect(backend.getStringList('k', defaultValue: const ['d']), ['d']);
+    });
+
+    test('getNumberList serves its stored value', () {
+      backend.set('nl', const StoredNumberList([1.5, 2.5]));
+      expect(backend.getNumberList('nl', defaultValue: const []), [1.5, 2.5]);
+    });
+
+    test('getNumberList serves the caller default when the flag is absent', () {
+      expect(backend.getNumberList('missing', defaultValue: const [9]), [9]);
+    });
+
+    test('getNumberList serves the caller default for a wrong-type flag', () {
+      backend.set('k', const StoredNumber(1));
+      expect(backend.getNumberList('k', defaultValue: const [9]), [9]);
+    });
   });
 
   group('delivery', () {

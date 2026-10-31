@@ -26,6 +26,8 @@ final class BeforeInitializeReadsTests: XCTestCase {
         XCTAssertEqual(Coproduct.getInt("x", default: 7), 7)
         XCTAssertEqual(Coproduct.getNumber("x", default: 1.5), 1.5)
         XCTAssertEqual(Coproduct.getJSON("x", default: Box(n: 3)), Box(n: 3))
+        XCTAssertEqual(Coproduct.getStringList("x", default: ["a", "b"]), ["a", "b"])
+        XCTAssertEqual(Coproduct.getNumberList("x", default: [1.5, 2.5]), [1.5, 2.5])
     }
 
     func testDetailsReturnDefaultWithNotReadyBeforeInitialize() {
@@ -63,6 +65,20 @@ final class BeforeInitializeReadsTests: XCTestCase {
         }
         XCTAssertEqual(try? JSONDecoder().decode(Box.self, from: Data(jsonValue.utf8)), Box(n: 3))
         assertNotReady(jsonDetails)
+
+        let stringListDetails = Coproduct.getStringListDetails("x", default: ["a", "b"])
+        guard case let .stringList(stringListValue) = stringListDetails.value else {
+            return XCTFail("expected a stringList detail value, got \(stringListDetails.value)")
+        }
+        XCTAssertEqual(stringListValue, ["a", "b"])
+        assertNotReady(stringListDetails)
+
+        let numberListDetails = Coproduct.getNumberListDetails("x", default: [1.5, 2.5])
+        guard case let .numberList(numberListValue) = numberListDetails.value else {
+            return XCTFail("expected a numberList detail value, got \(numberListDetails.value)")
+        }
+        XCTAssertEqual(numberListValue, [1.5, 2.5])
+        assertNotReady(numberListDetails)
     }
 
     // Every pre-init detail carries provider-not-ready metadata for the flag key
