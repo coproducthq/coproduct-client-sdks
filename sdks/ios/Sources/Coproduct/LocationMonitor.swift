@@ -88,6 +88,21 @@ private final class AuthorizationRequester: NSObject, CLLocationManagerDelegate 
     }
 }
 
+/// Request location permission on a fresh acquirer. A free `@MainActor` function
+/// so `LocationMonitor` (which is not main-actor isolated) can hop in with
+/// `await` and get back only a `Sendable` `Bool`, rather than storing a
+/// main-actor-isolated acquirer as a property.
+@MainActor
+private func requestLocationPermissionOnce() async -> Bool {
+    await LocationAcquirer().requestPermission()
+}
+
+/// Read one fix on a fresh acquirer, returning the `Sendable` coordinate pair.
+@MainActor
+private func acquireLocationOnce() async -> (Double, Double)? {
+    await LocationAcquirer().acquire()
+}
+
 /// Drives foreground GPS refresh, porting the HostTimer shape (a self-
 /// rescheduling dispatch-source timer plus app-state observers) but foreground-
 /// ONLY: the loop pauses when the app backgrounds and resumes, with a fresh fix,
@@ -107,7 +122,6 @@ final class LocationMonitor: @unchecked Sendable {
     }
 
     private let onFix: @Sendable (Double, Double) -> Void
-    private let acquirer = LocationAcquirer()
 
     private var interval: TimeInterval = LocationMonitor.defaultInterval
     private var enabled = false
@@ -128,7 +142,7 @@ final class LocationMonitor: @unchecked Sendable {
     /// permission was granted. Idempotent: a second call does not re-prompt once
     /// authorized or restart the loop.
     func enable() async -> Bool {
-        let granted = await acquirer.requestPermission()
+        let granted = await requestLocationPermissionOnce()
         guard granted else { return false }
         lock.lock()
         let shouldStart = !enabled && !stopped
@@ -233,7 +247,7 @@ final class LocationMonitor: @unchecked Sendable {
         acquiring = true
         lock.unlock()
 
-        let fix = await acquirer.acquire()
+        let fix = await acquireLocationOnce()
 
         lock.lock()
         acquiring = false
