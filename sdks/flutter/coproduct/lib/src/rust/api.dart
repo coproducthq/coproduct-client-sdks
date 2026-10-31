@@ -9,8 +9,8 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'api.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `attach`, `close`, `from_core_header`, `from_core_method`, `from_core_request`, `into_core`, `into_core`, `record`, `register_single`, `to_core_header`, `to_core_response`, `unattached`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ChannelObserver`, `ChannelState`, `ObserveChannel`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `drop`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `on_close`, `on_transition`, `read`, `request`, `write`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ChannelObserver`, `ChannelState`, `EvaluationListenerSink`, `ObserveChannel`, `ObserverError`, `SecureStoreAdapter`, `TransportAdapter`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `drop`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `on_close`, `on_evaluation`, `on_transition`, `read`, `request`, `write`
 
 Future<CoproductClientHandle> initialize({
   required String sdkKey,
@@ -177,6 +177,13 @@ Future<PollOutcome> pollNow({required CoproductClientHandle client}) =>
 Future<void> shutdown({required CoproductClientHandle client}) =>
     RustLib.instance.api.crateApiShutdown(client: client);
 
+/// Register a Dart stream to receive every evaluation event from this client.
+/// Installing a new listener replaces whatever was registered before it, since
+/// the core holds a single evaluation-listener slot
+Stream<FrbEvaluationEvent> setEvaluationListener({
+  required CoproductClientHandle client,
+}) => RustLib.instance.api.crateApiSetEvaluationListener(client: client);
+
 BoolObserveSession observeBool({
   required CoproductClientHandle client,
   required String key,
@@ -302,6 +309,91 @@ sealed class FrbContextValue with _$FrbContextValue {
   const factory FrbContextValue.numberList(Float64List field0) =
       FrbContextValue_NumberList;
   const factory FrbContextValue.null_() = FrbContextValue_Null;
+}
+
+/// One flag evaluation rendered as an analytics record, mirroring the UniFFI
+/// `EvaluationEvent` record. The evaluation time is serialized as an RFC 3339
+/// timestamp string because the binding layer has no native date type
+class FrbEvaluationEvent {
+  final String flagKey;
+  final FrbFlagType flagType;
+  final FrbFlagValue value;
+  final FrbFlagValue defaultValue;
+  final String? variant;
+  final FrbEvaluationReason reason;
+  final String? ruleId;
+  final String? errorCode;
+  final String evaluatedAt;
+
+  const FrbEvaluationEvent({
+    required this.flagKey,
+    required this.flagType,
+    required this.value,
+    required this.defaultValue,
+    this.variant,
+    required this.reason,
+    this.ruleId,
+    this.errorCode,
+    required this.evaluatedAt,
+  });
+
+  @override
+  int get hashCode =>
+      flagKey.hashCode ^
+      flagType.hashCode ^
+      value.hashCode ^
+      defaultValue.hashCode ^
+      variant.hashCode ^
+      reason.hashCode ^
+      ruleId.hashCode ^
+      errorCode.hashCode ^
+      evaluatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrbEvaluationEvent &&
+          runtimeType == other.runtimeType &&
+          flagKey == other.flagKey &&
+          flagType == other.flagType &&
+          value == other.value &&
+          defaultValue == other.defaultValue &&
+          variant == other.variant &&
+          reason == other.reason &&
+          ruleId == other.ruleId &&
+          errorCode == other.errorCode &&
+          evaluatedAt == other.evaluatedAt;
+}
+
+/// Why an evaluation resolved the way it did, mirrored onto the event surface
+enum FrbEvaluationReason {
+  targetingMatch,
+  fallthrough,
+  off,
+  prerequisiteFailed,
+  error,
+}
+
+/// The requested-getter type that triggered an evaluation, mirroring the core
+/// and UniFFI `FlagType`
+enum FrbFlagType { bool, string, int, number, json, stringList, numberList }
+
+@freezed
+sealed class FrbFlagValue with _$FrbFlagValue {
+  const FrbFlagValue._();
+
+  const factory FrbFlagValue.bool({required bool value}) = FrbFlagValue_Bool;
+  const factory FrbFlagValue.string({required String value}) =
+      FrbFlagValue_String;
+  const factory FrbFlagValue.int({required PlatformInt64 value}) =
+      FrbFlagValue_Int;
+  const factory FrbFlagValue.number({required double value}) =
+      FrbFlagValue_Number;
+  const factory FrbFlagValue.json({required String value}) = FrbFlagValue_Json;
+  const factory FrbFlagValue.stringList({required List<String> value}) =
+      FrbFlagValue_StringList;
+  const factory FrbFlagValue.numberList({required Float64List value}) =
+      FrbFlagValue_NumberList;
 }
 
 class HttpHeader {

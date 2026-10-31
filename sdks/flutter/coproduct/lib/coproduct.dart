@@ -7,6 +7,17 @@ library;
 
 export 'src/attribute_value.dart' show AttributeValue;
 export 'src/config.dart' show CoproductConfig;
+export 'src/evaluation_event.dart'
+    show
+        EvaluationEvent,
+        EvaluationReason,
+        FlagType,
+        FlagValue,
+        BoolFlagValue,
+        StringFlagValue,
+        IntFlagValue,
+        NumberFlagValue,
+        JsonFlagValue;
 export 'src/provider_state.dart' show ProviderState;
 export 'src/flag_observation.dart' show FlagObservation;
 export 'src/coproduct_flag_builder.dart' show CoproductFlagBuilder;

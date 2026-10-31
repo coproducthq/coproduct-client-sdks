@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -616938144;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 975599310;
 
 // Section: executor
 
@@ -1875,6 +1875,63 @@ fn wire__crate__api__set_context_impl(
         },
     )
 }
+fn wire__crate__api__set_evaluation_listener_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_evaluation_listener",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_client = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<CoproductClientHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_sink = <StreamSink<
+                crate::api::FrbEvaluationEvent,
+                flutter_rust_bridge::for_generated::SseCodec,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let mut api_client_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_client,
+                                0,
+                                false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_client_guard = Some(api_client.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_client_guard = api_client_guard.unwrap();
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::set_evaluation_listener(&*api_client_guard, api_sink);
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__shutdown_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -2401,6 +2458,16 @@ impl SseDecode
     }
 }
 
+impl SseDecode
+    for StreamSink<crate::api::FrbEvaluationEvent, flutter_rust_bridge::for_generated::SseCodec>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
 impl SseDecode for StreamSink<Option<String>, flutter_rust_bridge::for_generated::SseCodec> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2496,6 +2563,104 @@ impl SseDecode for crate::api::FrbContextValue {
             }
             5 => {
                 return crate::api::FrbContextValue::Null;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseDecode for crate::api::FrbEvaluationEvent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_flagKey = <String>::sse_decode(deserializer);
+        let mut var_flagType = <crate::api::FrbFlagType>::sse_decode(deserializer);
+        let mut var_value = <crate::api::FrbFlagValue>::sse_decode(deserializer);
+        let mut var_defaultValue = <crate::api::FrbFlagValue>::sse_decode(deserializer);
+        let mut var_variant = <Option<String>>::sse_decode(deserializer);
+        let mut var_reason = <crate::api::FrbEvaluationReason>::sse_decode(deserializer);
+        let mut var_ruleId = <Option<String>>::sse_decode(deserializer);
+        let mut var_errorCode = <Option<String>>::sse_decode(deserializer);
+        let mut var_evaluatedAt = <String>::sse_decode(deserializer);
+        return crate::api::FrbEvaluationEvent {
+            flag_key: var_flagKey,
+            flag_type: var_flagType,
+            value: var_value,
+            default_value: var_defaultValue,
+            variant: var_variant,
+            reason: var_reason,
+            rule_id: var_ruleId,
+            error_code: var_errorCode,
+            evaluated_at: var_evaluatedAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::FrbEvaluationReason {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::FrbEvaluationReason::TargetingMatch,
+            1 => crate::api::FrbEvaluationReason::Fallthrough,
+            2 => crate::api::FrbEvaluationReason::Off,
+            3 => crate::api::FrbEvaluationReason::PrerequisiteFailed,
+            4 => crate::api::FrbEvaluationReason::Error,
+            _ => unreachable!("Invalid variant for FrbEvaluationReason: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::FrbFlagType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::FrbFlagType::Bool,
+            1 => crate::api::FrbFlagType::String,
+            2 => crate::api::FrbFlagType::Int,
+            3 => crate::api::FrbFlagType::Number,
+            4 => crate::api::FrbFlagType::Json,
+            5 => crate::api::FrbFlagType::StringList,
+            6 => crate::api::FrbFlagType::NumberList,
+            _ => unreachable!("Invalid variant for FrbFlagType: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::FrbFlagValue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_value = <bool>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::Bool { value: var_value };
+            }
+            1 => {
+                let mut var_value = <String>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::String { value: var_value };
+            }
+            2 => {
+                let mut var_value = <i64>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::Int { value: var_value };
+            }
+            3 => {
+                let mut var_value = <f64>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::Number { value: var_value };
+            }
+            4 => {
+                let mut var_value = <String>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::Json { value: var_value };
+            }
+            5 => {
+                let mut var_value = <Vec<String>>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::StringList { value: var_value };
+            }
+            6 => {
+                let mut var_value = <Vec<f64>>::sse_decode(deserializer);
+                return crate::api::FrbFlagValue::NumberList { value: var_value };
             }
             _ => {
                 unimplemented!("");
@@ -2861,9 +3026,10 @@ fn pde_ffi_dispatcher_primary_impl(
             wire__crate__api__set_auto_populated_attributes_impl(port, ptr, rust_vec_len, data_len)
         }
         36 => wire__crate__api__set_context_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__shutdown_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__set_evaluation_listener_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__shutdown_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__sign_out_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__update_attributes_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2901,7 +3067,7 @@ fn pde_ffi_dispatcher_sync_impl(
         29 => wire__crate__api__observe_string_impl(ptr, rust_vec_len, data_len),
         31 => wire__crate__api__observe_string_seed_impl(ptr, rust_vec_len, data_len),
         33 => wire__crate__api__previous_anonymous_id_impl(ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__state_impl(ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__state_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -3063,6 +3229,116 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::FrbContextValue>
     for crate::api::FrbContextValue
 {
     fn into_into_dart(self) -> crate::api::FrbContextValue {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::FrbEvaluationEvent {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.flag_key.into_into_dart().into_dart(),
+            self.flag_type.into_into_dart().into_dart(),
+            self.value.into_into_dart().into_dart(),
+            self.default_value.into_into_dart().into_dart(),
+            self.variant.into_into_dart().into_dart(),
+            self.reason.into_into_dart().into_dart(),
+            self.rule_id.into_into_dart().into_dart(),
+            self.error_code.into_into_dart().into_dart(),
+            self.evaluated_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::FrbEvaluationEvent
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::FrbEvaluationEvent>
+    for crate::api::FrbEvaluationEvent
+{
+    fn into_into_dart(self) -> crate::api::FrbEvaluationEvent {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::FrbEvaluationReason {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::TargetingMatch => 0.into_dart(),
+            Self::Fallthrough => 1.into_dart(),
+            Self::Off => 2.into_dart(),
+            Self::PrerequisiteFailed => 3.into_dart(),
+            Self::Error => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::FrbEvaluationReason
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::FrbEvaluationReason>
+    for crate::api::FrbEvaluationReason
+{
+    fn into_into_dart(self) -> crate::api::FrbEvaluationReason {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::FrbFlagType {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Bool => 0.into_dart(),
+            Self::String => 1.into_dart(),
+            Self::Int => 2.into_dart(),
+            Self::Number => 3.into_dart(),
+            Self::Json => 4.into_dart(),
+            Self::StringList => 5.into_dart(),
+            Self::NumberList => 6.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::FrbFlagType {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::FrbFlagType> for crate::api::FrbFlagType {
+    fn into_into_dart(self) -> crate::api::FrbFlagType {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::FrbFlagValue {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::FrbFlagValue::Bool { value } => {
+                [0.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbFlagValue::String { value } => {
+                [1.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbFlagValue::Int { value } => {
+                [2.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbFlagValue::Number { value } => {
+                [3.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbFlagValue::Json { value } => {
+                [4.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbFlagValue::StringList { value } => {
+                [5.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbFlagValue::NumberList { value } => {
+                [6.into_dart(), value.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::FrbFlagValue {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::FrbFlagValue> for crate::api::FrbFlagValue {
+    fn into_into_dart(self) -> crate::api::FrbFlagValue {
         self
     }
 }
@@ -3377,6 +3653,15 @@ impl SseEncode
     }
 }
 
+impl SseEncode
+    for StreamSink<crate::api::FrbEvaluationEvent, flutter_rust_bridge::for_generated::SseCodec>
+{
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
 impl SseEncode for StreamSink<Option<String>, flutter_rust_bridge::for_generated::SseCodec> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -3461,6 +3746,100 @@ impl SseEncode for crate::api::FrbContextValue {
             }
             crate::api::FrbContextValue::Null => {
                 <i32>::sse_encode(5, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
+impl SseEncode for crate::api::FrbEvaluationEvent {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.flag_key, serializer);
+        <crate::api::FrbFlagType>::sse_encode(self.flag_type, serializer);
+        <crate::api::FrbFlagValue>::sse_encode(self.value, serializer);
+        <crate::api::FrbFlagValue>::sse_encode(self.default_value, serializer);
+        <Option<String>>::sse_encode(self.variant, serializer);
+        <crate::api::FrbEvaluationReason>::sse_encode(self.reason, serializer);
+        <Option<String>>::sse_encode(self.rule_id, serializer);
+        <Option<String>>::sse_encode(self.error_code, serializer);
+        <String>::sse_encode(self.evaluated_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::FrbEvaluationReason {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::FrbEvaluationReason::TargetingMatch => 0,
+                crate::api::FrbEvaluationReason::Fallthrough => 1,
+                crate::api::FrbEvaluationReason::Off => 2,
+                crate::api::FrbEvaluationReason::PrerequisiteFailed => 3,
+                crate::api::FrbEvaluationReason::Error => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::FrbFlagType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::FrbFlagType::Bool => 0,
+                crate::api::FrbFlagType::String => 1,
+                crate::api::FrbFlagType::Int => 2,
+                crate::api::FrbFlagType::Number => 3,
+                crate::api::FrbFlagType::Json => 4,
+                crate::api::FrbFlagType::StringList => 5,
+                crate::api::FrbFlagType::NumberList => 6,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::FrbFlagValue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::FrbFlagValue::Bool { value } => {
+                <i32>::sse_encode(0, serializer);
+                <bool>::sse_encode(value, serializer);
+            }
+            crate::api::FrbFlagValue::String { value } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(value, serializer);
+            }
+            crate::api::FrbFlagValue::Int { value } => {
+                <i32>::sse_encode(2, serializer);
+                <i64>::sse_encode(value, serializer);
+            }
+            crate::api::FrbFlagValue::Number { value } => {
+                <i32>::sse_encode(3, serializer);
+                <f64>::sse_encode(value, serializer);
+            }
+            crate::api::FrbFlagValue::Json { value } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(value, serializer);
+            }
+            crate::api::FrbFlagValue::StringList { value } => {
+                <i32>::sse_encode(5, serializer);
+                <Vec<String>>::sse_encode(value, serializer);
+            }
+            crate::api::FrbFlagValue::NumberList { value } => {
+                <i32>::sse_encode(6, serializer);
+                <Vec<f64>>::sse_encode(value, serializer);
             }
             _ => {
                 unimplemented!("");

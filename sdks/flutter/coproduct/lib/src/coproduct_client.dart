@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show FlutterError, FlutterErrorDetails;
@@ -6,6 +7,7 @@ import 'attribute_value.dart';
 import 'client_backend.dart';
 import 'config.dart';
 import 'errors.dart';
+import 'evaluation_event.dart';
 import 'flag_observation.dart';
 import 'foreground.dart';
 import 'frb_backend.dart';
@@ -57,6 +59,7 @@ final class CoproductClient implements FlagReader {
   // order against the identity mutators instead of racing them. A second queue
   // would reintroduce exactly the interleaving this one exists to prevent
   final SerialQueue _identityQueue;
+  StreamSubscription<EvaluationEvent>? _evaluationSubscription;
 
   /// Reads a boolean flag.
   ///
@@ -366,6 +369,26 @@ final class CoproductClient implements FlagReader {
       events: handle.events,
       cancel: handle.cancel,
     );
+  }
+
+  /// Registers [onEvaluation] to be called for every flag evaluation this
+  /// client performs from now on, including ones triggered by a getter, an
+  /// observation's seed or a later update, or a read made under the hood by a
+  /// paywall or onboarding flow.
+  ///
+  /// There is a single evaluation-listener slot, not a list of subscribers:
+  /// calling this again installs a new listener and detaches whatever was
+  /// registered before it, matching every other Coproduct SDK.
+  ///
+  /// [onEvaluation] fires on every evaluation, so keep it cheap and
+  /// non-blocking -- do not await inside it or do expensive work directly.
+  /// Forward the event to your own analytics pipeline instead
+  void setEvaluationListener(void Function(EvaluationEvent) onEvaluation) {
+    final previous = _evaluationSubscription;
+    _evaluationSubscription = _backend.evaluationEvents().listen(
+      onEvaluation,
+    );
+    unawaited(previous?.cancel().catchError(_reportError));
   }
 }
 

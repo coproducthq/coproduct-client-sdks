@@ -8,6 +8,7 @@ import {
   StringDelivery,
   type CoproductClientLike,
   type CoproductSnapshot,
+  type EvaluationEvent,
   type EvaluationHook,
   type EvaluationStage,
   type HookContext,
@@ -504,5 +505,18 @@ describe('CoproductClient observation, handlers, state', () => {
     await client.shutdown();
 
     expect(native.shutdown).toHaveBeenCalled();
+  });
+
+  it('setEvaluationListener forwards events through a wrapped listener', () => {
+    const native = fakeNativeClient({ setEvaluationListener: jest.fn() });
+    const client = new CoproductClient(native);
+    const seen: EvaluationEvent[] = [];
+    client.setEvaluationListener((e) => seen.push(e));
+    expect(native.setEvaluationListener).toHaveBeenCalledTimes(1);
+    const wrapped = (native.setEvaluationListener as jest.Mock).mock
+      .calls[0][0];
+    const event = { flagKey: 'f' } as EvaluationEvent;
+    wrapped.onEvaluation(event);
+    expect(seen).toEqual([event]);
   });
 });

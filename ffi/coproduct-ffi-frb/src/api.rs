@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use coproduct_core::client::CoproductClient as CoreCoproductClient;
+use coproduct_core::evaluation_event as core_evaluation_event;
+use coproduct_core::hooks as core_hooks;
 use coproduct_core::observer as core_observer;
 use coproduct_core::observer::{FlagValue as CoreFlagValue, ObserverSession};
 use coproduct_core::secure_store as core_secure_store;
@@ -424,6 +426,213 @@ pub async fn poll_now(client: &CoproductClientHandle) -> PollOutcome {
 // Tear down the core client, stopping polling and setting the shutdown latch
 pub async fn shutdown(client: &CoproductClientHandle) {
     client.inner.shutdown().await;
+}
+
+/// Typed flag value crossing the evaluation-event boundary. Mirrors the UniFFI
+/// `FlagValue` record so the host receives Bool, String, Int, Number, or JSON
+/// without runtime casting. The JSON variant ships its value as a JSON-encoded
+/// string because the binding layer has no native JSON type
+#[derive(Debug, Clone)]
+pub enum FrbFlagValue {
+    Bool { value: bool },
+    String { value: String },
+    Int { value: i64 },
+    Number { value: f64 },
+    Json { value: String },
+    StringList { value: Vec<String> },
+    NumberList { value: Vec<f64> },
+}
+
+impl From<CoreFlagValue> for FrbFlagValue {
+    fn from(value: CoreFlagValue) -> Self {
+        match value {
+            CoreFlagValue::Bool(value) => FrbFlagValue::Bool { value },
+            CoreFlagValue::String(value) => FrbFlagValue::String { value },
+            CoreFlagValue::Int(value) => FrbFlagValue::Int { value },
+            CoreFlagValue::Number(value) => FrbFlagValue::Number { value },
+            CoreFlagValue::Json(value) => FrbFlagValue::Json {
+                value: value.to_string(),
+            },
+            CoreFlagValue::StringList(value) => FrbFlagValue::StringList { value },
+            CoreFlagValue::NumberList(value) => FrbFlagValue::NumberList { value },
+        }
+    }
+}
+
+/// The requested-getter type that triggered an evaluation, mirroring the core
+/// and UniFFI `FlagType`
+#[derive(Debug, Clone, Copy)]
+pub enum FrbFlagType {
+    Bool,
+    String,
+    Int,
+    Number,
+    Json,
+    StringList,
+    NumberList,
+}
+
+impl From<core_hooks::FlagType> for FrbFlagType {
+    fn from(value: core_hooks::FlagType) -> Self {
+        use core_hooks::FlagType as C;
+        match value {
+            C::Bool => FrbFlagType::Bool,
+            C::String => FrbFlagType::String,
+            C::Int => FrbFlagType::Int,
+            C::Number => FrbFlagType::Number,
+            C::Json => FrbFlagType::Json,
+            C::StringList => FrbFlagType::StringList,
+            C::NumberList => FrbFlagType::NumberList,
+        }
+    }
+}
+
+/// Why an evaluation resolved the way it did, mirrored onto the event surface
+#[derive(Debug, Clone, Copy)]
+pub enum FrbEvaluationReason {
+    TargetingMatch,
+    Fallthrough,
+    Off,
+    PrerequisiteFailed,
+    Error,
+}
+
+impl From<core_evaluation_event::EvaluationReason> for FrbEvaluationReason {
+    fn from(value: core_evaluation_event::EvaluationReason) -> Self {
+        use core_evaluation_event::EvaluationReason as C;
+        match value {
+            C::TargetingMatch => FrbEvaluationReason::TargetingMatch,
+            C::Fallthrough => FrbEvaluationReason::Fallthrough,
+            C::Off => FrbEvaluationReason::Off,
+            C::PrerequisiteFailed => FrbEvaluationReason::PrerequisiteFailed,
+            C::Error => FrbEvaluationReason::Error,
+        }
+    }
+}
+
+/// One flag evaluation rendered as an analytics record, mirroring the UniFFI
+/// `EvaluationEvent` record. The evaluation time is serialized as an RFC 3339
+/// timestamp string because the binding layer has no native date type
+#[derive(Debug, Clone)]
+pub struct FrbEvaluationEvent {
+    pub flag_key: String,
+    pub flag_type: FrbFlagType,
+    pub value: FrbFlagValue,
+    pub default_value: FrbFlagValue,
+    pub variant: Option<String>,
+    pub reason: FrbEvaluationReason,
+    pub rule_id: Option<String>,
+    pub error_code: Option<String>,
+    pub evaluated_at: String,
+}
+
+impl From<core_evaluation_event::EvaluationEvent> for FrbEvaluationEvent {
+    fn from(event: core_evaluation_event::EvaluationEvent) -> Self {
+        FrbEvaluationEvent {
+            flag_key: event.flag_key,
+            flag_type: FrbFlagType::from(event.flag_type),
+            value: FrbFlagValue::from(event.value),
+            default_value: FrbFlagValue::from(event.default_value),
+            variant: event.variant,
+            reason: FrbEvaluationReason::from(event.reason),
+            rule_id: event.rule_id,
+            error_code: event.error_code.map(|code| code.as_wire().to_string()),
+            evaluated_at: event
+                .evaluated_at
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+/// Adapter forwarding every evaluation event straight onto a Dart stream. The
+/// core calls `on_evaluation` synchronously from the typed getter that produced
+/// the event, and `StreamSink::add` only posts onto Dart's event loop and
+/// returns, so holding the sink directly (it is `Send + Sync`) and pushing
+/// inline is non-blocking and needs no buffering channel, unlike the per-key
+/// observation sessions above. A push that fails (a closed or dropped sink) is
+/// silently dropped: the core dispatcher has no feedback channel for a
+/// terminated listener, matching the observation channels' one-way contract.
+/// Registering a new listener replaces this adapter wholesale via the core's
+/// single-listener slot
+struct EvaluationListenerSink {
+    sink: StreamSink<FrbEvaluationEvent>,
+}
+
+impl std::fmt::Debug for EvaluationListenerSink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EvaluationListenerSink")
+            .finish_non_exhaustive()
+    }
+}
+
+impl core_evaluation_event::EvaluationListener for EvaluationListenerSink {
+    fn on_evaluation(&self, event: &core_evaluation_event::EvaluationEvent) {
+        let _ = self.sink.add(FrbEvaluationEvent::from(event.clone()));
+    }
+}
+
+/// Register a Dart stream to receive every evaluation event from this client.
+/// Installing a new listener replaces whatever was registered before it, since
+/// the core holds a single evaluation-listener slot
+pub fn set_evaluation_listener(
+    client: &CoproductClientHandle,
+    sink: StreamSink<FrbEvaluationEvent>,
+) {
+    client
+        .inner
+        .set_evaluation_listener(Arc::new(EvaluationListenerSink { sink }));
+}
+
+#[cfg(test)]
+mod evaluation_event_conversion_tests {
+    use super::*;
+
+    #[test]
+    fn evaluation_event_maps_every_field() {
+        let evaluated_at = time::OffsetDateTime::now_utc();
+        let core_event = core_evaluation_event::EvaluationEvent {
+            flag_key: "checkout.enabled".to_string(),
+            flag_type: core_hooks::FlagType::Json,
+            value: CoreFlagValue::Json(serde_json::json!({"a": 1})),
+            default_value: CoreFlagValue::Bool(false),
+            variant: Some("control".to_string()),
+            reason: core_evaluation_event::EvaluationReason::TargetingMatch,
+            rule_id: Some("rule-1".to_string()),
+            error_code: Some(coproduct_core::error::EvaluationErrorCode::FlagNotFound),
+            evaluated_at,
+        };
+
+        let frb_event = FrbEvaluationEvent::from(core_event);
+
+        assert_eq!(frb_event.flag_key, "checkout.enabled");
+        assert!(matches!(frb_event.flag_type, FrbFlagType::Json));
+        match frb_event.value {
+            FrbFlagValue::Json { value } => assert_eq!(value, "{\"a\":1}"),
+            other => panic!("expected FrbFlagValue::Json, got {other:?}"),
+        }
+        assert!(matches!(
+            frb_event.default_value,
+            FrbFlagValue::Bool { value: false }
+        ));
+        assert_eq!(frb_event.variant, Some("control".to_string()));
+        assert!(matches!(
+            frb_event.reason,
+            FrbEvaluationReason::TargetingMatch
+        ));
+        assert_eq!(frb_event.rule_id, Some("rule-1".to_string()));
+        assert_eq!(
+            frb_event.error_code,
+            Some(
+                coproduct_core::error::EvaluationErrorCode::FlagNotFound
+                    .as_wire()
+                    .to_string()
+            )
+        );
+        assert!(!frb_event.evaluated_at.is_empty());
+        // RFC3339 timestamps always carry a `T` separator and a UTC/offset suffix
+        assert!(frb_event.evaluated_at.contains('T'));
+    }
 }
 
 /// Adapter channel for one observation. `Unattached` buffers at most one batch,
