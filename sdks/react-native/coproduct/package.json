@@ -1,6 +1,6 @@
 {
   "name": "@coproduct/react-native-sdk",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Coproduct React Native SDK",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
