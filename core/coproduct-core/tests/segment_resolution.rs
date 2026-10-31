@@ -8,7 +8,7 @@ fn premium_segment() -> Segment {
     Segment {
         key: "premium_users".into(),
         name: "Premium Users".into(),
-        rules: vec![SegmentRule {
+        rules: vec![SegmentRule::Attribute {
             attribute: "plan".into(),
             operator: Operator::Equals,
             values: vec!["premium".to_string()],

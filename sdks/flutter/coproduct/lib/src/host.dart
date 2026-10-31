@@ -7,6 +7,7 @@ import 'cancellation.dart';
 import 'config.dart';
 import 'init_identity.dart';
 import 'manager.dart';
+import 'location_service.dart';
 import 'metadata_collector.dart';
 import 'native_bridge.dart';
 import 'network_type.dart';
@@ -152,6 +153,26 @@ class CoproductHost<H extends Object, C extends Object> {
 
   /// Tears the current runtime down and clears it, static across the process.
   Future<void> shutdown() => _manager.shutdown();
+
+  LocationService? get _locationService => _manager.current?.runtime.locationService;
+
+  /// Forward an enable call to the live runtime's location service, if any.
+  /// Returns false when called before initialize or after shutdown.
+  Future<bool> enableLocation() async {
+    final service = _locationService;
+    if (service == null) return false;
+    return service.enable();
+  }
+
+  Future<bool> setLocationUpdateInterval(int ms) async {
+    final service = _locationService;
+    if (service == null) return false;
+    return service.setIntervalMs(ms);
+  }
+
+  Future<void> refreshLocation() async {
+    await _locationService?.refreshNow();
+  }
 
   Future<_ActiveRuntime<C>> _build(
     String sdkKey,
@@ -341,6 +362,13 @@ class CoproductHost<H extends Object, C extends Object> {
             bindResume: _bindNetworkResume,
             onUnavailable: reportHostContextUnavailable,
           );
+          // Constructed but NOT started: location is opt-in and stays off until
+          // the host forwards an enable call through to it. It publishes
+          // device_location through the same auto-upsert path as network_type
+          final locationService = LocationService(
+            upsert: batchPublished.future,
+            bindResume: _bindForeground,
+          );
           final runtime = CoproductRuntime(
             generation: generation,
             scheduler: scheduler,
@@ -348,6 +376,7 @@ class CoproductHost<H extends Object, C extends Object> {
             coreShutdown: () => _bridge.shutdown(handle),
             disposeForeground: disposeForeground,
             networkType: networkType,
+            locationService: locationService,
             onError: _reportError,
           );
           return _ActiveRuntime<C>(client, runtime);
