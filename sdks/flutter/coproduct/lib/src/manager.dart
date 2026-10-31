@@ -32,6 +32,11 @@ class CoproductManager<C extends Object> {
   /// The current generation, advanced by each initialize and each teardown
   int get generation => _generation;
 
+  /// The active client for this generation, or null before initialize or after
+  /// shutdown. Lets the host forward a control call (such as enabling location)
+  /// to the live runtime without reaching into its private state
+  C? get current => _current;
+
   Future<C> initialize(
     Object identity,
     Future<C> Function(

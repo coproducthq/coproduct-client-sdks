@@ -330,7 +330,7 @@ fn rule_walker_fails_closed_on_unknown_operator_in_referenced_segment() {
         Segment {
             key: "beta".into(),
             name: "Beta".into(),
-            rules: vec![SegmentRule {
+            rules: vec![SegmentRule::Attribute {
                 attribute: "plan".into(),
                 operator: Operator::Unknown,
                 values: vec!["premium".to_string()],

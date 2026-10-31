@@ -145,7 +145,7 @@ fn segment_struct() {
     round_trip(&Segment {
         key: "internal".to_string(),
         name: "Internal Users".to_string(),
-        rules: vec![SegmentRule {
+        rules: vec![SegmentRule::Attribute {
             attribute: "email".to_string(),
             operator: Operator::EndsWith,
             values: vec!["@coproduct.app".to_string()],

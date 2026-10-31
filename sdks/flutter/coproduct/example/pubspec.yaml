@@ -25,6 +25,11 @@ dependencies:
     # the parent directory to use the current plugin's version.
     path: ../
 
+  # Used only by the geo-fence device test entrypoint (lib/geofence_test.dart)
+  # to seed a snapshot into the SDK cache directory.
+  crypto: ^3.0.6
+  path_provider: ^2.1.5
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

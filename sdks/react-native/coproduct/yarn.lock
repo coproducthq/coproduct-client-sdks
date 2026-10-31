@@ -1607,6 +1607,7 @@ __metadata:
     uniffi-bindgen-react-native: "npm:0.31.0-6"
   peerDependencies:
     "@react-native-async-storage/async-storage": ^2.2.0
+    "@react-native-community/geolocation": ^3.4.0
     "@react-native-community/netinfo": ^11.4.0
     react: "*"
     react-native: ">=0.84.0"
@@ -1618,6 +1619,8 @@ __metadata:
     react-native-permissions: ^5.4.2
     react-native-webview: ^13.16.0
   peerDependenciesMeta:
+    "@react-native-community/geolocation":
+      optional: true
     react-native-iap:
       optional: true
     react-native-nitro-modules:

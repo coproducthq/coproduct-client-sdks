@@ -35,6 +35,12 @@ pub fn evaluate_condition(
             values,
         } => evaluate_attribute(attribute, *operator, values, ctx),
         Condition::Segment { segment_key } => resolve_segment(segment_key, ctx, segments),
+        Condition::Geofence {
+            attribute,
+            center_lat,
+            center_lng,
+            radius_m,
+        } => evaluate_geofence(attribute, *center_lat, *center_lng, *radius_m, ctx),
         Condition::And { rules } => evaluate_and(rules, ctx, segments),
         Condition::Or { rules } => evaluate_or(rules, ctx, segments),
         Condition::Not { rule } => negate(evaluate_condition(rule, ctx, segments)),
@@ -71,6 +77,44 @@ fn evaluate_attribute(
             Some(lhs) => evaluate_operator(operator, &lhs, values),
         },
     }
+}
+
+/// Evaluate a circular geo-fence. The device point is read from `attribute` as a
+/// `{lat,lng}` object; an absent or malformed point is Indeterminate (no location
+/// to test, so the rule falls through rather than failing to a false negative),
+/// consistent with how a missing attribute is Indeterminate for value operators.
+fn evaluate_geofence(
+    attribute: &str,
+    center_lat: f64,
+    center_lng: f64,
+    radius_m: f64,
+    ctx: &EvaluationContext,
+) -> ConditionOutcome {
+    match ctx.get_attribute(attribute).as_ref().and_then(point_latlng) {
+        None => ConditionOutcome::Indeterminate,
+        Some((lat, lng)) => {
+            if crate::geo::haversine_meters(lat, lng, center_lat, center_lng) <= radius_m {
+                ConditionOutcome::Match
+            } else {
+                ConditionOutcome::NoMatch
+            }
+        }
+    }
+}
+
+/// Read a device location from a context attribute: a two-element numeric array
+/// `[lat, lng]`. An array keeps the point strongly typed while riding the SDK's
+/// existing number-array context value across the FFI, which has no object kind.
+/// Returns `None` for anything that is not two finite numbers.
+fn point_latlng(value: &crate::context::AttributeValue) -> Option<(f64, f64)> {
+    use crate::context::AttributeValue;
+    let AttributeValue::Array(items) = value else {
+        return None;
+    };
+    let [AttributeValue::Number(lat), AttributeValue::Number(lng)] = items.as_slice() else {
+        return None;
+    };
+    (lat.is_finite() && lng.is_finite()).then_some((*lat, *lng))
 }
 
 fn bool_outcome(matched: bool) -> ConditionOutcome {
@@ -171,14 +215,29 @@ fn resolve_segment(
 /// condition: zero-value operators take the resolved option, an unknown operator
 /// circuit-breaks, and every other operator routes through the shared dispatcher
 fn evaluate_segment_rule(rule: &SegmentRule, ctx: &EvaluationContext) -> ConditionOutcome {
-    let resolved = ctx.get_attribute(&rule.attribute);
-    match rule.operator {
-        Operator::IsSet => bool_outcome(crate::operators::is_set(resolved.as_ref())),
-        Operator::IsNotSet => bool_outcome(crate::operators::is_not_set(resolved.as_ref())),
-        Operator::Unknown => ConditionOutcome::CircuitBreak,
-        _ => match resolved {
-            None => ConditionOutcome::Indeterminate,
-            Some(lhs) => evaluate_operator(rule.operator, &lhs, &rule.values),
-        },
+    match rule {
+        SegmentRule::Attribute {
+            attribute,
+            operator,
+            values,
+        } => {
+            let resolved = ctx.get_attribute(attribute);
+            match operator {
+                Operator::IsSet => bool_outcome(crate::operators::is_set(resolved.as_ref())),
+                Operator::IsNotSet => bool_outcome(crate::operators::is_not_set(resolved.as_ref())),
+                Operator::Unknown => ConditionOutcome::CircuitBreak,
+                _ => match resolved {
+                    None => ConditionOutcome::Indeterminate,
+                    Some(lhs) => evaluate_operator(*operator, &lhs, values),
+                },
+            }
+        }
+        SegmentRule::Geofence {
+            attribute,
+            center_lat,
+            center_lng,
+            radius_m,
+        } => evaluate_geofence(attribute, *center_lat, *center_lng, *radius_m, ctx),
+        SegmentRule::Unknown { .. } => ConditionOutcome::CircuitBreak,
     }
 }

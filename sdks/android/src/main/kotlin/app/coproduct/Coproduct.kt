@@ -72,6 +72,7 @@ object Coproduct {
         val sdkKey: String,
         val timer: HostTimer,
         val networkMonitor: NetworkMonitor,
+        val locationMonitor: LocationMonitor,
     ) {
         // Set after registerForegroundListener runs, under lock, once we
         // re-confirm this Stored is still the live defaultInstance. Null
@@ -156,11 +157,25 @@ object Coproduct {
             onChange = { type -> client.setAutoPopulated(mapOf("network_type" to AttributeValue.Str(type))) },
         )
 
+        // Constructed but NOT enabled: location is opt-in. Each fix publishes
+        // device_location (so a geo-fence re-evaluates through the observer
+        // fanout) and persists for the next launch's seed
+        val locationPrefs = appContext.getSharedPreferences("app.coproduct.location", Context.MODE_PRIVATE)
+        val locationStore = LocationStore(locationPrefs)
+        val locationMonitor = LocationMonitor(
+            appContext = appContext,
+            scope = scope,
+            onFix = { lat, lng ->
+                client.setAutoPopulated(mapOf("device_location" to AttributeValue.NumList(listOf(lat, lng))))
+                locationStore.write(lat, lng)
+            },
+        )
+
         val storedOk = synchronized(lock) {
             if (claimedGeneration != generation) return@synchronized false
             inFlight = null
             inFlightKey = null
-            defaultInstance = Stored(client, sdkKey, timer, networkMonitor)
+            defaultInstance = Stored(client, sdkKey, timer, networkMonitor, locationMonitor)
             true
         }
         if (!storedOk) {
@@ -168,6 +183,7 @@ object Coproduct {
             // was stored. Do not resurrect it: tear the orphan down and
             // report the cancellation
             networkMonitor.cancel()
+            locationMonitor.cancel()
             client.shutdownInner()
             throw CoproductError.CancelledByShutdown
         }
@@ -252,8 +268,13 @@ object Coproduct {
 
         val client = CoproductClient(native)
         val sessionPrefs = appContext.getSharedPreferences("app.coproduct.session", Context.MODE_PRIVATE)
+        val locationPrefs = appContext.getSharedPreferences("app.coproduct.location", Context.MODE_PRIVATE)
         val attributes = DeviceContext.staticAttributes(appContext) +
-            SessionStore(SharedPreferencesKeyValueStore(sessionPrefs)).sessionAttributes()
+            SessionStore(SharedPreferencesKeyValueStore(sessionPrefs)).sessionAttributes() +
+            // Seed device_location from the last stored fix so a geo-fence can
+            // evaluate from the last known position at launch. Live acquisition
+            // starts only when the host enables location, never here
+            LocationStore(locationPrefs).locationAttributes()
         // Publish the SDK-owned device and session attributes before
         // initialize resolves, so the first synchronous read evaluates
         // against them
@@ -274,6 +295,7 @@ object Coproduct {
         pending?.cancel()
         stored?.timer?.stop()
         stored?.networkMonitor?.cancel()
+        stored?.locationMonitor?.cancel()
         stored?.foregroundObserver?.let { observer ->
             withContext(Dispatchers.Main) {
                 ProcessLifecycleOwner.get().lifecycle.removeObserver(observer)
@@ -281,4 +303,34 @@ object Coproduct {
         }
         stored?.client?.shutdownInner()
     }
+
+    /**
+     * Turn on GPS geo-fence targeting. Starts a foreground refresh loop at the
+     * default 2-minute cadence, publishing `device_location` so geo-fence rules
+     * evaluate live. Opt-in: nothing happens until the host calls this.
+     *
+     * Android cannot prompt for a runtime permission from a non-Activity context,
+     * so the host must have already been granted `ACCESS_FINE_LOCATION` (or
+     * coarse). Returns whether the permission is held and location was enabled;
+     * returns false before initialize, after shutdown, or when permission is
+     * absent.
+     */
+    suspend fun enableLocation(): Boolean =
+        currentLocationMonitor()?.enable() ?: false
+
+    /**
+     * Set the foreground refresh interval in milliseconds, enabling location if it
+     * was not already. `0` takes a single fix without a repeating loop; values
+     * below a 30-second floor are clamped. Returns whether permission was held.
+     */
+    suspend fun setLocationUpdateInterval(milliseconds: Long): Boolean =
+        currentLocationMonitor()?.setIntervalMs(milliseconds) ?: false
+
+    /** Read one GPS fix on demand and publish it. A no-op until location has been enabled. */
+    fun refreshLocation() {
+        currentLocationMonitor()?.refreshNow()
+    }
+
+    private fun currentLocationMonitor(): LocationMonitor? =
+        synchronized(lock) { defaultInstance?.locationMonitor }
 }

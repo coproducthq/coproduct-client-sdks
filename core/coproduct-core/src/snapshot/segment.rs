@@ -1,6 +1,8 @@
 //! Segment + top-level Snapshot envelope
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::Value;
 
 use super::flag::Flag;
 use super::rule::Operator;
@@ -90,17 +92,164 @@ pub struct Segment {
     pub rules: Vec<SegmentRule>,
 }
 
-/// One rule inside a `Segment`. A flat attribute-operator-values triple
-/// matching the platform's segment-rule wire schema, NOT a wrapper around the
-/// recursive `Condition` tree. Segments resolve with OR semantics across their
-/// rules. Coverage and rollout do not apply at the segment level (membership
-/// is binary)
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SegmentRule {
-    pub attribute: String,
-    pub operator: Operator,
-    #[serde(default)]
-    pub values: Vec<String>,
+/// One rule inside a `Segment`. Segments resolve with OR semantics across their
+/// rules. Coverage and rollout do not apply at the segment level (membership is
+/// binary).
+///
+/// The common form is a flat attribute-operator-values triple matching the
+/// platform's segment-rule wire schema (`country equals US`, `city in [...]`).
+/// `Geofence` is a typed circular geo-fence on the device's `{lat,lng}` point,
+/// authored the same way a country or city rule is but carrying structured
+/// center/radius numbers rather than a packed string. The `Unknown` arm catches
+/// a forward-incompatible rule shape so it fails the flag closed (RULE_CIRCUIT_
+/// BREAK) rather than aborting the snapshot parse, matching `Condition`
+#[derive(Debug, Clone, PartialEq)]
+pub enum SegmentRule {
+    Attribute {
+        attribute: String,
+        operator: Operator,
+        values: Vec<String>,
+    },
+    Geofence {
+        attribute: String,
+        center_lat: f64,
+        center_lng: f64,
+        radius_m: f64,
+    },
+    Unknown {
+        tag: String,
+    },
+}
+
+impl Serialize for SegmentRule {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            // The attribute form carries no `type` tag, matching the existing
+            // platform wire schema so legacy rules round-trip unchanged
+            SegmentRule::Attribute {
+                attribute,
+                operator,
+                values,
+            } => {
+                let mut map = serializer.serialize_map(Some(3))?;
+                map.serialize_entry("attribute", attribute)?;
+                map.serialize_entry("operator", operator)?;
+                map.serialize_entry("values", values)?;
+                map.end()
+            }
+            SegmentRule::Geofence {
+                attribute,
+                center_lat,
+                center_lng,
+                radius_m,
+            } => {
+                let mut map = serializer.serialize_map(Some(4))?;
+                map.serialize_entry("type", "geofence")?;
+                map.serialize_entry("attribute", attribute)?;
+                map.serialize_entry(
+                    "center",
+                    &serde_json::json!({ "lat": center_lat, "lng": center_lng }),
+                )?;
+                map.serialize_entry("radius_m", radius_m)?;
+                map.end()
+            }
+            SegmentRule::Unknown { tag } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("type", tag)?;
+                map.end()
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SegmentRule {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = Value::deserialize(deserializer)?;
+        Ok(Self::from_value(raw))
+    }
+}
+
+impl SegmentRule {
+    /// Tolerant decode mirroring `Condition::from_value`. An attribute rule has no
+    /// `type` tag (or `type: "attribute"`); a `geofence` rule carries a typed
+    /// center and radius; anything else, or a structurally invalid body, becomes
+    /// `Unknown { tag }` so the referencing flag fails closed
+    fn from_value(raw: Value) -> SegmentRule {
+        let obj = match raw.as_object() {
+            Some(o) => o,
+            None => {
+                return SegmentRule::Unknown {
+                    tag: "non_object".into(),
+                };
+            }
+        };
+        let tag = obj.get("type").and_then(|v| v.as_str());
+        match tag {
+            Some("geofence") => {
+                let attribute = obj.get("attribute").and_then(|v| v.as_str());
+                let center = obj.get("center").and_then(|v| v.as_object());
+                let center_lat = center.and_then(|c| c.get("lat")).and_then(|v| v.as_f64());
+                let center_lng = center.and_then(|c| c.get("lng")).and_then(|v| v.as_f64());
+                let radius_m = obj.get("radius_m").and_then(|v| v.as_f64());
+                match (attribute, center_lat, center_lng, radius_m) {
+                    (Some(attribute), Some(lat), Some(lng), Some(radius))
+                        if lat.is_finite() && lng.is_finite() && radius.is_finite() =>
+                    {
+                        SegmentRule::Geofence {
+                            attribute: attribute.to_string(),
+                            center_lat: lat,
+                            center_lng: lng,
+                            radius_m: radius,
+                        }
+                    }
+                    _ => SegmentRule::Unknown {
+                        tag: "geofence".into(),
+                    },
+                }
+            }
+            None | Some("attribute") => {
+                let attribute = obj.get("attribute").and_then(|v| v.as_str());
+                let operator = obj
+                    .get("operator")
+                    .and_then(|v| serde_json::from_value::<Operator>(v.clone()).ok());
+                let values = match obj.get("values") {
+                    None => Some(Vec::new()),
+                    Some(v) => values_as_string_vec(v),
+                };
+                match (attribute, operator, values) {
+                    (Some(attribute), Some(operator), Some(values)) => SegmentRule::Attribute {
+                        attribute: attribute.to_string(),
+                        operator,
+                        values,
+                    },
+                    _ => SegmentRule::Unknown {
+                        tag: "attribute".into(),
+                    },
+                }
+            }
+            Some(other) => SegmentRule::Unknown {
+                tag: other.to_string(),
+            },
+        }
+    }
+}
+
+/// Parse a segment rule's wire `values` field. Returns `None` when the value is
+/// not an array of strings, routing the rule to `Unknown` so a malformed RHS
+/// fails closed rather than silently repairing
+fn values_as_string_vec(v: &Value) -> Option<Vec<String>> {
+    let arr = v.as_array()?;
+    let mut out = Vec::with_capacity(arr.len());
+    for item in arr {
+        out.push(item.as_str()?.to_string());
+    }
+    Some(out)
 }
 
 /// One resolved onboarding flow's content, as it reaches a device: the

@@ -24,8 +24,29 @@ fn allowlist_covers_exactly_the_sdk_owned_names() {
         "network_type",
         "first_seen_at",
         "session_count",
+        "device_location",
     ];
     assert_eq!(AUTO_POPULATED_ATTRIBUTE_NAMES, &expected);
+}
+
+#[test]
+fn device_location_point_lands_in_the_auto_populated_layer() {
+    // A geo-fence reads device_location as a [lat, lng] number array. It is
+    // SDK-owned, so the auto-populated path must accept it rather than dropping
+    // it as an unrecognized name
+    let mut state = IdentityState::new_anonymous("anon".to_string());
+    let point = AttributeValue::Array(vec![
+        AttributeValue::Number(37.7749),
+        AttributeValue::Number(-122.4194),
+    ]);
+    assert!(state.set_auto_populated_attributes(HashMap::from([(
+        "device_location".to_string(),
+        point.clone(),
+    )])));
+    assert_eq!(
+        state.context().get_attribute("device_location"),
+        Some(point)
+    );
 }
 
 #[test]
