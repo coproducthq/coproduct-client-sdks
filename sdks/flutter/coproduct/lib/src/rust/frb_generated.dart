@@ -2136,6 +2136,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 3:
         return FrbContextValue_StringList(dco_decode_list_String(raw[1]));
       case 4:
+        return FrbContextValue_NumberList(
+          dco_decode_list_prim_f_64_strict(raw[1]),
+        );
+      case 5:
         return FrbContextValue_Null();
       default:
         throw Exception("unreachable");
@@ -2722,6 +2726,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_field0 = sse_decode_list_String(deserializer);
         return FrbContextValue_StringList(var_field0);
       case 4:
+        var var_field0 = sse_decode_list_prim_f_64_strict(deserializer);
+        return FrbContextValue_NumberList(var_field0);
+      case 5:
         return FrbContextValue_Null();
       default:
         throw UnimplementedError('');
@@ -3465,8 +3472,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case FrbContextValue_StringList(field0: final field0):
         sse_encode_i_32(3, serializer);
         sse_encode_list_String(field0, serializer);
-      case FrbContextValue_Null():
+      case FrbContextValue_NumberList(field0: final field0):
         sse_encode_i_32(4, serializer);
+        sse_encode_list_prim_f_64_strict(field0, serializer);
+      case FrbContextValue_Null():
+        sse_encode_i_32(5, serializer);
     }
   }
 

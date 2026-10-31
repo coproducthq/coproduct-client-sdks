@@ -232,6 +232,7 @@ pub enum ContextValue {
     Number { value: f64 },
     Bool { value: bool },
     StringList { values: Vec<String> },
+    NumberList { values: Vec<f64> },
     Null,
 }
 
@@ -244,6 +245,9 @@ impl ContextValue {
             ContextValue::Bool { value } => AttributeValue::Bool(value),
             ContextValue::StringList { values } => {
                 AttributeValue::Array(values.into_iter().map(AttributeValue::String).collect())
+            }
+            ContextValue::NumberList { values } => {
+                AttributeValue::Array(values.into_iter().map(AttributeValue::Number).collect())
             }
             ContextValue::Null => AttributeValue::Null,
         }
@@ -2179,5 +2183,32 @@ mod init_error_conversion_tests {
             assert!(!rendered.contains("hunter2"), "{rendered:?}");
             assert!(!rendered.contains("password"), "{rendered:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod context_value_tests {
+    use super::ContextValue;
+    use coproduct_core::context::AttributeValue;
+
+    #[test]
+    fn number_list_maps_to_array_of_numbers() {
+        let v = ContextValue::NumberList {
+            values: vec![1.0, 2.0, 3.0],
+        };
+        assert_eq!(
+            v.into_core(),
+            AttributeValue::Array(vec![
+                AttributeValue::Number(1.0),
+                AttributeValue::Number(2.0),
+                AttributeValue::Number(3.0),
+            ])
+        );
+    }
+
+    #[test]
+    fn empty_number_list_maps_to_empty_array() {
+        let v = ContextValue::NumberList { values: vec![] };
+        assert_eq!(v.into_core(), AttributeValue::Array(vec![]));
     }
 }

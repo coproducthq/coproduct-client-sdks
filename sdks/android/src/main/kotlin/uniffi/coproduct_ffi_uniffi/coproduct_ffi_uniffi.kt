@@ -8608,6 +8608,15 @@ sealed class ContextValue {
         companion object
     }
     
+    data class NumberList(
+        val `values`: List<kotlin.Double>) : ContextValue()
+        
+    {
+        
+
+        companion object
+    }
+    
     object Null : ContextValue()
     
     
@@ -8639,7 +8648,10 @@ public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue
             4 -> ContextValue.StringList(
                 FfiConverterSequenceString.read(buf),
                 )
-            5 -> ContextValue.Null
+            5 -> ContextValue.NumberList(
+                FfiConverterSequenceDouble.read(buf),
+                )
+            6 -> ContextValue.Null
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
     }
@@ -8673,6 +8685,13 @@ public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue
                 + FfiConverterSequenceString.allocationSize(value.`values`)
             )
         }
+        is ContextValue.NumberList -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterSequenceDouble.allocationSize(value.`values`)
+            )
+        }
         is ContextValue.Null -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -8703,8 +8722,13 @@ public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue
                 FfiConverterSequenceString.write(value.`values`, buf)
                 Unit
             }
-            is ContextValue.Null -> {
+            is ContextValue.NumberList -> {
                 buf.putInt(5)
+                FfiConverterSequenceDouble.write(value.`values`, buf)
+                Unit
+            }
+            is ContextValue.Null -> {
+                buf.putInt(6)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }

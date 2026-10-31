@@ -10,6 +10,7 @@ public enum AttributeValue: Sendable, Equatable {
     case number(Double)
     case bool(Bool)
     case stringList([String])
+    case numberList([Double])
     case null
 
     /// Convert to the internal wire enum the identity methods accept
@@ -19,6 +20,7 @@ public enum AttributeValue: Sendable, Equatable {
         case let .number(value): return .number(value: value)
         case let .bool(value): return .bool(value: value)
         case let .stringList(values): return .stringList(values: values)
+        case let .numberList(values): return .numberList(values: values)
         case .null: return .null
         }
     }

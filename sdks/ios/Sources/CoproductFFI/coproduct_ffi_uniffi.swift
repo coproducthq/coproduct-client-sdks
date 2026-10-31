@@ -5091,6 +5091,8 @@ public enum ContextValue: Equatable, Hashable {
     )
     case stringList(values: [String]
     )
+    case numberList(values: [Double]
+    )
     case null
 
 
@@ -5125,7 +5127,10 @@ public struct FfiConverterTypeContextValue: FfiConverterRustBuffer {
         case 4: return .stringList(values: try FfiConverterSequenceString.read(from: &buf)
         )
         
-        case 5: return .null
+        case 5: return .numberList(values: try FfiConverterSequenceDouble.read(from: &buf)
+        )
+        
+        case 6: return .null
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -5155,8 +5160,13 @@ public struct FfiConverterTypeContextValue: FfiConverterRustBuffer {
             FfiConverterSequenceString.write(values, into: &buf)
             
         
-        case .null:
+        case let .numberList(values):
             writeInt(&buf, Int32(5))
+            FfiConverterSequenceDouble.write(values, into: &buf)
+            
+        
+        case .null:
+            writeInt(&buf, Int32(6))
         
         }
     }

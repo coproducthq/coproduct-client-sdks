@@ -2491,6 +2491,10 @@ impl SseDecode for crate::api::FrbContextValue {
                 return crate::api::FrbContextValue::StringList(var_field0);
             }
             4 => {
+                let mut var_field0 = <Vec<f64>>::sse_decode(deserializer);
+                return crate::api::FrbContextValue::NumberList(var_field0);
+            }
+            5 => {
                 return crate::api::FrbContextValue::Null;
             }
             _ => {
@@ -3044,7 +3048,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::FrbContextValue {
             crate::api::FrbContextValue::StringList(field0) => {
                 [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::api::FrbContextValue::Null => [4.into_dart()].into_dart(),
+            crate::api::FrbContextValue::NumberList(field0) => {
+                [4.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::FrbContextValue::Null => [5.into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -3448,8 +3455,12 @@ impl SseEncode for crate::api::FrbContextValue {
                 <i32>::sse_encode(3, serializer);
                 <Vec<String>>::sse_encode(field0, serializer);
             }
-            crate::api::FrbContextValue::Null => {
+            crate::api::FrbContextValue::NumberList(field0) => {
                 <i32>::sse_encode(4, serializer);
+                <Vec<f64>>::sse_encode(field0, serializer);
+            }
+            crate::api::FrbContextValue::Null => {
+                <i32>::sse_encode(5, serializer);
             }
             _ => {
                 unimplemented!("");

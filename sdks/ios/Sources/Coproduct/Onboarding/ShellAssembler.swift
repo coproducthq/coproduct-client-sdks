@@ -109,6 +109,7 @@ enum ShellAssembler {
         case let .number(value): return .number(value)
         case let .bool(value): return .bool(value)
         case let .stringList(values): return .array(values.map(JSONValue.string))
+        case let .numberList(values): return .array(values.map(JSONValue.number))
         case .null: return .null
         }
     }
