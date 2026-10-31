@@ -2079,6 +2079,7 @@ export enum ContextValue_Tags {
   Number = 'Number',
   Bool = 'Bool',
   StringList = 'StringList',
+  NumberList = 'NumberList',
   Null = 'Null',
 }
 /**
@@ -2190,6 +2191,32 @@ export const ContextValue = (() => {
     }
   }
 
+  type NumberList__interface = {
+    tag: ContextValue_Tags.NumberList;
+    inner: Readonly<{ values: Array<number> }>;
+  };
+  class NumberList_ extends UniffiEnum implements NumberList__interface {
+    /**
+     * @private
+     * This field is private and should not be used, use `tag` instead.
+     */
+    readonly [uniffiTypeNameSymbol] = 'ContextValue';
+    readonly tag = ContextValue_Tags.NumberList;
+    readonly inner: Readonly<{ values: Array<number> }>;
+    constructor(inner: { values: Array<number> }) {
+      super('ContextValue', 'NumberList');
+
+      this.inner = Object.freeze(inner);
+    }
+    static new(inner: { values: Array<number> }): NumberList_ {
+      return new NumberList_(inner);
+    }
+
+    static instanceOf(obj: any): obj is NumberList_ {
+      return obj.tag === ContextValue_Tags.NumberList;
+    }
+  }
+
   type Null__interface = {
     tag: ContextValue_Tags.Null;
   };
@@ -2223,6 +2250,7 @@ export const ContextValue = (() => {
     Number: Number_,
     Bool: Bool_,
     StringList: StringList_,
+    NumberList: NumberList_,
     Null: Null_,
   });
 })();
@@ -2231,7 +2259,13 @@ export const ContextValue = (() => {
  * type is not exported directly so the boundary keeps a stable local shape
  */
 export type ContextValue = InstanceType<
-  (typeof ContextValue)['String' | 'Number' | 'Bool' | 'StringList' | 'Null']
+  (typeof ContextValue)[
+    | 'String'
+    | 'Number'
+    | 'Bool'
+    | 'StringList'
+    | 'NumberList'
+    | 'Null']
 >;
 
 // FfiConverter for enum ContextValue
@@ -2257,6 +2291,10 @@ const FfiConverterTypeContextValue = (() => {
             values: FfiConverterSequenceString.readFromCursor(c),
           });
         case 5:
+          return new ContextValue.NumberList({
+            values: FfiConverterSequenceFloat64.readFromCursor(c),
+          });
+        case 6:
           return new ContextValue.Null();
         default:
           throw new UniffiInternalError.UnexpectedEnumCase();
@@ -2288,8 +2326,14 @@ const FfiConverterTypeContextValue = (() => {
           FfiConverterSequenceString.writeIntoCursor(inner.values, c);
           return;
         }
-        case ContextValue_Tags.Null: {
+        case ContextValue_Tags.NumberList: {
           c.writeI32(5);
+          const inner = value.inner;
+          FfiConverterSequenceFloat64.writeIntoCursor(inner.values, c);
+          return;
+        }
+        case ContextValue_Tags.Null: {
+          c.writeI32(6);
           return;
         }
         default:
@@ -2321,6 +2365,12 @@ const FfiConverterTypeContextValue = (() => {
           const inner = value.inner;
           let size = 4;
           size += FfiConverterSequenceString.allocationSize(inner.values);
+          return size;
+        }
+        case ContextValue_Tags.NumberList: {
+          const inner = value.inner;
+          let size = 4;
+          size += FfiConverterSequenceFloat64.allocationSize(inner.values);
           return size;
         }
         case ContextValue_Tags.Null: {
