@@ -14,6 +14,7 @@
 pub use crate::snapshot::Operator;
 
 use crate::context::AttributeValue;
+use crate::geo::haversine_meters;
 use crate::snapshot::ConditionOutcome;
 
 /// Evaluates an operator against a context attribute and the rule value list,
@@ -67,6 +68,7 @@ pub fn evaluate(op: Operator, lhs: &AttributeValue, rhs: &[String]) -> Condition
         | Operator::SemVerGte
         | Operator::SemVerLt
         | Operator::SemVerLte => evaluate_semver(op, lhs, rhs),
+        Operator::WithinRadius => within_radius(lhs, rhs),
         // is_set / is_not_set never reach this dispatcher. The condition tree
         // routes them to their own helpers because they must observe `None` for
         // a missing attribute, and this function only sees the resolved
@@ -286,6 +288,56 @@ fn evaluate_semver(op: Operator, lhs: &AttributeValue, rhs: &[String]) -> Condit
         ConditionOutcome::Indeterminate
     } else {
         ConditionOutcome::NoMatch
+    }
+}
+
+/// Circular geo-fence membership. The LHS is the device position as a
+/// two-element `[lat, lng]` number array; the RHS carries the fence as three
+/// strings, `[center_lat, center_lng, radius_m]`. Matches when the great-circle
+/// distance from the device to the center is within the radius.
+///
+/// Fail-safe, never a circuit-break: a device position that is absent (handled
+/// upstream as a `None` attribute), not a two-number array, or a fence that is
+/// not three parseable numbers with a non-negative radius yields `Indeterminate`
+/// so the rule falls through to the flag's default rather than matching on
+/// incomplete data. This mirrors the conservative stance of the numeric and
+/// semver operators
+fn within_radius(lhs: &AttributeValue, rhs: &[String]) -> ConditionOutcome {
+    let Some((device_lat, device_lng)) = lhs_as_point(lhs) else {
+        return ConditionOutcome::Indeterminate;
+    };
+    let (Some(center_lat), Some(center_lng), Some(radius_m)) = (
+        rhs.first().and_then(|s| parse_numeric_rhs(s)),
+        rhs.get(1).and_then(|s| parse_numeric_rhs(s)),
+        rhs.get(2).and_then(|s| parse_numeric_rhs(s)),
+    ) else {
+        return ConditionOutcome::Indeterminate;
+    };
+    if radius_m < 0.0 {
+        return ConditionOutcome::Indeterminate;
+    }
+    if haversine_meters(device_lat, device_lng, center_lat, center_lng) <= radius_m {
+        ConditionOutcome::Match
+    } else {
+        ConditionOutcome::NoMatch
+    }
+}
+
+/// Read a device position from a context attribute as `(lat, lng)`. Accepts only
+/// a two-element array of finite numbers, the `device_location` shape the SDK
+/// sets through `setAutoPopulatedAttributes`; every other value is `None` so the
+/// geo-fence operator fails safe
+fn lhs_as_point(lhs: &AttributeValue) -> Option<(f64, f64)> {
+    let AttributeValue::Array(items) = lhs else {
+        return None;
+    };
+    let [AttributeValue::Number(lat), AttributeValue::Number(lng)] = items.as_slice() else {
+        return None;
+    };
+    if lat.is_finite() && lng.is_finite() {
+        Some((*lat, *lng))
+    } else {
+        None
     }
 }
 

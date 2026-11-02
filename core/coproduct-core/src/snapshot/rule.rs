@@ -43,18 +43,11 @@ pub(crate) fn condition_contains_unknown(
         Condition::Unknown { .. } => true,
         Condition::Attribute { operator, .. } => *operator == Operator::Unknown,
         Condition::Segment { segment_key } => segments.get(segment_key).is_some_and(|segment| {
-            segment.rules.iter().any(|rule| {
-                matches!(rule, super::segment::SegmentRule::Unknown { .. })
-                    || matches!(
-                        rule,
-                        super::segment::SegmentRule::Attribute {
-                            operator: Operator::Unknown,
-                            ..
-                        }
-                    )
-            })
+            segment
+                .rules
+                .iter()
+                .any(|rule| rule.operator == Operator::Unknown)
         }),
-        Condition::Geofence { .. } => false,
         Condition::And { rules } | Condition::Or { rules } => rules
             .iter()
             .any(|child| condition_contains_unknown(child, segments)),
@@ -79,17 +72,6 @@ pub enum Condition {
     },
     Segment {
         segment_key: String,
-    },
-    /// A circular geo-fence: matches when the device's `attribute` point (a
-    /// `{lat,lng}` object in the context) lies within `radius_m` of the author's
-    /// center. The operand is typed numbers, not a packed string array, so a fence
-    /// round-trips without re-encoding. A missing or malformed device point reads
-    /// as Indeterminate (no location, no geo-targeting), not a match.
-    Geofence {
-        attribute: String,
-        center_lat: f64,
-        center_lng: f64,
-        radius_m: f64,
     },
     Always,
     And {
@@ -128,22 +110,6 @@ impl Serialize for Condition {
                 let mut map = serializer.serialize_map(Some(2))?;
                 map.serialize_entry("type", "segment")?;
                 map.serialize_entry("segment_key", segment_key)?;
-                map.end()
-            }
-            Condition::Geofence {
-                attribute,
-                center_lat,
-                center_lng,
-                radius_m,
-            } => {
-                let mut map = serializer.serialize_map(Some(4))?;
-                map.serialize_entry("type", "geofence")?;
-                map.serialize_entry("attribute", attribute)?;
-                map.serialize_entry(
-                    "center",
-                    &serde_json::json!({ "lat": center_lat, "lng": center_lng }),
-                )?;
-                map.serialize_entry("radius_m", radius_m)?;
                 map.end()
             }
             Condition::Always => {
@@ -236,32 +202,6 @@ impl Condition {
                     tag: "segment".into(),
                 },
             },
-            "geofence" => {
-                // Circle-only: require a string `attribute`, a `center` object with
-                // finite `lat`/`lng`, and a finite `radius_m`. A future polygon body
-                // (or any malformed circle) lacks these and decodes to Unknown so it
-                // fails closed rather than half-parsing into a node that could match
-                let attribute = obj.get("attribute").and_then(|v| v.as_str());
-                let center = obj.get("center").and_then(|v| v.as_object());
-                let center_lat = center.and_then(|c| c.get("lat")).and_then(|v| v.as_f64());
-                let center_lng = center.and_then(|c| c.get("lng")).and_then(|v| v.as_f64());
-                let radius_m = obj.get("radius_m").and_then(|v| v.as_f64());
-                match (attribute, center_lat, center_lng, radius_m) {
-                    (Some(attribute), Some(lat), Some(lng), Some(radius))
-                        if lat.is_finite() && lng.is_finite() && radius.is_finite() =>
-                    {
-                        Condition::Geofence {
-                            attribute: attribute.to_string(),
-                            center_lat: lat,
-                            center_lng: lng,
-                            radius_m: radius,
-                        }
-                    }
-                    _ => Condition::Unknown {
-                        tag: "geofence".into(),
-                    },
-                }
-            }
             "and" => match obj.get("rules").and_then(|v| v.as_array()) {
                 Some(arr) => Condition::And {
                     rules: arr.iter().cloned().map(Condition::from_value).collect(),
@@ -371,6 +311,14 @@ pub enum Operator {
     SemVerGte,
     SemVerLt,
     SemVerLte,
+    /// Circular geo-fence membership. The LHS attribute is the device position
+    /// (a two-element `[lat, lng]` number array) and the RHS `values` carry the
+    /// fence as three strings, `[center_lat, center_lng, radius_m]`. Modeled as
+    /// an operator over the existing flat attribute shape rather than a dedicated
+    /// condition node, so no struct, serializer, or rule-walker change is needed:
+    /// an SDK too old to know it decodes to `Unknown` and fails the flag closed
+    /// through the same path as any other unknown operator
+    WithinRadius,
     IsSet,
     IsNotSet,
     #[serde(other)]

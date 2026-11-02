@@ -22,6 +22,7 @@ const PLATFORM_OPERATORS: &[&str] = &[
     "sem_ver_gte",
     "sem_ver_lt",
     "sem_ver_lte",
+    "within_radius",
     "is_set",
     "is_not_set",
 ];
@@ -61,6 +62,7 @@ fn sdk_enum_has_no_operators_outside_the_platform_set() {
         Operator::SemVerGte,
         Operator::SemVerLt,
         Operator::SemVerLte,
+        Operator::WithinRadius,
         Operator::IsSet,
         Operator::IsNotSet,
     ];

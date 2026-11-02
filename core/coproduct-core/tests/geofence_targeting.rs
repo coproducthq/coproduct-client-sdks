@@ -1,36 +1,44 @@
-//! Geo-fence targeting: haversine distance math, the `geofence` condition node's
-//! tolerant decode, and its inside/outside/absent evaluation outcomes.
+//! Geo-fence targeting behavior.
+//!
+//! A geo-fence is a `within_radius` attribute operator over the existing flat
+//! attribute shape, not a dedicated condition node: the device position is a
+//! two-element `[lat, lng]` number array in the context, and the fence is three
+//! strings `[center_lat, center_lng, radius_m]` in the condition's `values`.
+//! These assert the match/no-match boundary and the fail-safe stance (absent or
+//! malformed data falls through to Indeterminate, never a circuit-break) so
+//! geo-targeting is privacy-preserving by default.
 
 use coproduct_core::context::{AttributeValue, EvaluationContext};
-use coproduct_core::geo::haversine_meters;
+use coproduct_core::operators::Operator;
 use coproduct_core::snapshot::{Condition, ConditionOutcome, Segment, evaluate_condition};
 use std::collections::HashMap;
 
-/// One degree of longitude at the equator, from the mean-Earth-radius haversine.
-const EQUATOR_DEGREE_METERS: f64 = 111_194.9;
+// SF ferry building area, used as the fence center throughout
+const CENTER_LAT: &str = "37.7749";
+const CENTER_LNG: &str = "-122.4194";
 
-fn point(lat: f64, lng: f64) -> AttributeValue {
-    AttributeValue::Array(vec![
+/// A geo-fence condition over `device_location` with the given radius in meters
+fn fence(radius_m: &str) -> Condition {
+    Condition::Attribute {
+        attribute: "device_location".into(),
+        operator: Operator::WithinRadius,
+        values: vec![CENTER_LAT.into(), CENTER_LNG.into(), radius_m.into()],
+    }
+}
+
+/// A context whose `device_location` is the given point
+fn at(lat: f64, lng: f64) -> EvaluationContext {
+    with_location(AttributeValue::Array(vec![
         AttributeValue::Number(lat),
         AttributeValue::Number(lng),
-    ])
+    ]))
 }
 
-fn ctx_with_location(value: Option<AttributeValue>) -> EvaluationContext {
+/// A context with a `device_location` value of the given shape
+fn with_location(value: AttributeValue) -> EvaluationContext {
     let mut map = HashMap::new();
-    if let Some(v) = value {
-        map.insert("device_location".to_string(), v);
-    }
+    map.insert("device_location".into(), value);
     EvaluationContext::from_map(map)
-}
-
-fn sf_fence(radius_m: f64) -> Condition {
-    Condition::Geofence {
-        attribute: "device_location".to_string(),
-        center_lat: 37.7749,
-        center_lng: -122.4194,
-        radius_m,
-    }
 }
 
 fn no_segments() -> HashMap<String, Segment> {
@@ -38,103 +46,132 @@ fn no_segments() -> HashMap<String, Segment> {
 }
 
 #[test]
-fn haversine_zero_distance_is_zero() {
+fn device_inside_the_fence_matches() {
+    // ~44 m from center, well inside a 500 m fence
+    let ctx = at(37.7751, -122.4190);
     assert_eq!(
-        haversine_meters(37.7749, -122.4194, 37.7749, -122.4194),
-        0.0
-    );
-}
-
-#[test]
-fn haversine_one_equatorial_degree_longitude() {
-    let d = haversine_meters(0.0, 0.0, 0.0, 1.0);
-    assert!((d - EQUATOR_DEGREE_METERS).abs() < 2.0, "got {d} m");
-}
-
-#[test]
-fn haversine_one_degree_latitude() {
-    let d = haversine_meters(0.0, 0.0, 1.0, 0.0);
-    assert!((d - EQUATOR_DEGREE_METERS).abs() < 2.0, "got {d} m");
-}
-
-#[test]
-fn geofence_node_decodes_from_wire() {
-    let wire = r#"{
-        "type": "geofence",
-        "attribute": "device_location",
-        "center": { "lat": 37.7749, "lng": -122.4194 },
-        "radius_m": 500
-    }"#;
-    let c: Condition = serde_json::from_str(wire).unwrap();
-    match c {
-        Condition::Geofence {
-            attribute,
-            center_lat,
-            center_lng,
-            radius_m,
-        } => {
-            assert_eq!(attribute, "device_location");
-            assert_eq!(center_lat, 37.7749);
-            assert_eq!(center_lng, -122.4194);
-            assert_eq!(radius_m, 500.0);
-        }
-        other => panic!("expected Geofence, got {other:?}"),
-    }
-}
-
-#[test]
-fn geofence_round_trips_through_serialization() {
-    let original = sf_fence(500.0);
-    let json = serde_json::to_string(&original).unwrap();
-    let back: Condition = serde_json::from_str(&json).unwrap();
-    assert_eq!(original, back);
-}
-
-#[test]
-fn geofence_polygon_body_decodes_to_unknown() {
-    // Circle-only in v1: a future polygon body has no center/radius and must stay
-    // a forward-incompatible node that fails closed, not a half-parsed circle.
-    let wire = r#"{ "type": "geofence", "polygons": [] }"#;
-    let c: Condition = serde_json::from_str(wire).unwrap();
-    assert!(matches!(c, Condition::Unknown { .. }));
-}
-
-#[test]
-fn geofence_matches_a_device_inside_the_circle() {
-    // ~333 m due north of the center, well inside 500 m.
-    let ctx = ctx_with_location(Some(point(37.7779, -122.4194)));
-    assert_eq!(
-        evaluate_condition(&sf_fence(500.0), &ctx, &no_segments()),
+        evaluate_condition(&fence("500"), &ctx, &no_segments()),
         ConditionOutcome::Match
     );
 }
 
 #[test]
-fn geofence_does_not_match_a_device_outside_the_circle() {
-    // ~800 m due north of the center, outside 500 m.
-    let ctx = ctx_with_location(Some(point(37.7821, -122.4194)));
+fn device_outside_the_fence_does_not_match() {
+    // ~44 m from center is outside a 10 m fence
+    let ctx = at(37.7751, -122.4190);
     assert_eq!(
-        evaluate_condition(&sf_fence(500.0), &ctx, &no_segments()),
+        evaluate_condition(&fence("10"), &ctx, &no_segments()),
         ConditionOutcome::NoMatch
     );
 }
 
 #[test]
-fn geofence_is_indeterminate_when_location_absent() {
-    let ctx = ctx_with_location(None);
+fn zero_radius_matches_only_the_exact_center() {
+    let at_center = at(37.7749, -122.4194);
     assert_eq!(
-        evaluate_condition(&sf_fence(500.0), &ctx, &no_segments()),
+        evaluate_condition(&fence("0"), &at_center, &no_segments()),
+        ConditionOutcome::Match
+    );
+    let one_step_off = at(37.7750, -122.4194);
+    assert_eq!(
+        evaluate_condition(&fence("0"), &one_step_off, &no_segments()),
+        ConditionOutcome::NoMatch
+    );
+}
+
+#[test]
+fn absent_device_location_is_indeterminate_not_circuit_break() {
+    // No device_location at all: the privacy-preserving default is to fall
+    // through to Indeterminate (→ flag default), never a circuit-break
+    let ctx = EvaluationContext::from_map(HashMap::new());
+    assert_eq!(
+        evaluate_condition(&fence("500"), &ctx, &no_segments()),
         ConditionOutcome::Indeterminate
     );
 }
 
 #[test]
-fn geofence_is_indeterminate_when_location_malformed() {
-    // A string where a [lat, lng] number array is expected cannot be matched; it
-    // reads as no location rather than a false negative.
-    let ctx = ctx_with_location(Some(AttributeValue::String("37.7,-122.4".into())));
+fn malformed_device_location_shapes_are_indeterminate() {
+    // A packed string, a bare number, a one- or three-element array, a
+    // non-finite coordinate, and a string-element array all fail safe rather
+    // than matching on bad data
+    for bad in [
+        AttributeValue::String("37.7749,-122.4194".into()),
+        AttributeValue::Number(37.7749),
+        AttributeValue::Array(vec![AttributeValue::Number(37.7749)]),
+        AttributeValue::Array(vec![
+            AttributeValue::Number(37.7749),
+            AttributeValue::Number(-122.4194),
+            AttributeValue::Number(0.0),
+        ]),
+        AttributeValue::Array(vec![
+            AttributeValue::Number(f64::NAN),
+            AttributeValue::Number(-122.4194),
+        ]),
+        AttributeValue::Array(vec![
+            AttributeValue::String("37.7749".into()),
+            AttributeValue::String("-122.4194".into()),
+        ]),
+    ] {
+        assert_eq!(
+            evaluate_condition(&fence("500"), &with_location(bad.clone()), &no_segments()),
+            ConditionOutcome::Indeterminate,
+            "malformed device_location {bad:?} should be Indeterminate",
+        );
+    }
+}
+
+#[test]
+fn malformed_fence_values_are_indeterminate() {
+    let ctx = at(37.7749, -122.4194);
+    let cases = [
+        // too few values
+        vec![CENTER_LAT.to_string(), CENTER_LNG.to_string()],
+        // non-numeric radius
+        vec![
+            CENTER_LAT.to_string(),
+            CENTER_LNG.to_string(),
+            "far".to_string(),
+        ],
+        // negative radius
+        vec![
+            CENTER_LAT.to_string(),
+            CENTER_LNG.to_string(),
+            "-100".to_string(),
+        ],
+        // empty
+        vec![],
+    ];
+    for values in cases {
+        let cond = Condition::Attribute {
+            attribute: "device_location".into(),
+            operator: Operator::WithinRadius,
+            values: values.clone(),
+        };
+        assert_eq!(
+            evaluate_condition(&cond, &ctx, &no_segments()),
+            ConditionOutcome::Indeterminate,
+            "malformed fence {values:?} should be Indeterminate",
+        );
+    }
+}
+
+#[test]
+fn negated_geo_fence_preserves_indeterminate_for_missing_location() {
+    // A device with no location must not fall into a `Not(within_radius)` match:
+    // conservative negation keeps Indeterminate rather than flipping to Match
+    let ctx = EvaluationContext::from_map(HashMap::new());
+    let cond = Condition::Not {
+        rule: Box::new(fence("500")),
+    };
     assert_eq!(
-        evaluate_condition(&sf_fence(500.0), &ctx, &no_segments()),
+        evaluate_condition(&cond, &ctx, &no_segments()),
         ConditionOutcome::Indeterminate
     );
+}
+
+#[test]
+fn within_radius_operator_parses_from_its_wire_name() {
+    let parsed: Operator = serde_json::from_str("\"within_radius\"").unwrap();
+    assert_eq!(parsed, Operator::WithinRadius);
 }
