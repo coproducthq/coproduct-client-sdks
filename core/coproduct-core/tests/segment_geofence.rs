@@ -1,8 +1,6 @@
-//! A geo-fence authored as a segment rule on `device_location`, resolving the
-//! same way a country or city segment rule does. The fence rides the flat
-//! `SegmentRule { attribute, operator, values }` shape via the `within_radius`
-//! operator, so a segment needs no special-casing and the rule walker's
-//! unknown-operator fail-closed covers an old SDK for free.
+//! A geo-fence authored as a segment rule on `device_location`, resolving like
+//! any country or city rule: the fence rides the flat `SegmentRule` shape via the
+//! `within_radius` operator, so segments need no special-casing.
 
 use coproduct_core::context::{AttributeValue, EvaluationContext};
 use coproduct_core::operators::Operator;
@@ -65,8 +63,7 @@ fn device_outside_the_segment_fence_does_not_match() {
 
 #[test]
 fn missing_device_location_leaves_the_segment_indeterminate() {
-    // No fix: the single geo rule is Indeterminate, so the segment (OR over its
-    // rules) is Indeterminate, not a match and not a circuit-break
+    // No fix: the geo rule is Indeterminate, so the segment is too
     let ctx = EvaluationContext::from_map(HashMap::new());
     assert_eq!(
         evaluate_condition(&sf_office_ref(), &ctx, &segments()),
@@ -76,8 +73,7 @@ fn missing_device_location_leaves_the_segment_indeterminate() {
 
 #[test]
 fn geo_rule_ors_with_other_rules_in_the_same_segment() {
-    // A segment with a geo rule and a plain attribute rule matches a device that
-    // satisfies either, confirming the fence is an ordinary OR member
+    // The fence is an ordinary OR member: a plain rule alongside it also matches
     let mut segment = sf_office_segment();
     segment.rules.push(SegmentRule {
         attribute: "plan".into(),

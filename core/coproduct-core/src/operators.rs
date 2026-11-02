@@ -291,17 +291,10 @@ fn evaluate_semver(op: Operator, lhs: &AttributeValue, rhs: &[String]) -> Condit
     }
 }
 
-/// Circular geo-fence membership. The LHS is the device position as a
-/// two-element `[lat, lng]` number array; the RHS carries the fence as three
-/// strings, `[center_lat, center_lng, radius_m]`. Matches when the great-circle
-/// distance from the device to the center is within the radius.
-///
-/// Fail-safe, never a circuit-break: a device position that is absent (handled
-/// upstream as a `None` attribute), not a two-number array, or a fence that is
-/// not three parseable numbers with a non-negative radius yields `Indeterminate`
-/// so the rule falls through to the flag's default rather than matching on
-/// incomplete data. This mirrors the conservative stance of the numeric and
-/// semver operators
+/// Circular geo-fence membership: Match when the device point is within the fence
+/// radius of its center. Fail-safe like the numeric operators -- an absent or
+/// malformed point, or a fence that is not three numbers with a non-negative
+/// radius, is `Indeterminate`, never a circuit-break
 fn within_radius(lhs: &AttributeValue, rhs: &[String]) -> ConditionOutcome {
     let Some((device_lat, device_lng)) = lhs_as_point(lhs) else {
         return ConditionOutcome::Indeterminate;
@@ -323,10 +316,8 @@ fn within_radius(lhs: &AttributeValue, rhs: &[String]) -> ConditionOutcome {
     }
 }
 
-/// Read a device position from a context attribute as `(lat, lng)`. Accepts only
-/// a two-element array of finite numbers, the `device_location` shape the SDK
-/// sets through `setAutoPopulatedAttributes`; every other value is `None` so the
-/// geo-fence operator fails safe
+/// The device position as `(lat, lng)`: a two-element array of finite numbers.
+/// Any other shape is `None`, so the geo-fence operator fails safe
 fn lhs_as_point(lhs: &AttributeValue) -> Option<(f64, f64)> {
     let AttributeValue::Array(items) = lhs else {
         return None;

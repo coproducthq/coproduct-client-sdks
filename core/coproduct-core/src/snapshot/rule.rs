@@ -311,13 +311,8 @@ pub enum Operator {
     SemVerGte,
     SemVerLt,
     SemVerLte,
-    /// Circular geo-fence membership. The LHS attribute is the device position
-    /// (a two-element `[lat, lng]` number array) and the RHS `values` carry the
-    /// fence as three strings, `[center_lat, center_lng, radius_m]`. Modeled as
-    /// an operator over the existing flat attribute shape rather than a dedicated
-    /// condition node, so no struct, serializer, or rule-walker change is needed:
-    /// an SDK too old to know it decodes to `Unknown` and fails the flag closed
-    /// through the same path as any other unknown operator
+    /// Circular geo-fence: LHS is the device `[lat, lng]` point, RHS the
+    /// `[center_lat, center_lng, radius_m]` fence
     WithinRadius,
     IsSet,
     IsNotSet,

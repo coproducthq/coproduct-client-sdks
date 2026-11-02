@@ -1,12 +1,7 @@
-//! Geo-fence targeting behavior.
-//!
-//! A geo-fence is a `within_radius` attribute operator over the existing flat
-//! attribute shape, not a dedicated condition node: the device position is a
-//! two-element `[lat, lng]` number array in the context, and the fence is three
-//! strings `[center_lat, center_lng, radius_m]` in the condition's `values`.
-//! These assert the match/no-match boundary and the fail-safe stance (absent or
-//! malformed data falls through to Indeterminate, never a circuit-break) so
-//! geo-targeting is privacy-preserving by default.
+//! Geo-fence targeting: the `within_radius` operator over a `[lat, lng]` device
+//! point and a `[center_lat, center_lng, radius_m]` fence, asserting the
+//! inside/outside boundary and the fail-safe (absent or malformed data is
+//! Indeterminate, never a circuit-break).
 
 use coproduct_core::context::{AttributeValue, EvaluationContext};
 use coproduct_core::operators::Operator;
@@ -81,8 +76,7 @@ fn zero_radius_matches_only_the_exact_center() {
 
 #[test]
 fn absent_device_location_is_indeterminate_not_circuit_break() {
-    // No device_location at all: the privacy-preserving default is to fall
-    // through to Indeterminate (→ flag default), never a circuit-break
+    // No fix: fall through to Indeterminate (→ flag default), never a circuit-break
     let ctx = EvaluationContext::from_map(HashMap::new());
     assert_eq!(
         evaluate_condition(&fence("500"), &ctx, &no_segments()),
@@ -92,9 +86,7 @@ fn absent_device_location_is_indeterminate_not_circuit_break() {
 
 #[test]
 fn malformed_device_location_shapes_are_indeterminate() {
-    // A packed string, a bare number, a one- or three-element array, a
-    // non-finite coordinate, and a string-element array all fail safe rather
-    // than matching on bad data
+    // Every shape that is not a two-element finite-number array fails safe
     for bad in [
         AttributeValue::String("37.7749,-122.4194".into()),
         AttributeValue::Number(37.7749),
@@ -158,8 +150,7 @@ fn malformed_fence_values_are_indeterminate() {
 
 #[test]
 fn negated_geo_fence_preserves_indeterminate_for_missing_location() {
-    // A device with no location must not fall into a `Not(within_radius)` match:
-    // conservative negation keeps Indeterminate rather than flipping to Match
+    // Conservative negation: no location stays Indeterminate, not a Not-match
     let ctx = EvaluationContext::from_map(HashMap::new());
     let cond = Condition::Not {
         rule: Box::new(fence("500")),
