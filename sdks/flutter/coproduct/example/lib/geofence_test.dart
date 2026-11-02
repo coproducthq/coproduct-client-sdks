@@ -37,10 +37,10 @@ const Map<String, Object> _envelope = {
           {
             'rule_id': '11111111-1111-1111-1111-111111111111',
             'condition': {
-              'type': 'geofence',
+              'type': 'attribute',
               'attribute': 'device_location',
-              'center': {'lat': 37.7749, 'lng': -122.4194},
-              'radius_m': 500,
+              'operator': 'within_radius',
+              'values': ['37.7749', '-122.4194', '500'],
             },
             'coverage': 10000,
             'rollout': {'type': 'variation', 'variation': 'on'},
