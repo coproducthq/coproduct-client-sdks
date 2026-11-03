@@ -323,4 +323,94 @@ else
   fail "$name"; cat out.txt
 fi
 
+name='push refuses a commit that changes more than triggers'
+setup; core_change; publish
+echo 'readme' > pr/README.md && g -C pr add README.md && g -C pr commit -qm "$message"
+(bot_env; APP_TOKEN=dummy "$script" push pr "$head" feature) > out.txt 2>&1
+status=$?
+if [ "$status" -ne 0 ] && unchanged && said "HEAD is not one trigger commit on $head"; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='push refuses a trigger commit with another subject'
+setup; core_change; publish
+echo 'other' > pr/sdks/react-native/coproduct/CORE_RELEASE_TRIGGER && g -C pr commit -qam 'chore: something else'
+(bot_env; APP_TOKEN=dummy "$script" push pr "$head" feature) > out.txt 2>&1
+status=$?
+if [ "$status" -ne 0 ] && unchanged && said "HEAD is not one trigger commit on $head"; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='a global filter driver does not run on PR files'
+setup; core_change
+echo '* filter=evil' >> work/.gitattributes && g -C work commit -qam attributes
+publish
+mkdir home && git config --file home/.gitconfig filter.evil.clean "touch '$tmp/filtered'; cat"
+HOME="$tmp/home" run_bot 'fix(core): x'
+if [ "$status" -eq 0 ] && output_has 'pushed=true' && [ ! -e "$tmp/filtered" ]; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='push hands the token to no git command'
+real_git=$(command -v git)
+setup; core_change; publish
+mkdir shim
+# shellcheck disable=SC2016
+printf '#!/bin/sh\nif [ -n "${APP_TOKEN:-}" ]; then touch "%s/leaked"; fi\nexec "%s" "$@"\n' "$tmp" "$real_git" > shim/git
+chmod +x shim/git
+PATH="$tmp/shim:$PATH" run_bot 'fix(core): x'
+if [ "$status" -eq 0 ] && output_has 'pushed=true' && [ ! -e "$tmp/leaked" ]; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='no hook in the PR checkout runs on the commit'
+setup; core_change; publish
+for hook in pre-commit commit-msg post-commit; do
+  printf '#!/bin/sh\ntouch "%s/hooked"\n' "$tmp" > "pr/.git/hooks/$hook" && chmod +x "pr/.git/hooks/$hook"
+done
+run_bot 'fix(core): x'
+if [ "$status" -eq 0 ] && output_has 'pushed=true' && [ ! -e "$tmp/hooked" ]; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='refuses a package directory that links to a sibling of the checkout'
+tweak_sibling() { ln -s ../../pr2 sdks/sibling && config_key 'sdks/sibling'; }
+setup tweak_sibling; core_change; publish; mkdir pr2; run_bot 'fix: x'
+if [ "$status" -ne 0 ] && unchanged && said 'Refusing package path "sdks/sibling": resolves outside the checkout' \
+  && [ ! -e pr2/CORE_RELEASE_TRIGGER ]; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='refuses a package path inside .git'
+tweak_git() { config_key '.git'; }
+setup tweak_git; core_change; publish; run_bot 'fix: x'
+if [ "$status" -ne 0 ] && unchanged && said 'Refusing package path ".git": not a plain relative path' \
+  && [ ! -e pr/.git/CORE_RELEASE_TRIGGER ]; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
+name='a package path that starts with a dash is a path'
+tweak_dash() { mkdir -- -x && echo '{}' > -x/package.json && config_key '-x'; }
+setup tweak_dash; core_change; publish; run_bot 'fix: x'
+if [ "$status" -eq 0 ] && output_has 'pushed=true' \
+  && [ "$(git --git-dir=remote.git diff --name-only "$head" "$(remote_tip)")" = -x/CORE_RELEASE_TRIGGER ]; then
+  pass "$name"
+else
+  fail "$name"; cat out.txt
+fi
+
 if [ "$fails" -eq 0 ]; then echo "all passed"; else echo "$fails failed"; exit 1; fi

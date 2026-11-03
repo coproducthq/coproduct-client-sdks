@@ -50,7 +50,7 @@ prepare() {
   if [ "$(git rev-parse HEAD)" != "$head" ]; then
     die "The checkout is at $(git rev-parse HEAD), not the PR head $head"
   fi
-  if [ -n "$(git status --porcelain -z --untracked-files=all)" ]; then
+  if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
     die 'The checkout is not clean before writing the triggers'
   fi
   if ! git diff --quiet "$base"...HEAD -- "$config"; then
@@ -60,7 +60,7 @@ prepare() {
   fi
 
   # \A and \z anchor the whole key, so a newline cannot end a match early
-  local plain='def plain: test("\\A[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*\\z") and (split("/") | all(. != ".." and . != "."));'
+  local plain='def plain: test("\\A[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*\\z") and (split("/") | all(. != ".." and . != "." and ascii_downcase != ".git"));'
   if ! jq -e "$plain"' .packages | keys | all(plain)' "$config" >/dev/null; then
     die "Refusing package path $(jq -r "$plain"' [.packages | keys[] | select(plain | not)][0] | @json' "$config"): not a plain relative path"
   fi
@@ -69,7 +69,7 @@ prepare() {
   triggers=''
   while IFS= read -r dir; do
     [ -d "$dir" ] || refuse_path "$dir" 'does not exist'
-    real=$(cd "$dir" && pwd -P)
+    real=$(cd -- "./$dir" && pwd -P)
     case "$real" in "$top"/*) ;; *) refuse_path "$dir" 'resolves outside the checkout' ;; esac
     prefix=''
     rest=$dir
@@ -116,7 +116,7 @@ push() {
   local pr_dir=${1:?usage: core-trigger.sh push PR_DIR HEAD BRANCH}
   local head=${2:?usage: core-trigger.sh push PR_DIR HEAD BRANCH}
   local branch=${3:?usage: core-trigger.sh push PR_DIR HEAD BRANCH}
-  local token auth names remote status
+  local token auth names name only_triggers remote status
 
   [ -n "${APP_TOKEN:-}" ] || die 'push needs APP_TOKEN'
   token=$APP_TOKEN
@@ -124,8 +124,12 @@ push() {
   cd "$pr_dir"
 
   names=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo '?')
+  only_triggers=1
+  while IFS= read -r name; do
+    case "$name" in */CORE_RELEASE_TRIGGER) ;; *) only_triggers='' ;; esac
+  done <<< "$names"
   if [ "$(git rev-parse -q --verify 'HEAD^' || true)" != "$head" ] \
-    || printf '%s\n' "$names" | grep -qv '/CORE_RELEASE_TRIGGER$' \
+    || [ -z "$only_triggers" ] \
     || [ "$(git log -1 --format=%s HEAD)" != "$message" ]; then
     die "HEAD is not one trigger commit on $head"
   fi
