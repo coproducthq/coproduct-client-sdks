@@ -113,4 +113,8 @@ CoproductPaywall(
 );
 ```
 
-The paywall shows live App Store prices. The SDK fetches and formats them, so your app never does.
+The paywall shows live store prices, from the App Store on iOS and Google Play on Android. The SDK fetches and formats them, so your app never does.
+
+Each package the paywall offers needs a product ID for each store: an iOS product ID from App Store Connect and an Android product ID from the Play Console. A package without one for the current platform shows no price there, and tapping it reports `PaywallPurchaseErrorReason.unresolvedProduct`. For the Play Console setup, testing, and how purchases and restores behave on Android, see [Paywall purchases on Android](../README.md#paywall-purchases-on-android).
+
+To open a paywall without waiting for its content to download, fetch it ahead of time with `CoproductPaywall.prefetch` or `CoproductPaywall.prefetchPlacements`. See [Opening a paywall without a wait](../README.md#opening-a-paywall-without-a-wait).
