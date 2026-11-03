@@ -1,5 +1,6 @@
 /// The Flutter SDK version, a compile-time constant kept in sync with pubspec.yaml
-/// by sdk_version_test. package_info_plus reports the host app version, not this
+/// by sdk_version_test. The app_version attribute reports the host app's
+/// version, not this
 const _coproductSdkVersion = '1.2.0'; // x-release-please-version
 
 /// The User-Agent this SDK sends: `coproduct-flutter/<version>`

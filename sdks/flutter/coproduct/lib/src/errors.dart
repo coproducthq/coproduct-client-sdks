@@ -41,11 +41,11 @@ final class CoproductUnsupportedIsolate implements CoproductException {
 /// `Coproduct.initialize`, or its native side is older than the Dart side. A
 /// hot restart does not rebuild the native side, so stop the app and rebuild
 /// it after upgrading the SDK. A partial version skew can affect only some
-/// attributes, so one or more of `device_type`, `network_type`,
-/// `first_seen_at`, and `session_count` may then be absent or no longer
-/// updating, and rules that need an absent attribute to have a value do not
-/// match. Flags otherwise evaluate normally. Reported once per `initialize`,
-/// in every build mode
+/// attributes, so one or more of `device_type`, `os_version`, `app_version`,
+/// `app_build`, `network_type`, `first_seen_at`, and `session_count` may then
+/// be absent or no longer updating, and rules that need an absent attribute to
+/// have a value do not match. Flags otherwise evaluate normally. Reported once
+/// per `initialize`, in every build mode
 final class HostContextUnavailable implements CoproductException {
   /// Creates the report. The SDK creates it, so you construct one only to
   /// compare against, for example in a test
@@ -58,11 +58,12 @@ final class HostContextUnavailable implements CoproductException {
   String toString() =>
       'Coproduct: the SDK\'s native plugin did not answer on channel '
       'app.coproduct.flutter/host_context or app.coproduct.flutter/network_type. '
-      'One or more of device_type, network_type, first_seen_at, and '
-      'session_count may be absent or no longer updating. Either the plugin '
-      'is not registered, or its native side is older than the Dart side and '
-      'does not implement the method. Conditions that need an absent '
-      'attribute to have a value will not match on this device';
+      'One or more of device_type, os_version, app_version, app_build, '
+      'network_type, first_seen_at, and session_count may be absent or no '
+      'longer updating. Either the plugin is not registered, or its native '
+      'side is older than the Dart side and does not implement the method. '
+      'Conditions that need an absent attribute to have a value will not '
+      'match on this device';
 }
 
 /// Why [SessionAttributesUnavailable] was reported.

@@ -76,6 +76,9 @@ public class CoproductHostContextPlugin: NSObject, FlutterPlugin {
         switch call.method {
         case "readDeviceType":
             result(DeviceClassifier.deviceType(for: UIDevice.current.userInterfaceIdiom))
+        case "readHostInfo":
+            // On main with readDeviceType, since UIDevice is a UIKit read
+            result(HostInfo.current())
         case "beginSession":
             // Off the main thread, because the transaction holds a process-wide
             // lock around a UserDefaults write and a second engine may be waiting

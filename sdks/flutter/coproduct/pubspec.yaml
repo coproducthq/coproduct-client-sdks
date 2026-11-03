@@ -17,20 +17,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Pinned below 12.4.0: device_info_plus 12.4.0+ calls UIDevice.isiOSAppOnVision,
-  # an iOS 26 SDK API, unconditionally, so it only compiles with Xcode 26. The
-  # 12.3.0 line builds with Xcode 16. 13.x bumped only a win32 dependency.
-  device_info_plus: ">=12.3.0 <12.4.0"
   flutter_rust_bridge: 2.12.0
   geolocator: ^13.0.1
   flutter_secure_storage: ^10.3.1
   flutter_timezone: ^5.1.0
   freezed_annotation: ^3.1.0
   http: ^1.6.0
-  # Held on the 9.x line (below the win32 6.0.0 bump that package_info_plus
-  # 10.0.0 / device_info_plus 13.0.0 introduced) to keep the plus_plugins pair
-  # on one generation alongside the pinned device_info_plus above.
-  package_info_plus: ^9.0.1
   path_provider: ^2.1.5
   permission_handler: ^12.0.1
   plugin_platform_interface: ^2.0.2
