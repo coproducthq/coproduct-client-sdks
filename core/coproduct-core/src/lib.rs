@@ -27,3 +27,5 @@ pub mod snapshot;
 pub mod state;
 pub mod transport;
 pub mod variation_select;
+
+// Rehearsal of the core release trigger workflow. This PR is never merged
