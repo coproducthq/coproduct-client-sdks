@@ -41,7 +41,7 @@ wf=.github/workflows/publish.yml
 # Release mode: only the publish job holds the npm environment and the OIDC
 # token, it always publishes with provenance, the jobs that write to GitHub
 # wait on the release environment, and every release job runs only when the
-# mode job says so. The summary job must never wait on an approval
+# mode job says so. The summary job must never wait on an environment's protection rules
 if ! release=$(ruby -ryaml -e '
   wf = YAML.load_file(ARGV[0])
   jobs = wf["jobs"]

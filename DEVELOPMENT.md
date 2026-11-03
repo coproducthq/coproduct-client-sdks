@@ -316,9 +316,9 @@ checkout.
 See `RELEASING.md` for the contributor rules. The steps that follow are
 React Native's, and Flutter's come after its own heading below. A React Native release needs a
 maintainer at one point, merging the release PR. That merge is the release
-decision, and no one approves the publish step afterward. The `npm` environment
-accepts deployments only from release tags, and only the release App's dispatch
-on a matching tag publishes. Every other run only checks. CI does the rest:
+decision, and no one approves the publish step afterward. Only the release
+App's dispatch on a matching tag runs in release mode and publishes. Every other
+run only checks. CI does the rest:
 
 1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
    a release PR, `chore(main): release react-native X.Y.Z`, open with the next
@@ -382,7 +382,8 @@ reads npm:
 - npm `latest` is newer than this version: it stops as stale (see the
   bad-version runbook below).
 
-A re-run that reaches "Publish to npm" publishes as soon as its checks pass. A failed
+A re-run that reaches "Publish to npm" runs without waiting for anyone, and
+publishes only when the version is absent from npm. A failed
 "Release the docs" job re-runs the same way, and so does a provenance check that
 failed with "was not visible with provenance in time", because npm was only slow
 to show it. A build that failed before publishing, with the version absent from
@@ -435,8 +436,8 @@ fi
 
 Done when that Release Please run's summary links a new Publish run. A dispatch
 can succeed on GitHub's side and still report an error, which leaves a
-duplicate Publish run queued behind the first. Cancel the
-duplicate. If it runs anyway, it finds the version already on npm and
+duplicate Publish run queued behind the first. Cancel the duplicate. If it
+runs anyway, it finds the version already on npm and
 publishes nothing. It packs its own bytes, so it can stop with "npm already
 holds a different package", which is expected here and needs no bad-version
 work. A fresh run packs new bytes, so use it only for a version npm does not
@@ -509,8 +510,8 @@ fi
 Done when it prints `versions OK`.
 
 1. **Fix forward.** Merge the fix in a PR titled `fix: ...`. release-please
-   moves the release PR to the next patch version. Merge it and let the
-   run publish as usual. Done when
+   moves the release PR to the next patch version. Merge it and let the run
+   publish as usual. Done when
    `npm view @coproduct/react-native-sdk dist-tags.latest` prints `FIXED`'s
    version.
 2. **Deprecate the bad version.** This changes the public registry for every
@@ -598,11 +599,12 @@ does none of those.
    gh run view "$RUN" -R "$R" --json jobs -q '.jobs[] | "\(.status) \(.conclusion) \(.name)"'
    ```
    Done when every Native, Pack, iOS build, and Android build job reads
-   `completed success`, and "Publish to npm" is either still running or
-   reads `completed failure` and the block below allows going on. A run where
-   "Publish to npm" is skipped or missing is a checks-only run, so go back to
-   step 1 and use the run the Release Please summary links. Never publish from
-   a run whose build failed.
+   `completed success`, and "Publish to npm" has completed and reads
+   `completed failure` and the block below allows going on. If it is still
+   running, wait until it completes, because cancelling a publish in progress
+   could interrupt it. A run where "Publish to npm" is skipped or missing is a
+   checks-only run, so go back to step 1 and use the run the Release Please
+   summary links. Never publish from a run whose build failed.
 
    If "Publish to npm" failed, read why before going on. A run that stopped
    because npm already has a newer release (`newer than`) or already holds a
@@ -632,9 +634,10 @@ does none of those.
    Go on only when the errors show npm failing to authenticate or to publish,
    for example because trusted publishing is broken. For any other failure,
    stop and find its cause.
-3. **Stop CI from publishing.** Skip this step if "Publish to npm" already
-   failed, because that run publishes nothing more. Otherwise cancel the run so
-   CI can't publish alongside you.
+3. **Stop CI from publishing.** Skip this step if the run has completed, because
+   a run whose "Publish to npm" failed publishes nothing more. Otherwise a later
+   job of the run is still queued, so cancel the run so CI can't publish
+   alongside you.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    gh run cancel "$RUN" -R "$R"
@@ -717,9 +720,8 @@ this section covers. Scripts live under `scripts/release/flutter/`.
 
 A Flutter release needs a maintainer at one point, merging the release PR. That
 merge is the release decision, and no one approves the publish step afterward.
-The `pub.dev` environment accepts deployments only from release tags, and only
-the release App's dispatch on a matching tag publishes. Every other run only
-checks. CI does the rest:
+Only the release App's dispatch on a matching tag runs in release mode and
+publishes. Every other run only checks. CI does the rest:
 
 1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
    a release PR, `chore(main): release flutter X.Y.Z`, open with the next
@@ -825,9 +827,9 @@ Before publishing, it reads pub.dev:
 - pub.dev already has a newer release: it stops as `stale`.
 - pub.dev holds this version retracted: it stops as `retracted`.
 
-A re-run that reaches "Publish to pub.dev" publishes as soon as its checks pass. A build
-that failed before publishing, with the version absent from pub.dev, retitles the
-Release "flutter: vX.Y.Z (not published)", and the next successful run restores
+A re-run that reaches "Publish to pub.dev" runs without waiting for anyone, and
+publishes only when the version is absent from pub.dev. A build that failed
+before publishing, with the version absent from pub.dev, retitles the Release "flutter: vX.Y.Z (not published)", and the next successful run restores
 the title. Done when the "Result" job passes.
 
 The gate logs of a failed build are kept for 14 days, in the artifact

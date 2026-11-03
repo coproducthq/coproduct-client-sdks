@@ -68,8 +68,12 @@ test('does nothing in checks mode', () => {
   assert.equal(act({ mode: 'checks' }), 'none');
 });
 
-test('does nothing when publish failed, as after a cancelled run', () => {
+test('does nothing when publish failed', () => {
   assert.equal(act({ needs: needsWith({ publish: { result: 'failure' } }) }), 'none');
+});
+
+test('does nothing when publish was cancelled', () => {
+  assert.equal(act({ needs: needsWith({ publish: { result: 'cancelled' } }) }), 'none');
 });
 
 test('does nothing when no build job failed', () => {
