@@ -385,9 +385,7 @@ final class CoproductClient implements FlagReader {
   /// Forward the event to your own analytics pipeline instead
   void setEvaluationListener(void Function(EvaluationEvent) onEvaluation) {
     final previous = _evaluationSubscription;
-    _evaluationSubscription = _backend.evaluationEvents().listen(
-      onEvaluation,
-    );
+    _evaluationSubscription = _backend.evaluationEvents().listen(onEvaluation);
     unawaited(previous?.cancel().catchError(_reportError));
   }
 }

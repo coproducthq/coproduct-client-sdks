@@ -34,29 +34,32 @@ void main() {
       expect(event.evaluatedAt, '2026-10-29T12:00:00Z');
     });
 
-    test('maps an errored JSON evaluation, including a null variant/ruleId', () {
-      const generated = frb.FrbEvaluationEvent(
-        flagKey: 'config',
-        flagType: frb.FrbFlagType.json,
-        value: frb.FrbFlagValue.json(value: '{"a":1}'),
-        defaultValue: frb.FrbFlagValue.json(value: '{}'),
-        variant: null,
-        reason: frb.FrbEvaluationReason.error,
-        ruleId: null,
-        errorCode: 'provider_not_ready',
-        evaluatedAt: '2026-10-29T12:01:00Z',
-      );
+    test(
+      'maps an errored JSON evaluation, including a null variant/ruleId',
+      () {
+        const generated = frb.FrbEvaluationEvent(
+          flagKey: 'config',
+          flagType: frb.FrbFlagType.json,
+          value: frb.FrbFlagValue.json(value: '{"a":1}'),
+          defaultValue: frb.FrbFlagValue.json(value: '{}'),
+          variant: null,
+          reason: frb.FrbEvaluationReason.error,
+          ruleId: null,
+          errorCode: 'provider_not_ready',
+          evaluatedAt: '2026-10-29T12:01:00Z',
+        );
 
-      final event = evaluationEventFromFrb(generated);
+        final event = evaluationEventFromFrb(generated);
 
-      expect(event.flagType, FlagType.json);
-      expect(event.value, const FlagValue.json('{"a":1}'));
-      expect(event.defaultValue, const FlagValue.json('{}'));
-      expect(event.variant, isNull);
-      expect(event.reason, EvaluationReason.error);
-      expect(event.ruleId, isNull);
-      expect(event.errorCode, 'provider_not_ready');
-    });
+        expect(event.flagType, FlagType.json);
+        expect(event.value, const FlagValue.json('{"a":1}'));
+        expect(event.defaultValue, const FlagValue.json('{}'));
+        expect(event.variant, isNull);
+        expect(event.reason, EvaluationReason.error);
+        expect(event.ruleId, isNull);
+        expect(event.errorCode, 'provider_not_ready');
+      },
+    );
 
     test('maps the string, int, and number FlagValue variants', () {
       expect(

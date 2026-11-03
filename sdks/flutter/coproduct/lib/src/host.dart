@@ -154,7 +154,8 @@ class CoproductHost<H extends Object, C extends Object> {
   /// Tears the current runtime down and clears it, static across the process.
   Future<void> shutdown() => _manager.shutdown();
 
-  LocationService? get _locationService => _manager.current?.runtime.locationService;
+  LocationService? get _locationService =>
+      _manager.current?.runtime.locationService;
 
   /// Forward an enable call to the live runtime's location service, if any.
   /// Returns false when called before initialize or after shutdown.

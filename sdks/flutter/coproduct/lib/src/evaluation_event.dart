@@ -242,8 +242,7 @@ FlagValue flagValueFromFrb(frb.FrbFlagValue value) => switch (value) {
 /// Converts a generated evaluation reason into the public [EvaluationReason]
 EvaluationReason evaluationReasonFromFrb(frb.FrbEvaluationReason reason) =>
     switch (reason) {
-      frb.FrbEvaluationReason.targetingMatch =>
-        EvaluationReason.targetingMatch,
+      frb.FrbEvaluationReason.targetingMatch => EvaluationReason.targetingMatch,
       frb.FrbEvaluationReason.fallthrough => EvaluationReason.fallthrough,
       frb.FrbEvaluationReason.off => EvaluationReason.off,
       frb.FrbEvaluationReason.prerequisiteFailed =>

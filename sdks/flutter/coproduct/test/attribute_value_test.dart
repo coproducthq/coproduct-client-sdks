@@ -98,9 +98,6 @@ void main() {
   test('numberList maps to FrbContextValue numberList', () {
     final result = toFrbContextValue(AttributeValue.numberList([1, 2, 3]));
     expect(result, isA<frb.FrbContextValue_NumberList>());
-    expect(
-      (result as frb.FrbContextValue_NumberList).field0,
-      [1.0, 2.0, 3.0],
-    );
+    expect((result as frb.FrbContextValue_NumberList).field0, [1.0, 2.0, 3.0]);
   });
 }
