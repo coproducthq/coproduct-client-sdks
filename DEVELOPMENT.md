@@ -336,6 +336,19 @@ run only checks. CI does the rest:
 Publishing React Native by hand is only for an emergency, through the runbook
 below. Flutter works the same way, as described under Flutter below.
 
+The "Core release trigger" workflow keeps `CORE_RELEASE_TRIGGER` files current
+on PR branches from this repository. It runs on `pull_request_target` in the
+`sdk-core-trigger` environment, with the `coproduct-sdk-core-trigger` App's
+token. The App has only Contents read and write on this repository, and it must
+never be a bypass actor on a ruleset. Its credentials are the
+`SDK_CORE_TRIGGER_APP_CLIENT_ID` and `SDK_CORE_TRIGGER_APP_KEY` secrets, which
+live only in the `sdk-core-trigger` environment, never as repository or
+organization secrets. The environment must keep a `main`-only branch policy and
+no required reviewers, because with reviewers the workflow waits or fails. The
+workflow makes no commit on a PR that edits the release config. On a PR that
+edits `core-changed.sh`, the workflow runs `main`'s copy and the "Shared core
+release" check runs the PR's, so the check decides.
+
 ### When a React Native release goes wrong
 
 Every tag run ends in a job named "Result", whose summary records what happened
