@@ -17,7 +17,9 @@ export 'src/evaluation_event.dart'
         StringFlagValue,
         IntFlagValue,
         NumberFlagValue,
-        JsonFlagValue;
+        JsonFlagValue,
+        StringListFlagValue,
+        NumberListFlagValue;
 export 'src/provider_state.dart' show ProviderState;
 export 'src/flag_observation.dart' show FlagObservation;
 export 'src/coproduct_flag_builder.dart' show CoproductFlagBuilder;

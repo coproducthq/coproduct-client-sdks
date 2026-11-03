@@ -51,7 +51,7 @@ class CoproductPaywall extends StatefulWidget {
   /// instead of the edge-worker api, with no fallback between the two. Omit
   /// this to keep using the api, unconditionally -- the safe default for a
   /// paywall that may not have been redeployed since this content-CDN path
-  /// shipped (see coproduct-platform's R2 content delivery work).
+  /// shipped.
   final String? envSlug;
 
   /// Overridable for tests. Defaults to the real HTTP client and the real

@@ -371,10 +371,11 @@ final class CoproductClient implements FlagReader {
     );
   }
 
-  /// Registers [onEvaluation] to be called for every flag evaluation this
-  /// client performs from now on, including ones triggered by a getter, an
-  /// observation's seed or a later update, or a read made under the hood by a
-  /// paywall or onboarding flow.
+  /// Registers [onEvaluation] to be called for every typed-getter call this
+  /// client makes from now on, including a read made under the hood by a
+  /// paywall or onboarding flow. Observations do not fire this listener: an
+  /// observation's seed and later updates are delivered only through the
+  /// observation itself.
   ///
   /// There is a single evaluation-listener slot, not a list of subscribers:
   /// calling this again installs a new listener and detaches whatever was
