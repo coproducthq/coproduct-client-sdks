@@ -28,8 +28,10 @@ jobs:
   trigger:
     name: Update core release triggers
     # Fork PRs skip the job, and the "Shared core release" check still tells
-    # their authors how to fix it
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.state == 'open' && github.event.pull_request.user.login != 'dependabot[bot]'
+    # their authors how to fix it. The bot's own push fires synchronize and
+    # would start this workflow again, so a run the bot started skips the job,
+    # and the "Shared core release" check still runs on that push
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.state == 'open' && github.event.pull_request.user.login != 'dependabot[bot]' && github.actor != 'coproduct-sdk-core-trigger[bot]'
     runs-on: ubuntu-24.04
     # deployment: false uses the environment's secrets and branch policy
     # without adding a deployment to the PR timeline

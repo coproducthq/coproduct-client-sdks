@@ -590,10 +590,20 @@ elif ! ctout=$(ruby -ryaml -e '
   # that run would lose the comment
   want_conc = { "group" => "core-trigger-${{ github.event.pull_request.number }}", "cancel-in-progress" => false }
   problems << "concurrency is not exactly #{want_conc.inspect}: #{wf["concurrency"].inspect}" unless wf["concurrency"] == want_conc
+  # Workflow or job env would put a value in every step, and job permissions
+  # would replace the read-only default token, so neither level has them
+  problems << "the workflow sets env" if wf.key?("env")
+  want_top = ["name", true, "permissions", "concurrency", "jobs"]
+  problems << "the workflow keys are not exactly name, on, permissions, concurrency, and jobs: #{wf.keys.inspect}" unless wf.keys.sort_by(&:to_s) == want_top.sort_by(&:to_s)
   jobs = wf["jobs"] || {}
   problems << "the jobs are not exactly trigger: #{jobs.keys.inspect}" unless jobs.keys == ["trigger"]
   job = jobs["trigger"] || {}
-  want_if = "github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.state == #{q}open#{q} && github.event.pull_request.user.login != #{q}dependabot[bot]#{q}"
+  problems << "the trigger job sets env" if job.key?("env")
+  problems << "the trigger job sets permissions: #{job["permissions"].inspect}" if job.key?("permissions")
+  want_job = %w[name if runs-on environment timeout-minutes steps]
+  problems << "the trigger job keys are not exactly #{want_job.join(", ")}: #{job.keys.inspect}" unless job.keys.sort == want_job.sort
+  # The bot push fires synchronize again, so the run it starts is skipped
+  want_if = "github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.state == #{q}open#{q} && github.event.pull_request.user.login != #{q}dependabot[bot]#{q} && github.actor != #{q}coproduct-sdk-core-trigger[bot]#{q}"
   problems << "the trigger job if is not exactly #{want_if}: #{job["if"]}" unless job["if"].to_s.strip == want_if
   want_env = { "name" => "sdk-core-trigger", "deployment" => false }
   problems << "the trigger job environment is not exactly #{want_env.inspect}: #{job["environment"].inspect}" unless job["environment"] == want_env
@@ -607,17 +617,19 @@ elif ! ctout=$(ruby -ryaml -e '
     problems << "a checkout does not set persist-credentials: false: #{(s["with"] || {})["path"]}" unless (s["with"] || {})["persist-credentials"] == false
   end
   trusted = checkouts.find { |s| (s["with"] || {})["path"] == "trusted" }
+  # Exact inputs, so neither checkout can switch repository, ref, or submodules
   if trusted.nil?
     problems << "no checkout has path: trusted"
-  elsif (trusted["with"] || {}).key?("ref")
-    problems << "the trusted checkout sets a ref: #{trusted["with"]["ref"]}"
+  else
+    want = { "path" => "trusted", "persist-credentials" => false }
+    problems << "the trusted checkout inputs are not exactly #{want.inspect}: #{trusted["with"].inspect}" unless trusted["with"] == want
   end
   pr = checkouts.find { |s| (s["with"] || {})["path"] == "pr" }
   if pr.nil?
     problems << "no checkout has path: pr"
   else
-    problems << "the pr checkout ref is not the PR head sha: #{pr["with"]["ref"]}" unless pr["with"]["ref"] == "${{ github.event.pull_request.head.sha }}"
-    problems << "the pr checkout does not set fetch-depth: 0" unless pr["with"]["fetch-depth"] == 0
+    want = { "path" => "pr", "ref" => "${{ github.event.pull_request.head.sha }}", "fetch-depth" => 0, "persist-credentials" => false }
+    problems << "the pr checkout inputs are not exactly #{want.inspect}: #{pr["with"].inspect}" unless pr["with"] == want
   end
 
   tokens = steps.select { |s| s["uses"].to_s.start_with?("actions/create-github-app-token@") }
@@ -663,6 +675,12 @@ elif ! ctout=$(ruby -ryaml -e '
     problems << "no step has id: push"
   else
     problems << "the push step if is not exactly #{commit_if}: #{push["if"]}" unless push["if"].to_s.strip == commit_if
+    want = {
+      "APP_TOKEN" => "${{ steps.token.outputs.token }}",
+      "HEAD_SHA" => "${{ github.event.pull_request.head.sha }}",
+      "BRANCH" => "${{ github.event.pull_request.head.ref }}",
+    }
+    problems << "the push env is not exactly #{want.inspect}: #{push["env"].inspect}" unless push["env"] == want
   end
 
   prepare = steps.find { |s| s["id"] == "prepare" }
@@ -670,6 +688,13 @@ elif ! ctout=$(ruby -ryaml -e '
     problems << "no step has id: prepare"
   else
     penv = prepare["env"] || {}
+    want_keys = %w[BASE_SHA HEAD_SHA TITLE GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL]
+    problems << "the prepare env keys are not exactly #{want_keys.join(", ")}: #{penv.keys.inspect}" unless penv.keys.sort == want_keys.sort
+    {
+      "BASE_SHA" => "${{ github.sha }}",
+      "HEAD_SHA" => "${{ github.event.pull_request.head.sha }}",
+      "TITLE" => "${{ github.event.pull_request.title }}",
+    }.each { |k, v| problems << "prepare #{k} is not #{v}: #{penv[k]}" unless penv[k] == v }
     %w[GIT_AUTHOR_NAME GIT_COMMITTER_NAME].each do |k|
       problems << "prepare #{k} is not coproduct-sdk-core-trigger[bot]: #{penv[k]}" unless penv[k] == "coproduct-sdk-core-trigger[bot]"
     end
@@ -686,7 +711,19 @@ elif ! ctout=$(ruby -ryaml -e '
   uses_lines.each { |u| problems << "uses is not one of the pinned actions: #{u}" unless pins.include?(u) }
   problems << "the uses lines do not match the parsed steps" unless uses_lines.length == steps.count { |s| s.key?("uses") }
 
-  # Every script is the trusted checkout, run under bash from the job root
+  # Every script is the trusted checkout, run under bash from the job root.
+  # Each run line is exact, so nothing can run from the PR checkout beside it
+  want_runs = {
+    "prepare" => "trusted/scripts/release/core-trigger.sh prepare pr \"$BASE_SHA\" \"$HEAD_SHA\" \"$TITLE\"",
+    "push" => "trusted/scripts/release/core-trigger.sh push pr \"$HEAD_SHA\" \"$BRANCH\"",
+    "comment" => "trusted/scripts/release/core-trigger-comment.sh \"$GITHUB_REPOSITORY\" \"$PR_NUMBER\"",
+  }
+  run_steps = steps.select { |s| s.key?("run") }
+  problems << "the run steps are not exactly prepare, push, and comment: #{run_steps.map(&kind).inspect}" unless run_steps.map(&kind) == %w[prepare push comment]
+  run_steps.each do |s|
+    want = want_runs[kind.(s)]
+    problems << "the #{kind.(s)} run is not exactly #{want}: #{s["run"].to_s.strip}" unless want && s["run"].to_s.strip == want
+  end
   problems << "the job sets defaults" if job.key?("defaults") || wf.key?("defaults")
   steps.each do |s|
     problems << "#{label.(s)} sets working-directory" if s.key?("working-directory")
@@ -703,7 +740,8 @@ elif ! ctout=$(ruby -ryaml -e '
   else
     want = "steps.push.outputs.pushed == #{q}true#{q}"
     problems << "the comment step if is not exactly #{want}: #{comment["if"]}" unless comment["if"].to_s.strip == want
-    problems << "the comment step GH_TOKEN is not github.token: #{(comment["env"] || {})["GH_TOKEN"]}" unless (comment["env"] || {})["GH_TOKEN"] == "${{ github.token }}"
+    want = { "GH_TOKEN" => "${{ github.token }}", "PR_NUMBER" => "${{ github.event.pull_request.number }}" }
+    problems << "the comment env is not exactly #{want.inspect}: #{comment["env"].inspect}" unless comment["env"] == want
   end
   puts problems
 ' "$cf" 2>&1); then
