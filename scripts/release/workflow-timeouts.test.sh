@@ -639,6 +639,13 @@ elif ! ctout=$(ruby -ryaml -e '
     w = s["with"] || {}
     problems << "the App token step id is not token: #{s["id"]}" unless s["id"] == "token"
     problems << "the App token step if is not exactly #{commit_if}: #{s["if"]}" unless s["if"].to_s.strip == commit_if
+    want = {
+      "client-id" => "${{ secrets.SDK_CORE_TRIGGER_APP_CLIENT_ID }}",
+      "private-key" => "${{ secrets.SDK_CORE_TRIGGER_APP_KEY }}",
+      "repositories" => "${{ github.event.repository.name }}",
+      "permission-contents" => "write",
+    }
+    problems << "the App token inputs are not exactly #{want.inspect}: #{w.inspect}" unless w == want
     perms = w.select { |k, _| k.start_with?("permission-") }
     problems << "the App token permissions are not exactly {\"permission-contents\"=>\"write\"}: #{perms.inspect}" unless perms == { "permission-contents" => "write" }
     problems << "the App token repositories is not this repository: #{w["repositories"]}" unless w["repositories"] == "${{ github.event.repository.name }}"
