@@ -187,8 +187,9 @@ final class EvaluationEvent {
   /// Why the evaluation resolved the way it did
   final EvaluationReason reason;
 
-  /// The id of the targeting rule that matched, set only when [reason] is
-  /// [EvaluationReason.targetingMatch]
+  /// Identifier of the targeting rule that matched, when one did. The
+  /// evaluation pipeline does not carry the matched rule id, so this stays
+  /// `null` for every event until that plumbing is added
   final String? ruleId;
 
   /// A machine-readable error code, set only when [reason] is
