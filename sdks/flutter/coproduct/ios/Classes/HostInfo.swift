@@ -9,11 +9,12 @@ enum HostInfo {
     /// The production answer. UIDevice rather than ProcessInfo, because the two
     /// report different versions for an iPhone or iPad app running on a Mac or
     /// on Apple Vision Pro. The bundle lookup is object(forInfoDictionaryKey:),
-    /// which returns the localized InfoPlist.strings value where one exists
-    static func current() -> [String: Any] {
+    /// which returns the localized InfoPlist.strings value where one exists.
+    /// Tests pass their own bundle
+    static func current(bundle: Bundle = .main) -> [String: Any] {
         read(
             systemVersion: UIDevice.current.systemVersion,
-            infoValue: { Bundle.main.object(forInfoDictionaryKey: $0) }
+            infoValue: { bundle.object(forInfoDictionaryKey: $0) }
         )
     }
 

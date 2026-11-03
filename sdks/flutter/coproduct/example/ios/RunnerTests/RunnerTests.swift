@@ -45,6 +45,31 @@ final class RecordingInfoLookup {
     }
 }
 
+/// A bundle whose localized Info.plist lookup disagrees with its raw
+/// dictionary, the way one with an InfoPlist.strings does
+final class LocalizedInfoBundle: Bundle, @unchecked Sendable {
+    // A directory of its own, because Bundle caches instances by path and the
+    // main bundle's path would hand back the main bundle rather than this
+    init() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        super.init(path: directory.path)!
+    }
+
+    override func object(forInfoDictionaryKey key: String) -> Any? {
+        switch key {
+        case "CFBundleShortVersionString": return "2.0 localized"
+        case "CFBundleVersion": return "42 localized"
+        default: return nil
+        }
+    }
+
+    override var infoDictionary: [String: Any]? {
+        ["CFBundleShortVersionString": "2.0 raw", "CFBundleVersion": "42 raw"]
+    }
+}
+
 final class HostInfoTests: XCTestCase {
     private func read(_ values: [String: Any], systemVersion: String = "18.2.1") -> [String: Any] {
         let lookup = RecordingInfoLookup(values)
@@ -92,10 +117,21 @@ final class HostInfoTests: XCTestCase {
         XCTAssertTrue(value["app_build"] is NSNull)
     }
 
+    func testTheLocalizedBundleValueIsTheOneRead() {
+        // A bundle with an InfoPlist.strings answers object(forInfoDictionaryKey:)
+        // with the localized value while infoDictionary keeps the raw one, and
+        // the plugins this replaces read the localized one
+        let value = HostInfo.current(bundle: LocalizedInfoBundle())
+        XCTAssertEqual(value["app_version"] as? String, "2.0 localized")
+        XCTAssertEqual(value["app_build"] as? String, "42 localized")
+    }
+
     func testThePluginRoutesReadHostInfoFromTheMainBundle() throws {
         // The test host is the example app, so its own bundle and the device's
         // OS version are what the route must report. They are compared rather
-        // than predicted, through the localized lookup the route must use
+        // than predicted. The example has no InfoPlist.strings, so this cannot
+        // tell the localized lookup from the raw dictionary, which
+        // testTheLocalizedBundleValueIsTheOneRead covers
         let answered = expectation(description: "readHostInfo answered")
         var answer: Any?
         CoproductHostContextPlugin().handle(
