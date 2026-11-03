@@ -55,6 +55,7 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "readDeviceType" -> result.success(readDeviceType())
+            "readHostInfo" -> result.success(readHostInfo())
             "beginSession" -> result.success(beginSession()?.toChannel())
             else -> result.notImplemented()
         }
@@ -97,6 +98,15 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             configuration.smallestScreenWidthDp,
             appContext.packageManager::hasSystemFeature,
         )
+    }
+
+    /**
+     * Null when the engine is detached, which the Dart side reads as every
+     * field absent, as it does for readDeviceType
+     */
+    private fun readHostInfo(): Map<String, String?>? {
+        val appContext = context ?: return null
+        return HostInfo.read(appContext)
     }
 
     companion object {

@@ -724,7 +724,7 @@ on them. The SDK passes them to `FlutterError.onError`, with `library` set to
 
 | Reported | Meaning |
 |---|---|
-| `HostContextUnavailable` | The SDK's native plugin did not answer on the host-context or network-type channel, so one or more of `device_type`, `network_type`, `first_seen_at`, and `session_count` may be absent or no longer updating |
+| `HostContextUnavailable` | The SDK's native plugin did not answer on the host-context or network-type channel, so one or more of `device_type`, `os_version`, `app_version`, `app_build`, `network_type`, `first_seen_at`, and `session_count` may be absent or no longer updating |
 | `SessionAttributesUnavailable` | The SDK could not read or save its launch record, so `first_seen_at` and `session_count` are unset for this launch. `cause` is `SessionAttributesUnavailableCause.storageFailure` (the device's storage failed, or could not be trusted, for example before the first unlock after a restart) or `SessionAttributesUnavailableCause.malformedResponse` (the native side returned something unreadable). More causes may be added, so a `switch` on it needs a default branch |
 
 See [Troubleshooting](#troubleshooting) for what to do about each.
@@ -866,9 +866,9 @@ exception and what to do about it.
 **`FlutterError.onError` reports `HostContextUnavailable`.** The SDK's native
 plugin did not answer on the host-context or network-type channel. Either it
 is not registered on the engine that ran `initialize`, or its native side is
-older than the Dart side. One or more of `device_type`, `network_type`,
-`first_seen_at`, and `session_count` may then be absent or no longer
-updating. Rules that need an absent attribute to have a value do not match,
+older than the Dart side. One or more of `device_type`, `os_version`,
+`app_version`, `app_build`, `network_type`, `first_seen_at`, and
+`session_count` may then be absent or no longer updating. Rules that need an absent attribute to have a value do not match,
 and an `is_not_set` rule on it does. Flags otherwise evaluate normally. To fix
 it:
 

@@ -30,6 +30,93 @@ final class DeviceClassifierTests: XCTestCase {
     }
 }
 
+/// A lookup over a fixed dictionary that records each key it is asked for
+final class RecordingInfoLookup {
+    let values: [String: Any]
+    private(set) var asked: [String] = []
+
+    init(_ values: [String: Any]) {
+        self.values = values
+    }
+
+    func callAsFunction(_ key: String) -> Any? {
+        asked.append(key)
+        return values[key]
+    }
+}
+
+final class HostInfoTests: XCTestCase {
+    private func read(_ values: [String: Any], systemVersion: String = "18.2.1") -> [String: Any] {
+        let lookup = RecordingInfoLookup(values)
+        return HostInfo.read(systemVersion: systemVersion, infoValue: lookup.callAsFunction)
+    }
+
+    func testEveryValueIsPassedThroughVerbatim() {
+        let value = read(
+            ["CFBundleShortVersionString": "2.4.0-rc.1", "CFBundleVersion": "20260101"],
+            systemVersion: "26.0.1"
+        )
+        XCTAssertEqual(value["os_version"] as? String, "26.0.1")
+        XCTAssertEqual(value["app_version"] as? String, "2.4.0-rc.1")
+        XCTAssertEqual(value["app_build"] as? String, "20260101")
+        XCTAssertEqual(Set(value.keys), ["os_version", "app_version", "app_build"])
+    }
+
+    func testOnlyTheTwoBundleKeysAreRead() {
+        let lookup = RecordingInfoLookup([:])
+        _ = HostInfo.read(systemVersion: "18.0", infoValue: lookup.callAsFunction)
+        XCTAssertEqual(Set(lookup.asked), ["CFBundleShortVersionString", "CFBundleVersion"])
+    }
+
+    func testAMissingValueIsNullRatherThanEmpty() {
+        let value = read([:])
+        XCTAssertTrue(value["app_version"] is NSNull)
+        XCTAssertTrue(value["app_build"] is NSNull)
+    }
+
+    func testAnEmptyValueIsNull() {
+        let value = read(["CFBundleShortVersionString": "", "CFBundleVersion": ""])
+        XCTAssertTrue(value["app_version"] is NSNull)
+        XCTAssertTrue(value["app_build"] is NSNull)
+    }
+
+    func testANonStringValueIsNull() {
+        let value = read(["CFBundleShortVersionString": NSNumber(value: 2), "CFBundleVersion": ["7"]])
+        XCTAssertTrue(value["app_version"] is NSNull)
+        XCTAssertTrue(value["app_build"] is NSNull)
+    }
+
+    func testTheBuildDoesNotFallBackToTheVersion() {
+        let value = read(["CFBundleShortVersionString": "1.0"])
+        XCTAssertEqual(value["app_version"] as? String, "1.0")
+        XCTAssertTrue(value["app_build"] is NSNull)
+    }
+
+    func testThePluginRoutesReadHostInfoFromTheMainBundle() throws {
+        // The test host is the example app, so its own bundle and the device's
+        // OS version are what the route must report. They are compared rather
+        // than predicted, through the localized lookup the route must use
+        let answered = expectation(description: "readHostInfo answered")
+        var answer: Any?
+        CoproductHostContextPlugin().handle(
+            FlutterMethodCall(methodName: "readHostInfo", arguments: nil)
+        ) { result in
+            XCTAssertTrue(Thread.isMainThread, "answered off the main thread")
+            answer = result
+            answered.fulfill()
+        }
+        wait(for: [answered], timeout: 5)
+        XCTAssertFalse(answer as AnyObject === FlutterMethodNotImplemented)
+        let value = try XCTUnwrap(answer as? [String: Any])
+        XCTAssertEqual(value["os_version"] as? String, UIDevice.current.systemVersion)
+        let version = try XCTUnwrap(
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        let build = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
+        XCTAssertEqual(value["app_version"] as? String, version)
+        XCTAssertEqual(value["app_build"] as? String, build)
+    }
+}
+
 /// An in-memory store with the failure modes the real one has. It also records
 /// how many callers are inside it at once: with holdFirstRead set, the first
 /// access waits until a second access arrives or the bound passes, so two

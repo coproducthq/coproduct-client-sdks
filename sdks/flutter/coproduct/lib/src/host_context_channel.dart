@@ -27,6 +27,19 @@ class HostContextChannel {
     }
   }
 
+  /// Reads the OS version, app version, and build number in one round trip,
+  /// because each channel call pays the platform-channel cost against the
+  /// shared startup budget. A native failure propagates so the caller can retry
+  Future<HostInfo> readHostInfo() async {
+    final Object? raw;
+    try {
+      raw = await _channel.invokeMethod<Object?>('readHostInfo');
+    } on MissingPluginException {
+      throw const HostContextUnavailable();
+    }
+    return HostInfo.fromChannel(raw);
+  }
+
   /// Runs the native session transaction. Side-effecting, since it may count a
   /// session, so the caller runs it at most once per runtime build
   Future<SessionPair> beginSession() async {
@@ -107,6 +120,49 @@ class HostContextChannel {
     );
     return controller.stream;
   }
+}
+
+/// The host's OS and app version strings as the platform reports them. Each is
+/// null when the platform has no value, and none is normalized here, so a
+/// targeting rule sees the platform's own string
+@immutable
+class HostInfo {
+  const HostInfo({this.osVersion, this.appVersion, this.appBuild});
+
+  /// A malformed answer is all absent rather than a failure, and a wrong-typed
+  /// entry is dropped on its own, so one bad field cannot cost the others
+  factory HostInfo.fromChannel(Object? raw) {
+    if (raw is! Map) return const HostInfo();
+    String? read(String key) {
+      final value = raw[key];
+      return value is String ? value : null;
+    }
+
+    return HostInfo(
+      osVersion: read('os_version'),
+      appVersion: read('app_version'),
+      appBuild: read('app_build'),
+    );
+  }
+
+  final String? osVersion;
+  final String? appVersion;
+  final String? appBuild;
+
+  @override
+  bool operator ==(Object other) =>
+      other is HostInfo &&
+      other.osVersion == osVersion &&
+      other.appVersion == appVersion &&
+      other.appBuild == appBuild;
+
+  @override
+  int get hashCode => Object.hash(osVersion, appVersion, appBuild);
+
+  @override
+  String toString() =>
+      'HostInfo(osVersion: $osVersion, appVersion: $appVersion, '
+      'appBuild: $appBuild)';
 }
 
 /// Debug builds only, so a release build carries no log noise
