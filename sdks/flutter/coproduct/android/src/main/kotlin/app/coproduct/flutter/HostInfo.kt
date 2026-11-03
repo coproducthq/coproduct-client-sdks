@@ -3,6 +3,7 @@ package app.coproduct.flutter
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.ChecksSdkIntAtLeast
 
 /**
  * Reads the OS version and the app's version and build number for the
@@ -17,6 +18,7 @@ internal object HostInfo {
      * which carries versionCodeMajor in its high bits. It is a function because
      * getLongVersionCode does not exist before API 28 and must not be called there
      */
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.P, parameter = 0, lambda = 1)
     fun appBuild(sdkInt: Int, longVersionCode: () -> Long, versionCode: Int): String =
         if (sdkInt >= Build.VERSION_CODES.P) {
             longVersionCode().toString()
