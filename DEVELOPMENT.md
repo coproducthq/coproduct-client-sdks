@@ -437,9 +437,9 @@ fi
 Done when that Release Please run's summary links a new Publish run. A dispatch
 can succeed on GitHub's side and still report an error, which leaves a
 duplicate Publish run queued behind the first. Cancel the duplicate. If it
-runs anyway, it finds the version already on npm and publishes nothing. It packs its own bytes, so it can stop with "npm already
-holds a different package", which is expected here and needs no bad-version
-work. A fresh run packs new bytes, so use it only for a version npm does not
+runs anyway, it finds the version already on npm and publishes nothing. It
+packs its own bytes, so it can stop with "npm already holds a different
+package", which is expected here and needs no bad-version work. A fresh run packs new bytes, so use it only for a version npm does not
 have yet. For a version already on npm, re-run the failed jobs of the run that
 published it.
 
