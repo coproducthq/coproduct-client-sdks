@@ -4,8 +4,9 @@ name: Publish Flutter
 # sealed package builds in real apps, on both supported Flutter versions, with
 # no Rust present, and loads its native library on an iOS simulator. A run
 # started by the release automation on its own release tag then publishes that
-# same package to pub.dev through GitHub OIDC, after approval, confirms pub.dev
-# serves exactly the sealed files, and finishes the GitHub release and the docs.
+# same package to pub.dev through GitHub OIDC once the checks pass, confirms
+# pub.dev serves exactly the sealed files, and finishes the GitHub release and
+# the docs.
 # Every other run only checks
 on:
   workflow_dispatch:

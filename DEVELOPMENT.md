@@ -315,8 +315,10 @@ checkout.
 
 See `RELEASING.md` for the contributor rules. The steps that follow are
 React Native's, and Flutter's come after its own heading below. A React Native release needs a
-maintainer at two points, merging the release PR and approving the npm
-deployment. CI does the rest:
+maintainer at one point, merging the release PR. That merge is the release
+decision, and no one approves the publish step afterward. The `npm` environment
+accepts deployments only from release tags, and only the release App's dispatch
+on a matching tag publishes. Every other run only checks. CI does the rest:
 
 1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
    a release PR, `chore(main): release react-native X.Y.Z`, open with the next
@@ -325,11 +327,10 @@ deployment. CI does the rest:
    tags the merge `react-native-vX.Y.Z`, creates a draft GitHub Release, and
    starts that tag's run of `.github/workflows/publish.yml`.
 3. The run builds the package once and proves that exact file builds in test
-   apps. Then its "Publish to npm" job waits.
-4. A maintainer approves the `npm` deployment on the run's page (Review
-   deployments).
-5. CI publishes the tested file to npm with provenance, publishes the GitHub
-   Release, and updates the documentation.
+   apps.
+4. Once those checks pass, its "Publish to npm" job runs. CI publishes the
+   tested file to npm with provenance, publishes the GitHub Release, and
+   updates the documentation.
 
 `scripts/release/identity/check.sh` checks the version lines on every PR.
 Publishing React Native by hand is only for an emergency, through the runbook
@@ -381,7 +382,7 @@ reads npm:
 - npm `latest` is newer than this version: it stops as stale (see the
   bad-version runbook below).
 
-A re-run that reaches "Publish to npm" waits for approval again. A failed
+A re-run that reaches "Publish to npm" publishes as soon as its checks pass. A failed
 "Release the docs" job re-runs the same way, and so does a provenance check that
 failed with "was not visible with provenance in time", because npm was only slow
 to show it. A build that failed before publishing, with the version absent from
@@ -397,8 +398,8 @@ is nothing to fix.
 
 **The run never started, or stopped before publishing.** Start a fresh Publish
 run on the tag. The release App's runs for one tag queue behind each other, so
-a fresh run waits while an older one is still live, for example one waiting on
-approval. First list the tag's live runs:
+a fresh run waits while an older one is still live, for example one still
+running its checks. First list the tag's live runs:
 
 ```bash
 if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -434,17 +435,13 @@ fi
 
 Done when that Release Please run's summary links a new Publish run. A dispatch
 can succeed on GitHub's side and still report an error, which leaves a
-duplicate Publish run queued behind the first. Cancel the duplicate, or reject
-its `npm` deployment. If it runs anyway, it finds the version already on npm and
+duplicate Publish run queued behind the first. Cancel the
+duplicate. If it runs anyway, it finds the version already on npm and
 publishes nothing. It packs its own bytes, so it can stop with "npm already
 holds a different package", which is expected here and needs no bad-version
 work. A fresh run packs new bytes, so use it only for a version npm does not
 have yet. For a version already on npm, re-run the failed jobs of the run that
 published it.
-
-**The approval expires.** A pending `npm` approval expires after 30 days, and
-the run can't be re-run after that. Approve or reject it before then. An expired
-run published nothing, so start a fresh run as above.
 
 #### The bad-version runbook
 
@@ -512,8 +509,8 @@ fi
 Done when it prints `versions OK`.
 
 1. **Fix forward.** Merge the fix in a PR titled `fix: ...`. release-please
-   moves the release PR to the next patch version. Merge it and approve the
-   run's `npm` deployment as usual. Done when
+   moves the release PR to the next patch version. Merge it and let the
+   run publish as usual. Done when
    `npm view @coproduct/react-native-sdk dist-tags.latest` prints `FIXED`'s
    version.
 2. **Deprecate the bad version.** This changes the public registry for every
@@ -601,7 +598,7 @@ does none of those.
    gh run view "$RUN" -R "$R" --json jobs -q '.jobs[] | "\(.status) \(.conclusion) \(.name)"'
    ```
    Done when every Native, Pack, iOS build, and Android build job reads
-   `completed success`, and "Publish to npm" is either waiting for approval or
+   `completed success`, and "Publish to npm" is either still running or
    reads `completed failure` and the block below allows going on. A run where
    "Publish to npm" is skipped or missing is a checks-only run, so go back to
    step 1 and use the run the Release Please summary links. Never publish from
@@ -637,8 +634,7 @@ does none of those.
    stop and find its cause.
 3. **Stop CI from publishing.** Skip this step if "Publish to npm" already
    failed, because that run publishes nothing more. Otherwise cancel the run so
-   CI can't publish alongside you. Rejecting the deployment on the run's page is
-   optional, since cancelling is enough.
+   CI can't publish alongside you.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    gh run cancel "$RUN" -R "$R"
@@ -719,8 +715,11 @@ The Flutter SDK ships prebuilt native libraries inside the pub.dev package, so a
 integrating developer needs no Rust toolchain. Producing that package is what
 this section covers. Scripts live under `scripts/release/flutter/`.
 
-A Flutter release needs a maintainer at two points, merging the release PR and
-approving the `pub.dev` deployment. CI does the rest:
+A Flutter release needs a maintainer at one point, merging the release PR. That
+merge is the release decision, and no one approves the publish step afterward.
+The `pub.dev` environment accepts deployments only from release tags, and only
+the release App's dispatch on a matching tag publishes. Every other run only
+checks. CI does the rest:
 
 1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
    a release PR, `chore(main): release flutter X.Y.Z`, open with the next
@@ -739,13 +738,11 @@ approving the `pub.dev` deployment. CI does the rest:
    `flutter-vX.Y.Z`, creates a draft GitHub Release, and starts that tag's run of
    `.github/workflows/publish-flutter.yml`, named "Publish Flutter".
 4. The run builds the package once, seals it, and proves that exact package
-   builds in test apps and loads its native library on an iOS simulator. Then its
-   "Publish to pub.dev" job waits.
-5. A maintainer approves the `pub.dev` deployment on the run's page (Review
-   deployments).
-6. CI publishes the sealed package to pub.dev through GitHub OIDC, confirms
-   pub.dev serves exactly the sealed files, publishes the GitHub Release, and
-   starts the documentation update.
+   builds in test apps and loads its native library on an iOS simulator.
+5. Once those checks pass, its "Publish to pub.dev" job runs. CI publishes the
+   sealed package to pub.dev through GitHub OIDC, confirms pub.dev serves
+   exactly the sealed files, publishes the GitHub Release, and starts the
+   documentation update.
 
 Nobody bumps a version, tags, or creates a Release by hand. Publishing Flutter by
 hand is only for an emergency, through the runbook below.
@@ -828,7 +825,7 @@ Before publishing, it reads pub.dev:
 - pub.dev already has a newer release: it stops as `stale`.
 - pub.dev holds this version retracted: it stops as `retracted`.
 
-A re-run that reaches "Publish to pub.dev" waits for approval again. A build
+A re-run that reaches "Publish to pub.dev" publishes as soon as its checks pass. A build
 that failed before publishing, with the version absent from pub.dev, retitles the
 Release "flutter: vX.Y.Z (not published)", and the next successful run restores
 the title. Done when the "Result" job passes.
@@ -839,7 +836,7 @@ The gate logs of a failed build are kept for 14 days, in the artifact
 **The run never started, or stopped before publishing.** Start a fresh Publish
 Flutter run on the tag. The release App's runs for one tag queue behind each
 other, so a fresh run waits while an older one is still live, for example one
-waiting on approval. First list the tag's live runs:
+still running its checks. First list the tag's live runs:
 
 ```bash
 if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -875,18 +872,13 @@ fi
 
 Done when that Release Please run's summary links a new Publish Flutter run. A
 dispatch can succeed on GitHub's side and still report an error, which leaves a
-duplicate run queued behind the first. Cancel the duplicate, or reject its
-`pub.dev` deployment.
+duplicate run queued behind the first. Cancel the duplicate.
 
 A fresh run rebuilds the package, and rebuilt binaries can differ byte for byte.
 A fresh run of a version already on pub.dev therefore stops at `mismatch`, which
 is expected and needs no bad-version work. Use a fresh run only for a version
 pub.dev does not have yet. For a version already on pub.dev, re-run the failed
 jobs of the run that published it.
-
-**The approval expires.** A pending `pub.dev` approval expires after 30 days, and
-the run can't be re-run after that. Approve or reject it before then. An expired
-run published nothing, so start a fresh run as above.
 
 #### The Flutter bad-version runbook
 
@@ -919,8 +911,8 @@ broken, or when a run stops with an error that points here.
 For a bad version, work through these steps in order:
 
 1. **Fix forward.** Merge the fix in a PR titled `fix: ...`. release-please moves
-   the release PR to the next patch version. Merge it and approve the run's
-   `pub.dev` deployment as usual. Done when pub.dev's version list shows the
+   the release PR to the next patch version. Merge it and let the run
+   publish as usual. Done when pub.dev's version list shows the
    fixed version as latest.
 2. **Retract the bad version, within 7 days of its publication.** This changes
    the public registry for every installer. A person decides it, an uploader of
@@ -1008,7 +1000,7 @@ fi
 Done when `git describe --tags --exact-match` prints `flutter-v` followed by the
 version. Then stop CI from publishing alongside you. List the tag's runs with the
 first block of "When a Flutter release goes wrong", and cancel each one that is
-not `completed`, so a pending `pub.dev` approval can't publish a second time.
+not `completed`, so a run still in progress can't publish a second time.
 
 **2. Check the toolchains.** Every version the release pins, in one second,
 rather than discovering a missing one part-way through a half-hour run:
@@ -1189,8 +1181,8 @@ repository still gets an
 
 | Step | Who |
 |---|---|
-| The normal path: release PR, check, merge, build, tests, publish, Release, docs | automated, except the two human steps in the next two rows |
-| Merging the release PR, and approving the `pub.dev` deployment | human |
+| The normal path: release PR, check, merge, build, tests, publish, Release, docs | automated, except the merge in the next row |
+| Merging the release PR | human |
 | Emergency steps 1 to 4: the environment, the toolchain check, the devices, the pipeline | automated once started |
 | Before the first publication: archive a clean consumer in Xcode, generate the privacy report in the Organizer, and confirm it lists the `UserDefaults` declaration from the `coproduct_privacy` bundle | human: the pipeline checks the manifest inside the release app, but Xcode generates the report only from the Organizer |
 | Before the first publication: the session check on a physical iPhone, below | human: no simulator or emulator can be put in the state before the first unlock after boot |
@@ -1314,7 +1306,7 @@ path runs by hand, split across jobs:
 - **Verify the package publish would upload** unpacks that tar exactly as the
   publish job will, checks the seal, and runs pub's dry run. It runs in every
   mode, so a checks-only run rehearses everything publish does short of uploading.
-- **Publish to pub.dev** waits for approval in the `pub.dev` environment, then
+- **Publish to pub.dev** runs in the `pub.dev` environment once the checks pass,
   reads pub.dev's state for the version and, only when the version is absent,
   publishes through GitHub OIDC. It installs Flutter alone with
   `setup-toolchains.sh --publish`, which needs no Rust, Java, or Android SDK.

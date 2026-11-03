@@ -52,5 +52,6 @@ Commit first, because the title and shared core checks read commits. Set
 React Native and Flutter versions are managed by
 [release-please](https://github.com/googleapis/release-please). Merging the
 Flutter release PR starts the `Publish Flutter` workflow, which publishes to
-pub.dev after a maintainer approves the `pub.dev` deployment. The maintainer
-steps are in `DEVELOPMENT.md`.
+pub.dev once its checks pass. The merge is the release decision, and no one
+approves the publish step afterward. The maintainer steps are in
+`DEVELOPMENT.md`.

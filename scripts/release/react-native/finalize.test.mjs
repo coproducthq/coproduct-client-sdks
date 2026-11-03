@@ -57,7 +57,7 @@ test('does nothing in checks mode', () => {
   assert.equal(act({ mode: 'checks' }), 'none');
 });
 
-test('does nothing when publish failed, as after a rejected approval', () => {
+test('does nothing when publish failed, as after a cancelled run', () => {
   assert.equal(act({ needs: needsWith({ publish: { result: 'failure' } }) }), 'none');
 });
 
