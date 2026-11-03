@@ -348,6 +348,38 @@ public enum Coproduct {
     public static func shutdown() async {
         await Instances.shared.shutdown()
     }
+
+    /// Turn on GPS geo-fence targeting. Requests OS location permission (the first
+    /// and only prompt), then starts a foreground refresh loop at the default
+    /// 2-minute cadence, publishing `device_location` so geo-fence rules evaluate
+    /// live. Opt-in: nothing happens until the host calls this. Returns whether
+    /// permission was granted. A call before initialize logs and returns false.
+    @discardableResult
+    public static func enableLocation() async -> Bool {
+        guard let monitor = Instances.shared.locationMonitor() else {
+            NSLog("[Coproduct] enableLocation called before initialize")
+            return false
+        }
+        return await monitor.enable()
+    }
+
+    /// Set the foreground refresh interval in seconds, enabling location if it was
+    /// not already. `0` takes a single fix without a repeating loop; values below a
+    /// 30-second floor are clamped. Returns whether permission was granted.
+    @discardableResult
+    public static func setLocationUpdateInterval(_ seconds: TimeInterval) async -> Bool {
+        guard let monitor = Instances.shared.locationMonitor() else {
+            NSLog("[Coproduct] setLocationUpdateInterval called before initialize")
+            return false
+        }
+        return await monitor.setInterval(seconds)
+    }
+
+    /// Read one GPS fix on demand and publish it. A no-op until location has been
+    /// enabled.
+    public static func refreshLocation() async {
+        await Instances.shared.locationMonitor()?.refreshNow()
+    }
 }
 
 public enum EvaluationHookStage: Sendable, Equatable {
@@ -512,6 +544,7 @@ final class Instances: @unchecked Sendable {
         let sdkKey: String
         let timer: HostTimer?
         let networkMonitor: NetworkMonitor?
+        let locationMonitor: LocationMonitor?
     }
 
     private var _defaultInstance: Stored?
@@ -530,6 +563,12 @@ final class Instances: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _defaultInstance?.client
+    }
+
+    func locationMonitor() -> LocationMonitor? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _defaultInstance?.locationMonitor
     }
 
     func requireDefault() -> CoproductFFI.CoproductClient {
@@ -608,8 +647,23 @@ final class Instances: @unchecked Sendable {
             }
         )
 
+        // Constructed but NOT enabled: location is opt-in. Each fix publishes
+        // device_location (so a geo-fence re-evaluates through the observer fanout)
+        // and persists for the next launch's seed. A weak capture keeps the monitor
+        // from retaining a shut-down client
+        let locationMonitor = LocationMonitor { [weak inner] lat, lng in
+            inner?.setAutoPopulated(attributes: ["device_location": .numberList([lat, lng])])
+            LocationStore().write(lat: lat, lng: lng)
+        }
+
         guard storeIfCurrent(
-            Stored(client: inner, sdkKey: sdkKey, timer: timer, networkMonitor: networkMonitor),
+            Stored(
+                client: inner,
+                sdkKey: sdkKey,
+                timer: timer,
+                networkMonitor: networkMonitor,
+                locationMonitor: locationMonitor
+            ),
             generation: claimedGeneration
         ) else {
             // A shutdown ran during the brief construct before the instance was
@@ -617,6 +671,7 @@ final class Instances: @unchecked Sendable {
             // cancellation so the caller never sees initialize succeed against a
             // torn-down SDK
             networkMonitor.cancel()
+            locationMonitor.cancel()
             await inner.shutdown()
             throw CoproductError.cancelledByShutdown
         }
@@ -689,6 +744,12 @@ final class Instances: @unchecked Sendable {
         // live network fact arrives later through NetworkMonitor
         var autoAttributes = DeviceContext.staticAttributes()
         for (key, value) in SessionStore().sessionAttributes() {
+            autoAttributes[key] = value
+        }
+        // Seed device_location from the last stored fix so a geo-fence can evaluate
+        // from the last known position at launch. Live acquisition starts only when
+        // the host enables location, never here, so no permission prompt appears
+        for (key, value) in LocationStore().locationAttributes() {
             autoAttributes[key] = value
         }
         await client.setAutoPopulatedNow(attributes: autoAttributes)
@@ -800,6 +861,7 @@ final class Instances: @unchecked Sendable {
         // closure races against the in-flight shutdown
         stored?.timer?.stop()
         stored?.networkMonitor?.cancel()
+        stored?.locationMonitor?.cancel()
         await stored?.client.shutdown()
     }
 }

@@ -23,6 +23,25 @@ jest.mock('react-native-keychain', () => ({
   setGenericPassword: jest.fn().mockResolvedValue(true),
 }));
 
+// react-native-permissions calls TurboModuleRegistry.getEnforcing('RNPermissions')
+// on import, which throws without the native binary, so stub the surface the
+// location source touches
+jest.mock('react-native-permissions', () => ({
+  PERMISSIONS: {
+    IOS: { LOCATION_WHEN_IN_USE: 'ios.permission.LOCATION_WHEN_IN_USE' },
+    ANDROID: { ACCESS_FINE_LOCATION: 'android.permission.ACCESS_FINE_LOCATION' },
+  },
+  RESULTS: {
+    UNAVAILABLE: 'unavailable',
+    DENIED: 'denied',
+    LIMITED: 'limited',
+    GRANTED: 'granted',
+    BLOCKED: 'blocked',
+  },
+  request: jest.fn().mockResolvedValue('granted'),
+  check: jest.fn().mockResolvedValue('granted'),
+}));
+
 jest.mock('../NativeCoproduct', () => ({
   __esModule: true,
   default: {

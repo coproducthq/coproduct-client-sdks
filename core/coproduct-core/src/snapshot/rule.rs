@@ -311,6 +311,9 @@ pub enum Operator {
     SemVerGte,
     SemVerLt,
     SemVerLte,
+    /// Circular geo-fence: LHS is the device `[lat, lng]` point, RHS the
+    /// `[center_lat, center_lng, radius_m]` fence
+    WithinRadius,
     IsSet,
     IsNotSet,
     #[serde(other)]

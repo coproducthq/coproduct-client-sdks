@@ -670,3 +670,30 @@ Coproduct.setContext(targetingKey: "team-123", attributes: [
     "region": .string("eu"),
 ])
 ```
+
+### **Segmentation by GPS location (geo-fencing)**
+
+Target a flag or segment by a **geo-fence**: a center latitude/longitude and a radius. The flag turns on when the device is physically inside that circle. Matching runs on-device, so the raw coordinates never leave the phone.
+
+**Author the fence in the dashboard.** Create or edit a segment, add a **Location (GPS)** condition with the **within radius of** operator, and enter the center and radius. Point your flag's targeting rule at that segment. The SDK's only job is to supply the device's position as the `device_location` attribute.
+
+**Location is opt-in.** The SDK never touches location at `initialize`: nothing is read and no permission prompt appears until you call `enableLocation()`.
+
+```swift
+// Request permission and start supplying device_location.
+// Returns whether permission was granted.
+let granted = await Coproduct.enableLocation()
+
+// Optional: refresh on a foreground interval, in seconds.
+// Default 2 minutes, 30s floor, 0 = a single fix with no repeating loop.
+await Coproduct.setLocationUpdateInterval(120)
+
+// Force a one-off refresh, for example on a "near me" screen.
+await Coproduct.refreshLocation()
+```
+
+**When the permission popup appears:** the first time you call `enableLocation()` (or `setLocationUpdateInterval()`), never at startup, and only once. `enableLocation()` calls `requestWhenInUseAuthorization()`. You must add `NSLocationWhenInUseUsageDescription` to your `Info.plist`, or iOS suppresses the prompt and permission is denied.
+
+**Inside/outside is delivered through the flag you already observe** — there is no separate geo-fence callback. When the device crosses the fence, the flag re-evaluates and your existing observation fires with the new value.
+
+**Fail-safe:** if permission is denied or location services are off, `device_location` stays unset and geo-fence rules fall through to the flag's default variation. No errors, no crash.
