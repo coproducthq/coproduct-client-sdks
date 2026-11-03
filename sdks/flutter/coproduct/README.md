@@ -868,9 +868,9 @@ plugin did not answer on the host-context or network-type channel. Either it
 is not registered on the engine that ran `initialize`, or its native side is
 older than the Dart side. One or more of `device_type`, `os_version`,
 `app_version`, `app_build`, `network_type`, `first_seen_at`, and
-`session_count` may then be absent or no longer updating. Rules that need an absent attribute to have a value do not match,
-and an `is_not_set` rule on it does. Flags otherwise evaluate normally. To fix
-it:
+`session_count` may then be absent or no longer updating. Rules that need an
+absent attribute to have a value do not match, and an `is_not_set` rule on it
+does. Flags otherwise evaluate normally. To fix it:
 
 - If you add Flutter to an existing native app, make sure plugins are
   registered on every `FlutterEngine` you create.
