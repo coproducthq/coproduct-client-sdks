@@ -20,6 +20,7 @@ RELEASE="$REPO_ROOT/scripts/release/flutter/release.sh"
 SUITE="$REPO_ROOT/scripts/release/flutter/gates/gate-suite.sh"
 NO_RUST="$REPO_ROOT/scripts/release/flutter/gates/no-rust-gate.sh"
 LIB="$REPO_ROOT/scripts/release/flutter/lib/gates.sh"
+PATH_LIB="$REPO_ROOT/scripts/release/flutter/lib/path-without-rust.sh"
 
 fail=0
 T="$(mktemp -d "${TMPDIR:-/tmp}/coproduct-gates-test.XXXXXX")"
@@ -280,6 +281,32 @@ fi
 
 echo "the no-Rust gate in build-only mode"
 
+# The sanitized PATH drops each directory that holds a Rust tool, wherever it
+# lives. The keg-style directory below has no .cargo or .rustup in its name, so
+# the name filter the gate used to rely on keeps it
+# shellcheck source=flutter/lib/path-without-rust.sh
+source "$PATH_LIB"
+SP="$T/sanitize"
+KEG="$SP/opt/rustup/bin"
+SPACED="$SP/with space/bin"
+SPACED_RUST="$SP/rust home/bin"
+mkdir -p "$KEG" "$SP/a/bin" "$SP/b/bin" "$SPACED" "$SPACED_RUST" "$SP/dirnamed/cargo"
+for d in "$SP/a/bin" "$SP/b/bin" "$SPACED"; do
+    printf '#!/bin/sh\nexit 0\n' > "$d/harmless"; chmod +x "$d/harmless"
+done
+printf '#!/bin/sh\nexit 0\n' > "$KEG/cargo"; chmod +x "$KEG/cargo"
+printf '#!/bin/sh\nexit 0\n' > "$SPACED_RUST/rustc"; chmod +x "$SPACED_RUST/rustc"
+SP_IN="$SP/a/bin:$KEG:$SPACED:$SPACED_RUST:$SP/dirnamed:$SP/b/bin:/nonexistent/dir"
+old_filter="$(printf '%s' "$SP_IN" | tr ':' '\n' | grep -v -E '\.cargo|\.rustup' | paste -sd: -)"
+if [[ "$old_filter" == *"$KEG"* ]]; then
+    ok 'the old name filter keeps a keg-style Rust directory'
+else
+    bad 'the old name filter drops the keg-style directory, so this test proves nothing'
+fi
+same_list 'only directories holding a Rust tool are dropped, in order, spaces intact' \
+    "$SP/a/bin:$SPACED:$SP/dirnamed:$SP/b/bin:/nonexistent/dir" "$(path_without_rust "$SP_IN")"
+same_list 'a PATH with no Rust passes through unchanged' "$SP/a/bin:$SP/b/bin" "$(path_without_rust "$SP/a/bin:$SP/b/bin")"
+
 # A copy of the gate in a stub tree. The gate reaches its consumer, build, and
 # acceptance scripts through its own location, so stubs at those paths are what
 # it runs. The stubs record what they saw from inside the gate's sanitized
@@ -290,6 +317,8 @@ mkdir -p "$STUB_ROOT/scripts/release/flutter/gates" \
          "$STUB_ROOT/scripts/release/flutter/stages" \
          "$STUB_ROOT/scripts/build"
 cp "$NO_RUST" "$STUB_ROOT/scripts/release/flutter/gates/no-rust-gate.sh"
+mkdir -p "$STUB_ROOT/scripts/release/flutter/lib"
+cp "$PATH_LIB" "$STUB_ROOT/scripts/release/flutter/lib/path-without-rust.sh"
 cat > "$STUB_ROOT/scripts/release/flutter/stages/consumer-from-archive.sh" <<'EOF'
 #!/bin/sh
 mkdir -p "$COPRODUCT_CONSUMER_DIR"
@@ -341,6 +370,18 @@ run_no_rust() { # record file, gate arguments...
         COPRODUCT_FLUTTER_ARCHIVE_DIR="$T/archive" \
         bash "$STUB_ROOT/scripts/release/flutter/gates/no-rust-gate.sh" "$@" 2>&1
 }
+
+REC="$T/keg.rec"
+KEG_GATE_PATH="$KEG:$FLUTTER_BIN:/usr/bin:/bin"
+SAVED_GATE_PATH="$GATE_PATH"; GATE_PATH="$KEG_GATE_PATH"
+out="$(run_no_rust "$REC" --build-only android)"; rc=$?
+GATE_PATH="$SAVED_GATE_PATH"
+if [[ $rc -eq 0 ]] && grep -q '^cargo=absent' "$REC" && ! grep -q 'still reachable' <<<"$out"; then
+    ok 'the gate hides a cargo that sits in a keg-style directory'
+else
+    bad "the gate did not hide a keg-style cargo (exit $rc)"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
 
 REC="$T/build-only.rec"
 out="$(run_no_rust "$REC" --build-only android)"; rc=$?
