@@ -15,6 +15,9 @@ import { CoproductClient } from './client';
 import { HostTimer } from './hostTimer';
 import { staticDeviceAttributes } from './deviceContext';
 import { readSessionAttributes } from './sessionStore';
+import { readLocationAttributes, writeStoredLocation } from './locationStore';
+import { LocationMonitor } from './locationMonitor';
+import { requestLocationPermission } from './locationSource';
 import { NetworkMonitor } from './networkMonitor';
 import { FetchTransport } from './defaultTransport';
 import { KeychainSecureStore } from './defaultSecureStore';
@@ -140,6 +143,7 @@ type Stored = {
   client: CoproductClient;
   timer: HostTimer;
   networkMonitor: NetworkMonitor;
+  locationMonitor: LocationMonitor;
 };
 
 let stored: Stored | null = null;
@@ -196,7 +200,55 @@ export class Coproduct {
 
     current.timer.stop();
     current.networkMonitor.stop();
+    current.locationMonitor.stop();
     await current.client.shutdown();
+  }
+
+  /**
+   * Turn on GPS geo-fence targeting. Requests OS location permission (the first
+   * and only prompt), then starts a foreground refresh loop at the default
+   * 2-minute cadence, publishing `device_location` so geo-fence rules evaluate
+   * live. Opt-in: nothing happens until the host calls this. Returns whether
+   * permission was granted. Requires `initialize` to have completed.
+   */
+  static async enableLocation(): Promise<boolean> {
+    const current = stored;
+    if (!current) {
+      console.warn('[coproduct] enableLocation called before initialize');
+      return false;
+    }
+    const granted = await requestLocationPermission();
+    if (!granted) return false;
+    current.locationMonitor.enable();
+    return true;
+  }
+
+  /**
+   * Set the foreground refresh interval in milliseconds, enabling location if it
+   * was not already. `0` takes a single fix without a repeating loop; values
+   * below a 30-second floor are clamped. Returns whether permission was granted.
+   */
+  static async setLocationUpdateInterval(ms: number): Promise<boolean> {
+    const current = stored;
+    if (!current) {
+      console.warn('[coproduct] setLocationUpdateInterval called before initialize');
+      return false;
+    }
+    const granted = await requestLocationPermission();
+    if (!granted) return false;
+    current.locationMonitor.setIntervalMs(ms);
+    return true;
+  }
+
+  /**
+   * Read one GPS fix on demand and publish it. A no-op until location has been
+   * enabled. Useful when the host wants a fresh position at a specific moment,
+   * such as a screen the user just opened.
+   */
+  static async refreshLocation(): Promise<void> {
+    const current = stored;
+    if (!current) return;
+    await current.locationMonitor.refreshNow();
   }
 }
 
@@ -236,9 +288,14 @@ async function runInitialize(
   const client = new CoproductClient(nativeClient);
 
   const sessionAttributes = await readSessionAttributes();
+  // A stored fix seeds device_location so a geo-fence can evaluate from the last
+  // known position at launch. Live acquisition starts only when the host enables
+  // location, never at initialize, so no permission prompt appears here.
+  const locationAttributes = await readLocationAttributes();
   await client.setAutoPopulatedAttributes({
     ...staticDeviceAttributes(),
     ...sessionAttributes,
+    ...locationAttributes,
   });
 
   const timer = new HostTimer({
@@ -255,6 +312,20 @@ async function runInitialize(
       });
   });
 
+  // Constructed but NOT enabled: location is opt-in. Each fix publishes
+  // device_location (so a geo-fence re-evaluates through the observer fanout) and
+  // persists for the next launch's seed.
+  const locationMonitor = new LocationMonitor({
+    onFix: ([lat, lng]) => {
+      client
+        .setAutoPopulatedAttributes({ device_location: [lat, lng] })
+        .catch((error) => {
+          console.error('[coproduct] failed to publish device_location', error);
+        });
+      writeStoredLocation(lat, lng).catch(() => {});
+    },
+  });
+
   // A shutdown that ran during the construct above must not resurrect this
   // instance: tear the orphan down and report the cancellation so the caller
   // never sees initialize succeed against a torn-down SDK.
@@ -263,7 +334,7 @@ async function runInitialize(
     throw new CoproductCancelledError();
   }
 
-  stored = { sdkKey, client, timer, networkMonitor };
+  stored = { sdkKey, client, timer, networkMonitor, locationMonitor };
   timer.start();
   networkMonitor.start();
 

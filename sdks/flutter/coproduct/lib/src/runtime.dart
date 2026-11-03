@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'http_transport.dart';
+import 'location_service.dart';
 import 'network_type.dart';
 import 'scheduler.dart';
 
@@ -17,6 +18,7 @@ class CoproductRuntime {
     required Future<void> Function() coreShutdown,
     void Function()? disposeForeground,
     NetworkTypeService? networkType,
+    LocationService? locationService,
     void Function(Object error, StackTrace stack)? onError,
   }) : // ignore: prefer_initializing_formals
        _coreShutdown = coreShutdown,
@@ -24,6 +26,8 @@ class CoproductRuntime {
        _disposeForeground = disposeForeground,
        // ignore: prefer_initializing_formals
        _networkType = networkType,
+       // ignore: prefer_initializing_formals
+       locationService = locationService,
        // ignore: prefer_initializing_formals
        _onError = onError;
 
@@ -33,6 +37,12 @@ class CoproductRuntime {
   final Future<void> Function() _coreShutdown;
   final void Function()? _disposeForeground;
   final NetworkTypeService? _networkType;
+
+  /// Opt-in GPS geo-fence location. Held, not started: it stays off until the
+  /// host calls [LocationService.enable] through the public API. Closed on
+  /// shutdown. Public so the host can forward enable/interval/refresh to it
+  final LocationService? locationService;
+
   final void Function(Object error, StackTrace stack)? _onError;
   Future<void>? _shutdown;
 
@@ -86,6 +96,7 @@ class CoproductRuntime {
         // Closed with the foreground listener, so a resume during teardown
         // cannot start a new listen
         _networkType?.close();
+        locationService?.close();
       } finally {
         scheduler.stop();
         try {

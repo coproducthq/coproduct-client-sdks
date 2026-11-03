@@ -465,6 +465,24 @@ final class Coproduct {
   /// so replace any client you stored. Most apps call this only at final
   /// teardown, if at all
   static Future<void> shutdown() => _host.shutdown();
+
+  /// Turn on GPS geo-fence targeting. Requests OS location permission (the first
+  /// and only prompt), then starts a foreground refresh loop at the default
+  /// 2-minute cadence, publishing `device_location` so geo-fence rules evaluate
+  /// live. Opt-in: nothing happens until you call this. Returns whether
+  /// permission was granted. Returns false before [initialize] or after
+  /// [shutdown].
+  static Future<bool> enableLocation() => _host.enableLocation();
+
+  /// Set the foreground refresh interval in milliseconds, enabling location if it
+  /// was not already. `0` takes a single fix without a repeating loop; values
+  /// below a 30-second floor are clamped. Returns whether permission was granted.
+  static Future<bool> setLocationUpdateInterval(int milliseconds) =>
+      _host.setLocationUpdateInterval(milliseconds);
+
+  /// Read one GPS fix on demand and publish it. A no-op until location has been
+  /// enabled.
+  static Future<void> refreshLocation() => _host.refreshLocation();
 }
 
 void _reportError(Object error, StackTrace stack) {
