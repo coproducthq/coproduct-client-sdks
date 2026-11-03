@@ -1,4 +1,5 @@
 import 'package:coproduct/paywall.dart';
+import 'package:coproduct/src/paywall/snapshot_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 PaywallSnapshot snap(String id) => PaywallSnapshot(
