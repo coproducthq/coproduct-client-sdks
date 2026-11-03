@@ -116,7 +116,6 @@ class GeofenceTestApp extends StatefulWidget {
 }
 
 class _GeofenceTestAppState extends State<GeofenceTestApp> {
-  CoproductClient? _client;
   bool _inside = false;
   bool _ready = false;
   bool _locationEnabled = false;
@@ -130,7 +129,6 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
 
   String _status = 'starting';
   String _posText = '?';
-  bool _cacheCheck = false;
 
   void _log(String m) {
     debugPrint('GEOTEST: $m');
@@ -155,11 +153,11 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
         'initialized; flag before location = '
         '${client.getBool(_flagKey, defaultValue: false)}',
       );
-      if (mounted)
+      if (mounted) {
         setState(() {
-          _client = client;
           _ready = true;
         });
+      }
       _log('enabling location');
       final granted = await Coproduct.enableLocation();
       _log('enableLocation returned $granted');
@@ -186,12 +184,12 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
         debugPrint(
           'GEOTEST: near_store=$value loc_set=$locSet cache_check=$cacheCheck pos=$pos',
         );
-        if (mounted)
+        if (mounted) {
           setState(() {
             _inside = value;
             _posText = pos;
-            _cacheCheck = cacheCheck;
           });
+        }
       });
     } catch (e, st) {
       _log('ERROR: $e');
