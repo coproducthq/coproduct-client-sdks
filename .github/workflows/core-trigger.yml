@@ -1,0 +1,94 @@
+name: Core release trigger
+
+# On a PR from a branch in this repository that changes the shared Rust core
+# and has a releasing title, commits the CORE_RELEASE_TRIGGER files the PR is
+# missing, pushes that commit to the PR branch, and tells the author to pull.
+# It runs on pull_request_target because the push needs an App token, and the
+# secrets that mint it never reach a run for a fork PR. It never runs code
+# from the PR: the PR is checked out only as data under pr/, every script runs
+# from the trusted checkout of main, and the App token exists only in the push
+# step
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# cancel-in-progress is false so the bot's own push never cancels the run that
+# pushed, before it comments. GitHub keeps one pending run per group and
+# replaces older pending ones
+concurrency:
+  group: core-trigger-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    name: Update core release triggers
+    # Fork PRs skip the job, and the "Shared core release" check still tells
+    # their authors how to fix it
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.state == 'open' && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    # deployment: false uses the environment's secrets and branch policy
+    # without adding a deployment to the PR timeline
+    environment:
+      name: sdk-core-trigger
+      deployment: false
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: pr
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      # github.sha on pull_request_target is main's tip when the event fired.
+      # pr-base.sh gives the "Shared core release" check the tip the merge ref
+      # was built on. These can differ, but the three-dot diff in --check makes
+      # the results equivalent. If main changed the same trigger since the
+      # branch point, the bot's commit conflicts on that file. Resolving the
+      # conflict in the PR lets the next run repair the trigger
+      - id: prepare
+        name: Decide and commit missing core release triggers
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+          GIT_AUTHOR_NAME: coproduct-sdk-core-trigger[bot]
+          GIT_AUTHOR_EMAIL: 351820835+coproduct-sdk-core-trigger[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: coproduct-sdk-core-trigger[bot]
+          GIT_COMMITTER_EMAIL: 351820835+coproduct-sdk-core-trigger[bot]@users.noreply.github.com
+        run: trusted/scripts/release/core-trigger.sh prepare pr "$BASE_SHA" "$HEAD_SHA" "$TITLE"
+      - id: token
+        if: steps.prepare.outputs.commit == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.SDK_CORE_TRIGGER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SDK_CORE_TRIGGER_APP_KEY }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+      # The App token, unlike GITHUB_TOKEN, starts the PR checks on the pushed
+      # commit
+      - id: push
+        name: Push the trigger commit
+        if: steps.prepare.outputs.commit == 'true'
+        shell: bash
+        env:
+          APP_TOKEN: ${{ steps.token.outputs.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: trusted/scripts/release/core-trigger.sh push pr "$HEAD_SHA" "$BRANCH"
+      - name: Tell the author to pull
+        if: steps.push.outputs.pushed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: trusted/scripts/release/core-trigger-comment.sh "$GITHUB_REPOSITORY" "$PR_NUMBER"

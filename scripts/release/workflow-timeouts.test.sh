@@ -4,7 +4,7 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 fails=0
-for wf in .github/workflows/publish.yml .github/workflows/publish-flutter.yml .github/workflows/release-please.yml; do
+for wf in .github/workflows/publish.yml .github/workflows/publish-flutter.yml .github/workflows/release-please.yml .github/workflows/core-trigger.yml; do
   if ! missing=$(ruby -ryaml -e '
     wf = YAML.load_file(ARGV[0])
     puts wf["jobs"].reject { |_, j| j.key?("timeout-minutes") }.keys
@@ -427,8 +427,8 @@ fi
 
 # Only these secrets exist for the release workflows, so any other name reads
 # as empty and fails at run time instead of here
-allowed=' RELEASE_APP_CLIENT_ID RELEASE_APP_KEY DISPATCH_APP_CLIENT_ID DISPATCH_APP_KEY GITHUB_TOKEN '
-for f in .github/workflows/publish.yml .github/workflows/publish-flutter.yml .github/workflows/release-please.yml; do
+allowed=' RELEASE_APP_CLIENT_ID RELEASE_APP_KEY DISPATCH_APP_CLIENT_ID DISPATCH_APP_KEY SDK_CORE_TRIGGER_APP_CLIENT_ID SDK_CORE_TRIGGER_APP_KEY GITHUB_TOKEN '
+for f in .github/workflows/publish.yml .github/workflows/publish-flutter.yml .github/workflows/release-please.yml .github/workflows/core-trigger.yml; do
   if [ ! -f "$f" ]; then
     echo "FAIL $f: does not exist"; fails=$((fails + 1)); continue
   fi
@@ -561,6 +561,157 @@ elif [ -z "$rpout" ]; then
   echo "ok   $rp: release-please is pinned and dispatches each publish workflow on its tag ref"
 else
   while IFS= read -r line; do echo "FAIL $rp: $line"; done <<< "$rpout"
+  fails=$((fails + 1))
+fi
+
+# The core trigger bot runs on pull_request_target with secrets in reach, so
+# PR code never runs, the App token reaches only the push, and every
+# expression reaches a shell only through env
+cf=.github/workflows/core-trigger.yml
+if [ ! -f "$cf" ]; then
+  echo "FAIL $cf: does not exist"; fails=$((fails + 1))
+elif ! ctout=$(ruby -ryaml -e '
+  wf = YAML.load_file(ARGV[0])
+  raw = File.read(ARGV[0])
+  q = "\x27"
+  problems = []
+  # Psych reads a bare on: key as true
+  on = wf["on"] || wf[true] || {}
+  if on.is_a?(Hash) && on.keys == ["pull_request_target"]
+    prt = on["pull_request_target"] || {}
+    problems << "pull_request_target types are not opened, synchronize, reopened, and edited: #{prt["types"].inspect}" unless prt["types"] == %w[opened synchronize reopened edited]
+    problems << "pull_request_target branches are not main only: #{prt["branches"].inspect}" unless prt["branches"] == ["main"]
+  else
+    problems << "on is not exactly pull_request_target: #{on.inspect}"
+  end
+  want_perms = { "contents" => "read", "pull-requests" => "write" }
+  problems << "top-level permissions are not exactly #{want_perms.inspect}: #{wf["permissions"].inspect}" unless wf["permissions"] == want_perms
+  # The bot push fires synchronize while its own run is going, and canceling
+  # that run would lose the comment
+  want_conc = { "group" => "core-trigger-${{ github.event.pull_request.number }}", "cancel-in-progress" => false }
+  problems << "concurrency is not exactly #{want_conc.inspect}: #{wf["concurrency"].inspect}" unless wf["concurrency"] == want_conc
+  jobs = wf["jobs"] || {}
+  problems << "the jobs are not exactly trigger: #{jobs.keys.inspect}" unless jobs.keys == ["trigger"]
+  job = jobs["trigger"] || {}
+  want_if = "github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.state == #{q}open#{q} && github.event.pull_request.user.login != #{q}dependabot[bot]#{q}"
+  problems << "the trigger job if is not exactly #{want_if}: #{job["if"]}" unless job["if"].to_s.strip == want_if
+  want_env = { "name" => "sdk-core-trigger", "deployment" => false }
+  problems << "the trigger job environment is not exactly #{want_env.inspect}: #{job["environment"].inspect}" unless job["environment"] == want_env
+  steps = job["steps"] || []
+  label = ->(s) { s["name"] || s["id"] || s["uses"] || s["run"].to_s.lines.first.to_s.strip }
+
+  # Checkouts never leave a credential in either tree
+  checkouts = steps.select { |s| s["uses"].to_s.start_with?("actions/checkout@") }
+  problems << "there are not exactly two checkouts: #{checkouts.length}" unless checkouts.length == 2
+  checkouts.each do |s|
+    problems << "a checkout does not set persist-credentials: false: #{(s["with"] || {})["path"]}" unless (s["with"] || {})["persist-credentials"] == false
+  end
+  trusted = checkouts.find { |s| (s["with"] || {})["path"] == "trusted" }
+  if trusted.nil?
+    problems << "no checkout has path: trusted"
+  elsif (trusted["with"] || {}).key?("ref")
+    problems << "the trusted checkout sets a ref: #{trusted["with"]["ref"]}"
+  end
+  pr = checkouts.find { |s| (s["with"] || {})["path"] == "pr" }
+  if pr.nil?
+    problems << "no checkout has path: pr"
+  else
+    problems << "the pr checkout ref is not the PR head sha: #{pr["with"]["ref"]}" unless pr["with"]["ref"] == "${{ github.event.pull_request.head.sha }}"
+    problems << "the pr checkout does not set fetch-depth: 0" unless pr["with"]["fetch-depth"] == 0
+  end
+
+  tokens = steps.select { |s| s["uses"].to_s.start_with?("actions/create-github-app-token@") }
+  problems << "there is not exactly one App token step: #{tokens.length}" unless tokens.length == 1
+  commit_if = "steps.prepare.outputs.commit == #{q}true#{q}"
+  tokens.each do |s|
+    w = s["with"] || {}
+    problems << "the App token step id is not token: #{s["id"]}" unless s["id"] == "token"
+    problems << "the App token step if is not exactly #{commit_if}: #{s["if"]}" unless s["if"].to_s.strip == commit_if
+    perms = w.select { |k, _| k.start_with?("permission-") }
+    problems << "the App token permissions are not exactly {\"permission-contents\"=>\"write\"}: #{perms.inspect}" unless perms == { "permission-contents" => "write" }
+    problems << "the App token repositories is not this repository: #{w["repositories"]}" unless w["repositories"] == "${{ github.event.repository.name }}"
+    problems << "the App token client-id is not SDK_CORE_TRIGGER_APP_CLIENT_ID: #{w["client-id"]}" unless w["client-id"] == "${{ secrets.SDK_CORE_TRIGGER_APP_CLIENT_ID }}"
+    problems << "the App token private-key is not SDK_CORE_TRIGGER_APP_KEY: #{w["private-key"]}" unless w["private-key"] == "${{ secrets.SDK_CORE_TRIGGER_APP_KEY }}"
+  end
+
+  kind = lambda do |s|
+    if s["uses"].to_s.start_with?("actions/checkout@") then "checkout"
+    elsif s["id"] == "prepare" then "prepare"
+    elsif s["id"] == "token" then "token"
+    elsif s["id"] == "push" then "push"
+    elsif s["run"].to_s.include?("core-trigger-comment.sh") then "comment"
+    else "other: #{label.(s)}"
+    end
+  end
+  order = steps.map(&kind)
+  want_order = %w[checkout checkout prepare token push comment]
+  problems << "the steps are not in the order #{want_order.join(", ")}: #{order.join(", ")}" unless order == want_order
+
+  # Nothing that reads PR data holds the App token
+  steps.each do |s|
+    next if s["id"] == "push"
+    problems << "a step other than push uses the App token: #{label.(s)}" if s.to_s.include?("steps.token.outputs.token")
+  end
+  token_at = steps.index { |s| s["id"] == "token" } || steps.length
+  steps[0...token_at].each do |s|
+    ((s["env"] || {}).merge(s["with"] || {})).each do |k, v|
+      problems << "#{label.(s)} before the App token step reads a token or secret in #{k}" if v.to_s =~ /token/i || v.to_s.include?("secrets.")
+    end
+  end
+  push = steps.find { |s| s["id"] == "push" }
+  if push.nil?
+    problems << "no step has id: push"
+  else
+    problems << "the push step if is not exactly #{commit_if}: #{push["if"]}" unless push["if"].to_s.strip == commit_if
+  end
+
+  prepare = steps.find { |s| s["id"] == "prepare" }
+  if prepare.nil?
+    problems << "no step has id: prepare"
+  else
+    penv = prepare["env"] || {}
+    %w[GIT_AUTHOR_NAME GIT_COMMITTER_NAME].each do |k|
+      problems << "prepare #{k} is not coproduct-sdk-core-trigger[bot]: #{penv[k]}" unless penv[k] == "coproduct-sdk-core-trigger[bot]"
+    end
+    %w[GIT_AUTHOR_EMAIL GIT_COMMITTER_EMAIL].each do |k|
+      problems << "prepare #{k} is not the bot noreply address: #{penv[k]}" unless penv[k].to_s =~ /\A\d+\+coproduct-sdk-core-trigger\[bot\]@users\.noreply\.github\.com\z/
+    end
+  end
+
+  pins = [
+    "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1",
+    "actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0",
+  ]
+  uses_lines = raw.lines.map(&:strip).select { |l| l =~ /\A(- )?uses:/ }.map { |l| l.sub(/\A(- )?uses:\s*/, "") }
+  uses_lines.each { |u| problems << "uses is not one of the pinned actions: #{u}" unless pins.include?(u) }
+  problems << "the uses lines do not match the parsed steps" unless uses_lines.length == steps.count { |s| s.key?("uses") }
+
+  # Every script is the trusted checkout, run under bash from the job root
+  problems << "the job sets defaults" if job.key?("defaults") || wf.key?("defaults")
+  steps.each do |s|
+    problems << "#{label.(s)} sets working-directory" if s.key?("working-directory")
+    next unless s.key?("run")
+    run = s["run"].to_s
+    problems << "a run script contains ${{ }}: #{label.(s)}" if run.include?("${{")
+    problems << "#{label.(s)} has no shell: bash" unless s["shell"] == "bash"
+    problems << "#{label.(s)} does not run a script from trusted/scripts/release/" unless run.include?("trusted/scripts/release/")
+  end
+
+  comment = steps.find { |s| s["run"].to_s.include?("core-trigger-comment.sh") }
+  if comment.nil?
+    problems << "no step runs core-trigger-comment.sh"
+  else
+    want = "steps.push.outputs.pushed == #{q}true#{q}"
+    problems << "the comment step if is not exactly #{want}: #{comment["if"]}" unless comment["if"].to_s.strip == want
+    problems << "the comment step GH_TOKEN is not github.token: #{(comment["env"] || {})["GH_TOKEN"]}" unless (comment["env"] || {})["GH_TOKEN"] == "${{ github.token }}"
+  end
+  puts problems
+' "$cf" 2>&1); then
+  echo "FAIL $cf: could not parse: $ctout"; fails=$((fails + 1))
+elif [ -z "$ctout" ]; then
+  echo "ok   $cf: runs no PR code, scopes the App token to the push, and comments only after a push"
+else
+  while IFS= read -r line; do echo "FAIL $cf: $line"; done <<< "$ctout"
   fails=$((fails + 1))
 fi
 
