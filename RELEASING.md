@@ -20,14 +20,32 @@ commits merged to `main`, so nobody edits them by hand.
    A README fix that should reach the published documentation uses `fix:`,
    because documentation is published with each release.
 
+   A `feat` or `fix` title becomes a public release note on pub.dev, npm, and
+   the GitHub release, so write it for developers who use the SDK. Name the
+   public API or the visible behavior and what it does for them, and leave out
+   internal details such as FFI, caches, and internal module names, and other
+   SDKs' names.
+
+   | Title | Verdict |
+   |---|---|
+   | `feat: add getStringList and getNumberList to read list flags` | good |
+   | `feat: typed list flag getters across the FFI` | bad |
+
 2. **If you changed the shared Rust core,** meaning `core/`, `ffi/`,
-   `Cargo.toml`, `Cargo.lock`, or `rust-toolchain.toml`, run:
+   `Cargo.toml`, `Cargo.lock`, or `rust-toolchain.toml`, the SDKs that ship the
+   change need a `CORE_RELEASE_TRIGGER` file. For a pull request from a branch
+   in this repository, the "Core release trigger" workflow writes and commits
+   those files when a releasing title needs them. After it commits, run
+   `git pull --rebase` before pushing again.
+
+   A pull request from a fork runs the script itself:
 
    ```bash
    scripts/release/core-changed.sh
    ```
 
-   and commit the files it writes. They mark which SDKs ship the change.
+   and commits the files it writes. They mark which SDKs ship the change. The
+   "Shared core release" check says when this is needed.
 
 The PR checks run on every pull request. Each failure states what to fix.
 

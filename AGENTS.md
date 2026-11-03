@@ -259,10 +259,21 @@ Contributors need two things:
    becomes the commit message, and it decides the version bump: `fix` gives a
    patch, `feat` a minor, and `!` after the type or scope a major. `refactor`,
    `test`, `chore`, `docs`, `build`, `ci`, and `style` release nothing. A README
-   fix that must reach the published docs uses `fix:`.
+   fix that must reach the published docs uses `fix:`. A `feat` or `fix` title
+   becomes a public release note on pub.dev, npm, and the GitHub release, so
+   write it for developers who use the SDK. Name the public API or the visible
+   behavior and what it does for them, and leave out internal details such as
+   FFI, caches, and internal module names, and other SDKs' names. Good:
+   `feat: add getStringList and getNumberList to read list flags`. Bad:
+   `feat: typed list flag getters across the FFI`.
 2. If you changed `core/`, `ffi/`, `Cargo.toml`, `Cargo.lock`, or
-   `rust-toolchain.toml`, run `scripts/release/core-changed.sh` and commit
-   what it writes. The PR checks say when it is needed.
+   `rust-toolchain.toml`, the SDKs that ship the change need a
+   `CORE_RELEASE_TRIGGER` file. For a PR from a branch in this repository, the
+   "Core release trigger" workflow writes and commits those files when a
+   releasing title needs them. A PR from a fork runs
+   `scripts/release/core-changed.sh` and commits what it writes, and the "Shared
+   core release" check says when. After the workflow commits, run
+   `git pull --rebase` before pushing again.
 
 Never:
 

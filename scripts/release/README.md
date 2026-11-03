@@ -10,6 +10,8 @@ contributor guide.
 | `pr-title.sh` | Checks a PR title against Conventional Commits |
 | `identity/check.sh` | Checks that every version line release-please manages equals the manifest, and that only release PRs move it |
 | `core-changed.sh` | Writes `CORE_RELEASE_TRIGGER` into the SDKs a shared core change affects, and checks it on PRs |
+| `core-trigger.sh` | Decides, commits, and pushes missing core release triggers on a PR branch from this repository, for the Core release trigger workflow |
+| `core-trigger-comment.sh` | Posts that workflow's one-time comment asking the author to pull |
 | `release-config-check.sh` | Dry-runs release-please against a pushed branch and checks what a release PR would update |
 | `ci-report.sh`, `checks-result.sh` | Job summaries for the PR checks, and the "All checks passed" decision |
 | `flutter/` | The Flutter SDK's release pipeline |
