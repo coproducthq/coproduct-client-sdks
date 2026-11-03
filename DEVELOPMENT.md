@@ -437,8 +437,7 @@ fi
 Done when that Release Please run's summary links a new Publish run. A dispatch
 can succeed on GitHub's side and still report an error, which leaves a
 duplicate Publish run queued behind the first. Cancel the duplicate. If it
-runs anyway, it finds the version already on npm and
-publishes nothing. It packs its own bytes, so it can stop with "npm already
+runs anyway, it finds the version already on npm and publishes nothing. It packs its own bytes, so it can stop with "npm already
 holds a different package", which is expected here and needs no bad-version
 work. A fresh run packs new bytes, so use it only for a version npm does not
 have yet. For a version already on npm, re-run the failed jobs of the run that
@@ -636,8 +635,8 @@ does none of those.
    stop and find its cause.
 3. **Stop CI from publishing.** Skip this step if the run has completed, because
    a run whose "Publish to npm" failed publishes nothing more. Otherwise a later
-   job of the run is still queued, so cancel the run so CI can't publish
-   alongside you.
+   job of the run is still queued or running, so cancel the run so CI can't
+   publish alongside you.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    gh run cancel "$RUN" -R "$R"
@@ -829,8 +828,9 @@ Before publishing, it reads pub.dev:
 
 A re-run that reaches "Publish to pub.dev" runs without waiting for anyone, and
 publishes only when the version is absent from pub.dev. A build that failed
-before publishing, with the version absent from pub.dev, retitles the Release "flutter: vX.Y.Z (not published)", and the next successful run restores
-the title. Done when the "Result" job passes.
+before publishing, with the version absent from pub.dev, retitles the Release
+"flutter: vX.Y.Z (not published)", and the next successful run restores the
+title. Done when the "Result" job passes.
 
 The gate logs of a failed build are kept for 14 days, in the artifact
 `flutter-gate-logs-attempt-<N>`.
@@ -849,8 +849,23 @@ else
 fi
 ```
 
-Cancel each ID it prints, replacing `REPLACE_ME` with it, and rerun the list
-until it prints nothing:
+Check each ID it prints before cancelling it, because a run may be publishing.
+Replace `REPLACE_ME` with the ID:
+
+```bash
+RUN_ID=REPLACE_ME
+if [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  gh run view "$RUN_ID" -R "$R" --json jobs -q '.jobs[] | select(.name == "Publish to pub.dev") | "\(.status) \(.conclusion)"'
+else
+  echo "Replace REPLACE_ME with the run ID"; false
+fi
+```
+
+If it prints `in_progress`, wait and rerun the block until the job completes.
+A run whose job reads `completed success` already published, so leave it. Cancel
+a run only when the block prints nothing or `queued`, or when the job reads
+`completed failure`. Replace `REPLACE_ME` with the ID, and rerun the list until
+it prints nothing:
 
 ```bash
 RUN_ID=REPLACE_ME
@@ -1001,8 +1016,11 @@ fi
 
 Done when `git describe --tags --exact-match` prints `flutter-v` followed by the
 version. Then stop CI from publishing alongside you. List the tag's runs with the
-first block of "When a Flutter release goes wrong", and cancel each one that is
-not `completed`, so a run still in progress can't publish a second time.
+first block of "When a Flutter release goes wrong", and check each one's
+"Publish to pub.dev" job with the next block there. Wait for a run whose job is
+`in_progress` until it completes, and go on only if it ends `completed failure`,
+because cancelling a publish in progress could interrupt it. Cancel only the
+runs whose job has not started, so none of them can publish a second time.
 
 **2. Check the toolchains.** Every version the release pins, in one second,
 rather than discovering a missing one part-way through a half-hour run:
