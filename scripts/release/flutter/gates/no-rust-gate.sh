@@ -14,6 +14,11 @@
 # known Flutter. The version is read in the same sanitized environment the gate
 # runs in, so it is the flutter the gate itself would find
 #
+# The sanitized PATH drops every directory that holds an executable cargo,
+# rustc, or rustup, wherever Rust was installed, because a Homebrew keg or a
+# symlinked install lives under no name that a pattern could match. The probes
+# below stay as the final guard
+#
 # Each tool is probed separately: `command -v cargo rustc rustup` exits zero when
 # any one of them resolves, so a combined test passes on a machine that has Rust.
 # The lookup runs inside an explicit shell because `command` is a builtin and
@@ -67,7 +72,9 @@ restore_acceptance_packages() {
 }
 trap restore_acceptance_packages EXIT
 
-SANITIZED_PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -v -E '\.cargo|\.rustup' | paste -sd: -)"
+# shellcheck source=../lib/path-without-rust.sh
+source "$REPO_ROOT/scripts/release/flutter/lib/path-without-rust.sh"
+SANITIZED_PATH="$(path_without_rust "$PATH")"
 
 MODE=acceptance
 [[ "$BUILD_ONLY" -eq 1 ]] && MODE=build-only
