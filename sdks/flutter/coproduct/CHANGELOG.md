@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.2.0...flutter-v1.3.0) (2026-11-03)
+
+
+### Features
+
+* ergonomic setEvaluationListener across all SDK platforms ([#45](https://github.com/coproducthq/coproduct-client-sdks/issues/45)) ([4e6afc8](https://github.com/coproducthq/coproduct-client-sdks/commit/4e6afc87123eb11b2023598fe02612a7deb128c0))
+* **flutter-paywall:** add Android Google Play Billing support ([#37](https://github.com/coproducthq/coproduct-client-sdks/issues/37)) ([867838a](https://github.com/coproducthq/coproduct-client-sdks/commit/867838a4eed4802c7a3e9a347629c3341fbf2a21))
+* **geofence:** on-device GPS geo-fence targeting across all SDKs ([#47](https://github.com/coproducthq/coproduct-client-sdks/issues/47)) ([7c6e55a](https://github.com/coproducthq/coproduct-client-sdks/commit/7c6e55a8412ca968a538c60da93cdfdec0503a1e))
+* number[] user-context attributes across the FFI (iOS, Android, RN, Flutter) ([#44](https://github.com/coproducthq/coproduct-client-sdks/issues/44)) ([4da8983](https://github.com/coproducthq/coproduct-client-sdks/commit/4da8983a3cb0713256415a46399d1cb879346d64))
+* **paywall:** snapshot freshness cache + native webview reveal-gating across all SDKs ([#40](https://github.com/coproducthq/coproduct-client-sdks/issues/40)) ([e8b6f3a](https://github.com/coproducthq/coproduct-client-sdks/commit/e8b6f3a5bf1e6d9e0cd85599f6414458f9f7f98b))
+* typed list flag getters (getStringList / getNumberList) across all SDKs ([#46](https://github.com/coproducthq/coproduct-client-sdks/issues/46)) ([3841059](https://github.com/coproducthq/coproduct-client-sdks/commit/3841059cf7f21dd62dd14cac89b031c3b06709f7))
+
+
+### Bug Fixes
+
+* **flutter:** export list flag values and correct evaluation docs ([#57](https://github.com/coproducthq/coproduct-client-sdks/issues/57)) ([c7c572c](https://github.com/coproducthq/coproduct-client-sdks/commit/c7c572c4cc0d7d35cc16e674b161ada10355a673))
+* **flutter:** stop requiring device_info_plus and package_info_plus ([#51](https://github.com/coproducthq/coproduct-client-sdks/issues/51)) ([e0ed16c](https://github.com/coproducthq/coproduct-client-sdks/commit/e0ed16ca9f829875c019e64a95b8bfce7d2728d6))
+* **flutter:** widen geolocator dependency range to allow v14 ([#56](https://github.com/coproducthq/coproduct-client-sdks/issues/56)) ([15a0d15](https://github.com/coproducthq/coproduct-client-sdks/commit/15a0d15fe69276f65d589f9ce1885a9a504410a8))
+* **paywall:** remove white-flash on load with reveal-gating and prefetch ([#38](https://github.com/coproducthq/coproduct-client-sdks/issues/38)) ([20ffca5](https://github.com/coproducthq/coproduct-client-sdks/commit/20ffca50b0f9f7a7627c8c97ac19781a32ff4a7d))
+
 ## 1.2.0 - 2026-10-21
 
 The iOS native library now ships as a dynamic framework,
