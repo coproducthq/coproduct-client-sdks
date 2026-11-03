@@ -19,6 +19,7 @@ export function assertDryRun(output, config, manifestPath) {
     if (!new RegExp(`^title: .*release ${sdk} `, 'm').test(output)) continue;
     const expected = [join(path, 'CHANGELOG.md'), manifestPath];
     if (pkg['release-type'] === 'node') expected.push(join(path, 'package.json'));
+    if (pkg['release-type'] === 'dart') expected.push(join(path, 'pubspec.yaml'));
     for (const extra of pkg['extra-files'] ?? []) {
       expected.push(join(path, typeof extra === 'string' ? extra : extra.path));
     }

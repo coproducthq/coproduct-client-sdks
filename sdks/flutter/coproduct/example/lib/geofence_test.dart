@@ -116,7 +116,6 @@ class GeofenceTestApp extends StatefulWidget {
 }
 
 class _GeofenceTestAppState extends State<GeofenceTestApp> {
-  CoproductClient? _client;
   bool _inside = false;
   bool _ready = false;
   bool _locationEnabled = false;
@@ -130,7 +129,6 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
 
   String _status = 'starting';
   String _posText = '?';
-  bool _cacheCheck = false;
 
   void _log(String m) {
     debugPrint('GEOTEST: $m');
@@ -151,12 +149,15 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
           startupTimeout: const Duration(seconds: 2),
         ),
       );
-      _log('initialized; flag before location = '
-          '${client.getBool(_flagKey, defaultValue: false)}');
-      if (mounted) setState(() {
-        _client = client;
-        _ready = true;
-      });
+      _log(
+        'initialized; flag before location = '
+        '${client.getBool(_flagKey, defaultValue: false)}',
+      );
+      if (mounted) {
+        setState(() {
+          _ready = true;
+        });
+      }
       _log('enabling location');
       final granted = await Coproduct.enableLocation();
       _log('enableLocation returned $granted');
@@ -169,20 +170,26 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
         String pos = '?';
         try {
           final p = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.low,
+            ),
           );
-          pos = '${p.latitude.toStringAsFixed(4)}, ${p.longitude.toStringAsFixed(4)}';
+          pos =
+              '${p.latitude.toStringAsFixed(4)}, ${p.longitude.toStringAsFixed(4)}';
         } catch (e) {
           pos = 'err: $e';
         }
         final cacheCheck = client.getBool('cache_check', defaultValue: false);
         final locSet = client.getBool('loc_set', defaultValue: false);
-        debugPrint('GEOTEST: near_store=$value loc_set=$locSet cache_check=$cacheCheck pos=$pos');
-        if (mounted) setState(() {
-          _inside = value;
-          _posText = pos;
-          _cacheCheck = cacheCheck;
-        });
+        debugPrint(
+          'GEOTEST: near_store=$value loc_set=$locSet cache_check=$cacheCheck pos=$pos',
+        );
+        if (mounted) {
+          setState(() {
+            _inside = value;
+            _posText = pos;
+          });
+        }
       });
     } catch (e, st) {
       _log('ERROR: $e');
@@ -199,7 +206,9 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
   @override
   Widget build(BuildContext context) {
     final color = _inside ? Colors.green : Colors.grey;
-    final label = _inside ? 'Store Discount ENABLED' : 'Store Discount disabled';
+    final label = _inside
+        ? 'Store Discount ENABLED'
+        : 'Store Discount disabled';
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
@@ -210,7 +219,10 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
             children: [
               Text(
                 _inside ? 'INSIDE the 500 m fence' : 'OUTSIDE the 500 m fence',
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 24),
               // The UI element gated by the geo-fence flag: a real, disabled-looking
@@ -222,21 +234,35 @@ class _GeofenceTestAppState extends State<GeofenceTestApp> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: color,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 20,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   child: Text(label),
                 ),
               ),
               const SizedBox(height: 32),
-              Text('flag "$_flagKey" = $_inside',
-                  style: const TextStyle(fontSize: 16, fontFamily: 'Courier')),
-              Text('SDK ready: $_ready   location enabled: $_locationEnabled',
-                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
-              Text('status: $_status',
-                  style: const TextStyle(fontSize: 12, color: Colors.black45)),
-              Text('device pos: $_posText',
-                  style: const TextStyle(fontSize: 13, color: Colors.blue)),
+              Text(
+                'flag "$_flagKey" = $_inside',
+                style: const TextStyle(fontSize: 16, fontFamily: 'Courier'),
+              ),
+              Text(
+                'SDK ready: $_ready   location enabled: $_locationEnabled',
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              Text(
+                'status: $_status',
+                style: const TextStyle(fontSize: 12, color: Colors.black45),
+              ),
+              Text(
+                'device pos: $_posText',
+                style: const TextStyle(fontSize: 13, color: Colors.blue),
+              ),
             ],
           ),
         ),

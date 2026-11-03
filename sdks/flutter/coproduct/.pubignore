@@ -61,3 +61,6 @@ example/integration_test/
 # Maintainer-only tooling to sync the bundled platform scripts from a sibling
 # coproduct-platform checkout; irrelevant to a consumer of the package
 scripts/
+
+# Written by the release tooling to trigger a release, a consumer never needs it
+/CORE_RELEASE_TRIGGER

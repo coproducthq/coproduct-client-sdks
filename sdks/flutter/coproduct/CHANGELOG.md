@@ -1,3 +1,5 @@
+# Changelog
+
 ## 1.2.0 - 2026-10-21
 
 The iOS native library now ships as a dynamic framework,

@@ -35,13 +35,13 @@ Every SDK surface has a build script under `scripts/build/`. Use these rather th
 The two acceptance gates additionally require a booted simulator/emulator device id, passed via `COPRODUCT_ACCEPTANCE_IOS_DEVICE` / `COPRODUCT_ACCEPTANCE_ANDROID_DEVICE` (see `flutter devices`); they consume an already-booted device and do not boot or provision one. Each emits `COPRODUCT_FLUTTER_ACCEPTANCE_<PLATFORM>_STATUS pass=true` on success.
 
 FVM is maintainer-only release infrastructure, not a consumer requirement. The
-Flutter floor-verification matrix and the release-preparation step run through
+Flutter floor-verification matrix and the release pipeline run through
 `scripts/build/with-fvm-toolchain.sh <flutter-version> -- <command>`, which pins
 an exact FVM-managed Flutter and Dart onto `PATH` for every nested process and
 purges the native config that would otherwise pin a global SDK, without mutating
 the repository. A developer integrating Coproduct needs only the documented
 supported Flutter/Dart versions; FVM never appears in the package README. See
-`DEVELOPMENT.md` for the floor gate and the release-preparation procedure.
+`DEVELOPMENT.md` for the floor gate and the release runbooks.
 
 Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set (except `scripts/package/rn-build-native.sh android` and `scripts/package/android-build-jnilibs.sh`, which need only `ANDROID_NDK_HOME` and `cargo-ndk`). iOS-touching scripts require Xcode and CocoaPods on PATH (except `scripts/package/rn-build-native.sh ios`, which needs only Xcode). Supporting packaging scripts live under `scripts/package/` (`ios-build-xcframework.sh` rebuilds `CoproductFFI.xcframework` from Rust source, `ios-spm-binary.sh` archives it, `ios-spm-fixture.sh` packages the consumer-test fixture). When a change alters the UniFFI-exposed surface, rebuild the xcframework (the source-linked iOS build does this automatically) so the iOS bindings link against the live symbols.
 
@@ -244,11 +244,14 @@ Comment and doc terminology. Reserve `user` for the evaluated end-user (the targ
 
 ## Release Identity
 
-React Native's versions are managed by release-please. The version in
-`.github/.release-please-manifest.json` is the single source of truth, and
-release PRs are the only changes that move it. Every line marked
-`x-release-please-version`, and the SDK's `package.json`, must equal it.
-`scripts/release/identity/check.sh` enforces this on every PR.
+React Native's and Flutter's versions are managed by release-please. The
+version each has in `.github/.release-please-manifest.json` is its single source
+of truth, and release PRs are the only changes that move it. Every line marked
+`x-release-please-version` must equal it, and so must the SDK's `package.json`
+for React Native and its `pubspec.yaml` for Flutter. Flutter has three marked
+places: `lib/src/sdk_version.dart`, `ios/coproduct.podspec`, and the install
+example in its `README.md`. `scripts/release/identity/check.sh` enforces all of
+this on every PR. Release notes come from PR titles.
 
 Contributors need two things:
 
@@ -268,8 +271,7 @@ Never:
 
 Releases go through the automated release pipeline. Publishing or tagging by
 hand is only for an urgent or emergency release, following the maintainer
-runbook in `DEVELOPMENT.md`. Flutter is not on the automated pipeline, so every
-Flutter release follows its runbook there.
+runbook in `DEVELOPMENT.md`.
 
 The PR checks run on every PR, and every failure states its fix. Read a failing
 check's summary with `gh pr checks`. Running `scripts/release/check-all.sh`
@@ -280,9 +282,7 @@ install.
 ended for SDKs on the release pipeline. If your branch sets React Native's
 `USER_AGENT` to a `-dev` value, take `main`'s line when you rebase.
 
-SDKs not yet on the release pipeline keep their own process. Flutter publishes
-through `scripts/release/flutter/` (see `DEVELOPMENT.md`), and its four version
-lines must agree with `pubspec.yaml`. iOS and Android set their `User-Agent` in
+SDKs not yet on the release pipeline keep their own process. iOS and Android set their `User-Agent` in
 their wrappers (`coproductUserAgent` in
 `sdks/ios/Sources/Coproduct/Coproduct.swift`, and `USER_AGENT` in the Android
 wrapper), and their install docs must not present a command for an

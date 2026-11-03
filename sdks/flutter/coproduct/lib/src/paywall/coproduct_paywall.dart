@@ -119,15 +119,17 @@ class CoproductPaywall extends StatefulWidget {
     final c =
         paywallClient ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
     final seen = <String>{};
-    await Future.wait(flagKeys.map((flagKey) async {
-      final paywallId = client.getString(flagKey, defaultValue: '');
-      if (paywallId.isEmpty || seen.contains(paywallId)) return;
-      seen.add(paywallId);
-      await snapshotCache.warm(
-        snapshotCacheKey(paywallId, envSlug),
-        () => c.fetchPaywall(paywallId),
-      );
-    }));
+    await Future.wait(
+      flagKeys.map((flagKey) async {
+        final paywallId = client.getString(flagKey, defaultValue: '');
+        if (paywallId.isEmpty || seen.contains(paywallId)) return;
+        seen.add(paywallId);
+        await snapshotCache.warm(
+          snapshotCacheKey(paywallId, envSlug),
+          () => c.fetchPaywall(paywallId),
+        );
+      }),
+    );
   }
 
   @override

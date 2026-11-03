@@ -85,7 +85,87 @@ test('allows refactoring a marked line when the value is unchanged', () => {
 
 test('ignores an SDK that is not in the release config', () => {
   const { root } = fixture();
-  assert.deepEqual(checkIdentity({ root, only: 'flutter' }), { checked: [], problems: [] });
+  assert.deepEqual(checkIdentity({ root, only: 'ios' }), { checked: [], problems: [] });
+});
+
+const FL = 'sdks/flutter/coproduct';
+const FL_CONFIG = {
+  'release-type': 'dart',
+  component: 'flutter',
+  'extra-files': [
+    { type: 'generic', path: 'lib/src/sdk_version.dart' },
+    { type: 'generic', path: 'ios/coproduct.podspec' },
+    { type: 'generic', path: 'README.md' },
+  ],
+};
+const README_START = '<!-- x-release-please-start-version -->';
+const README_END = '<!-- x-release-please-end -->';
+
+function flutterFixture({
+  version = '1.2.0',
+  pubspec = version,
+  dart = version,
+  podspec = version,
+  block = ['```yaml', 'dependencies:', `  coproduct: ^${version}`, '```'],
+  start = README_START,
+  end = README_END,
+} = {}) {
+  const { root, write } = fixture();
+  write(CONFIG, JSON.stringify({ packages: { [RN]: RN_CONFIG, [FL]: FL_CONFIG } }));
+  write(MANIFEST, JSON.stringify({ [RN]: '1.0.2', [FL]: version }));
+  write(`${FL}/pubspec.yaml`, `name: coproduct\nversion: ${pubspec}\n`);
+  write(`${FL}/lib/src/sdk_version.dart`, `const _v = '${dart}'; // x-release-please-version\n`);
+  write(`${FL}/ios/coproduct.podspec`, `  s.version          = '${podspec}' # x-release-please-version\n`);
+  write(`${FL}/README.md`, ['# Coproduct', start, ...block, end, ''].filter((l) => l !== null).join('\n'));
+  return { root, write };
+}
+
+const flutterProblems = (options) => problems(flutterFixture(options).root, { only: 'flutter' });
+
+test('checks Flutter when it is in the release config', () => {
+  const { root } = flutterFixture();
+  assert.deepEqual(checkIdentity({ root, only: 'flutter' }), {
+    checked: [{ sdk: 'flutter', version: '1.2.0' }],
+    problems: [],
+  });
+});
+
+test('names pubspec.yaml when its version disagrees with the manifest', () => {
+  assert.match(flutterProblems({ pubspec: '1.2.1' })[0], /pubspec\.yaml has 1\.2\.1, but the manifest has 1\.2\.0/);
+});
+
+test('names the Dart version file when its marked line disagrees', () => {
+  assert.match(flutterProblems({ dart: '1.1.0' })[0], /sdk_version\.dart:1 has 1\.1\.0, but the manifest has 1\.2\.0/);
+});
+
+test('names the podspec when its marked line disagrees', () => {
+  assert.match(flutterProblems({ podspec: '1.1.0' })[0], /coproduct\.podspec:1 has 1\.1\.0, but the manifest has 1\.2\.0/);
+});
+
+test('names the README when its version block disagrees', () => {
+  const [problem] = flutterProblems({
+    block: ['```yaml', 'dependencies:', '  coproduct: ^1.1.0', '```'],
+  });
+  assert.match(problem, /README\.md:\d+ has 1\.1\.0, but the manifest has 1\.2\.0/);
+});
+
+test('names the README when its version block has no end marker', () => {
+  assert.match(flutterProblems({ end: null })[0], /README\.md.*start-version.*x-release-please-end/);
+});
+
+test('names the README when its version block has two start markers', () => {
+  const [problem] = flutterProblems({ block: [README_START, '  coproduct: ^1.2.0'] });
+  assert.match(problem, /README\.md.*exactly one/);
+});
+
+test('names the README when its version block has no version line', () => {
+  const [problem] = flutterProblems({ block: ['```yaml', 'dependencies:', '```'] });
+  assert.match(problem, /README\.md.*exactly one version/);
+});
+
+test('names the README when its version block has two version lines', () => {
+  const [problem] = flutterProblems({ block: ['  coproduct: ^1.2.0', '  other: 1.2.0'] });
+  assert.match(problem, /README\.md.*exactly one version/);
 });
 
 test('only a release PR may change the manifest', () => {
