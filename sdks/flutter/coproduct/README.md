@@ -72,7 +72,7 @@ This adds the dependency to your `pubspec.yaml`:
 <!-- x-release-please-start-version -->
 ```yaml
 dependencies:
-  coproduct: ^1.4.0
+  coproduct: ^1.4.1
 ```
 <!-- x-release-please-end -->
 
