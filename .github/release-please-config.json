@@ -14,7 +14,7 @@
     "sdks/flutter/coproduct": {
       "release-type": "dart",
       "component": "flutter",
-      "release-as": "1.4.0",
+      "release-as": "1.4.1",
       "extra-files": [
         { "type": "generic", "path": "lib/src/sdk_version.dart" },
         { "type": "generic", "path": "ios/coproduct.podspec" },
