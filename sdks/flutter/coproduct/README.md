@@ -653,6 +653,9 @@ radius, matched on-device so raw GPS coordinates never leave the phone. This
 SDK ships no location code itself, so apps that only use flags never carry any
 location-permission API.
 
+No location permission is requested or declared by default. It is added only
+when you depend on `coproduct_location`, so geo-fencing stays entirely opt-in.
+
 Add the [`coproduct_location`](https://pub.dev/packages/coproduct_location)
 package to opt in. It supplies the `device_location` attribute your geo-fence
 targeting rules match against:
