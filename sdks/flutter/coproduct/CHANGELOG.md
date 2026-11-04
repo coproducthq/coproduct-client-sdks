@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.4.0...flutter-v1.4.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **flutter:** note that location permission is opt-in via coproduct_location ([#62](https://github.com/coproducthq/coproduct-client-sdks/issues/62)) ([8adaaea](https://github.com/coproducthq/coproduct-client-sdks/commit/8adaaea733a51de7c6b6b2152c4e48cc73f63547))
+
 ## [1.4.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.3.0...flutter-v1.4.0) (2026-11-04)
 
 
