@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.3.0...flutter-v1.4.0) (2026-11-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **flutter:** GPS geo-fence location moved out of main SDK ([#59](https://github.com/coproducthq/coproduct-client-sdks/issues/59))
+
+### Bug Fixes
+
+* **flutter:** GPS geo-fence location moved out of main SDK ([#59](https://github.com/coproducthq/coproduct-client-sdks/issues/59)) ([187a44a](https://github.com/coproducthq/coproduct-client-sdks/commit/187a44a3f7e0728b33cbc5f8bab00a40b416d788))
+* **flutter:** keep the paywall cache out of the public API ([#55](https://github.com/coproducthq/coproduct-client-sdks/issues/55)) ([6698586](https://github.com/coproducthq/coproduct-client-sdks/commit/669858652764a4e7609b93218d83da09189f9b21))
+
 ## [1.3.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.2.0...flutter-v1.3.0) (2026-11-03)
 
 
