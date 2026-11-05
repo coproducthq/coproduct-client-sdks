@@ -206,6 +206,23 @@ jobs:
           fi
           xcrun simctl boot "$ID"
           xcrun simctl bootstatus "$ID" -b
+          # A simulator keeps setting itself up for minutes after it reports
+          # booted, and until then simctl uninstall, which the iOS acceptance
+          # run starts with under a short limit, can stall. Wait until that same
+          # call on the absent consumer app answers promptly
+          ready=no
+          for attempt in $(seq 1 30); do
+            start=$SECONDS
+            xcrun simctl uninstall "$ID" app.coproduct.consumer.flutter >/dev/null 2>&1 || true
+            took=$((SECONDS - start))
+            echo "uninstall probe $attempt took ${took}s"
+            if [ "$took" -le 3 ]; then ready=yes; break; fi
+            sleep 10
+          done
+          if [ "$ready" != yes ]; then
+            echo "::error::The simulator never answered simctl uninstall within 3s"
+            exit 1
+          fi
           echo "Booted iPhone 17 on iOS 26.5: $ID"
           echo "udid=$ID" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2

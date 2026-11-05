@@ -362,6 +362,9 @@ if ! flutter=$(ruby -ryaml -e '
   sim = steps_of.("gates").find { |s| s["id"] == "sim" }
   problems << "the simulator boots for a group other than no-rust: #{sim && sim["if"].inspect}" unless sim && sim["if"].to_s.strip == "matrix.group == #{q}no-rust#{q}"
   problems << "the pipeline still boots a simulator" if steps_of.("pipeline").any? { |s| s["run"].to_s.include?("simctl boot") }
+  # A gate leg starts minutes after the boot rather than an hour, so the boot
+  # step waits for the simulator to answer the call the iOS acceptance run makes
+  problems << "the simulator boot does not wait for simctl uninstall to answer" unless sim && sim["run"].to_s.include?("simctl uninstall")
 
   # Every job publish waits for is a build job to finalize, so a failure that
   # stops the publish also marks the release not published
