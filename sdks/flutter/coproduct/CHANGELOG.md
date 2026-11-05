@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.4.1...flutter-v1.4.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **flutter:** note that 1.4.0 and 1.4.1 were not published ([#65](https://github.com/coproducthq/coproduct-client-sdks/issues/65)) ([06e7e76](https://github.com/coproducthq/coproduct-client-sdks/commit/06e7e762c6f00224ec90eb54a82b470c8f412a2f))
+
 ## [1.4.1](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.4.0...flutter-v1.4.1) (2026-11-04)
 
 This version was not published to pub.dev. Its changes ship in 1.4.2.
