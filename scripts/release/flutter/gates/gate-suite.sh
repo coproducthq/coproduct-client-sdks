@@ -21,6 +21,10 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 # shellcheck source=SCRIPTDIR/../lib/gates.sh
 source "$REPO_ROOT/scripts/release/flutter/lib/gates.sh"
+if gate_set_is archive; then
+    echo "ERROR: COPRODUCT_RELEASE_GATES=archive runs no gates, so the gate matrix refuses it" >&2
+    exit 2
+fi
 gates_require_devices
 
 PRIMARY=3.44.0

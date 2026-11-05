@@ -5,8 +5,9 @@
 # first publication to be manual, and transferring it to a verified publisher is
 # one-way
 #
-# COPRODUCT_RELEASE_GATES picks the gate set, full by default or ci, and
-# COPRODUCT_GATES_LIST_ONLY=1 prints the gates the set runs and runs nothing.
+# COPRODUCT_RELEASE_GATES picks the gate set: full by default, ci, or archive,
+# which stops after the archive check. COPRODUCT_GATES_LIST_ONLY=1 prints the
+# gates the set runs and runs nothing.
 # lib/gates.sh owns both
 set -euo pipefail
 
@@ -102,12 +103,21 @@ if ! gates_list_only; then
     step "archive membership, warnings, and size"
     ( cd scripts/release/flutter && dart run bin/check_archive.dart "$COPRODUCT_RELEASE_STAGE" )
 
+    if gate_set_is archive; then
+        echo
+        echo "COPRODUCT_FLUTTER_RELEASE_STATUS pass=true gates=archive"
+        exit 0
+    fi
+
     step "extract the archive"
     scripts/release/flutter/stages/extract-archive.sh
 
     step "build the disposable consumer from the archive"
     scripts/release/flutter/stages/consumer-from-archive.sh
 fi
+
+# Reached under archive only in list-only mode, which lists no gates
+gate_set_is archive && exit 0
 
 step "the $GATE_SET gate matrix"
 gates_summary_line
