@@ -111,6 +111,18 @@ else
   echo "FAIL $wf: the concurrency group does not key release runs by the release App and the rest by run: $group"; fails=$((fails + 1))
 fi
 
+# The run title marks every run that cannot release, from the same test of the
+# release App as the concurrency group, so a release is never titled checks only
+if ! title=$(ruby -ryaml -e '
+  puts YAML.load_file(ARGV[0])["run-name"].to_s
+' "$wf" 2>&1); then
+  echo "FAIL $wf: could not parse: $title"; fails=$((fails + 1))
+elif [ "$title" = "\${{ github.ref_type == 'tag' && github.actor_id == '345134390' && format('Publish {0}', github.ref_name) || format('Publish {0} (checks only)', inputs.ref || github.ref_name) }}" ]; then
+  echo "ok   $wf: the run title marks every run the release automation did not start on a tag"
+else
+  echo "FAIL $wf: the run title does not mark checks-only runs by the release App: $title"; fails=$((fails + 1))
+fi
+
 # The mode seam: only the mode job's decision lets publish run, and that
 # decision reads the run's own identity, never a value a caller can set
 if ! seam=$(ruby -ryaml -e '
@@ -192,6 +204,13 @@ if ! flutter=$(ruby -ryaml -e '
   group = wf.dig("concurrency", "group").to_s
   problems << "the concurrency group is not exactly #{want_group}: #{group}" unless group == want_group
   problems << "concurrency cancels in progress" unless wf.dig("concurrency", "cancel-in-progress") == false
+
+  # The run title marks every run that cannot release, from the same test of
+  # the release App as the concurrency group
+  want_title = "${{ github.ref_type == #{q}tag#{q} && github.actor_id == #{q}345134390#{q} && " \
+    "format(#{q}Publish Flutter {0}#{q}, github.ref_name) || format(#{q}Publish Flutter {0} (checks only)#{q}, inputs.ref || github.ref_name) }}"
+  title = wf["run-name"].to_s
+  problems << "the run title is not exactly #{want_title}: #{title}" unless title == want_title
 
   # The mode seam: only the decision of the mode job lets publish run, and
   # that decision reads the identity of the run, never a value a caller can set
