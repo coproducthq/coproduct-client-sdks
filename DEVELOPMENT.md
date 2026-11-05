@@ -467,7 +467,8 @@ fix to the release tooling releases nothing on its own. A `fix:` gives the next
 patch by itself. To choose a different version, add `Release-As: X.Y.Z` to that
 PR's squash commit body. If `.github/release-please-config.json` already has a
 `release-as` for the package, remove it first, because it stays in force until
-someone removes it. The tag that failed keeps its draft Release, which a failed build retitles "react-native: vX.Y.Z (not published)".
+someone removes it. The tag that failed keeps its draft Release,
+which a failed build retitles "react-native: vX.Y.Z (not published)".
 
 #### The bad-version runbook
 
@@ -934,7 +935,8 @@ fix to the release tooling releases nothing on its own. A `fix:` gives the next
 patch by itself. To choose a different version, add `Release-As: X.Y.Z` to that
 PR's squash commit body. If `.github/release-please-config.json` already has a
 `release-as` for the package, remove it first, because it stays in force until
-someone removes it. The tag that failed keeps its draft Release, which a failed build retitles "flutter: vX.Y.Z (not published)".
+someone removes it. The tag that failed keeps its draft Release,
+which a failed build retitles "flutter: vX.Y.Z (not published)".
 
 #### The Flutter bad-version runbook
 
