@@ -183,6 +183,11 @@ fi
 # Native's, with pub.dev in place of npm and one sealed tar carried from the
 # job that built and tested it to the jobs that verify and publish it
 fwf=.github/workflows/publish-flutter.yml
+# Read from their owners rather than copied here, so the matrix and the build
+# jobs are held to the lists the scripts actually use
+WANT_GATE_GROUPS="$(bash -c 'source scripts/release/flutter/lib/gates.sh && printf "%s" "$GATES_GROUPS"')"
+FINALIZE_BUILD_JOBS="$(sed -n "s/^const BUILD_JOBS = \[\(.*\)\];$/\1/p" scripts/release/flutter/finalize.mjs | tr -d "' " | tr , " ")"
+export WANT_GATE_GROUPS FINALIZE_BUILD_JOBS
 if ! flutter=$(ruby -ryaml -e '
   wf = YAML.load_file(ARGV[0])
   q = "\x27"
@@ -192,7 +197,7 @@ if ! flutter=$(ruby -ryaml -e '
   needs_of = ->(name) { Array((jobs[name] || {})["needs"]) }
   all_steps = jobs.flat_map { |name, job| (job["steps"] || []).map { |s| [name, s] } }
   problems = []
-  %w[resolve mode pipeline verify-package publish confirm finish-release release-docs summary mark-not-published].each do |name|
+  %w[resolve mode pipeline gates verify-package publish confirm finish-release release-docs summary mark-not-published].each do |name|
     problems << "#{name} is missing" unless jobs.key?(name)
   end
   problems << "top-level permissions is not exactly contents: read" unless wf["permissions"] == { "contents" => "read" }
@@ -238,6 +243,7 @@ if ! flutter=$(ruby -ryaml -e '
   cond = pub["if"].to_s.strip
   problems << "publish if is not exactly needs.mode.outputs.mode == release: #{cond}" unless cond == "needs.mode.outputs.mode == #{q}release#{q}"
   problems << "publish does not need verify-package" unless needs_of.("publish").include?("verify-package")
+  problems << "publish does not need gates" unless needs_of.("publish").include?("gates")
   problems << "publish does not need mode" unless needs_of.("publish").include?("mode")
   jobs.each do |name, job|
     next if name == "publish"
@@ -303,24 +309,61 @@ if ! flutter=$(ruby -ryaml -e '
     problems << "#{name} extracts a tar outside handoff.sh" if s["run"].to_s =~ /\btar\s+-?x/
   end
 
-  # Gate logs live under the runner temp directory, outside the checkout, and
-  # a failed pipeline uploads them
+  # The pipeline builds and seals the package under the archive set, which runs
+  # no gate, and its logs live under the runner temp directory, outside the
+  # checkout, and are uploaded when it fails
   measure = steps_of.("pipeline").find { |s| s["run"].to_s.include?("scripts/release/flutter/measure.sh") }
   if measure.nil?
     problems << "pipeline does not run measure.sh"
   else
     e = measure["env"] || {}
-    problems << "measure.sh does not run with COPRODUCT_RELEASE_GATES=ci" unless e["COPRODUCT_RELEASE_GATES"] == "ci"
+    problems << "measure.sh does not run with COPRODUCT_RELEASE_GATES=archive" unless e["COPRODUCT_RELEASE_GATES"] == "archive"
     %w[COPRODUCT_RELEASE_STAGE COPRODUCT_RELEASE_OUT COPRODUCT_FLUTTER_ARCHIVE_DIR COPRODUCT_CONSUMER_DIR COPRODUCT_GATE_LOG_DIR].each do |k|
       problems << "measure.sh #{k} is not under ${{ runner.temp }}: #{e[k].inspect}" unless e[k].to_s.start_with?("${{ runner.temp }}/")
     end
-    problems << "measure.sh has no COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES" unless e["COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES"].to_s =~ /\A\d+\z/
     logs = steps_of.("pipeline").find do |s|
       s["uses"].to_s.start_with?("actions/upload-artifact@") && s["if"].to_s.strip == "failure()" &&
         (s["with"] || {})["path"] == e["COPRODUCT_GATE_LOG_DIR"]
     end
     problems << "pipeline does not upload COPRODUCT_GATE_LOG_DIR when it fails" if logs.nil?
   end
+
+  # The gates run in one matrix job, one leg per group lib/gates.sh declares,
+  # so a group dropped from the matrix stops a test rather than a gate. Every
+  # leg runs to the end, so a re-run repeats only the legs that failed
+  gates = jobs["gates"] || {}
+  want_groups = ENV.fetch("WANT_GATE_GROUPS").split
+  got_groups = Array(gates.dig("strategy", "matrix", "group"))
+  problems << "the gates matrix is not exactly the groups #{want_groups.inspect}: #{got_groups.inspect}" unless got_groups == want_groups
+  problems << "the gates matrix does not set fail-fast: false" unless gates.dig("strategy", "fail-fast") == false
+  problems << "gates does not need pipeline" unless needs_of.("gates").include?("pipeline")
+  run_gates = steps_of.("gates").find { |s| s["run"].to_s.include?("scripts/release/flutter/ci/run-gates.sh") }
+  if run_gates.nil?
+    problems << "gates does not run run-gates.sh"
+  else
+    e = run_gates["env"] || {}
+    problems << "run-gates.sh does not run with COPRODUCT_RELEASE_GATES=ci" unless e["COPRODUCT_RELEASE_GATES"] == "ci"
+    problems << "run-gates.sh does not take its group from the matrix" unless e["COPRODUCT_GATES_GROUP"] == "${{ matrix.group }}"
+    %w[COPRODUCT_FLUTTER_ARCHIVE_DIR COPRODUCT_CONSUMER_DIR COPRODUCT_GATE_LOG_DIR].each do |k|
+      problems << "run-gates.sh #{k} is not under ${{ runner.temp }}: #{e[k].inspect}" unless e[k].to_s.start_with?("${{ runner.temp }}/")
+    end
+    problems << "run-gates.sh has no COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES" unless e["COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES"].to_s =~ /\A\d+\z/
+    problems << "run-gates.sh does not read the unpacked stage" unless run_gates["run"].to_s.include?(%q{run-gates.sh "$RUNNER_TEMP/package/stage"})
+    logs = steps_of.("gates").find do |s|
+      s["uses"].to_s.start_with?("actions/upload-artifact@") && s["if"].to_s.strip == "failure()" &&
+        (s["with"] || {})["path"] == e["COPRODUCT_GATE_LOG_DIR"]
+    end
+    problems << "gates does not upload COPRODUCT_GATE_LOG_DIR when it fails" if logs.nil?
+    problems << "the gate logs of one leg would overwrite those of another" if logs && !(logs["with"] || {})["name"].to_s.include?("${{ matrix.group }}")
+  end
+  sim = steps_of.("gates").find { |s| s["id"] == "sim" }
+  problems << "the simulator boots for a group other than no-rust: #{sim && sim["if"].inspect}" unless sim && sim["if"].to_s.strip == "matrix.group == #{q}no-rust#{q}"
+  problems << "the pipeline still boots a simulator" if steps_of.("pipeline").any? { |s| s["run"].to_s.include?("simctl boot") }
+
+  # Every job publish waits for is a build job to finalize, so a failure that
+  # stops the publish also marks the release not published
+  build_jobs = ENV.fetch("FINALIZE_BUILD_JOBS").split
+  problems << "finalize.mjs BUILD_JOBS #{build_jobs.sort.inspect} is not the jobs publish needs #{needs_of.("publish").sort.inspect}" unless build_jobs.sort == needs_of.("publish").sort
 
   # The OIDC token, its registration with pub, and the publish share one step,
   # so the token exists only where it is used

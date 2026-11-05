@@ -240,6 +240,71 @@ else
     bad 'the archive stop does not print its status line and exit zero'
 fi
 
+echo "the ci groups"
+
+GROUPS_DECLARED="$(bash -c 'source "$1" && printf "%s" "$GATES_GROUPS"' sh "$LIB")"
+same_list 'the declared groups are primary, floor, template, and no-rust' \
+    "primary floor template no-rust" "$GROUPS_DECLARED"
+
+# Each group lists exactly its own gates, and every ci gate is in some group, so
+# splitting the run across runners cannot drop a gate
+union=""
+for g in $GROUPS_DECLARED; do
+    out="$(list_env env -u COPRODUCT_ACCEPTANCE_IOS_DEVICE COPRODUCT_RELEASE_GATES=ci COPRODUCT_GATES_GROUP="$g" bash "$SUITE" 2>&1)"; rc=$?
+    if [[ "$g" == no-rust ]]; then
+        # Only no-rust runs on a simulator, so only it requires one
+        if [[ $rc -ne 0 ]] && printf '%s' "$out" | grep -q 'COPRODUCT_ACCEPTANCE_IOS_DEVICE'; then
+            ok "the $g group requires the iOS device"
+        else
+            bad "the $g group ran without an iOS device (exit $rc)"
+        fi
+        out="$(list_env COPRODUCT_RELEASE_GATES=ci COPRODUCT_GATES_GROUP="$g" bash "$SUITE" 2>&1)"; rc=$?
+    fi
+    if [[ $rc -eq 0 ]]; then
+        ok "the $g group lists its gates with only the devices it needs"
+    else
+        bad "the $g group exited $rc in list-only mode"
+        printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+    fi
+    union="$union
+$(printf '%s\n' "$out" | ids_of)"
+done
+same_list 'the groups together list exactly the ci gates' \
+    "$(printf '%s\n' "$CI_SUITE" | sort -u)" "$(printf '%s\n' "$union" | sed '/^$/d' | sort -u)"
+
+for set in full archive; do
+    out="$(list_env COPRODUCT_RELEASE_GATES=$set COPRODUCT_GATES_GROUP=primary bash "$SUITE" 2>&1)"; rc=$?
+    if [[ $rc -eq 2 ]] && printf '%s' "$out" | grep -q 'COPRODUCT_GATES_GROUP'; then
+        ok "a group under $set is refused"
+    else
+        bad "a group under $set was accepted (exit $rc)"
+    fi
+done
+out="$(list_env COPRODUCT_RELEASE_GATES=ci COPRODUCT_GATES_GROUP=bogus bash "$SUITE" 2>&1)"; rc=$?
+if [[ $rc -eq 2 ]] && printf '%s' "$out" | grep -q 'COPRODUCT_GATES_GROUP'; then
+    ok 'an unknown group is refused, naming the variable'
+else
+    bad "an unknown group was accepted (exit $rc)"
+fi
+
+# run-gates.sh is what a gate job runs, so a job that forgot its group or its
+# set fails before building anything rather than running every gate on one runner
+RUN_GATES="$REPO_ROOT/scripts/release/flutter/ci/run-gates.sh"
+mkdir -p "$T/stage"
+out="$(env -i PATH=/usr/bin:/bin COPRODUCT_RELEASE_GATES=ci COPRODUCT_FLUTTER_ARCHIVE_DIR="$T/none/archive" \
+    COPRODUCT_CONSUMER_DIR="$T/none/consumer" bash "$RUN_GATES" "$T/stage" 2>&1)"; rc=$?
+if [[ $rc -ne 0 ]] && printf '%s' "$out" | grep -q 'COPRODUCT_GATES_GROUP' && ! printf '%s' "$out" | grep -q '^=== '; then
+    ok 'run-gates.sh refuses a job with no group before running anything'
+else
+    bad "run-gates.sh ran without a group (exit $rc)"
+fi
+out="$(env -i PATH=/usr/bin:/bin COPRODUCT_RELEASE_GATES=full COPRODUCT_GATES_GROUP=primary bash "$RUN_GATES" "$T/stage" 2>&1)"; rc=$?
+if [[ $rc -eq 2 ]] && ! printf '%s' "$out" | grep -q '^=== '; then
+    ok 'run-gates.sh refuses a set other than ci before running anything'
+else
+    bad "run-gates.sh ran under full (exit $rc)"
+fi
+
 echo "gate ids"
 
 # A guard naming an id no set declares would never run under any set, which
@@ -281,17 +346,23 @@ chmod +x "$SUITE_ROOT"/scripts/build/*.sh "$SUITE_ROOT"/scripts/release/flutter/
 # env -i so an exported COPRODUCT_GATES_LIST_ONLY cannot turn this into a
 # listing that records nothing. The step logs go to the test's own directory
 # rather than over a maintainer's last real run
-recorded_run() { # set
+recorded_run() { # set, group
+    recorded_calls "$@" | grep -E 'consumer-test|acceptance|no-rust-gate'
+}
+
+# Every call a run made, so a group run can be compared with the sequential run
+recorded_calls() { # set, group
     : > "$SUITE_REC"
     env -i HOME="$T/home" PATH=/usr/bin:/bin TMPDIR="$T/tmp" \
         COPRODUCT_GATE_LOG_DIR="$T/logs" \
         COPRODUCT_RELEASE_GATES="$1" \
+        COPRODUCT_GATES_GROUP="${2:-}" \
         COPRODUCT_FLUTTER_ARCHIVE_DIR="$SUITE_ROOT/archive" \
         COPRODUCT_CONSUMER_DIR="$SUITE_ROOT/consumer" \
         COPRODUCT_ACCEPTANCE_IOS_DEVICE=ios-device \
         COPRODUCT_ACCEPTANCE_ANDROID_DEVICE=android-device \
         bash "$SUITE_ROOT/scripts/release/flutter/gates/gate-suite.sh" >/dev/null 2>&1
-    grep -E 'consumer-test|acceptance|no-rust-gate' "$SUITE_REC"
+    cat "$SUITE_REC"
 }
 
 same_list 'full builds primary then floor, rebuilds on primary, and runs every runtime gate' \
@@ -313,6 +384,31 @@ fvm 3.44.0 artifact-linked-flutter-consumer-test-ios.sh
 fvm 3.44.0 artifact-linked-flutter-consumer-test-android.sh
 no-rust-gate.sh --require-flutter 3.44.0 ios
 no-rust-gate.sh --build-only --require-flutter 3.44.0 android" "$(recorded_run ci)"
+
+same_list 'the primary group builds on the primary toolchain only' \
+"fvm 3.44.0 artifact-linked-flutter-consumer-test-ios.sh
+fvm 3.44.0 artifact-linked-flutter-consumer-test-android.sh" "$(recorded_run ci primary)"
+same_list 'the floor group builds on the floor toolchain only' \
+"fvm 3.38.1 artifact-linked-flutter-consumer-test-ios.sh
+fvm 3.38.1 artifact-linked-flutter-consumer-test-android.sh" "$(recorded_run ci floor)"
+same_list 'the no-rust group runs both no-Rust gates on the primary toolchain' \
+"no-rust-gate.sh --require-flutter 3.44.0 ios
+no-rust-gate.sh --build-only --require-flutter 3.44.0 android" "$(recorded_run ci no-rust)"
+
+# The groups split the ci run across runners, so together they must make
+# exactly the calls one sequential ci run makes, no more and no fewer
+sequential="$(recorded_calls ci | sort)"
+grouped="$(for g in $GROUPS_DECLARED; do recorded_calls ci "$g"; done | sort)"
+same_list 'the groups together make exactly the calls of one ci run' "$sequential" "$grouped"
+# An empty recording on both sides would pass the comparison above, so the
+# sequential run must have recorded every kind of call the groups split up
+for want in 'fvm 3.44.0 artifact-linked' 'fvm 3.38.1 artifact-linked' 'fvm 3.38.1 flutter' 'no-rust-gate.sh'; do
+    if printf '%s\n' "$sequential" | grep -qF "$want"; then
+        ok "the ci run recorded a $want call"
+    else
+        bad "the ci run recorded no $want call, so the group comparison proves nothing"
+    fi
+done
 
 # The gates that need a real build fail in the stub tree, so a run always
 # leaves step logs behind to look for

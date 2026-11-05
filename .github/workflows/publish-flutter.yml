@@ -84,15 +84,15 @@ jobs:
         run: echo "::notice title=This run only checks and publishes nothing::$REASON"
 
   # Builds the binaries from a clean checkout, stages and seals the package,
-  # runs the CI gate set against the archive pub would publish, then packs the
-  # stage and its seal into one tar whose SHA-256 every later job checks. The
-  # stage, the output, and every scratch directory live under the runner temp
-  # directory, outside the checkout
+  # runs the archive checks pub's dry run included, then packs the stage and its
+  # seal into one tar whose SHA-256 every later job checks. The gates run in
+  # their own jobs against that tar. The stage, the output, and every scratch
+  # directory live under the runner temp directory, outside the checkout
   pipeline:
     name: Build, seal, and check the package
     needs: resolve
     runs-on: macos-26
-    timeout-minutes: 240
+    timeout-minutes: 120
     outputs:
       sha256: ${{ steps.pack.outputs.sha256 }}
     steps:
@@ -106,39 +106,17 @@ jobs:
         run: |
           trap 'echo "step time: ${SECONDS}s"' EXIT
           scripts/release/flutter/ci/setup-toolchains.sh
-      # Picked by UDID, because a name alone can match a simulator on another
-      # runtime
-      - id: sim
-        name: Boot the iOS 26.5 iPhone 17 simulator
-        shell: bash
-        run: |
-          trap 'echo "step time: ${SECONDS}s"' EXIT
-          ID=$(xcrun simctl list devices available -j \
-            | jq -r '[.devices["com.apple.CoreSimulator.SimRuntime.iOS-26-5"] // [] | .[] | select(.name == "iPhone 17") | .udid] | first // empty')
-          if [ -z "$ID" ]; then
-            echo "::error::No available iPhone 17 simulator on the iOS 26.5 runtime"
-            xcrun simctl list runtimes
-            exit 1
-          fi
-          xcrun simctl boot "$ID"
-          xcrun simctl bootstatus "$ID" -b
-          echo "Booted iPhone 17 on iOS 26.5: $ID"
-          echo "udid=$ID" >> "$GITHUB_OUTPUT"
       - name: Record disk space before the build
         run: df -h / "$RUNNER_TEMP"
-      - name: Run the release pipeline with the CI gate set
+      - name: Build, seal, and check the archive
         env:
-          COPRODUCT_RELEASE_GATES: ci
+          COPRODUCT_RELEASE_GATES: archive
           COPRODUCT_RELEASE_OUT: ${{ runner.temp }}/release/out
           COPRODUCT_RELEASE_STAGE: ${{ runner.temp }}/release/stage/pkg
           COPRODUCT_FLUTTER_ARCHIVE_DIR: ${{ runner.temp }}/release/archive
           COPRODUCT_CONSUMER_DIR: ${{ runner.temp }}/release/consumer
           COPRODUCT_GATE_LOG_DIR: ${{ runner.temp }}/gate-logs
           COPRODUCT_RELEASE_LOG: ${{ runner.temp }}/gate-logs/release.log
-          COPRODUCT_ACCEPTANCE_IOS_DEVICE: ${{ steps.sim.outputs.udid }}
-          # A cold simulator on a hosted runner starts slower than a warm one
-          # on a developer machine
-          COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES: 15
         shell: bash
         run: |
           trap 'echo "step time: ${SECONDS}s"' EXIT
@@ -185,6 +163,85 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  # Runs the ci gates against the sealed tar, one group per runner, so the slow
+  # consumer builds overlap instead of queuing behind each other. Every group
+  # unpacks the same tar the publish job uploads, and a failed group re-runs on
+  # its own without rebuilding the package. lib/gates.sh owns the groups
+  gates:
+    name: Gates (${{ matrix.group }})
+    needs: [resolve, pipeline]
+    runs-on: macos-26
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [primary, floor, template, no-rust]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      # This Dart only bootstraps FVM, which installs the pinned Flutter
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - name: Install the release toolchains
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          scripts/release/flutter/ci/setup-toolchains.sh
+      - run: dart pub get
+        working-directory: scripts/release/flutter
+      # Only the no-Rust group runs on a simulator. Picked by UDID, because a
+      # name alone can match a simulator on another runtime
+      - id: sim
+        name: Boot the iOS 26.5 iPhone 17 simulator
+        if: matrix.group == 'no-rust'
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          ID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices["com.apple.CoreSimulator.SimRuntime.iOS-26-5"] // [] | .[] | select(.name == "iPhone 17") | .udid] | first // empty')
+          if [ -z "$ID" ]; then
+            echo "::error::No available iPhone 17 simulator on the iOS 26.5 runtime"
+            xcrun simctl list runtimes
+            exit 1
+          fi
+          xcrun simctl boot "$ID"
+          xcrun simctl bootstatus "$ID" -b
+          echo "Booted iPhone 17 on iOS 26.5: $ID"
+          echo "udid=$ID" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: flutter-package.tar
+          path: ${{ runner.temp }}/handoff
+      - name: Unpack the package
+        env:
+          PACKAGE_SHA256: ${{ needs.pipeline.outputs.sha256 }}
+        run: |
+          scripts/release/flutter/ci/handoff.sh unpack "$RUNNER_TEMP/handoff/flutter-package.tar" "$PACKAGE_SHA256" "$RUNNER_TEMP/package"
+      - name: Run the ${{ matrix.group }} gates
+        env:
+          COPRODUCT_RELEASE_GATES: ci
+          COPRODUCT_GATES_GROUP: ${{ matrix.group }}
+          COPRODUCT_FLUTTER_ARCHIVE_DIR: ${{ runner.temp }}/release/archive
+          COPRODUCT_CONSUMER_DIR: ${{ runner.temp }}/release/consumer
+          COPRODUCT_GATE_LOG_DIR: ${{ runner.temp }}/gate-logs
+          COPRODUCT_ACCEPTANCE_IOS_DEVICE: ${{ steps.sim.outputs.udid }}
+          # A cold simulator on a hosted runner starts slower than a warm one
+          # on a developer machine
+          COPRODUCT_ACCEPTANCE_TIMEOUT_MINUTES: 15
+        shell: bash
+        run: |
+          trap 'echo "step time: ${SECONDS}s"' EXIT
+          mkdir -p "$COPRODUCT_GATE_LOG_DIR"
+          scripts/release/flutter/ci/run-gates.sh "$RUNNER_TEMP/package/stage"
+      - name: Upload the gate logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flutter-gate-logs-${{ matrix.group }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gate-logs
+          retention-days: 14
+          if-no-files-found: warn
+
   # Unpacks the tar exactly as publish will, then checks the seal and runs
   # pub's dry run on the unpacked stage. It runs in every mode, so a checks
   # run rehearses everything publish does short of uploading
@@ -221,7 +278,7 @@ jobs:
 
   publish:
     name: Publish to pub.dev
-    needs: [resolve, mode, pipeline, verify-package]
+    needs: [resolve, mode, pipeline, gates, verify-package]
     if: needs.mode.outputs.mode == 'release'
     runs-on: macos-26
     environment: pub.dev
@@ -440,7 +497,7 @@ jobs:
   summary:
     name: Result
     if: always()
-    needs: [resolve, mode, pipeline, verify-package, publish, confirm, finish-release, release-docs]
+    needs: [resolve, mode, pipeline, gates, verify-package, publish, confirm, finish-release, release-docs]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
