@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Prove ci/dry-run-check.sh accepts pub's dry run only when its one issue is
-# the known flutter_rust_bridge pin warning, and refuses an extra warning, a
-# hint, an error, a repeated pin warning, and any other exit status
+# Prove ci/dry-run-check.sh accepts pub's dry run only when its one warning is
+# the known flutter_rust_bridge pin warning, tolerating any informational hint
+# beside it, and refuses an extra warning, an error, a repeated pin warning,
+# and any other exit status
 #
 # A stub flutter on PATH prints a canned transcript and exits with a chosen
 # status, and records where and how it was called
@@ -171,7 +172,7 @@ expect_pass 'a recorded dry run of the staged package, exit 65, passes' recorded
 expect_pass 'the known pin warning alone, exit 65, passes' known 65
 expect_fail 'the pin warning plus another warning fails' extra 65
 expect_fail 'the pin warning listed twice fails' repeated 65
-expect_fail 'a hint beside the pin warning fails' hint 65
+expect_pass 'a hint beside the pin warning is tolerated' hint 65
 expect_fail 'an error fails' error 65
 expect_fail 'the pin warning without the one-warning summary fails' no-summary 65
 expect_fail 'a second issue under a one-warning summary fails' extra-under-one 65
