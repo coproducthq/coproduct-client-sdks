@@ -456,6 +456,17 @@ package", which is expected here and needs no bad-version work. A fresh run pack
 have yet. For a version already on npm, re-run the failed jobs of the run that
 published it.
 
+**A gate was wrong and its fix landed after the tag.** Release the next patch
+version instead. Re-runs and fresh runs both build the tagged commit with that
+commit's release tooling, so no run of the old tag picks up the fix, and the
+tag is never moved. The next releasing PR that changes a file under
+`sdks/react-native/coproduct` releases the next version with the fix.
+release-please counts only commits that change the package's directory, so a
+`ci:` fix to the release tooling releases nothing on its own. To pick the
+version, add `Release-As: X.Y.Z` to that PR's squash commit body. Avoid
+`release-as` in `.github/release-please-config.json`, which stays in force
+until someone removes it.
+
 #### The bad-version runbook
 
 A published version can never be replaced or reused. npm refuses a second
@@ -909,6 +920,18 @@ A fresh run of a version already on pub.dev therefore stops at `mismatch`, which
 is expected and needs no bad-version work. Use a fresh run only for a version
 pub.dev does not have yet. For a version already on pub.dev, re-run the failed
 jobs of the run that published it.
+
+**A gate was wrong and its fix landed after the tag.** Release the next patch
+version instead. Re-runs and fresh runs both build the tagged commit with that
+commit's release tooling, so no run of the old tag picks up the fix, and the
+tag is never moved. The next releasing PR that changes a file under
+`sdks/flutter/coproduct` releases the next version with the fix. release-please
+counts only commits that change the package's directory, so a `ci:` fix to the
+release tooling releases nothing on its own. To pick the version, add
+`Release-As: X.Y.Z` to that PR's squash commit body. Avoid `release-as` in
+`.github/release-please-config.json`, which stays in force until someone
+removes it. The tag that failed keeps its draft Release, titled
+"flutter: vX.Y.Z (not published)".
 
 #### The Flutter bad-version runbook
 
