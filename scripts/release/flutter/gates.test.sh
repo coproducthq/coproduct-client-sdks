@@ -197,6 +197,40 @@ for script in "$RELEASE" "$SUITE"; do
     done
 done
 
+echo "the archive set"
+
+# A release PR runs the archive set on a runner with no simulator, so it must
+# need no device and list no gate
+out="$(list_env env -u COPRODUCT_ACCEPTANCE_IOS_DEVICE -u COPRODUCT_ACCEPTANCE_ANDROID_DEVICE \
+    COPRODUCT_RELEASE_GATES=archive bash "$RELEASE" 2>&1)"; rc=$?
+if [[ $rc -eq 0 ]] && ! printf '%s\n' "$out" | ids_of | grep -q .; then
+    ok 'release.sh under archive needs no device and lists no gate'
+else
+    bad "release.sh under archive exited $rc or listed gates"
+    printf '%s\n' "$out" | tail -3 | sed 's/^/       /'
+fi
+
+# A gate matrix with no gates would pass without checking anything
+out="$(list_env COPRODUCT_RELEASE_GATES=archive bash "$SUITE" 2>&1)"; rc=$?
+if [[ $rc -eq 2 ]] && printf '%s' "$out" | grep -q 'archive'; then
+    ok 'gate-suite.sh refuses the archive set'
+else
+    bad "gate-suite.sh accepted the archive set (exit $rc)"
+fi
+
+# List-only mode reaches no stage, so the stop's place in the real run is read
+# from the script. It must come after the archive check and before the first
+# stage that follows it, or the set either skips the check or runs the matrix
+check_line="$(grep -n 'bin/check_archive.dart' "$RELEASE" | head -1 | cut -d: -f1)"
+stop_line="$(grep -n 'if gate_set_is archive; then' "$RELEASE" | head -1 | cut -d: -f1)"
+extract_line="$(grep -n 'step "extract the archive"' "$RELEASE" | head -1 | cut -d: -f1)"
+if [[ -n "$check_line" && -n "$stop_line" && -n "$extract_line" ]] \
+    && (( check_line < stop_line && stop_line < extract_line )); then
+    ok 'release.sh stops the archive set right after the archive check'
+else
+    bad "release.sh does not stop the archive set between the archive check and the extraction (lines ${check_line:-none}, ${stop_line:-none}, ${extract_line:-none})"
+fi
+
 echo "gate ids"
 
 # A guard naming an id no set declares would never run under any set, which

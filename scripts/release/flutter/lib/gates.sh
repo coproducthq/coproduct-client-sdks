@@ -9,6 +9,11 @@
 # gates.test.sh holds the two lists to that. iOS acceptance is local only: under
 # ci the no-Rust iOS run is the iOS runtime check
 #
+# archive runs no gate and needs no device. release.sh stops right after the
+# archive check, so a release PR can prove the package pub would publish before
+# its tag exists. gate-suite.sh refuses it, because a matrix with no gates
+# would pass without checking anything
+#
 # Under COPRODUCT_GATES_LIST_ONLY=1 each guard prints its id instead of
 # running, so the lists are read from the guards a real run takes, with one
 # exception that is listed although a real run of that set skips its block.
@@ -27,8 +32,9 @@ GATE_SET="${COPRODUCT_RELEASE_GATES:-full}"
 case "$GATE_SET" in
     full) GATES_ACTIVE="$GATES_FULL" ;;
     ci) GATES_ACTIVE="$GATES_CI" ;;
+    archive) GATES_ACTIVE="" ;;
     *)
-        echo "ERROR: COPRODUCT_RELEASE_GATES must be full or ci, got: $GATE_SET" >&2
+        echo "ERROR: COPRODUCT_RELEASE_GATES must be full, ci, or archive, got: $GATE_SET" >&2
         exit 2
         ;;
 esac
@@ -64,8 +70,10 @@ gate_enabled() { # id
     return 0
 }
 
-# The devices the active set needs. ci runs no Android device gate
+# The devices the active set needs. ci runs no Android device gate, and
+# archive runs no gate at all
 gates_require_devices() {
+    if gate_set_is archive; then return 0; fi
     : "${COPRODUCT_ACCEPTANCE_IOS_DEVICE:?must be a booted iOS simulator device id}"
     if gate_set_is full; then
         : "${COPRODUCT_ACCEPTANCE_ANDROID_DEVICE:?must be a booted Android emulator id}"
