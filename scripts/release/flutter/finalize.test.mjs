@@ -32,6 +32,11 @@ test('marks the release when verify-package failed', () => {
   assert.equal(act({ needs }), 'mark-not-published');
 });
 
+test('marks the release when a gate group failed', () => {
+  const needs = needsWith({ pipeline: { result: 'success' }, gates: { result: 'failure' }, 'verify-package': { result: 'success' } });
+  assert.equal(act({ needs }), 'mark-not-published');
+});
+
 test('marks the release when a build job was abandoned or cancelled', () => {
   for (const [job, result] of [['resolve', 'abandoned'], ['mode', 'cancelled'], ['pipeline', 'cancelled']]) {
     const needs = needsWith({ pipeline: { result: 'success' }, [job]: { result } });

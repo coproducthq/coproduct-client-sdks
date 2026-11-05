@@ -9,7 +9,7 @@ import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { pubPresence } from './registry.mjs';
 
-const BUILD_JOBS = ['resolve', 'mode', 'pipeline', 'verify-package'];
+const BUILD_JOBS = ['resolve', 'mode', 'pipeline', 'gates', 'verify-package'];
 const CHECKS = 3;
 
 /**

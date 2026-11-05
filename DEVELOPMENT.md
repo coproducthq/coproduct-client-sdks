@@ -778,8 +778,10 @@ hand is only for an emergency, through the runbook below.
 #### What CI checks and what you check
 
 The "Publish Flutter" run uses the `ci` gate set (`COPRODUCT_RELEASE_GATES=ci`),
-because a hosted macOS runner has one iOS simulator and no Android emulator. Its
-"Result" job prints the gates left to your own run. Every pull request that
+because a hosted macOS runner has one iOS simulator and no Android emulator. It
+splits that set into four groups, `primary`, `floor`, `template`, and `no-rust`,
+each on its own runner, so the slow consumer builds overlap. Its "Result" job
+prints the gates left to your own run. Every pull request that
 touches the package, the bridge, the shared core, the root Rust manifests and
 toolchain pin, or the release tooling also
 runs the "Flutter checks" job: `dart format`, `flutter analyze`, and
@@ -869,8 +871,10 @@ before publishing, with the version absent from pub.dev, retitles the Release
 "flutter: vX.Y.Z (not published)", and the next successful run restores the
 title. Done when the "Result" job passes.
 
-The gate logs of a failed build are kept for 14 days, in the artifact
-`flutter-gate-logs-attempt-<N>`.
+A failed gate group re-runs on its own against the same sealed package, so a
+re-run after a flaky gate repeats only that group. The gate logs of a failed
+build are kept for 14 days, in the artifact `flutter-gate-logs-attempt-<N>`, and
+those of a failed gate group in `flutter-gate-logs-<group>-attempt-<N>`.
 
 **The run never started, or stopped before publishing.** Start a fresh Publish
 Flutter run on the tag. The release App's runs for one tag queue behind each
@@ -1371,10 +1375,17 @@ path runs by hand, split across jobs:
   and whose version lines agree. Every other run, including a person's run on a
   release tag, only checks and publishes nothing.
 - **Build, seal, and check the package** runs on a `macos-26` runner. It installs
-  the pinned toolchains with `scripts/release/flutter/ci/setup-toolchains.sh`,
-  boots an iOS simulator, and runs `measure.sh` with `COPRODUCT_RELEASE_GATES=ci`.
-  It then packs the stage and its seal into one tar, `flutter-package.tar`,
-  whose SHA-256 every later job checks.
+  the pinned toolchains with `scripts/release/flutter/ci/setup-toolchains.sh` and
+  runs `measure.sh` with `COPRODUCT_RELEASE_GATES=archive`, which builds, stages,
+  and seals the package and runs the archive checks. It then packs the stage and
+  its seal into one tar, `flutter-package.tar`, whose SHA-256 every later job
+  checks.
+- **Gates** runs the `ci` gate set as four parallel `macos-26` jobs, one per
+  group in `scripts/release/flutter/lib/gates.sh`. Each unpacks the tar, builds
+  its own consumer from the files pub would publish, and runs its group through
+  `scripts/release/flutter/ci/run-gates.sh`. Only the `no-rust` group boots an
+  iOS simulator. Together the groups run exactly the `ci` gates, which
+  `gates.test.sh` checks, and publish waits for every group.
 - **Verify the package publish would upload** unpacks that tar exactly as the
   publish job will, checks the seal, and runs pub's dry run. It runs in every
   mode, so a checks-only run rehearses everything publish does short of uploading.

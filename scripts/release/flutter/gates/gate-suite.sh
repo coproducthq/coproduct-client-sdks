@@ -62,9 +62,14 @@ clean_between_toolchains() {
 }
 
 # ci builds the floor first, so the matrix ends on the primary toolchain and
-# the inspection rebuild below is not needed
+# the inspection rebuild below is not needed. The primary and floor groups
+# each build on their own toolchain, and only primary inspects the result
 if gate_enabled consumer-builds; then
-    if gate_set_is ci; then
+    if gate_group_is primary; then
+        versions="$PRIMARY"
+    elif gate_group_is floor; then
+        versions="$FLOOR"
+    elif gate_set_is ci; then
         versions="$FLOOR $PRIMARY"
     else
         versions="$PRIMARY $FLOOR"
