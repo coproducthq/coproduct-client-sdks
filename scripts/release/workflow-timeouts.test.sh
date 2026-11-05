@@ -364,6 +364,7 @@ if ! flutter=$(ruby -ryaml -e '
   problems << "the pipeline still boots a simulator" if steps_of.("pipeline").any? { |s| s["run"].to_s.include?("simctl boot") }
   # A gate leg starts minutes after the boot rather than an hour, so the boot
   # step waits for the simulator to answer the call the iOS acceptance run makes
+  problems << "the simulator boot has no timeout-minutes, so a hung probe holds the leg" unless sim && sim["timeout-minutes"].to_s =~ /\A\d+\z/
   problems << "the simulator boot does not wait for simctl uninstall to answer" unless sim && sim["run"].to_s.lines.any? { |l| l.strip.start_with?(%q{xcrun simctl uninstall "$ID" app.coproduct.consumer.flutter}) }
 
   # Every job publish waits for is a build job to finalize, so a failure that

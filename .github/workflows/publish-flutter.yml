@@ -194,6 +194,8 @@ jobs:
       - id: sim
         name: Boot the iOS 26.5 iPhone 17 simulator
         if: matrix.group == 'no-rust'
+        # Bounds a probe that hangs rather than answering slowly
+        timeout-minutes: 15
         shell: bash
         run: |
           trap 'echo "step time: ${SECONDS}s"' EXIT
