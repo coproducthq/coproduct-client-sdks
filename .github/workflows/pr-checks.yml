@@ -152,6 +152,28 @@ jobs:
           dart pub get
           ../ci-report.sh "Flutter release tooling tests" -- dart test
 
+  # The Flutter release PR's package is the one its tag publishes, so pub's dry
+  # run and the archive checks run here, before the tag exists. After the tag,
+  # every run builds the tagged commit, so no run of that tag can pick up a fix
+  release-archive:
+    name: Flutter release archive
+    if: github.head_ref == 'release-please--branches--main--components--flutter' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # This Dart only bootstraps FVM, which installs the pinned Flutter
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - run: scripts/release/flutter/ci/setup-toolchains.sh
+      - env:
+          COPRODUCT_RELEASE_GATES: archive
+          COPRODUCT_RELEASE_OUT: ${{ runner.temp }}/release/out
+          COPRODUCT_RELEASE_STAGE: ${{ runner.temp }}/release/stage/pkg
+          COPRODUCT_FLUTTER_ARCHIVE_DIR: ${{ runner.temp }}/release/archive
+          COPRODUCT_CONSUMER_DIR: ${{ runner.temp }}/release/consumer
+          COPRODUCT_RELEASE_LOG: ${{ runner.temp }}/release.log
+        run: scripts/release/ci-report.sh "Flutter release archive" -- scripts/release/flutter/measure.sh
+
   tooling:
     name: Release tooling tests
     runs-on: ubuntu-24.04
@@ -175,7 +197,7 @@ jobs:
   all:
     name: All checks passed
     if: always()
-    needs: [select, title, identity, core, release-config, rn-tests, readme, flutter, tooling, docs]
+    needs: [select, title, identity, core, release-config, rn-tests, readme, flutter, release-archive, tooling, docs]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

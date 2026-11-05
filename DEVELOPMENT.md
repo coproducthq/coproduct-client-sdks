@@ -772,6 +772,13 @@ runs the "Flutter checks" job: `dart format`, `flutter analyze`, and
 `flutter test` in `sdks/flutter/coproduct`, and `dart test` in
 `scripts/release/flutter`.
 
+The Flutter release PR also runs the "Flutter release archive" job, about 15
+minutes on macOS. It runs the pipeline with the `archive` gate set, which builds,
+stages, and seals the package, runs pub's dry run and the archive checks, and
+stops before the consumer builds and the gate matrix. A failure there blocks the
+merge, so it is fixed before the tag exists rather than after, when no run of
+that tag can pick up the fix.
+
 | Covered by | What |
 |---|---|
 | CI | The package build and seal, the archive checks, and the consumer app built from the archive |
