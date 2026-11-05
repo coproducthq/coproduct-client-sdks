@@ -230,6 +230,15 @@ if [[ -n "$check_line" && -n "$stop_line" && -n "$extract_line" ]] \
 else
     bad "release.sh does not stop the archive set between the archive check and the extraction (lines ${check_line:-none}, ${stop_line:-none}, ${extract_line:-none})"
 fi
+# The stop must end the run with its own status line, so a log shows the set
+# stopped on purpose rather than being cut short
+stop_block="$(sed -n "${stop_line:-1},${extract_line:-1}p" "$RELEASE")"
+if printf '%s\n' "$stop_block" | grep -q 'COPRODUCT_FLUTTER_RELEASE_STATUS pass=true gates=archive' \
+    && printf '%s\n' "$stop_block" | grep -qx '        exit 0'; then
+    ok 'the archive stop prints its own status line and exits zero'
+else
+    bad 'the archive stop does not print its status line and exit zero'
+fi
 
 echo "gate ids"
 

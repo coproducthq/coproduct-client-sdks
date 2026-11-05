@@ -5,9 +5,9 @@
 # first publication to be manual, and transferring it to a verified publisher is
 # one-way
 #
-# COPRODUCT_RELEASE_GATES picks the gate set, full by default, ci, or archive,
-# which stops after the archive check, and
-# COPRODUCT_GATES_LIST_ONLY=1 prints the gates the set runs and runs nothing.
+# COPRODUCT_RELEASE_GATES picks the gate set: full by default, ci, or archive,
+# which stops after the archive check. COPRODUCT_GATES_LIST_ONLY=1 prints the
+# gates the set runs and runs nothing.
 # lib/gates.sh owns both
 set -euo pipefail
 
@@ -105,7 +105,7 @@ if ! gates_list_only; then
 
     if gate_set_is archive; then
         echo
-        echo "COPRODUCT_FLUTTER_ARCHIVE_STATUS pass=true"
+        echo "COPRODUCT_FLUTTER_RELEASE_STATUS pass=true gates=archive"
         exit 0
     fi
 

@@ -777,7 +777,10 @@ minutes on macOS. It runs the pipeline with the `archive` gate set, which builds
 stages, and seals the package, runs pub's dry run and the archive checks, and
 stops before the consumer builds and the gate matrix. A failure there blocks the
 merge, so it is fixed before the tag exists rather than after, when no run of
-that tag can pick up the fix.
+that tag can pick up the fix. The check covers `main` as of the release PR's
+last update. If release tooling changed on `main` since then, update the
+branch so the check runs again before merging. It cannot reproduce the checks
+pub.dev makes only at upload, such as uploader permissions.
 
 | Covered by | What |
 |---|---|
@@ -1138,6 +1141,7 @@ shows how far it got.
 | Both platforms, both toolchains | `gates/gate-suite.sh` | `COPRODUCT_FLUTTER_GATE_SUITE_STATUS` |
 | Prove the gates fail | `gates/mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
 | Re-verify the seal | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
+| Stop after the archive check, under `archive` | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS gates=archive` |
 | The whole run, timed | `measure.sh` | `COPRODUCT_FLUTTER_MEASURE_STATUS` |
 
 **5. Publish.** Only through the wrapper:
