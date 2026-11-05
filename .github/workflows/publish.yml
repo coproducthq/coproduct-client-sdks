@@ -77,7 +77,7 @@ jobs:
         if: steps.mode.outputs.mode != 'release'
         env:
           REASON: ${{ steps.mode.outputs.reason }}
-        run: echo "::notice title=Checks only, nothing is published::$REASON"
+        run: echo "::notice title=This run only checks and publishes nothing::$REASON"
 
   native-ios:
     name: Native ${{ matrix.target }}
