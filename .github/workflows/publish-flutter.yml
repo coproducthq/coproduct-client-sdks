@@ -84,8 +84,8 @@ jobs:
         run: echo "::notice title=This run only checks and publishes nothing::$REASON"
 
   # Builds the binaries from a clean checkout, stages and seals the package,
-  # runs the archive checks pub's dry run included, then packs the stage and its
-  # seal into one tar whose SHA-256 every later job checks. The gates run in
+  # runs the archive checks, including pub's dry run, then packs the stage and
+  # its seal into one tar whose SHA-256 every later job checks. The gates run in
   # their own jobs against that tar. The stage, the output, and every scratch
   # directory live under the runner temp directory, outside the checkout
   pipeline:

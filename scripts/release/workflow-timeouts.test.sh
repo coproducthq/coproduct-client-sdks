@@ -337,6 +337,9 @@ if ! flutter=$(ruby -ryaml -e '
   problems << "the gates matrix is not exactly the groups #{want_groups.inspect}: #{got_groups.inspect}" unless got_groups == want_groups
   problems << "the gates matrix does not set fail-fast: false" unless gates.dig("strategy", "fail-fast") == false
   problems << "gates does not need pipeline" unless needs_of.("gates").include?("pipeline")
+  # Either would let a failed leg read as success to publish
+  problems << "gates has an if, so a leg can be skipped" if gates.key?("if")
+  problems << "gates continues on error" if gates.key?("continue-on-error") || steps_of.("gates").any? { |s| s.key?("continue-on-error") }
   run_gates = steps_of.("gates").find { |s| s["run"].to_s.include?("scripts/release/flutter/ci/run-gates.sh") }
   if run_gates.nil?
     problems << "gates does not run run-gates.sh"

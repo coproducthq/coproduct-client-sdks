@@ -400,6 +400,24 @@ no-rust-gate.sh --build-only --require-flutter 3.44.0 android" "$(recorded_run c
 sequential="$(recorded_calls ci | sort)"
 grouped="$(for g in $GROUPS_DECLARED; do recorded_calls ci "$g"; done | sort)"
 same_list 'the groups together make exactly the calls of one ci run' "$sequential" "$grouped"
+
+# The gates that inspect a consumer build, or test inside the consumer, read
+# what that runner last built, so they must share a group whose consumer builds
+# run on the primary toolchain the release ships with, and on no other
+for g in $GROUPS_DECLARED; do
+    ids="$(list_env env -u COPRODUCT_ACCEPTANCE_IOS_DEVICE COPRODUCT_RELEASE_GATES=ci COPRODUCT_GATES_GROUP="$g" \
+        COPRODUCT_ACCEPTANCE_IOS_DEVICE=ios-device bash "$SUITE" 2>&1 | ids_of)"
+    calls="$(recorded_run ci "$g")"
+    for id in ios-symbols android-symbols ios-privacy-manifest ios-app-store-readiness testing-library public-surface; do
+        printf '%s\n' "$ids" | grep -qx "$id" || continue
+        if printf '%s\n' "$calls" | grep -q '^fvm 3.44.0 artifact-linked' \
+            && ! printf '%s\n' "$calls" | grep -q '^fvm 3.38.1 artifact-linked'; then
+            ok "$id runs in the $g group, which builds only on the primary toolchain"
+        else
+            bad "$id runs in the $g group, which does not build only on the primary toolchain"
+        fi
+    done
+done
 # An empty recording on both sides would pass the comparison above, so the
 # sequential run must have recorded every kind of call the groups split up
 for want in 'fvm 3.44.0 artifact-linked' 'fvm 3.38.1 artifact-linked' 'fvm 3.38.1 flutter' 'no-rust-gate.sh'; do
