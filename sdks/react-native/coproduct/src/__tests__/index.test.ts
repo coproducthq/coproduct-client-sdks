@@ -50,8 +50,18 @@ jest.mock('../NativeCoproduct', () => ({
   },
 }));
 
-import { PollOutcome, ProviderState } from '../generated/coproduct_ffi_uniffi';
-import { Coproduct, ProviderState as PublicProviderState } from '../index';
+import {
+  InitError,
+  initialize as nativeInitialize,
+  LifecycleEvent,
+  PollOutcome,
+  ProviderState,
+} from '../generated/coproduct_ffi_uniffi';
+import {
+  Coproduct,
+  LifecycleEvent as PublicLifecycleEvent,
+  ProviderState as PublicProviderState,
+} from '../index';
 
 // `var`, not `const`: index.tsx's module-top-level `generatedCoproduct
 // .initialize()` call (see the jest.mock factory below) runs during this
@@ -65,6 +75,7 @@ var mockNativeClient = {
   setAutoPopulatedAttributes: jest.fn().mockResolvedValue(undefined),
   pollNow: jest.fn().mockResolvedValue(PollOutcome.Updated.new()),
   shutdown: jest.fn().mockResolvedValue(undefined),
+  addHandler: jest.fn(() => ({ cancel: jest.fn() })),
 };
 
 jest.mock('../generated/coproduct_ffi_uniffi', () => {
@@ -162,5 +173,75 @@ describe('ProviderState', () => {
     const client = await Coproduct.initialize('cpk_mob_test');
 
     expect(client.state).toBe(PublicProviderState.Fatal);
+  });
+});
+
+describe('LifecycleEvent', () => {
+  afterEach(async () => {
+    await Coproduct.shutdown();
+  });
+
+  it('is exported from the package root so callers can register a handler', async () => {
+    const client = await Coproduct.initialize('cpk_mob_test');
+
+    client.addHandler(PublicLifecycleEvent.Fatal, () => {});
+
+    expect(mockNativeClient.addHandler).toHaveBeenCalledWith(
+      LifecycleEvent.Fatal,
+      expect.anything()
+    );
+  });
+});
+
+describe('Coproduct.initialize errors', () => {
+  afterEach(async () => {
+    await Coproduct.shutdown();
+  });
+
+  function rejectNextInitialize(error: Error): void {
+    (nativeInitialize as jest.Mock).mockImplementationOnce(() =>
+      Promise.reject(error)
+    );
+  }
+
+  it('adds the reason to the message and keeps the same error', async () => {
+    const original = InitError.MalformedSdkKey.new({
+      reason: 'expected 40 characters total, got 21',
+    });
+    rejectNextInitialize(original);
+
+    const error = await Coproduct.initialize('cpk_mob_short').catch(
+      (e: unknown) => e
+    );
+
+    expect(error).toBe(original);
+    expect(InitError.MalformedSdkKey.instanceOf(error)).toBe(true);
+    expect((error as Error).message).toBe(
+      'InitError.MalformedSdkKey: expected 40 characters total, got 21'
+    );
+  });
+
+  it('explains a key of the wrong type without echoing the key', async () => {
+    const original = InitError.InvalidKeyType.new({ prefix: '(redacted)' });
+    rejectNextInitialize(original);
+
+    const error = await Coproduct.initialize('sk_live_x').catch(
+      (e: unknown) => e
+    );
+
+    expect(error).toBe(original);
+    expect((error as Error).message).toBe(
+      'InitError.InvalidKeyType: expected a Coproduct mobile SDK key (cpk_mob_)'
+    );
+  });
+
+  it('leaves an error without a reason unchanged', async () => {
+    const original = InitError.MissingSdkKey.new();
+    rejectNextInitialize(original);
+
+    const error = await Coproduct.initialize('').catch((e: unknown) => e);
+
+    expect(error).toBe(original);
+    expect((error as Error).message).toBe('InitError.MissingSdkKey');
   });
 });
