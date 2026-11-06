@@ -56,7 +56,7 @@ When you first use a Coproduct tool, your agent will prompt you to sign in and g
 
 ### **Getting your SDK key & environments**
 
-Each environment in Coproduct has its own mobile SDK key. A key starts with `cpk_mob_` followed by 32 characters. SDK keys are generated exclusively through your AI coding tool via the Coproduct MCP integration — there is no manual button to generate keys in the dashboard.
+Each environment in Coproduct has its own mobile SDK key. A key starts with `cpk_mob_` followed by 32 lowercase letters and digits. SDK keys are generated exclusively through your AI coding tool via the Coproduct MCP integration — there is no manual button to generate keys in the dashboard.
 
 #### **1. Prompt your agent to generate the key**
 
@@ -68,7 +68,7 @@ Generate a mobile SDK key for the development environment.
 
 Your agent calls create_sdk_key and provides your environment key (cpk_mob_...).  
 IMPORTANT  
-The SDK key is revealed only once upon generation. Save it immediately in a private location (such as a local .env file that is in your .gitignore, or your team’s secrets manager). Coproduct never stores or displays the raw secret again.
+The SDK key is revealed only once upon generation. Save it immediately in a private location, such as a local env file that git ignores (`.env.local` in Expo) or your team’s secrets manager, and never commit it. Coproduct never shows the full key again.
 
 #### **2. If you forgot or lost the key**
 
@@ -215,6 +215,8 @@ export function CheckoutBanner() {
   return <Text>{newCheckout ? 'New checkout' : 'Classic checkout'}</Text>;
 }
 ```
+
+This reads the flag once per render. To re-render when the flag changes, use `useFlag(useCoproduct(), 'new-checkout', false)` from [Reacting to flag changes](#reacting-to-flag-changes) instead.
 
 Calling `useCoproduct` from several components is safe: `initialize` creates one client and returns it to every caller.
 
@@ -796,7 +798,7 @@ yarn add @react-native-community/geolocation
 
 ## **Troubleshooting**
 
-**`initialize` rejects with an error.** This most often means the SDK key is missing or isn't in the right shape, and the error names the problem. A key starts with `cpk_mob_` followed by 32 characters. Check that you copied the whole key with nothing added.
+**`initialize` rejects with an error.** This most often means the SDK key is missing or isn't in the right shape, and the error names the problem. A key starts with `cpk_mob_` followed by 32 lowercase letters and digits. Check that you copied the whole key with nothing added.
 
 **Flags always return your defaults?** Check `client.state`:
 
@@ -804,10 +806,10 @@ yarn add @react-native-community/geolocation
 import { ProviderState } from '@coproduct/react-native-sdk';
 
 if (client.state === ProviderState.Fatal) {
-  console.warn('Coproduct rejected the SDK key');
+  console.warn('Coproduct stopped fetching flags. Check the SDK key.');
 }
 ```
 
-`ProviderState.Fatal` means the key was rejected. `initialize` still resolves, and every read returns the fallback you pass. Check that you copied the key your agent generated, or ask your agent to rotate it (see [If you forgot or lost the key](#2-if-you-forgot-or-lost-the-key)).
+`ProviderState.Fatal` means the SDK has stopped fetching flags, most often because the key was rejected. In that case `initialize` still resolves and every read returns the fallback you pass. Check that you copied the key your agent generated, or ask your agent to rotate it (see [If you forgot or lost the key](#2-if-you-forgot-or-lost-the-key)).
 
-**The app fails in Expo Go.** Expo Go can't load the SDK's native code. Build a development build instead (see [Expo](#expo)).
+**Running in Expo Go?** Expo Go can't load native modules like this SDK. Use a development build instead (see [Expo](#expo)).
