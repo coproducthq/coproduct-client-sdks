@@ -56,7 +56,7 @@ When you first use a Coproduct tool, your agent will prompt you to sign in and g
 
 ### **Getting your SDK key & environments**
 
-Each environment in Coproduct has its own mobile SDK key — formatted as cpk_mob_.... SDK keys are generated exclusively through your AI coding tool via the Coproduct MCP integration — there is no manual button to generate keys in the dashboard.
+Each environment in Coproduct has its own mobile SDK key. A key starts with `cpk_mob_` followed by 32 characters. SDK keys are generated exclusively through your AI coding tool via the Coproduct MCP integration — there is no manual button to generate keys in the dashboard.
 
 #### **1. Prompt your agent to generate the key**
 
@@ -88,7 +88,7 @@ Use the key corresponding to the environment you want flags evaluated against:
 * Development or Staging — use while building features, debugging locally, and running test suites.  
 * Production — use in release builds published to TestFlight, the App Store, or Google Play.
 
-Never hardcode or commit keys into source control. Keep the key in a `.env` file that is in your `.gitignore` and read it at build time: in Expo as `EXPO_PUBLIC_COPRODUCT_SDK_KEY`, or in a bare React Native app through [react-native-config](https://github.com/lugg/react-native-config). A plain `process.env.COPRODUCT_SDK_KEY` is undefined at runtime in both. A mobile key ships inside your app, so this keeps it out of source control rather than secret.
+Never hardcode or commit keys into source control. Keep the key in an env file that git ignores and read it at build time. In Expo, put it in `.env.local` as `EXPO_PUBLIC_COPRODUCT_SDK_KEY`: Expo's default `.gitignore` covers `.env*.local` but not `.env`. In a bare React Native app, put it in a `.env` file that you add to your `.gitignore`, and read it through [react-native-config](https://github.com/lugg/react-native-config). A plain `process.env.COPRODUCT_SDK_KEY` is undefined at runtime in both. A mobile key ships inside your app, so this keeps it out of source control rather than secret.
 
 ## **Requirements**
 
@@ -109,7 +109,8 @@ Install @coproduct/react-native-sdk and its required native packages from npm,
 using the command in the SDK's manual reference. If the app will show
 paywalls, also install the paywall packages listed there.
 
-Then run pod install for iOS.
+Then run pod install for iOS. In an Expo app, install with npx expo install
+and run npx expo prebuild instead, as the SDK's Expo section describes.
 ```
 
 ### **Manual reference**
@@ -126,13 +127,39 @@ If your app shows paywalls, also install the purchase packages. An app that uses
 npm install react-native-iap react-native-nitro-modules
 ```
 
-Then install the iOS pods:
+In a bare React Native app, install the iOS pods next. Expo apps skip this step, because `npx expo prebuild` installs them (see [Expo](#expo)):
 
 ```bash
 cd ios && pod install
 ```
 
 The SDK requires React Native 0.84 or later. In an app on an earlier release, npm stops the install with a peer dependency conflict, and Yarn and pnpm warn. Earlier releases fail to build under Xcode 26 once the paywall's purchase packages are installed.
+
+### **Expo**
+
+The SDK ships native code, so it runs in an Expo [development build](https://docs.expo.dev/develop/development-builds/introduction/), not in Expo Go. Expo Go can't load native modules that aren't bundled with it.
+
+1. Install the SDK and its native packages with `npx expo install`, which picks the versions of packages such as `@react-native-community/netinfo` and `react-native-webview` that match your Expo SDK:
+
+   ```bash
+   npx expo install @coproduct/react-native-sdk @react-native-async-storage/async-storage @react-native-community/netinfo react-native-device-info react-native-fs react-native-keychain react-native-permissions react-native-webview
+   ```
+
+2. Put your key in `.env.local` at the project root. Expo's default `.gitignore` covers `.env*.local`, so the key stays out of git:
+
+   ```bash
+   EXPO_PUBLIC_COPRODUCT_SDK_KEY=cpk_mob_your_key_here
+   ```
+
+3. Generate the native projects, then build and run the app:
+
+   ```bash
+   npx expo prebuild
+   npx expo run:ios
+   npx expo run:android
+   ```
+
+   `npx expo prebuild` writes the `ios` and `android` folders and installs the iOS pods.
 
 ## **Basic integration**
 
@@ -145,23 +172,58 @@ Initialize the Coproduct client at app startup, reading the SDK key from the
 app's build configuration: EXPO_PUBLIC_COPRODUCT_SDK_KEY in Expo, or
 Config.COPRODUCT_SDK_KEY from react-native-config in a bare React Native app.
 
-Hold the initialized client in a ref or global provider so the rest of the app
+Use the useCoproduct hook from the SDK's code reference so the rest of the app
 can read flags.
 ```
 
 ### **Code reference**
 
+Add a `useCoproduct` hook, for example in `coproduct.ts`:
+
 ```typescript
-import Coproduct from '@coproduct/react-native-sdk';
+import { useEffect, useState } from 'react';
+import Coproduct, { type CoproductClient } from '@coproduct/react-native-sdk';
+
+// Write the variable name out in full. Expo replaces only this exact
+// expression at build time
+const sdkKey = process.env.EXPO_PUBLIC_COPRODUCT_SDK_KEY;
+
+export function useCoproduct(): CoproductClient | null {
+  const [client, setClient] = useState<CoproductClient | null>(null);
+  useEffect(() => {
+    if (!sdkKey) {
+      console.error('The Coproduct SDK key is not set');
+      return;
+    }
+    Coproduct.initialize(sdkKey).then(setClient, (error) => {
+      console.error('Coproduct failed to initialize', error);
+    });
+  }, []);
+  return client;
+}
+```
+
+Then read flags in any component:
+
+```tsx
+import { Text } from 'react-native';
+import { useCoproduct } from './coproduct';
+
+export function CheckoutBanner() {
+  const client = useCoproduct();
+  const newCheckout = client?.getBool('new-checkout', false) ?? false;
+  return <Text>{newCheckout ? 'New checkout' : 'Classic checkout'}</Text>;
+}
+```
+
+Calling `useCoproduct` from several components is safe: `initialize` creates one client and returns it to every caller.
+
+In a bare React Native app, install [react-native-config](https://github.com/lugg/react-native-config) and follow its setup, then read the key from it instead of `process.env`:
+
+```typescript
 import Config from 'react-native-config';
 
-// In Expo, use process.env.EXPO_PUBLIC_COPRODUCT_SDK_KEY instead, written out
-// in full: Expo replaces only that exact expression at build time
 const sdkKey = Config.COPRODUCT_SDK_KEY;
-if (!sdkKey) {
-  throw new Error('COPRODUCT_SDK_KEY is not set in .env');
-}
-const client = await Coproduct.initialize(sdkKey);
 ```
 
 The SDK loads your flags from the platform-local cache immediately so the client is ready to use as soon as initialize resolves. Flag evaluations and updates run against cached snapshots with background polling.
@@ -731,3 +793,21 @@ await Coproduct.refreshLocation();
 ```sh
 yarn add @react-native-community/geolocation
 ```
+
+## **Troubleshooting**
+
+**`initialize` rejects with an error.** This most often means the SDK key is missing or isn't in the right shape, and the error names the problem. A key starts with `cpk_mob_` followed by 32 characters. Check that you copied the whole key with nothing added.
+
+**Flags always return your defaults?** Check `client.state`:
+
+```typescript
+import { ProviderState } from '@coproduct/react-native-sdk';
+
+if (client.state === ProviderState.Fatal) {
+  console.warn('Coproduct rejected the SDK key');
+}
+```
+
+`ProviderState.Fatal` means the key was rejected. `initialize` still resolves, and every read returns the fallback you pass. Check that you copied the key your agent generated, or ask your agent to rotate it (see [If you forgot or lost the key](#2-if-you-forgot-or-lost-the-key)).
+
+**The app fails in Expo Go.** Expo Go can't load the SDK's native code. Build a development build instead (see [Expo](#expo)).
