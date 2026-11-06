@@ -51,7 +51,7 @@ jest.mock('../NativeCoproduct', () => ({
 }));
 
 import { PollOutcome, ProviderState } from '../generated/coproduct_ffi_uniffi';
-import { Coproduct } from '../index';
+import { Coproduct, ProviderState as PublicProviderState } from '../index';
 
 // `var`, not `const`: index.tsx's module-top-level `generatedCoproduct
 // .initialize()` call (see the jest.mock factory below) runs during this
@@ -147,5 +147,20 @@ describe('Coproduct.shutdown', () => {
 
     expect(second).not.toBe(first);
     expect(mockNativeClient.shutdown).toHaveBeenCalled();
+  });
+});
+
+describe('ProviderState', () => {
+  afterEach(async () => {
+    await Coproduct.shutdown();
+    mockNativeClient.state.mockReturnValue(ProviderState.Ready);
+  });
+
+  it('is exported from the package root so callers can compare client.state', async () => {
+    mockNativeClient.state.mockReturnValue(ProviderState.Fatal);
+
+    const client = await Coproduct.initialize('cpk_mob_test');
+
+    expect(client.state).toBe(PublicProviderState.Fatal);
   });
 });

@@ -23,6 +23,7 @@ import { FetchTransport } from './defaultTransport';
 import { KeychainSecureStore } from './defaultSecureStore';
 
 export { CoproductClient } from './client';
+export { ProviderState } from './generated/coproduct_ffi_uniffi';
 export type { AttributeValue } from './attributeValue';
 export type { Cancellable } from './observation';
 export type { HostSecureStore, HostTransport };
