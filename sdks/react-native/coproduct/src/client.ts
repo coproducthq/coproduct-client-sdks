@@ -260,6 +260,12 @@ export class CoproductClient {
 
   // MARK: Handlers/hooks
 
+  /**
+   * Register a lifecycle handler. Keep the returned handle for as long as the
+   * handler should stay active. Calling cancel, or letting the handle be
+   * garbage collected, removes the handler, so a discarded handle can stop
+   * the handler from ever firing.
+   */
   addHandler(
     event: LifecycleEvent,
     handler: (event: LifecycleEvent) => void

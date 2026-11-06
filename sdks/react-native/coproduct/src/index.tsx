@@ -4,6 +4,7 @@ import installer from './NativeCoproduct';
 import {
   default as generatedCoproduct,
   initialize as nativeInitialize,
+  InitError,
   ProviderState,
   type FfiConfig,
   type HostSecureStore,
@@ -23,7 +24,10 @@ import { FetchTransport } from './defaultTransport';
 import { KeychainSecureStore } from './defaultSecureStore';
 
 export { CoproductClient } from './client';
-export { ProviderState } from './generated/coproduct_ffi_uniffi';
+export {
+  LifecycleEvent,
+  ProviderState,
+} from './generated/coproduct_ffi_uniffi';
 export type { AttributeValue } from './attributeValue';
 export type { Cancellable } from './observation';
 export type { HostSecureStore, HostTransport };
@@ -285,7 +289,9 @@ async function runInitialize(
     config,
     transport,
     secureStore
-  );
+  ).catch((error: unknown) => {
+    throw withReason(error);
+  });
   const client = new CoproductClient(nativeClient);
 
   const sessionAttributes = await readSessionAttributes();
@@ -345,6 +351,24 @@ async function runInitialize(
     throw new CoproductCancelledError();
   }
   return client;
+}
+
+// A generated error's message names only its variant, such as
+// InitError.MalformedSdkKey, and keeps any detail in inner.reason. Appending
+// the detail to the message shows it wherever the error is logged. The error
+// itself is rethrown unchanged otherwise, so its tag, inner, and the generated
+// instanceOf checks keep working
+function withReason(error: unknown): unknown {
+  if (!(error instanceof Error)) return error;
+  const reason = (error as { inner?: { reason?: unknown } }).inner?.reason;
+  const detail =
+    typeof reason === 'string'
+      ? reason
+      : InitError.InvalidKeyType.instanceOf(error)
+        ? 'expected a Coproduct mobile SDK key (cpk_mob_)'
+        : undefined;
+  if (detail) error.message = `${error.message}: ${detail}`;
+  return error;
 }
 
 // Waits up to startupTimeoutSecs for the first poll to move the provider off
