@@ -82,12 +82,12 @@ void main() {
   });
 
   group('computeShippedGraph (against committed fixtures)', () {
-    test('unions all six targets into the known 79-package shipped graph', () {
+    test('unions all six targets into the known 81-package shipped graph', () {
       final graph = computeShippedGraph(
         manifestPath: 'unused-in-fixture-mode',
         runProcess: _fixtureRunner,
       );
-      expect(graph.thirdParty.length + graph.workspaceLocal.length, 79);
+      expect(graph.thirdParty.length + graph.workspaceLocal.length, 81);
       expect(graph.workspaceLocal, {('coproduct-core', '0.0.1'), ('coproduct_ffi_frb', '0.0.1')});
       expect(graph.thirdParty, contains(('allo-isolate', '0.1.27')));
       expect(graph.thirdParty, contains(('dart-sys', '4.1.5')));
@@ -128,7 +128,7 @@ void main() {
         return;
       }
       final graph = computeShippedGraph(manifestPath: manifestPath);
-      expect(graph.thirdParty.length + graph.workspaceLocal.length, 79);
+      expect(graph.thirdParty.length + graph.workspaceLocal.length, 81);
       expect(graph.workspaceLocal, {('coproduct-core', '0.0.1'), ('coproduct_ffi_frb', '0.0.1')});
     });
 

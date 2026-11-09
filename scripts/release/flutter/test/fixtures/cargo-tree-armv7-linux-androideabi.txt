@@ -1,6 +1,8 @@
 coproduct_ffi_frb v0.0.1 (/Users/nathan/coproduct/coproduct-client-sdks/ffi/coproduct-ffi-frb)
 anyhow v1.0.102
 coproduct-core v0.0.1 (/Users/nathan/coproduct/coproduct-client-sdks/core/coproduct-core)
+form_urlencoded v1.2.2
+percent-encoding v2.3.2
 http v1.4.2
 bytes v1.11.1
 itoa v1.0.18

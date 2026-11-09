@@ -18,6 +18,7 @@ dashmap v5.5.3
 deranged v0.5.8
 digest v0.11.3
 flutter_rust_bridge v2.12.0
+form_urlencoded v1.2.2
 futures v0.3.32
 futures-channel v0.3.32
 futures-channel v0.3.32 (*)
@@ -51,6 +52,7 @@ parking_lot v0.12.5
 parking_lot v0.12.5 (*)
 parking_lot_core v0.9.12
 parking_lot_core v0.9.12 (*)
+percent-encoding v2.3.2
 pin-project-lite v0.2.17
 portable-atomic v1.13.1
 powerfmt v0.2.0
