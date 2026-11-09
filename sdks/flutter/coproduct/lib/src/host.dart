@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'attribute_value.dart';
 import 'auto_upsert.dart';
 import 'cancellation.dart';
 import 'config.dart';
@@ -78,6 +79,7 @@ class CoproductHost<H extends Object, C extends Object> {
     required Future<SessionPair> Function() beginSession,
     required NetworkTypeEvents networkTypeEvents,
     required ForegroundBinder bindNetworkResume,
+    required Future<Map<String, AttributeValue>> Function() readUtmAttributes,
     Duration Function()? initClock,
     Duration Function()? schedulerClock,
   }) : _bridge = bridge, // ignore: prefer_initializing_formals
@@ -96,6 +98,8 @@ class CoproductHost<H extends Object, C extends Object> {
            networkTypeEvents, // ignore: prefer_initializing_formals
        _bindNetworkResume =
            bindNetworkResume, // ignore: prefer_initializing_formals
+       _readUtmAttributes =
+           readUtmAttributes, // ignore: prefer_initializing_formals
        _initClock = initClock, // ignore: prefer_initializing_formals
        _schedulerClock = schedulerClock, // ignore: prefer_initializing_formals
        _manager = CoproductManager<_ActiveRuntime<C>>(
@@ -117,6 +121,9 @@ class CoproductHost<H extends Object, C extends Object> {
   // Separate from the polling binder, because network observation resumes
   // whether or not foreground polling is enabled
   final ForegroundBinder _bindNetworkResume;
+  // Injected like every other native-touching collaborator, so a test builds
+  // a host without a SharedPreferences plugin binding
+  final Future<Map<String, AttributeValue>> Function() _readUtmAttributes;
   final Duration Function()? _initClock;
   final Duration Function()? _schedulerClock;
   final CoproductManager<_ActiveRuntime<C>> _manager;
@@ -304,9 +311,14 @@ class CoproductHost<H extends Object, C extends Object> {
           if (!isCurrent()) {
             throw const CoproductInitializationCancelled();
           }
+          // A local read, not bounded by the shared startup budget: the
+          // value was already captured and persisted by an earlier
+          // captureAttribution call, so there is nothing here to wait on
+          final utmAttributes = toFrbAttributes(await _readUtmAttributes());
           await _bridge.setAutoPopulatedAttributes(handle, {
             ...(outcome as _MetadataSuccess).attributes,
             ...sessionAttributes,
+            ...utmAttributes,
           });
           if (!isCurrent()) {
             throw const CoproductInitializationCancelled();

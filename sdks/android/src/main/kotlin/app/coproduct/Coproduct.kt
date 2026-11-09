@@ -7,7 +7,9 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -67,12 +69,19 @@ object Coproduct {
     private var generation = 0
     private val scope = CoroutineScope(Dispatchers.Default)
 
+    // Owns the static captureAttribution facade's background work. Pre-init
+    // there is no client to enqueue onto, so this scope carries the capture
+    // (a blocking SharedPreferences commit) off whichever thread the caller,
+    // often a deep-link handler on the main thread, called from
+    private val captureScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private class Stored(
         val client: CoproductClient,
         val sdkKey: String,
         val timer: HostTimer,
         val networkMonitor: NetworkMonitor,
         val locationMonitor: LocationMonitor,
+        val attributionScope: CoroutineScope,
     ) {
         // Set after registerForegroundListener runs, under lock, once we
         // re-confirm this Stored is still the live defaultInstance. Null
@@ -171,11 +180,15 @@ object Coproduct {
             },
         )
 
+        // Owns the one-shot install referrer fetch so shutdown can cancel it
+        // and release the service connection it opened
+        val attributionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
         val storedOk = synchronized(lock) {
             if (claimedGeneration != generation) return@synchronized false
             inFlight = null
             inFlightKey = null
-            defaultInstance = Stored(client, sdkKey, timer, networkMonitor, locationMonitor)
+            defaultInstance = Stored(client, sdkKey, timer, networkMonitor, locationMonitor, attributionScope)
             true
         }
         if (!storedOk) {
@@ -190,6 +203,7 @@ object Coproduct {
 
         timer.start()
         networkMonitor.start()
+        InstallReferrerCapture.start(appContext, UtmStore(appContext), attributionScope, client::setAutoPopulated)
         val observer = registerForegroundListener(foregroundEvents)
 
         // Stash the observer onto the Stored instance so shutdown() can
@@ -266,11 +280,12 @@ object Coproduct {
             secureStore = secureStore,
         )
 
-        val client = CoproductClient(native)
+        val client = CoproductClient(native, appContext)
         val sessionPrefs = appContext.getSharedPreferences("app.coproduct.session", Context.MODE_PRIVATE)
         val locationPrefs = appContext.getSharedPreferences("app.coproduct.location", Context.MODE_PRIVATE)
         val attributes = DeviceContext.staticAttributes(appContext) +
             SessionStore(SharedPreferencesKeyValueStore(sessionPrefs)).sessionAttributes() +
+            UtmStore(appContext).utmAttributes() +
             // Seed device_location from the last stored fix so a geo-fence can
             // evaluate from the last known position at launch. Live acquisition
             // starts only when the host enables location, never here
@@ -296,6 +311,7 @@ object Coproduct {
         stored?.timer?.stop()
         stored?.networkMonitor?.cancel()
         stored?.locationMonitor?.cancel()
+        stored?.attributionScope?.cancel()
         stored?.foregroundObserver?.let { observer ->
             withContext(Dispatchers.Main) {
                 ProcessLifecycleOwner.get().lifecycle.removeObserver(observer)
@@ -329,6 +345,30 @@ object Coproduct {
     /** Read one GPS fix on demand and publish it. A no-op until location has been enabled. */
     fun refreshLocation() {
         currentLocationMonitor()?.refreshNow()
+    }
+
+    /**
+     * Persists UTM acquisition attribution parsed from [url], even before
+     * [initialize] is called, so a deep link opened ahead of SDK startup is
+     * never lost. Unlike the per-instance [CoproductClient.captureAttribution]
+     * this one needs [context] directly, because no client may exist yet.
+     * Only [Context.getApplicationContext] is retained, and only for the
+     * duration of the capture.
+     *
+     * Returns immediately: the capture and the publish run on [captureScope],
+     * so a caller on the main thread is never blocked on disk I/O. A capture
+     * before [initialize] is folded into the auto-populated context the next
+     * time [initialize] runs
+     */
+    fun captureAttribution(context: Context, url: String) {
+        val appContext = context.applicationContext
+        captureScope.launch {
+            val attributes = UtmStore(appContext).capture(url)
+            val client = synchronized(lock) { defaultInstance?.client }
+            if (client != null && attributes.isNotEmpty()) {
+                client.setAutoPopulated(attributes)
+            }
+        }
     }
 
     private fun currentLocationMonitor(): LocationMonitor? =

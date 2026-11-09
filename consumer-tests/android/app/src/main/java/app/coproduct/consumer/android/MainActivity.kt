@@ -14,6 +14,9 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
+private const val DEMO_UTM_URL =
+    "coproduct-demo://open?utm_source=android-consumer&utm_medium=usb&utm_campaign=device-verify"
+
 class MainActivity : Activity() {
     private val scope = MainScope()
     private var subscription: Cancellable? = null
@@ -21,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var hostCallbacksView: TextView
     private lateinit var getBoolView: TextView
     private lateinit var observerView: TextView
+    private lateinit var utmView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +46,7 @@ class MainActivity : Activity() {
                 hostCallbacksView = addStatusRow("Host callbacks: no")
                 getBoolView = addStatusRow("getBool: false")
                 observerView = addStatusRow("Observer registered: no")
+                utmView = addStatusRow("UTM capture: pending")
             },
         )
 
@@ -57,6 +62,9 @@ class MainActivity : Activity() {
             hostCallbacksView.text =
                 "Host callbacks: ${yesNo(MockTransport.requestCount == 1 && MockSecureStore.completedHandshake)}"
             getBoolView.text = "getBool: ${client.getBool("test-flag", false)}"
+
+            Coproduct.captureAttribution(applicationContext, DEMO_UTM_URL)
+            utmView.text = "UTM capture: triggered"
 
             subscription = client.observe("test-flag", false) {}
             observerView.text = "Observer registered: yes"

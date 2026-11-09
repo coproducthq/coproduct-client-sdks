@@ -1,5 +1,9 @@
 ## Unreleased
 
+Added `captureAttribution`, which saves UTM parameters from a link and sets
+first-touch and last-touch attributes for targeting rules. The SDK also reads
+the Google Play install referrer automatically.
+
 Flag observations are now ordered and carry their value from the moment they are
 created: registering an observer delivers the current value first, converging to
 later values in revision order. When the host is still processing an update,

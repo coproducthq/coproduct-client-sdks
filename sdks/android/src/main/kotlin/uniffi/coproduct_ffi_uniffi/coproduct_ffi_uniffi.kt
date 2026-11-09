@@ -763,6 +763,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_func_initialize(
     ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters(
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel(
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_is_cancelled(
@@ -1184,6 +1186,8 @@ external fun uniffi_coproduct_ffi_uniffi_fn_func_bucket_for_vectors(`ruleId`: Ru
 ): Int
 external fun uniffi_coproduct_ffi_uniffi_fn_func_initialize(`sdkKey`: RustBuffer.ByValue,`userAgent`: RustBuffer.ByValue,`cacheDir`: RustBuffer.ByValue,`config`: RustBuffer.ByValue,`transport`: Long,`secureStore`: Long,
 ): Long
+external fun uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(`url`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 external fun ffi_coproduct_ffi_uniffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun ffi_coproduct_ffi_uniffi_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1307,6 +1311,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_initialize() != 56047) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_func_parse_utm_parameters() != 61873) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_boolobservation_cancel() != 7578) {
@@ -10481,6 +10488,45 @@ public object FfiConverterSequenceTypeHttpHeader: FfiConverterRustBuffer<List<Ht
 /**
  * @suppress
  */
+public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<kotlin.String, kotlin.String>> {
+    override fun read(buf: ByteBuffer): Map<kotlin.String, kotlin.String> {
+        val len = buf.getInt()
+        return buildMap<kotlin.String, kotlin.String>(len) {
+            repeat(len) {
+                val k = FfiConverterString.read(buf)
+                val v = FfiConverterString.read(buf)
+                this[k] = v
+            }
+        }
+    }
+
+    override fun allocationSize(value: Map<kotlin.String, kotlin.String>): ULong {
+        val spaceForMapSize = 4UL
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterString.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<kotlin.String, kotlin.String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterString.write(v, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterMapStringTypeContextValue: FfiConverterRustBuffer<Map<kotlin.String, ContextValue>> {
     override fun read(buf: ByteBuffer): Map<kotlin.String, ContextValue> {
         val len = buf.getInt()
@@ -10627,5 +10673,20 @@ public object FfiConverterMapStringOptionalTypeFlagValue: FfiConverterRustBuffer
         InitException.ErrorHandler,
     )
     }
+
+        /**
+         * Parses UTM acquisition parameters from a URL or install-referrer query
+         * string. The SDK captures the launch URL or install referrer and calls this
+         * so every platform extracts the same five keys identically
+         */ fun `parseUtmParameters`(`url`: kotlin.String): Map<kotlin.String, kotlin.String> {
+            return FfiConverterMapStringString.lift(
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_func_parse_utm_parameters(
+    
+        FfiConverterString.lower(`url`),_status)
+}
+    )
+    }
+    
 
 

@@ -817,6 +817,57 @@ client.setContext('user-123', {
 });
 ```
 
+### **Campaign attribution (UTM)**
+
+Target users by the campaign link that opened your app. Pass the link to `captureAttribution`, and the SDK saves its UTM parameters on the device and sets these attributes for your rules:
+
+| URL parameter | First-touch attribute | Last-touch attribute |
+|---|---|---|
+| `utm_source` | `utm_source` | `utm_source_last` |
+| `utm_medium` | `utm_medium` | `utm_medium_last` |
+| `utm_campaign` | `utm_campaign` | `utm_campaign_last` |
+| `utm_term` | `utm_term` | `utm_term_last` |
+| `utm_content` | `utm_content` | `utm_content_last` |
+
+- **First-touch** is the first value captured for that parameter. It never changes after that.
+- **Last-touch** is the most recent value captured for that parameter.
+
+**The SDK does not listen for links**, so call `captureAttribution` from your deep-link handling. It needs a client, so call it once `initialize` has resolved. Your app needs deep linking set up as described in React Native's [Linking](https://reactnative.dev/docs/linking) guide.
+
+### **Prompting your agent**
+
+```prompt
+After Coproduct initializes, pass the initial URL and every incoming URL from
+React Native's Linking API to client.captureAttribution(url), so UTM targeting
+rules can match.
+```
+
+### **Code reference**
+
+```typescript
+import { Linking } from 'react-native';
+
+// The link that started the app
+const initialUrl = await Linking.getInitialURL();
+if (initialUrl) await client.captureAttribution(initialUrl);
+
+// Links that arrive while the app is running
+const subscription = Linking.addEventListener('url', ({ url }) => {
+  client.captureAttribution(url);
+});
+```
+
+- **Each parameter is tracked on its own.** A link with only `utm_source` leaves the other saved values alone, so one device's values can come from different links.
+- **Links without UTM parameters change nothing.** Other query parameters and empty values are ignored, and capturing the same link twice is harmless.
+- **Values are kept as they appear in the link**, after URL decoding. Each attribute is a string, and is unset until a link supplies it, so a rule that needs a value does not match.
+- **Rules update as soon as a link is captured**, and saved values apply again at every `initialize`.
+- **Values belong to the device, not the signed-in user.** `identify`, `setContext`, and `signOut` never change them, and every account on the device shares them.
+- **An attribute you set with the same name takes precedence** while it is set.
+- **Values stay on the device.** They are never sent to Coproduct.
+- **First-touch is not tied to the install.** It is the first link captured, which can be long after the app was installed.
+- **A link that goes through a store is not captured.** A link that sends someone to the App Store or Google Play does not reach your app on first launch, and the React Native SDK does not read the Play install referrer.
+- **Reinstalling can reset the values.** On iOS, uninstalling removes them, and the next link captured becomes the new first-touch. On Android the same applies unless Android Auto Backup restores your app's data.
+
 ### **Segmentation by GPS location (geo-fencing)**
 
 Target a flag or segment by a **geo-fence**: a center latitude/longitude and a radius. The flag turns on when the device is physically inside that circle. Matching runs on-device, so the raw coordinates never leave the phone.

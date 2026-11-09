@@ -38,6 +38,16 @@ pub const AUTO_POPULATED_ATTRIBUTE_NAMES: &[&str] = &[
     "first_seen_at",
     "session_count",
     "device_location",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "utm_source_last",
+    "utm_medium_last",
+    "utm_campaign_last",
+    "utm_term_last",
+    "utm_content_last",
 ];
 
 /// In-memory identity state. Holds the original auto-anonymous id so it can be

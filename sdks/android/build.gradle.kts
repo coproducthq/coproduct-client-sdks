@@ -50,6 +50,8 @@ dependencies {
     // transitively. 1.13.0 is the latest stable release as of this module's
     // AGP 9.2.1/compileSdk 36.1 toolchain (1.14.x is still alpha-only).
     implementation("androidx.activity:activity-ktx:1.13.0")
+    // Play Install Referrer Library, the one-shot source InstallReferrerCapture reads
+    implementation("com.android.installreferrer:installreferrer:2.2")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")

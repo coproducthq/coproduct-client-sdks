@@ -1,5 +1,6 @@
 package app.coproduct
 
+import android.content.Context
 import android.util.Log
 import app.coproduct.paywall.FlagReader
 import uniffi.coproduct_ffi_uniffi.BoolDelivery
@@ -65,6 +66,7 @@ private class ClosureEvaluationHook(
 /** The full ergonomic wrapper around the generated native client. */
 class CoproductClient internal constructor(
     private val inner: NativeCoproductClient,
+    private val appContext: Context,
 ) : FlagReader {
     private val identitySerializer = IdentitySerializer()
 
@@ -150,6 +152,23 @@ class CoproductClient internal constructor(
     }
 
     fun previousAnonymousId(): String? = inner.previousAnonymousId()
+
+    /**
+     * Persists UTM acquisition attribution parsed from [url] via [UtmStore],
+     * then, if anything was found, publishes it into the auto-populated
+     * context so an attribute such as `utm_source` resolves on the next
+     * evaluation. Returns immediately: the capture (a blocking
+     * SharedPreferences commit) and the publish both run on the same ordered
+     * queue as the identity mutators
+     */
+    fun captureAttribution(url: String) {
+        identitySerializer.enqueue {
+            val attributes = UtmStore(appContext).capture(url)
+            if (attributes.isNotEmpty()) {
+                inner.setAutoPopulatedAttributes(attributes.toContextValues())
+            }
+        }
+    }
 
     /** Awaited once during initialize, before the instance is published. */
     internal suspend fun setAutoPopulatedNow(attributes: Map<String, AttributeValue>) {

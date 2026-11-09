@@ -99,6 +99,28 @@ public enum Coproduct {
         client.setContext(targetingKey: targetingKey, attributes: attributes)
     }
 
+    /// Capture UTM acquisition parameters from a URL for attribution.
+    ///
+    /// Parses `url` for `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`,
+    /// and `utm_content`. The first value ever captured per key is frozen as
+    /// first-touch attribution on the bare key. Every capture also overwrites
+    /// last-touch attribution on the `_last` variant of the key (for example
+    /// `utm_source_last`). Call this with the launch URL or a deep link URL;
+    /// a URL with none of these parameters leaves prior attribution untouched.
+    /// The capture always persists, even before initialize, so a cold-start
+    /// deep link is not lost. A call before initialize logs and defers applying
+    /// the attributes to the client until the next initialize fold.
+    public static func captureAttribution(url: String) {
+        let attributes = UtmStore().capture(url: url)
+        guard let client = Instances.shared.defaultInstance() else {
+            logIdentityBeforeInitialize("captureAttribution")
+            return
+        }
+        if !attributes.isEmpty {
+            client.setAutoPopulated(attributes: attributes)
+        }
+    }
+
     /// The anonymous id recorded by the first linked identify since initialize or
     /// the last signOut, or `nil`. A later identify does not overwrite it, and
     /// signOut or an identify with `linkAnonymous: false` clears it. Held in
@@ -744,6 +766,9 @@ final class Instances: @unchecked Sendable {
         // live network fact arrives later through NetworkMonitor
         var autoAttributes = DeviceContext.staticAttributes()
         for (key, value) in SessionStore().sessionAttributes() {
+            autoAttributes[key] = value
+        }
+        for (key, value) in UtmStore().utmAttributes() {
             autoAttributes[key] = value
         }
         // Seed device_location from the last stored fix so a geo-fence can evaluate

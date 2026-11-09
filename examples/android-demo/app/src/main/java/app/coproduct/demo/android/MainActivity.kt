@@ -28,6 +28,9 @@ import app.coproduct.MockSecureStore
 import app.coproduct.MockTransport
 import app.coproduct.demo.android.ui.theme.CoproductAndroidDemoTheme
 
+private const val DEMO_UTM_URL =
+    "coproduct-demo://open?utm_source=android-demo&utm_medium=usb&utm_campaign=device-verify"
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +40,7 @@ class MainActivity : ComponentActivity() {
             var hostCallbacks by remember { mutableStateOf("Host callbacks: no") }
             var getBool by remember { mutableStateOf("getBool: false") }
             var observer by remember { mutableStateOf("Observer registered: no") }
+            var utmStatus by remember { mutableStateOf("UTM capture: pending") }
             var subscription by remember { mutableStateOf<Cancellable?>(null) }
 
             LaunchedEffect(Unit) {
@@ -56,6 +60,9 @@ class MainActivity : ComponentActivity() {
                 hostCallbacks =
                     "Host callbacks: ${yesNo(MockTransport.requestCount == 1 && MockSecureStore.completedHandshake)}"
                 getBool = "getBool: ${client.getBool("test-flag", false)}"
+
+                Coproduct.captureAttribution(applicationContext, DEMO_UTM_URL)
+                utmStatus = "UTM capture: triggered"
 
                 subscription = client.observeBool("test-flag", false) {}
                 observer = "Observer registered: yes"
@@ -85,6 +92,7 @@ class MainActivity : ComponentActivity() {
                             hostCallbacks,
                             getBool,
                             observer,
+                            utmStatus,
                         ).forEach { line ->
                             Text(
                                 text = line,

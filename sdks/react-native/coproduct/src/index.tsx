@@ -16,6 +16,7 @@ import { CoproductClient } from './client';
 import { HostTimer } from './hostTimer';
 import { staticDeviceAttributes } from './deviceContext';
 import { readSessionAttributes } from './sessionStore';
+import { readUtmAttributes } from './utmStore';
 import { readLocationAttributes, writeStoredLocation } from './locationStore';
 import { LocationMonitor } from './locationMonitor';
 import { requestLocationPermission } from './locationSource';
@@ -295,6 +296,7 @@ async function runInitialize(
   const client = new CoproductClient(nativeClient);
 
   const sessionAttributes = await readSessionAttributes();
+  const utmAttributes = await readUtmAttributes();
   // A stored fix seeds device_location so a geo-fence can evaluate from the last
   // known position at launch. Live acquisition starts only when the host enables
   // location, never at initialize, so no permission prompt appears here.
@@ -302,6 +304,7 @@ async function runInitialize(
   await client.setAutoPopulatedAttributes({
     ...staticDeviceAttributes(),
     ...sessionAttributes,
+    ...utmAttributes,
     ...locationAttributes,
   });
 
