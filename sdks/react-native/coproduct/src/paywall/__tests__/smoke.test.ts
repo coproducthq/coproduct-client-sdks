@@ -16,6 +16,7 @@ jest.mock('react-native-iap', () => ({
   purchaseErrorListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
 
+import * as paywall from '../index';
 import {
   CoproductPaywall,
   HttpPaywallClient,
@@ -36,5 +37,14 @@ describe('paywall module smoke test', () => {
   it('exports HttpPaywallClient and IapPaywallBridge', () => {
     expect(typeof HttpPaywallClient).toBe('function');
     expect(typeof IapPaywallBridge).toBe('function');
+  });
+
+  it.each([
+    'snapshotCache',
+    'snapshotCacheKey',
+    'SnapshotCache',
+    'SNAPSHOT_TTL_MS',
+  ])('does not export %s', (name) => {
+    expect(paywall).not.toHaveProperty(name);
   });
 });
