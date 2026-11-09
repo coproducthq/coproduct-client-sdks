@@ -156,17 +156,17 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
       client,
       appUserId,
       platform: platformFor(Platform.OS),
-      setPrices: async (prices) => {
+      setPackages: async (packages) => {
         try {
           webViewRef.current?.injectJavaScript(
-            `window.__coproductSetPrices__(${JSON.stringify(prices)}); true;`
+            `window.__coproductSetPackages__(${JSON.stringify(packages)}); true;`
           );
         } catch {
-          // The WebView may already be torn down by the time prices resolve
+          // The WebView may already be torn down by the time packages resolve
         }
-        // Prices are the last thing to land, so the paywall is now fully
+        // Packages are the last thing to land, so the paywall is now fully
         // formed -- reveal it. onLoadEnd's fallback timer still covers the
-        // case where prices never resolve (e.g. the store is unreachable).
+        // case where packages never resolve (e.g. the store is unreachable).
         setVisible(true);
       },
       // The default [data-cp-result] sections (success/cancel/fail) own
@@ -200,7 +200,7 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     setHtml(shellHtml);
 
     // Hang guard only. The paywall is revealed when its content has actually
-    // painted (onLoadEnd) or its prices land (setPrices) -- never on a fixed
+    // painted (onLoadEnd) or its packages land (setPackages) -- never on a fixed
     // delay, because the WebView is transparent while hidden, so revealing it
     // before it has painted shows through to the host background (a black gap)
     // until paint catches up. This timer exists solely so a WebView that never
@@ -264,8 +264,8 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
               void runtimeRef.current?.onSnapshotLoaded(snapshot);
             }
             // The whole document (including external resources) has loaded, so
-            // reveal if the cap in boot has not already. setPrices reveals
-            // sooner once prices land.
+            // reveal if the cap in boot has not already. setPackages reveals
+            // sooner once packages land.
             setVisible(true);
           }}
           onShouldStartLoadWithRequest={(request) => {
