@@ -20,6 +20,7 @@ The SDK leaves an attribute unset rather than guess a value that may be wrong.
 - [first_seen_at and session_count](#first_seen_at-and-session_count)
 - [When first_seen_at and session_count are unset](#when-first_seen_at-and-session_count-are-unset)
 - [Location attributes from Coproduct](#location-attributes-from-coproduct)
+- [UTM attributes](#utm-attributes)
 
 ## When the attributes are read
 
@@ -239,3 +240,7 @@ derives them from the IP address of the device's request for flags.
   over the time zone Coproduct derives.
 - They update when the SDK downloads new flags, and are saved with the flags
   between launches.
+
+## UTM attributes
+
+`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, and a `_last` variant of each are not among the ten automatic attributes. They are set only after your app passes a link to `captureAttribution`, and unlike the ten, they can change during a launch. They take the same precedence as automatic attributes. See [Campaign attribution (UTM)](../README.md#campaign-attribution-utm).

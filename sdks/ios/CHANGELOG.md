@@ -1,5 +1,8 @@
 ## Unreleased
 
+Added `Coproduct.captureAttribution(url:)`, which saves UTM parameters from a
+link and sets first-touch and last-touch attributes for targeting rules.
+
 Added `CoproductOnboardingFlow`, a SwiftUI view that resolves and renders an
 authored onboarding flow, with native permission bridging and local progress
 persistence.
