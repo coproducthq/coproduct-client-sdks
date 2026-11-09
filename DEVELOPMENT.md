@@ -180,9 +180,9 @@ cargo test --workspace                                    # the Rust core and bo
 (cd scripts/acceptance && dart test)                      # the device-acceptance harness
 ```
 
-The Flutter release pipeline runs the second and third and fails on either. It
-does not run `cargo test` or the acceptance harness's own tests, so run those
-before pushing a change to the Rust core or to `scripts/acceptance`.
+The "Flutter checks" job in the PR checks and the Flutter release pipeline run
+the second and third and fail on either. Neither runs `cargo test` or the
+acceptance harness's own tests, so run those before pushing a change to the Rust core or to `scripts/acceptance`.
 
 ### Native unit suites
 
@@ -313,9 +313,12 @@ checkout.
 
 ## Releasing
 
-See `RELEASING.md` for the contributor rules. A React Native release needs a
-maintainer at two points, merging the release PR and approving the npm
-deployment. CI does the rest:
+See `RELEASING.md` for the contributor rules. The steps that follow are
+React Native's, and Flutter's come after its own heading below. A React Native release needs a
+maintainer at one point, merging the release PR. That merge is the release
+decision, and no one approves the publish step afterward. Only the release
+App's dispatch on a matching tag runs in release mode and publishes. Every other
+run only checks. CI does the rest:
 
 1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
    a release PR, `chore(main): release react-native X.Y.Z`, open with the next
@@ -324,15 +327,27 @@ deployment. CI does the rest:
    tags the merge `react-native-vX.Y.Z`, creates a draft GitHub Release, and
    starts that tag's run of `.github/workflows/publish.yml`.
 3. The run builds the package once and proves that exact file builds in test
-   apps. Then its "Publish to npm" job waits.
-4. A maintainer approves the `npm` deployment on the run's page (Review
-   deployments).
-5. CI publishes the tested file to npm with provenance, publishes the GitHub
-   Release, and updates the documentation.
+   apps.
+4. Once those checks pass, its "Publish to npm" job runs. CI publishes the
+   tested file to npm with provenance, publishes the GitHub Release, and
+   updates the documentation.
 
 `scripts/release/identity/check.sh` checks the version lines on every PR.
 Publishing React Native by hand is only for an emergency, through the runbook
-below. Flutter is not on this pipeline and follows its own runbook.
+below. Flutter works the same way, as described under Flutter below.
+
+The "Core release trigger" workflow keeps `CORE_RELEASE_TRIGGER` files current
+on PR branches from this repository. It runs on `pull_request_target` in the
+`sdk-core-trigger` environment, with the `coproduct-sdk-core-trigger` App's
+token. The App has only Contents read and write on this repository, and it must
+never be a bypass actor on a ruleset. Its credentials are the
+`SDK_CORE_TRIGGER_APP_CLIENT_ID` and `SDK_CORE_TRIGGER_APP_KEY` secrets, which
+live only in the `sdk-core-trigger` environment, never as repository or
+organization secrets. The environment must keep a `main`-only branch policy and
+no required reviewers, because with reviewers the workflow waits or fails. The
+workflow makes no commit on a PR that edits the release config. On a PR that
+edits `core-changed.sh`, the workflow runs `main`'s copy and the "Shared core
+release" check runs the PR's, so the check decides.
 
 ### When a React Native release goes wrong
 
@@ -380,7 +395,8 @@ reads npm:
 - npm `latest` is newer than this version: it stops as stale (see the
   bad-version runbook below).
 
-A re-run that reaches "Publish to npm" waits for approval again. A failed
+A re-run that reaches "Publish to npm" runs without waiting for anyone, and
+publishes only when the version is absent from npm. A failed
 "Release the docs" job re-runs the same way, and so does a provenance check that
 failed with "was not visible with provenance in time", because npm was only slow
 to show it. A build that failed before publishing, with the version absent from
@@ -396,8 +412,8 @@ is nothing to fix.
 
 **The run never started, or stopped before publishing.** Start a fresh Publish
 run on the tag. The release App's runs for one tag queue behind each other, so
-a fresh run waits while an older one is still live, for example one waiting on
-approval. First list the tag's live runs:
+a fresh run waits while an older one is still live, for example one still
+running its checks. First list the tag's live runs:
 
 ```bash
 if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -433,17 +449,26 @@ fi
 
 Done when that Release Please run's summary links a new Publish run. A dispatch
 can succeed on GitHub's side and still report an error, which leaves a
-duplicate Publish run queued behind the first. Cancel the duplicate, or reject
-its `npm` deployment. If it runs anyway, it finds the version already on npm and
-publishes nothing. It packs its own bytes, so it can stop with "npm already
-holds a different package", which is expected here and needs no bad-version
-work. A fresh run packs new bytes, so use it only for a version npm does not
+duplicate Publish run queued behind the first. Cancel the duplicate. If it
+runs anyway, it finds the version already on npm and publishes nothing. It
+packs its own bytes, so it can stop with "npm already holds a different
+package", which is expected here and needs no bad-version work. A fresh run packs new bytes, so use it only for a version npm does not
 have yet. For a version already on npm, re-run the failed jobs of the run that
 published it.
 
-**The approval expires.** A pending `npm` approval expires after 30 days, and
-the run can't be re-run after that. Approve or reject it before then. An expired
-run published nothing, so start a fresh run as above.
+**A gate was wrong and its fix landed after the tag.** Release the next version
+instead, and never move the tag. Re-runs and fresh runs both build the tagged
+commit with that commit's release tooling, so no run of the old tag picks up the
+fix, and a moved tag no longer points at its release commit, so its run only
+checks. The next `fix:` or `feat:` PR that changes a file under
+`sdks/react-native/coproduct` releases the next version with the fix. Only
+commits that change the package's directory count toward its release, so a `ci:`
+fix to the release tooling releases nothing on its own. A `fix:` gives the next
+patch by itself. To choose a different version, add `Release-As: X.Y.Z` to that
+PR's squash commit body. If `.github/release-please-config.json` already has a
+`release-as` for the package, remove it first, because it stays in force until
+someone removes it. The tag that failed keeps its draft Release,
+which a failed build retitles "react-native: vX.Y.Z (not published)".
 
 #### The bad-version runbook
 
@@ -511,8 +536,8 @@ fi
 Done when it prints `versions OK`.
 
 1. **Fix forward.** Merge the fix in a PR titled `fix: ...`. release-please
-   moves the release PR to the next patch version. Merge it and approve the
-   run's `npm` deployment as usual. Done when
+   moves the release PR to the next patch version. Merge it and let the run
+   publish as usual. Done when
    `npm view @coproduct/react-native-sdk dist-tags.latest` prints `FIXED`'s
    version.
 2. **Deprecate the bad version.** This changes the public registry for every
@@ -600,11 +625,12 @@ does none of those.
    gh run view "$RUN" -R "$R" --json jobs -q '.jobs[] | "\(.status) \(.conclusion) \(.name)"'
    ```
    Done when every Native, Pack, iOS build, and Android build job reads
-   `completed success`, and "Publish to npm" is either waiting for approval or
-   reads `completed failure` and the block below allows going on. A run where
-   "Publish to npm" is skipped or missing is a checks-only run, so go back to
-   step 1 and use the run the Release Please summary links. Never publish from
-   a run whose build failed.
+   `completed success`, and "Publish to npm" has completed and reads
+   `completed failure` and the block below allows going on. If it is still
+   running, wait until it completes, because cancelling a publish in progress
+   could interrupt it. A run where "Publish to npm" is skipped or missing is a
+   checks-only run, so go back to step 1 and use the run the Release Please
+   summary links. Never publish from a run whose build failed.
 
    If "Publish to npm" failed, read why before going on. A run that stopped
    because npm already has a newer release (`newer than`) or already holds a
@@ -634,10 +660,10 @@ does none of those.
    Go on only when the errors show npm failing to authenticate or to publish,
    for example because trusted publishing is broken. For any other failure,
    stop and find its cause.
-3. **Stop CI from publishing.** Skip this step if "Publish to npm" already
-   failed, because that run publishes nothing more. Otherwise cancel the run so
-   CI can't publish alongside you. Rejecting the deployment on the run's page is
-   optional, since cancelling is enough.
+3. **Stop CI from publishing.** Skip this step if the run has completed, because
+   a run whose "Publish to npm" failed publishes nothing more. Otherwise a later
+   job of the run is still queued or running, so cancel the run so CI can't
+   publish alongside you.
    ```bash
    source "$HOME/.coproduct-rn-release.env"
    gh run cancel "$RUN" -R "$R"
@@ -716,38 +742,315 @@ only from a CI publish.
 
 The Flutter SDK ships prebuilt native libraries inside the pub.dev package, so an
 integrating developer needs no Rust toolchain. Producing that package is what
-this section covers. Scripts live under `scripts/release/flutter/`; see its
-README for the layout.
+this section covers. Scripts live under `scripts/release/flutter/`.
 
-#### Prerequisites
+A Flutter release needs a maintainer at one point, merging the release PR. That
+merge is the release decision, and no one approves the publish step afterward.
+Only the release App's dispatch on a matching tag runs in release mode and
+publishes. Every other run only checks. CI does the rest:
+
+1. PRs merge to `main` with Conventional Commit titles, and release-please keeps
+   a release PR, `chore(main): release flutter X.Y.Z`, open with the next
+   version and changelog.
+2. A maintainer checks the release PR's diff. It changes only:
+   - `sdks/flutter/coproduct/pubspec.yaml`
+   - the three files with marked version lines: `lib/src/sdk_version.dart`,
+     `ios/coproduct.podspec`, and the install example in `README.md`
+   - `.github/.release-please-manifest.json`
+   - `sdks/flutter/coproduct/CHANGELOG.md`, where the new entry sits under
+     `# Changelog`
+
+   `scripts/release/identity/check.sh` has already checked on the PR that the
+   four version lines agree with the manifest.
+3. A maintainer merges the release PR. release-please tags the merge
+   `flutter-vX.Y.Z`, creates a draft GitHub Release, and starts that tag's run of
+   `.github/workflows/publish-flutter.yml`, named "Publish Flutter".
+4. The run builds the package once, seals it, and proves that exact package
+   builds in test apps and loads its native library on an iOS simulator.
+5. Once those checks pass, its "Publish to pub.dev" job runs. CI publishes the
+   sealed package to pub.dev through GitHub OIDC, confirms pub.dev serves
+   exactly the sealed files, publishes the GitHub Release, and starts the
+   documentation update.
+
+Nobody bumps a version, tags, or creates a Release by hand. Publishing Flutter by
+hand is only for an emergency, through the runbook below.
+
+#### What CI checks and what you check
+
+The "Publish Flutter" run uses the `ci` gate set (`COPRODUCT_RELEASE_GATES=ci`),
+because a hosted macOS runner has one iOS simulator and no Android emulator. It
+splits that set into four groups, `primary`, `floor`, `template`, and `no-rust`,
+each on its own runner, so the slow consumer builds overlap. Its "Result" job
+prints the gates left to your own run. Every pull request that
+touches the package, the bridge, the shared core, the root Rust manifests and
+toolchain pin, or the release tooling also
+runs the "Flutter checks" job: `dart format`, `flutter analyze`, and
+`flutter test` in `sdks/flutter/coproduct`, and `dart test` in
+`scripts/release/flutter`.
+
+The Flutter release PR also runs the "Flutter release archive" job, about 15
+minutes on macOS. It runs the pipeline with the `archive` gate set, which builds,
+stages, and seals the package, runs pub's dry run and the archive checks, and
+stops before the consumer builds and the gate matrix. A failure there blocks the
+merge, so it is fixed before the tag exists rather than after, when no run of
+that tag can pick up the fix. The check covers `main` as of the release PR's
+last update. If release tooling changed on `main` since then, update the
+branch so the check runs again before merging. It cannot reproduce the checks
+pub.dev makes only at upload, such as uploader permissions.
+
+| Covered by | What |
+|---|---|
+| CI | The package build and seal, the archive checks, and the consumer app built from the archive |
+| CI | The native build, the symbol checks, the iOS privacy manifest, and App Store readiness |
+| CI | The public surface and the testing library |
+| CI | The floor template, a fresh app on the lowest supported Flutter |
+| CI | The no-Rust builds, which prove an adopter needs no Rust toolchain |
+| CI | The iOS runtime smoke test on a simulator |
+| You, locally | Android and iOS device acceptance, through `scripts/build/artifact-linked-flutter-acceptance-android.sh` and `scripts/build/artifact-linked-flutter-acceptance-ios.sh` |
+| You, locally | The Android dark mode gate and the Android no-Rust runtime gate |
+| You, locally | The native unit suites, Kotlin and Swift, described under "Native unit suites" |
+| You, locally | The mutation gates, which prove the other gates fail when they should |
+
+Run the local gates before merging a change that can affect a release, such as
+anything under `sdks/flutter/coproduct/android`, `sdks/flutter/coproduct/ios`,
+`ffi/coproduct-ffi-frb`, or `core/`. A change to the release or gate code itself
+(`scripts/release/flutter/` and `scripts/acceptance/`) also needs a full local
+run, which is the emergency path's `measure.sh` with no gate flag, because CI
+runs only the `ci` set of gates.
+
+#### When a Flutter release goes wrong
+
+Every tag run ends in a job named "Result", whose summary records what happened
+to pub.dev, the served files, the GitHub Release, and the docs. The commands in
+this section use `VERSION` and `R`. Replace `REPLACE_ME` with the release's
+version, such as `1.3.0`, then list the release's runs, newest first. Every
+block below checks its placeholders, and when one is left unedited it prints
+what to replace and returns non-zero without running anything.
+
+```bash
+export VERSION=REPLACE_ME R=coproducthq/coproduct-client-sdks
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  gh run list -R "$R" -w publish-flutter.yml -e workflow_dispatch -L 100 \
+    --json databaseId,headBranch,status,conclusion,createdAt \
+    -q ".[] | select(.headBranch == \"flutter-v$VERSION\")"
+else
+  echo "Replace REPLACE_ME with the release version, such as 1.3.0"; false
+fi
+```
+
+The Release Please run that started a Publish Flutter run links it in its
+summary. A run a person starts on the tag runs only the checks and never
+publishes.
+
+**A job failed.** Re-run only the failed jobs. Replace `REPLACE_ME` with the
+run's ID, the number after `/runs/` in its link:
+
+```bash
+RUN_ID=REPLACE_ME
+if [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  gh run rerun "$RUN_ID" -R "$R" --failed
+else
+  echo "Replace REPLACE_ME with the run ID"; false
+fi
+```
+
+The re-run reuses the run's sealed `flutter-package.tar` artifact, which is kept
+for 90 days, so it publishes the bytes the builds tested and never rebuilds.
+Before publishing, it reads pub.dev:
+
+- pub.dev already holds this version with exactly the sealed files: it skips the
+  publish and carries on with the confirmation, the Release, and the docs.
+- pub.dev holds this version with different files: it stops at `mismatch` (see
+  the bad-version runbook below).
+- pub.dev already has a newer release: it stops as `stale`.
+- pub.dev holds this version retracted: it stops as `retracted`.
+
+A re-run that reaches "Publish to pub.dev" runs without waiting for anyone, and
+publishes only when the version is absent from pub.dev. A build that failed
+before publishing, with the version absent from pub.dev, retitles the Release
+"flutter: vX.Y.Z (not published)", and the next successful run restores the
+title. Done when the "Result" job passes.
+
+A failed gate group re-runs on its own against the same sealed package, so a
+re-run after a flaky gate repeats only that group. The gate logs of a failed
+build are kept for 14 days, in the artifact `flutter-gate-logs-attempt-<N>`, and
+those of a failed gate group in `flutter-gate-logs-<group>-attempt-<N>`.
+
+**The run never started, or stopped before publishing.** Start a fresh Publish
+Flutter run on the tag. The release App's runs for one tag queue behind each
+other, so a fresh run waits while an older one is still live, for example one
+still running its checks. First list the tag's live runs:
+
+```bash
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  gh run list -R "$R" -w publish-flutter.yml -e workflow_dispatch -L 100 --json databaseId,headBranch,status \
+    -q ".[] | select(.headBranch == \"flutter-v$VERSION\" and .status != \"completed\") | .databaseId"
+else
+  echo "Export VERSION as in the first block of this section"; false
+fi
+```
+
+Check each ID it prints before cancelling it, because a run may be publishing.
+Replace `REPLACE_ME` with the ID:
+
+```bash
+RUN_ID=REPLACE_ME
+if [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  gh run view "$RUN_ID" -R "$R" --json jobs -q '.jobs[] | select(.name == "Publish to pub.dev") | "\(.status) \(.conclusion)"'
+else
+  echo "Replace REPLACE_ME with the run ID"; false
+fi
+```
+
+If it prints `in_progress`, wait and rerun the block until the job completes.
+A run whose job reads `completed success` already published, so leave it. Cancel
+a run only when the block prints nothing or `queued`, or when the job reads
+`completed failure`. Replace `REPLACE_ME` with the ID, and rerun the list until
+it prints nothing:
+
+```bash
+RUN_ID=REPLACE_ME
+if [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+  gh run cancel "$RUN_ID" -R "$R"
+else
+  echo "Replace REPLACE_ME with the run ID"; false
+fi
+```
+
+Then start the fresh run. The release App dispatches it, so it can still
+release:
+
+```bash
+if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  gh workflow run release-please.yml -R "$R" -f tag="flutter-v$VERSION"
+else
+  echo "Export VERSION as in the first block of this section"; false
+fi
+```
+
+Done when that Release Please run's summary links a new Publish Flutter run. A
+dispatch can succeed on GitHub's side and still report an error, which leaves a
+duplicate run queued behind the first. Cancel the duplicate.
+
+A fresh run rebuilds the package, and rebuilt binaries can differ byte for byte.
+A fresh run of a version already on pub.dev therefore stops at `mismatch`, which
+is expected and needs no bad-version work. Use a fresh run only for a version
+pub.dev does not have yet. For a version already on pub.dev, re-run the failed
+jobs of the run that published it.
+
+**A gate was wrong and its fix landed after the tag.** Release the next version
+instead, and never move the tag. Re-runs and fresh runs both build the tagged
+commit with that commit's release tooling, so no run of the old tag picks up the
+fix, and a moved tag no longer points at its release commit, so its run only
+checks. The next `fix:` or `feat:` PR that changes a file under
+`sdks/flutter/coproduct` releases the next version with the fix. Only
+commits that change the package's directory count toward its release, so a `ci:`
+fix to the release tooling releases nothing on its own. A `fix:` gives the next
+patch by itself. To choose a different version, add `Release-As: X.Y.Z` to that
+PR's squash commit body. If `.github/release-please-config.json` already has a
+`release-as` for the package, remove it first, because it stays in force until
+someone removes it. The tag that failed keeps its draft Release,
+which a failed build retitles "flutter: vX.Y.Z (not published)".
+
+#### The Flutter bad-version runbook
+
+A published version can never be replaced or reused. pub.dev refuses a second
+upload of the same version, so the only repair is a newer version. A published
+version can be retracted within seven days of publication, which stops new
+dependency resolutions from choosing it. Retraction does not delete it, and
+existing lockfiles keep using it. Use this runbook when a published version is
+broken, or when a run stops with an error that points here.
+
+- **`mismatch`**: pub.dev has this version with files this run did not test.
+  This run published nothing. Leave it alone, because re-running it stops the
+  same way. A person decides whether the files on pub.dev are a release they
+  trust. If they are not, treat it as a bad version.
+- **`stale`**: a later release overtook this one. Release PRs are cut from `main`
+  in order, so the newer version already ships these changes, and there is
+  nothing to publish. Mark the draft so it is not mistaken for a pending release.
+  This edits a public page. A person decides it, and an agent runs it only with a
+  person's explicit go-ahead:
+  ```bash
+  if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    gh release edit "flutter-v$VERSION" -R "$R" --title "flutter: v$VERSION (not published)"
+  else
+    echo "Export VERSION as in the first block of the previous section"; false
+  fi
+  ```
+- **`retracted`**: pub.dev holds this version retracted, and a retracted version
+  can't be published again. Fix forward with a newer version.
+
+For a bad version, work through these steps in order:
+
+1. **Fix forward.** Merge the fix in a PR titled `fix: ...`. release-please moves
+   the release PR to the next patch version. Merge it and let the run
+   publish as usual. Done when pub.dev's version list shows the
+   fixed version as latest.
+2. **Retract the bad version, within 7 days of its publication.** This changes
+   the public registry for every installer. A person decides it, an uploader of
+   the `coproduct` package does it, and an agent never does it without a person's
+   explicit go-ahead. On pub.dev, open the `coproduct` package, then its Admin
+   tab, then retract the bad version. Done when pub.dev marks the version
+   retracted. After seven days it can no longer be retracted, and the fixed
+   release is the only repair.
+3. **Annotate the GitHub Release.** This edits a public page. A person decides
+   it, and an agent runs it only with a person's explicit go-ahead. Replace both
+   `REPLACE_ME` values (`BAD` is the broken version, `FIXED` the release that
+   replaces it), and add a note above the bad version's notes:
+   ```bash
+   export R=coproducthq/coproduct-client-sdks BAD=REPLACE_ME FIXED=REPLACE_ME
+   if [[ "$BAD" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && "$FIXED" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+     notes=$(mktemp) &&
+       { printf '> Retracted. Use %s or later.\n\n' "$FIXED"
+         gh release view "flutter-v$BAD" -R "$R" --json body -q .body; } > "$notes" &&
+       gh release edit "flutter-v$BAD" -R "$R" --notes-file "$notes"
+   else
+     echo "Replace both REPLACE_ME values with versions, such as 1.2.0"; false
+   fi
+   ```
+   Done when `gh release view "flutter-v$BAD" -R "$R"` shows the note.
+4. **Check the docs.** The fixed release's run moves the documentation to the
+   fixed version in its "Release the docs" job. Done when that job passed. If it
+   failed, re-run the failed jobs of that run.
+
+#### Flutter, by hand in an emergency
+
+A person decides to use this runbook at all, and an agent follows it only with a
+person's explicit go-ahead. Use it only when CI can't publish a release, for
+example when pub.dev's GitHub OIDC publishing is broken. It builds the package
+on your machine from the release tag, which release-please already created along
+with the draft Release, so this runbook creates neither. Because your machine
+runs every gate, including the ones CI leaves to a developer, it needs both an
+iOS simulator and an Android emulator.
+
+##### Prerequisites
 
 | | |
 |---|---|
-| `llvm-tools` for the pinned toolchain | `rustup component add llvm-tools --toolchain 1.95.0` — without it the symbol gate has no tool |
+| `llvm-tools` for the pinned toolchain | `rustup component add llvm-tools --toolchain 1.95.0`. Without it the symbol gate has no tool |
 | `cargo-ndk` 4.1.2 | Android cross-compilation needs the NDK linker |
 | Android NDK 27.1.12297006 | asserted from its own `source.properties`, not the directory name |
 | Xcode 26.5, Rust 1.95.0, FRB codegen 2.12.0 | asserted before anything is built |
-| An iPhone simulator, and an Android Virtual Device (`$ANDROID_HOME/emulator/emulator -list-avds` lists one) | step 2 boots them, and the acceptance gates neither boot nor provision a device |
-| A pub.dev account with rights to publish `coproduct` | needed only at step 6, but it is the step where a first-time publisher discovers they lack them |
-| `gh` signed in (`gh auth status`) | steps 4, 7, and 8 use it |
-| Admin rights on the repository, or an admin on hand | step 7 pauses the tag ruleset |
-| A checkout where `main` is not checked out in another worktree | steps 3 and 4 switch to `main` |
+| An iPhone simulator, and an Android Virtual Device (`$ANDROID_HOME/emulator/emulator -list-avds` lists one) | step 3 boots them, and the acceptance gates neither boot nor provision a device |
+| A pub.dev account with rights to publish `coproduct` | needed only at step 5, but it is the step where a first-time publisher discovers they lack them |
+| `gh` signed in (`gh auth status`) | step 1's cancel and step 6 use it |
 
-#### The release, end to end
+Every command runs from the repository root, in this order. Steps 1 and 3 write
+their settings to one environment file, and every later block starts by sourcing
+it. Run each block as one command, so the runbook works the same in one terminal
+or in a tool that starts a fresh shell per command.
 
-Every command runs from the repository root, in this order. Steps 0, 2, and 3
-write their settings to one environment file, and every later block starts by
-sourcing it. Run each block as one command, so the release works the same in
-one terminal or in a tool that starts a fresh shell per command.
-
-**0. Set the environment.** Name scratch paths that do not exist yet: the
-scripts create and mark their own space and refuse a directory they did not
-create, because staging deletes and rewrites the path it is given. Reusing paths
-from a previous run is fine, because they carry the marker. Adjust the Android
-and Java paths to your machine. Step 1 confirms each one.
+**1. Set the environment and check out the tag.** Name scratch paths that do not
+exist yet: the scripts create and mark their own space and refuse a directory
+they did not create, because staging deletes and rewrites the path it is given.
+Reusing paths from a previous run is fine, because they carry the marker.
+Replace `REPLACE_ME` with the release's version, such as `1.3.0`, and adjust the
+Android and Java paths to your machine. Step 2 confirms each one.
 
 ```bash
 cat > "$HOME/.coproduct-release.env" <<'EOF'
+export COPRODUCT_RELEASE_VERSION=REPLACE_ME
+export R=coproducthq/coproduct-client-sdks
 export COPRODUCT_RELEASE_ROOT="$HOME/.coproduct-release"
 export COPRODUCT_RELEASE_OUT="$COPRODUCT_RELEASE_ROOT/out"
 export COPRODUCT_RELEASE_STAGE="$COPRODUCT_RELEASE_ROOT/stage/pkg"
@@ -759,9 +1062,22 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"
 export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
 EOF
 source "$HOME/.coproduct-release.env"
+if ! [[ "$COPRODUCT_RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Replace REPLACE_ME with the release version, then rerun this block"; false
+else
+  git fetch --tags origin && git switch --detach "flutter-v$COPRODUCT_RELEASE_VERSION"
+fi
 ```
 
-**1. Check the toolchains.** Every version the release pins, in one second,
+Done when `git describe --tags --exact-match` prints `flutter-v` followed by the
+version. Then stop CI from publishing alongside you. List the tag's runs with the
+first block of "When a Flutter release goes wrong", and check each one's
+"Publish to pub.dev" job with the next block there. Wait for a run whose job is
+`in_progress` until it completes, and go on only if it ends `completed failure`,
+because cancelling a publish in progress could interrupt it. Cancel only the
+runs whose job has not started, so none of them can publish a second time.
+
+**2. Check the toolchains.** Every version the release pins, in one second,
 rather than discovering a missing one part-way through a half-hour run:
 
 ```bash
@@ -775,7 +1091,7 @@ front-loading: it is a separate `rustup` component, and the first thing that
 needs it is the symbol check, which runs only after every architecture has
 finished compiling.
 
-**2. Boot one iOS simulator and one Android emulator.** The gates consume an
+**3. Boot one iOS simulator and one Android emulator.** The gates consume an
 already-booted device and neither boot nor provision one.
 
 ```bash
@@ -799,87 +1115,9 @@ echo "ios=$IOS_DEVICE android=$ANDROID_DEVICE"
 Done when the last line prints both ids. A missing one fails at its guard
 rather than part-way through a long run.
 
-**3. Prepare the version.** Before this step, the CHANGELOG's first heading must
-be `## Unreleased`. `prepare_release.dart` moves the pubspec version,
-the SDK version constant and its derived `User-Agent`, the README install
-example, the podspec version, and the CHANGELOG together, then audits that they
-agree. The podspec is the costly one to get wrong: it is externally visible in
-every consumer's `Podfile.lock`, where a published version can never be
-replaced. Add an
-`## Unreleased` heading to the CHANGELOG as you develop; this promotes it and
-refuses to run without it.
-
-Set the version once and use it for both preparation and the tag, so the two
-cannot drift apart. Prepare it on a release branch cut from an up-to-date
-`main`, so the CHANGELOG it promotes is current. Replace `1.2.0` with the
-version being released:
-
-```bash
-cat >> "$HOME/.coproduct-release.env" <<EOF
-export COPRODUCT_RELEASE_VERSION=1.2.0
-export COPRODUCT_RELEASE_DATE=$(date +%F)
-EOF
-source "$HOME/.coproduct-release.env"
-
-git switch main && git pull --ff-only
-git switch -c "release/flutter-$COPRODUCT_RELEASE_VERSION"
-
-scripts/build/with-fvm-toolchain.sh 3.44.0 -- bash -c 'cd scripts/release/flutter && dart pub get \
-  && dart run bin/prepare_release.dart \
-       --version "$COPRODUCT_RELEASE_VERSION" --date "$COPRODUCT_RELEASE_DATE"'
-```
-
-The date defaults to today. To change it, reset the CHANGELOG heading to
-`## Unreleased`, edit the date in the environment file, and rerun this step.
-
-**If the CHANGELOG already carries a dated heading** for a version that was
-prepared but never published, this refuses to run: it accepts only
-`## Unreleased` or the exact heading it would write. Reset the first line to
-`## Unreleased` and rerun, which is also what puts the real publication date on
-a release that slipped.
-
-On a write failure it rolls back. If a restore write itself fails it names the
-files it could not restore and says the rollback was incomplete — reset those
-with `git checkout` before retrying.
-
-A dated heading is also what the archive gate expects. Left at `## Unreleased`,
-pub emits a second warning and the gate fails, because it allows exactly one.
-
-**4. Merge the version through a PR, then build from `main`.** The pipeline
-builds from one identified commit: staging refuses a dirty tree, and refuses
-binaries whose build stamp names a commit other than `HEAD`. Commit the changes
-step 3 made and open a PR titled with the release:
-
-```bash
-source "$HOME/.coproduct-release.env"
-git commit -am "chore(flutter): release $COPRODUCT_RELEASE_VERSION"
-git push -u origin HEAD
-gh pr create --title "chore(flutter): release $COPRODUCT_RELEASE_VERSION" \
-  --body "Moves the Flutter SDK's version lines to $COPRODUCT_RELEASE_VERSION."
-gh pr checks --watch
-```
-
-If `gh pr checks` reports no checks, the workflow has not registered yet, so wait
-a few seconds and run it again. A tool that cannot wait on a long command runs
-`gh pr checks` without `--watch` until every check reports. Merge when every
-check passes. Merges squash, and the squash
-creates a new commit, so run the pipeline only after switching to the merged
-`main`:
-
-```bash
-source "$HOME/.coproduct-release.env"
-gh pr merge --squash --delete-branch
-git switch main && git pull --ff-only
-```
-
-A pipeline run on the branch would seal a package whose `PROVENANCE.json` names
-a commit that the squash merge leaves off `main`.
-
-**Publish only from the merged `main`.** The `PROVENANCE.json` of an immutable
-release must name a commit anyone can fetch.
-
-**5. Run the pipeline.** Expect roughly 20-30 minutes on a healthy machine, most
-of it the gate matrix building both platforms on two Flutter toolchains.
+**4. Run the pipeline with no gate flag.** Leave `COPRODUCT_RELEASE_GATES` unset,
+so the full gate set runs. Expect roughly 20-30 minutes on a healthy machine,
+most of it the gate matrix building both platforms on two Flutter toolchains.
 
 ```bash
 source "$HOME/.coproduct-release.env"
@@ -901,14 +1139,13 @@ guess.
 
 **It changes your working tree and your DerivedData.** The run regenerates the
 FRB bindings and runs `cargo fmt --all` in place, then aborts if that moved
-anything — leaving you with modified tracked files to `git checkout .` before
+anything, leaving you with modified tracked files to `git checkout .` before
 retrying. It also deletes `~/Library/Developer/Xcode/DerivedData/Runner-*`,
 which is every Flutter app's DerivedData on the machine, not only this one.
 
 It stops at the first failure and prints the full log to `$COPRODUCT_RELEASE_LOG`.
-Fix a failure on a branch, through a PR with a Conventional Commit title such as
-`style(flutter): …` or `fix(flutter): …`, then pull the merged `main` and run the
-pipeline again from the start. The pipeline's first stage runs the package's
+A failure that needs a code change is fixed on a branch and released as a newer
+version through the normal path. The pipeline's first stage runs the package's
 `dart format`, `flutter analyze`, and `flutter test` with the pinned toolchain,
 so running those first saves a run that fails a few minutes in:
 
@@ -922,23 +1159,24 @@ shows how far it got.
 
 | Stage | Script | Status line |
 |---|---|---|
-| Codegen pin, clean checkout, zero diff | `release.sh` | — |
+| Codegen pin, clean checkout, zero diff | `release.sh` | none |
 | The SDK's own analyze and tests | `release.sh` | `COPRODUCT_FLUTTER_SDK_TESTS_STATUS` |
 | The release tooling's own tests | `release.sh` | `COPRODUCT_RELEASE_TOOLING_TESTS_STATUS` |
 | Version coherence across all four files | `bin/check_identity.dart` | `COPRODUCT_FLUTTER_IDENTITY_STATUS` |
 | License audit | `bin/license_audit.dart` | `COPRODUCT_LICENSE_STATUS` |
 | Build six architectures | `stages/build-binaries.sh` | `COPRODUCT_FLUTTER_RELEASE_BUILD_STATUS` |
 | Stage the package | `stages/stage-package.sh` | `COPRODUCT_FLUTTER_RELEASE_STAGE_STATUS` |
-| Seal the publishable set | `stages/seal-package.sh` | — |
+| Seal the publishable set | `stages/seal-package.sh` | none |
 | Archive membership and size | `bin/check_archive.dart` | `COPRODUCT_FLUTTER_ARCHIVE_STATUS` |
 | Extract the archive | `stages/extract-archive.sh` | `COPRODUCT_FLUTTER_EXTRACT_STATUS` |
 | Consumer from the archive | `stages/consumer-from-archive.sh` | `COPRODUCT_FLUTTER_CONSUMER_FROM_ARCHIVE_STATUS` |
 | Both platforms, both toolchains | `gates/gate-suite.sh` | `COPRODUCT_FLUTTER_GATE_SUITE_STATUS` |
 | Prove the gates fail | `gates/mutation-gates.sh` | `COPRODUCT_FLUTTER_MUTATION_STATUS` |
 | Re-verify the seal | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS` |
+| Stop after the archive check, under `archive` | `release.sh` | `COPRODUCT_FLUTTER_RELEASE_STATUS gates=archive` |
 | The whole run, timed | `measure.sh` | `COPRODUCT_FLUTTER_MEASURE_STATUS` |
 
-**6. Publish.** Only through the wrapper:
+**5. Publish.** Only through the wrapper:
 
 ```bash
 source "$HOME/.coproduct-release.env"
@@ -948,7 +1186,7 @@ scripts/release/flutter/publish.sh
 
 **Never run `dart pub publish` yourself.** Every gate validates the staging
 directory, but the obvious place to run a publish from is the source package
-directory — and it publishes cleanly. The native binaries there are gitignored
+directory, and it publishes cleanly. The native binaries there are gitignored
 build output, so pub omits them and offers a ~91 KB archive with no
 `CoproductFFI.xcframework` and no `jniLibs`, carrying only the same single
 warning the real release carries. pub.dev accepts it, every consumer fails at
@@ -964,48 +1202,29 @@ complete. Done when pub reports the upload succeeded.
 
 **Authentication.** If you have never published from this machine, pub opens a
 browser for a Google sign-in and stores the result in
-`~/Library/Application Support/dart/pub-credentials.json`; `preflight.sh`
+`~/Library/Application Support/dart/pub-credentials.json`, and `preflight.sh`
 reports whether that file exists. Signing in is not the same as being allowed
-to publish this package: for a first publication the package name must be
-available on pub.dev, and for later ones your account must be an uploader.
-Confirm both before starting a run, because neither is visible until the moment
+to publish this package: your account must be an uploader of `coproduct`.
+Confirm that before starting a run, because it is not visible until the moment
 you publish.
 
-**7. Tag, only after pub.dev accepts.** A repository ruleset lets only the
-release automation create `*-v*` tags, so a person's tag push is rejected. An
-admin sets the ruleset to evaluate for the push and back to active straight
-after:
+**6. Publish the draft Release.** This makes the Release public. A person decides
+it, and an agent runs it only with a person's explicit go-ahead.
 
 ```bash
 source "$HOME/.coproduct-release.env"
-R=coproducthq/coproduct-client-sdks
-gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=evaluate
-git tag -a "flutter-v$COPRODUCT_RELEASE_VERSION" \
-  -m "Flutter SDK $COPRODUCT_RELEASE_VERSION" \
-  && git push origin "flutter-v$COPRODUCT_RELEASE_VERSION"
-gh api -X PUT "repos/$R/rulesets/25455144" -f enforcement=active
-gh api "repos/$R/rulesets/25455144" -q .enforcement   # must print active
+gh release edit "flutter-v$COPRODUCT_RELEASE_VERSION" -R "$R" --draft=false --title "flutter: v$COPRODUCT_RELEASE_VERSION"
 ```
 
-If any command between the two `PUT`s fails, still run the `enforcement=active`
-`PUT` and the check before stopping, so the tags stay protected.
+Done when
+`gh release view "flutter-v$COPRODUCT_RELEASE_VERSION" -R "$R" --json isDraft -q .isDraft`
+prints `false`.
 
-If the push is rejected, delete the local tag with
-`git tag -d "flutter-v$COPRODUCT_RELEASE_VERSION"` before retrying.
-
-**8. Publish the GitHub Release.** Developers read releases, not tags, and in a
-repository with several SDKs the title names the SDK. Use this version's changelog entry as the notes:
-
-```bash
-source "$HOME/.coproduct-release.env"
-awk -v v="## $COPRODUCT_RELEASE_VERSION " \
-  'index($0, v) == 1 {on = 1; next} on && /^## / {exit} on' \
-  sdks/flutter/coproduct/CHANGELOG.md > "$COPRODUCT_RELEASE_ROOT/notes.md"
-test -s "$COPRODUCT_RELEASE_ROOT/notes.md" || echo "no changelog entry for this version"
-gh release create "flutter-v$COPRODUCT_RELEASE_VERSION" \
-  --title "flutter: v$COPRODUCT_RELEASE_VERSION" \
-  --notes-file "$COPRODUCT_RELEASE_ROOT/notes.md" --verify-tag
-```
+**7. Update the docs.** The documentation update runs from a private repository,
+so a maintainer with access there dispatches its docs workflow for `flutter` and
+the version, once pub.dev serves that version as latest. If nobody does, the docs
+stay on the previous version until a later release, whose own "Release the docs"
+job moves them to that release.
 
 #### iOS and Android version identity
 
@@ -1038,13 +1257,14 @@ repository still gets an
 
 | Step | Who |
 |---|---|
-| 0, 1, 2, 5: the environment, the toolchain check, the devices, the pipeline | automated once started |
+| The normal path: release PR, check, merge, build, tests, publish, Release, docs | automated, except the merge in the next row |
+| Merging the release PR | human |
+| Emergency steps 1 to 4: the environment, the toolchain check, the devices, the pipeline | automated once started |
 | Before the first publication: archive a clean consumer in Xcode, generate the privacy report in the Organizer, and confirm it lists the `UserDefaults` declaration from the `coproduct_privacy` bundle | human: the pipeline checks the manifest inside the release app, but Xcode generates the report only from the Organizer |
 | Before the first publication: the session check on a physical iPhone, below | human: no simulator or emulator can be put in the state before the first unlock after boot |
-| 3 and 4: preparing the version and merging its PR | human |
-| 6: `publish.sh` | human, and the only supported way to publish |
+| Emergency step 5: `publish.sh` | human, and the only supported way to publish by hand |
 | Transferring the package to the verified publisher | human, and it cannot be undone |
-| 7 and 8: the tag and the GitHub Release | human, and the ruleset change needs an admin |
+| Emergency steps 6 and 7: the GitHub Release and the docs | human |
 
 A row marked human needs a person to run it, or to approve an agent running it.
 
@@ -1088,14 +1308,15 @@ applies to such an app.
 
 The gates are built so a failure names its own cause; read the status line that
 is missing rather than the last line of output. A failing gate-matrix step
-prints its last five lines and the path to its full log, one file per step under
-`/tmp/gate-suite-*.log`. Three failures are procedural rather than defects:
+prints its last five lines and the path to its full log, one
+`gate-suite-*.log` file per step in `$COPRODUCT_GATE_LOG_DIR`, which defaults to
+`/tmp`. Three failures are procedural rather than defects:
 
 - **"the release must start from a clean checkout"**, **"the binaries were built
   at X but HEAD is Y"**, or, at publish, **"this stage was built from X but HEAD
-  is now Y"** — fix it on a branch, merge it through a PR, then
-  `git switch main && git pull --ff-only` and rerun. The pipeline describes
-  exactly one commit, and it must be the one on `main`.
+  is now Y"**: in the emergency path, reset the working tree with `git checkout .`,
+  check out the release tag again, and rerun. The pipeline describes exactly one
+  commit, and it must be the release's.
 - **A gate that is slow or hangs** — check the machine before the code:
   `uptime`, `sysctl vm.swapusage`, and whether a build that once took seconds now
   takes minutes. A cold Gradle cache and a thrashing machine both look like a
@@ -1142,42 +1363,54 @@ flutter_rust_bridge pin warning; the gate accepts that and fails only on errors
 or unexpected warnings. `pubspec.lock` is not committed, so record the resolved
 dependency and native toolchain versions as release evidence.
 
-#### What CI would require
+#### What CI does
 
-This pipeline runs on one developer's machine. Nothing about it is hostile to
-CI, but it is not a workflow file away either. The list below is the scope.
+`.github/workflows/publish-flutter.yml` runs the pipeline that the emergency
+path runs by hand, split across jobs:
 
-Constraints that are already true, and that any design has to accept:
+- **Resolve the commit** records one commit, and every later job checks out that
+  commit, so a push that lands mid-run can't mix two commits into one result.
+- **Decide the run mode** allows a release only for the release automation's own
+  `flutter-v` tag on its release commit, whose manifest names the tag's version
+  and whose version lines agree. Every other run, including a person's run on a
+  release tag, only checks and publishes nothing.
+- **Build, seal, and check the package** runs on a `macos-26` runner. It installs
+  the pinned toolchains with `scripts/release/flutter/ci/setup-toolchains.sh` and
+  runs `measure.sh` with `COPRODUCT_RELEASE_GATES=archive`, which builds, stages,
+  and seals the package and runs the archive checks. It then packs the stage and
+  its seal into one tar, `flutter-package.tar`, whose SHA-256 every later job
+  checks.
+- **Gates** runs the `ci` gate set as four parallel `macos-26` jobs, one per
+  group in `scripts/release/flutter/lib/gates.sh`. Each unpacks the tar, builds
+  its own consumer from the files pub would publish, and runs its group through
+  `scripts/release/flutter/ci/run-gates.sh`. Only the `no-rust` group boots an
+  iOS simulator. Together the groups run exactly the `ci` gates, which
+  `gates.test.sh` checks, and publish waits for every group.
+- **Verify the package publish would upload** unpacks that tar exactly as the
+  publish job will, checks the seal, and runs pub's dry run. It runs in every
+  mode, so a checks-only run rehearses everything publish does short of uploading.
+- **Publish to pub.dev** runs in the `pub.dev` environment once the checks pass,
+  reads pub.dev's state for the version and, only when the version is absent,
+  publishes through GitHub OIDC. It installs Flutter alone with
+  `setup-toolchains.sh --publish`, which needs no Rust, Java, or Android SDK.
+- **Confirm pub.dev serves the sealed files** compares what pub.dev serves with
+  the seal.
+- **Publish the GitHub release** and **Release the docs** run in the `release`
+  environment.
+- **Result** fails unless every job succeeded or was skipped, and prints the
+  gates left to a local run.
 
-- **The no-Rust gate needs a runner that never had a Rust toolchain**, or the
-  deliberately constructed fresh `HOME` and sanitized `PATH` the gate builds.
-- **iOS acceptance needs an arm64 macOS runner** for the simulator.
-- **Android acceptance needs a Linux runner.** GitHub documents Android hardware
-  acceleration on its Linux runners and states nested virtualization is
-  unsupported on macOS runners, so one macOS runner cannot reliably host both.
+The gates CI leaves to a developer are iOS and Android device acceptance, the
+Android dark mode and no-Rust runtime gates, the native unit suites, and the
+mutation gates, because a hosted macOS runner has one iOS simulator and no
+Android emulator. CI runs the no-Rust iOS gate (`ios-no-rust`) as its iOS runtime
+smoke test, and does not run iOS acceptance, so a developer does. `scripts/release/flutter/lib/gates.sh` holds both lists and a test
+keeps every full gate in one of them, so a gate dropped from CI can't stop
+running everywhere.
 
-Prerequisites a CI design needs:
-
-- **Splitting the pipeline across runners.** `release.sh` runs every stage in
-  one process and shares the staging directory by path. Putting iOS on macOS and
-  Android on Linux means decomposing it into jobs that pass the staged package
-  and its build stamp between them as artifacts, and re-verifying the stamp on
-  arrival. That is a structural change, not configuration.
-- **Portability for the Linux half.** `stages/seal-package.sh` uses BSD
-  `stat -f` and `gates/mutation-gates.sh` uses BSD `sed -i ''`. Both fail on a
-  GNU userland, so the seal, which establishes what the package *is*, does not run on
-  Linux.
-- **Non-interactive publishing.** `publish.sh --force` skips pub's confirmation,
-  but publishing still needs stored pub.dev credentials, and nothing in the
-  repository reads a pub token or handles credentials as a secret.
-- **Device provisioning.** Both acceptance scripts consume an already-booted
-  device id and neither boot nor provision one. The runbook's boot commands are
-  written for a human at a terminal, not as workflow steps.
-
-Two properties are worth preserving in any CI design, because they are what the
-gates are for. The pipeline must still build from exactly one identified commit,
-and the mutation gates must still run — a CI job that skips them proves the
-package was built, not that anything would have caught it if it were wrong.
+Two properties hold in every run. The pipeline builds from exactly one
+identified commit, and the package that is tested is the package that is
+published, by SHA-256.
 
 ## Recovering local disk space
 

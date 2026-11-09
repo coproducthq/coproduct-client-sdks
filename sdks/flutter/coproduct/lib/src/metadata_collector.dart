@@ -32,8 +32,8 @@ typedef MetadataObserver =
     void Function(String field, Duration elapsed, {required bool omitted});
 
 /// The injectable providers for each static attribute. Real implementations wrap
-/// package_info_plus, device_info_plus, flutter_timezone, and dart:io
-/// Tests substitute fakes
+/// the SDK's host-context plugin, flutter_timezone, and dart:io. Tests
+/// substitute fakes
 class MetadataProviders {
   const MetadataProviders({
     required this.deviceType,

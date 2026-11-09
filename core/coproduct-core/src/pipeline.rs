@@ -363,6 +363,8 @@ pub enum RequestedType {
     Int,
     Number,
     Json,
+    StringList,
+    NumberList,
 }
 
 impl RequestedType {
@@ -374,6 +376,8 @@ impl RequestedType {
                 | (Self::Int, FlagType::Number)
                 | (Self::Number, FlagType::Number)
                 | (Self::Json, FlagType::Json)
+                | (Self::StringList, FlagType::StringList)
+                | (Self::NumberList, FlagType::NumberList)
         )
     }
 }

@@ -145,6 +145,18 @@ public enum Coproduct {
         Instances.shared.defaultInstance()?.getNumber(key: key, defaultValue: defaultValue) ?? defaultValue
     }
 
+    /// Evaluate a string-list flag, returning `defaultValue` if the flag is
+    /// missing, the wrong type, or the SDK is not ready.
+    public static func getStringList(_ key: String, default defaultValue: [String]) -> [String] {
+        Instances.shared.defaultInstance()?.getStringList(key: key, defaultValue: defaultValue) ?? defaultValue
+    }
+
+    /// Evaluate a number-list flag, returning `defaultValue` if the flag is
+    /// missing, the wrong type, or the SDK is not ready.
+    public static func getNumberList(_ key: String, default defaultValue: [Double]) -> [Double] {
+        Instances.shared.defaultInstance()?.getNumberList(key: key, defaultValue: defaultValue) ?? defaultValue
+    }
+
     /// Evaluate a JSON flag and decode it into `T`, returning `defaultValue` if
     /// the flag is missing, cannot be decoded, or the SDK is not ready.
     public static func getJSON<T: Codable>(_ key: String, default defaultValue: T) -> T {
@@ -190,6 +202,22 @@ public enum Coproduct {
             return notReadyDetails(value: .number(defaultValue), flagKey: key)
         }
         return FlagEvaluationDetails(client.getNumberDetails(key: key, defaultValue: defaultValue))
+    }
+
+    /// Evaluate a string-list flag and return full ``FlagEvaluationDetails``.
+    public static func getStringListDetails(_ key: String, default defaultValue: [String]) -> FlagEvaluationDetails {
+        guard let client = Instances.shared.defaultInstance() else {
+            return notReadyDetails(value: .stringList(defaultValue), flagKey: key)
+        }
+        return FlagEvaluationDetails(client.getStringListDetails(key: key, defaultValue: defaultValue))
+    }
+
+    /// Evaluate a number-list flag and return full ``FlagEvaluationDetails``.
+    public static func getNumberListDetails(_ key: String, default defaultValue: [Double]) -> FlagEvaluationDetails {
+        guard let client = Instances.shared.defaultInstance() else {
+            return notReadyDetails(value: .numberList(defaultValue), flagKey: key)
+        }
+        return FlagEvaluationDetails(client.getNumberListDetails(key: key, defaultValue: defaultValue))
     }
 
     /// Evaluate a JSON flag and return full ``FlagEvaluationDetails``, with the
@@ -283,6 +311,20 @@ public enum Coproduct {
         return AnyCancellable { handle.cancel() }
     }
 
+    /// Set (or replace) the evaluation listener. Unlike addHandler/addEvaluationHook,
+    /// there is only one evaluation listener slot: setting a new one replaces the
+    /// previous one rather than stacking. The listener fires for every flag
+    /// evaluation, after the evaluation hooks run. It fires synchronously, inline
+    /// with the evaluation, so keep it cheap and non-blocking -- do not do
+    /// expensive or blocking work directly in it
+    public static func setEvaluationListener(
+        _ onEvaluation: @escaping @Sendable (EvaluationEvent) -> Void
+    ) {
+        Instances.shared.requireDefault().setEvaluationListener(
+            listener: ClosureEvaluationListener(closure: onEvaluation)
+        )
+    }
+
     // MARK: - State / snapshot / shutdown
 
     /// The current provider lifecycle state. Reports `.notReady` before initialize.
@@ -305,6 +347,38 @@ public enum Coproduct {
     /// again. The on-disk snapshot cache is preserved for the next launch.
     public static func shutdown() async {
         await Instances.shared.shutdown()
+    }
+
+    /// Turn on GPS geo-fence targeting. Requests OS location permission (the first
+    /// and only prompt), then starts a foreground refresh loop at the default
+    /// 2-minute cadence, publishing `device_location` so geo-fence rules evaluate
+    /// live. Opt-in: nothing happens until the host calls this. Returns whether
+    /// permission was granted. A call before initialize logs and returns false.
+    @discardableResult
+    public static func enableLocation() async -> Bool {
+        guard let monitor = Instances.shared.locationMonitor() else {
+            NSLog("[Coproduct] enableLocation called before initialize")
+            return false
+        }
+        return await monitor.enable()
+    }
+
+    /// Set the foreground refresh interval in seconds, enabling location if it was
+    /// not already. `0` takes a single fix without a repeating loop; values below a
+    /// 30-second floor are clamped. Returns whether permission was granted.
+    @discardableResult
+    public static func setLocationUpdateInterval(_ seconds: TimeInterval) async -> Bool {
+        guard let monitor = Instances.shared.locationMonitor() else {
+            NSLog("[Coproduct] setLocationUpdateInterval called before initialize")
+            return false
+        }
+        return await monitor.setInterval(seconds)
+    }
+
+    /// Read one GPS fix on demand and publish it. A no-op until location has been
+    /// enabled.
+    public static func refreshLocation() async {
+        await Instances.shared.locationMonitor()?.refreshNow()
     }
 }
 
@@ -354,6 +428,20 @@ final class ClosureEvaluationHook: EvaluationHook, @unchecked Sendable {
         case .error: return .error
         case .finally: return .finally
         }
+    }
+}
+
+/// Bridges a caller-supplied closure to the generated EvaluationListener protocol.
+/// UniFFI does not auto-bridge Swift closures to Rust traits, so this wrapper is needed
+final class ClosureEvaluationListener: EvaluationListener, @unchecked Sendable {
+    private let closure: @Sendable (EvaluationEvent) -> Void
+
+    init(closure: @escaping @Sendable (EvaluationEvent) -> Void) {
+        self.closure = closure
+    }
+
+    func onEvaluation(event: EvaluationEvent) {
+        closure(event)
     }
 }
 
@@ -456,6 +544,7 @@ final class Instances: @unchecked Sendable {
         let sdkKey: String
         let timer: HostTimer?
         let networkMonitor: NetworkMonitor?
+        let locationMonitor: LocationMonitor?
     }
 
     private var _defaultInstance: Stored?
@@ -474,6 +563,12 @@ final class Instances: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _defaultInstance?.client
+    }
+
+    func locationMonitor() -> LocationMonitor? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _defaultInstance?.locationMonitor
     }
 
     func requireDefault() -> CoproductFFI.CoproductClient {
@@ -552,8 +647,23 @@ final class Instances: @unchecked Sendable {
             }
         )
 
+        // Constructed but NOT enabled: location is opt-in. Each fix publishes
+        // device_location (so a geo-fence re-evaluates through the observer fanout)
+        // and persists for the next launch's seed. A weak capture keeps the monitor
+        // from retaining a shut-down client
+        let locationMonitor = LocationMonitor { [weak inner] lat, lng in
+            inner?.setAutoPopulated(attributes: ["device_location": .numberList([lat, lng])])
+            LocationStore().write(lat: lat, lng: lng)
+        }
+
         guard storeIfCurrent(
-            Stored(client: inner, sdkKey: sdkKey, timer: timer, networkMonitor: networkMonitor),
+            Stored(
+                client: inner,
+                sdkKey: sdkKey,
+                timer: timer,
+                networkMonitor: networkMonitor,
+                locationMonitor: locationMonitor
+            ),
             generation: claimedGeneration
         ) else {
             // A shutdown ran during the brief construct before the instance was
@@ -561,6 +671,7 @@ final class Instances: @unchecked Sendable {
             // cancellation so the caller never sees initialize succeed against a
             // torn-down SDK
             networkMonitor.cancel()
+            locationMonitor.cancel()
             await inner.shutdown()
             throw CoproductError.cancelledByShutdown
         }
@@ -633,6 +744,12 @@ final class Instances: @unchecked Sendable {
         // live network fact arrives later through NetworkMonitor
         var autoAttributes = DeviceContext.staticAttributes()
         for (key, value) in SessionStore().sessionAttributes() {
+            autoAttributes[key] = value
+        }
+        // Seed device_location from the last stored fix so a geo-fence can evaluate
+        // from the last known position at launch. Live acquisition starts only when
+        // the host enables location, never here, so no permission prompt appears
+        for (key, value) in LocationStore().locationAttributes() {
             autoAttributes[key] = value
         }
         await client.setAutoPopulatedNow(attributes: autoAttributes)
@@ -744,6 +861,7 @@ final class Instances: @unchecked Sendable {
         // closure races against the in-flight shutdown
         stored?.timer?.stop()
         stored?.networkMonitor?.cancel()
+        stored?.locationMonitor?.cancel()
         await stored?.client.shutdown()
     }
 }

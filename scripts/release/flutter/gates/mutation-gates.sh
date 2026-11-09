@@ -13,6 +13,10 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fail=0
+# The same directory gate-suite.sh writes its step logs to
+GATE_LOG_DIR="${COPRODUCT_GATE_LOG_DIR:-/tmp}"
+mkdir -p "$GATE_LOG_DIR"
+BASELINE_LOG="$GATE_LOG_DIR/mutation-baseline.log"
 
 scratch() { # -> a disposable directory the safe-path guard will accept
     local d; d="$(mktemp -d "${TMPDIR:-/tmp}/coproduct-mutate.XXXXXX")/work"
@@ -21,12 +25,12 @@ scratch() { # -> a disposable directory the safe-path guard will accept
 
 baseline() { # label, command...
     local label="$1"; shift
-    if "$@" >/tmp/mutation-baseline.log 2>&1; then
+    if "$@" >"$BASELINE_LOG" 2>&1; then
         printf '  ok   baseline green: %s\n' "$label"
         return 0
     fi
     printf '  FAIL baseline already red: %s, so a mutation here proves nothing\n' "$label"
-    tail -4 /tmp/mutation-baseline.log | sed 's/^/       /'
+    tail -4 "$BASELINE_LOG" | sed 's/^/       /'
     fail=1
     return 1
 }

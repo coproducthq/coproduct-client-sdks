@@ -1,12 +1,16 @@
 import {
   type CoproductClientLike,
   type CoproductSnapshot,
+  type EvaluationEvent,
   type EvaluationHook,
+  type EvaluationListener,
   type EvaluationStage,
   type FlagEvaluationDetailsBool,
   type FlagEvaluationDetailsJson,
   type FlagEvaluationDetailsNumber,
+  type FlagEvaluationDetailsNumberList,
   type FlagEvaluationDetailsString,
+  type FlagEvaluationDetailsStringList,
   type HookContext,
   type LifecycleEvent,
   type LifecycleHandler,
@@ -81,6 +85,28 @@ export class CoproductClient {
     defaultValue: number
   ): FlagEvaluationDetailsNumber {
     return this.native.getNumberDetails(key, defaultValue);
+  }
+
+  getStringList(key: string, defaultValue: string[]): string[] {
+    return this.native.getStringList(key, defaultValue);
+  }
+
+  getStringListDetails(
+    key: string,
+    defaultValue: string[]
+  ): FlagEvaluationDetailsStringList {
+    return this.native.getStringListDetails(key, defaultValue);
+  }
+
+  getNumberList(key: string, defaultValue: number[]): number[] {
+    return this.native.getNumberList(key, defaultValue);
+  }
+
+  getNumberListDetails(
+    key: string,
+    defaultValue: number[]
+  ): FlagEvaluationDetailsNumberList {
+    return this.native.getNumberListDetails(key, defaultValue);
   }
 
   getJson(key: string, defaultValueJson: string): string {
@@ -234,6 +260,12 @@ export class CoproductClient {
 
   // MARK: Handlers/hooks
 
+  /**
+   * Register a lifecycle handler. Keep the returned handle for as long as the
+   * handler should stay active. Calling cancel, or letting the handle be
+   * garbage collected, removes the handler, so a discarded handle can stop
+   * the handler from ever firing.
+   */
   addHandler(
     event: LifecycleEvent,
     handler: (event: LifecycleEvent) => void
@@ -259,6 +291,17 @@ export class CoproductClient {
     };
     const handle = this.native.addEvaluationHook(wrapped);
     return { cancel: () => handle.cancel() };
+  }
+
+  // Fires synchronously on every evaluation, so keep onEvaluation cheap and
+  // non-blocking -- do not do expensive or blocking work directly in it.
+  setEvaluationListener(onEvaluation: (event: EvaluationEvent) => void): void {
+    const wrapped: EvaluationListener = {
+      onEvaluation: (event) => {
+        onEvaluation(event);
+      },
+    };
+    this.native.setEvaluationListener(wrapped);
   }
 
   // MARK: State / snapshot / shutdown

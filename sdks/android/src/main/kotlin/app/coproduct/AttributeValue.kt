@@ -12,6 +12,7 @@ sealed class AttributeValue {
     data class Num(val value: Double) : AttributeValue()
     data class Bool(val value: Boolean) : AttributeValue()
     data class StrList(val values: List<String>) : AttributeValue()
+    data class NumList(val values: List<Double>) : AttributeValue()
     object Null : AttributeValue()
 }
 
@@ -20,6 +21,7 @@ internal fun AttributeValue.toContextValue(): ContextValue = when (this) {
     is AttributeValue.Num -> ContextValue.Number(value)
     is AttributeValue.Bool -> ContextValue.Bool(value)
     is AttributeValue.StrList -> ContextValue.StringList(values)
+    is AttributeValue.NumList -> ContextValue.NumberList(values)
     AttributeValue.Null -> ContextValue.Null
 }
 

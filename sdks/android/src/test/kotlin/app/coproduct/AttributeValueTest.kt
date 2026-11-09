@@ -34,4 +34,10 @@ class AttributeValueTest {
         val result = mapOf("cleared" to AttributeValue.Null).toContextValues()
         assertEquals(ContextValue.Null, result["cleared"])
     }
+
+    @Test
+    fun convertsNumberList() {
+        val result = mapOf("scores" to AttributeValue.NumList(listOf(1.0, 2.0, 3.0))).toContextValues()
+        assertEquals(ContextValue.NumberList(listOf(1.0, 2.0, 3.0)), result["scores"])
+    }
 }

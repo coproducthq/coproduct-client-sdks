@@ -51,7 +51,7 @@ class CoproductPaywall extends StatefulWidget {
   /// instead of the edge-worker api, with no fallback between the two. Omit
   /// this to keep using the api, unconditionally -- the safe default for a
   /// paywall that may not have been redeployed since this content-CDN path
-  /// shipped (see coproduct-platform's R2 content delivery work).
+  /// shipped.
   final String? envSlug;
 
   /// Overridable for tests. Defaults to the real HTTP client and the real
@@ -119,15 +119,17 @@ class CoproductPaywall extends StatefulWidget {
     final c =
         paywallClient ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
     final seen = <String>{};
-    await Future.wait(flagKeys.map((flagKey) async {
-      final paywallId = client.getString(flagKey, defaultValue: '');
-      if (paywallId.isEmpty || seen.contains(paywallId)) return;
-      seen.add(paywallId);
-      await snapshotCache.warm(
-        snapshotCacheKey(paywallId, envSlug),
-        () => c.fetchPaywall(paywallId),
-      );
-    }));
+    await Future.wait(
+      flagKeys.map((flagKey) async {
+        final paywallId = client.getString(flagKey, defaultValue: '');
+        if (paywallId.isEmpty || seen.contains(paywallId)) return;
+        seen.add(paywallId);
+        await snapshotCache.warm(
+          snapshotCacheKey(paywallId, envSlug),
+          () => c.fetchPaywall(paywallId),
+        );
+      }),
+    );
   }
 
   @override

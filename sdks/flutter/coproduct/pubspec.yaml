@@ -1,6 +1,6 @@
 name: coproduct
 description: "Flutter SDK for Coproduct, a feature management and experimentation platform."
-version: 1.2.0
+version: 1.4.2
 homepage: https://coproduct.app
 repository: https://github.com/coproducthq/coproduct-client-sdks/tree/main/sdks/flutter/coproduct
 issue_tracker: https://github.com/coproducthq/coproduct-client-sdks/issues
@@ -17,13 +17,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  device_info_plus: ^13.2.0
   flutter_rust_bridge: 2.12.0
   flutter_secure_storage: ^10.3.1
   flutter_timezone: ^5.1.0
   freezed_annotation: ^3.1.0
   http: ^1.6.0
-  package_info_plus: ^10.2.1
   path_provider: ^2.1.5
   permission_handler: ^12.0.1
   plugin_platform_interface: ^2.0.2

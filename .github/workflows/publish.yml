@@ -2,8 +2,13 @@ name: Publish
 
 # Builds the React Native package once and proves that exact file builds in
 # real apps. A run started by the release automation on its own release tag
-# then publishes that same file to npm with provenance, after approval, and
+# then publishes that same file to npm with provenance once the checks pass, and
 # finishes the GitHub release and the docs. Every other run only checks
+
+# The run title marks every run that cannot release. A release automation run
+# on a tag can still end up checks only, and its mode job says why
+run-name: ${{ github.ref_type == 'tag' && github.actor_id == '345134390' && format('Publish {0}', github.ref_name) || format('Publish {0} (checks only)', inputs.ref || github.ref_name) }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -66,6 +71,13 @@ jobs:
           RUN_SHA: ${{ github.sha }}
         shell: bash
         run: node scripts/release/react-native/release-mode.mjs | tee -a "$GITHUB_OUTPUT"
+      # A green checks run looks like a release in the run list, so the run's
+      # summary page says it published nothing and why
+      - name: Say this run only checks
+        if: steps.mode.outputs.mode != 'release'
+        env:
+          REASON: ${{ steps.mode.outputs.reason }}
+        run: echo "::notice title=This run only checks and publishes nothing::$REASON"
 
   native-ios:
     name: Native ${{ matrix.target }}

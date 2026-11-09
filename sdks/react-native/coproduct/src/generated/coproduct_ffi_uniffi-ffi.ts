@@ -419,6 +419,18 @@ interface NativeModuleInterface {
     defaultValue: number,
     uniffi_out_err: UniffiRustCallStatus
   ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    defaultValue: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    defaultValue: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(
     uniffiSelf: bigint,
     key: Uint8Array,
@@ -426,6 +438,18 @@ interface NativeModuleInterface {
     uniffi_out_err: UniffiRustCallStatus
   ): Uint8Array;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    defaultValue: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(
+    uniffiSelf: bigint,
+    key: Uint8Array,
+    defaultValue: Uint8Array,
+    uniffi_out_err: UniffiRustCallStatus
+  ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(
     uniffiSelf: bigint,
     key: Uint8Array,
     defaultValue: Uint8Array,
@@ -681,8 +705,12 @@ interface NativeModuleInterface {
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_json_details(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bool(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_observe_bundle(): number;

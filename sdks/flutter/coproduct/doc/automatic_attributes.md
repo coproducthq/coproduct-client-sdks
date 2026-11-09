@@ -84,6 +84,10 @@ compare correctly with version operators:
 A value that is not a plain dotted number is kept as it is, so a rule can
 still match it with the string operators.
 
+`os_version`, `app_version`, and `app_build` are also unset when the SDK's
+native plugin does not respond, which the SDK reports as
+`HostContextUnavailable`.
+
 ## locale and timezone
 
 - **`locale`** is the device's primary locale from the system settings, as a

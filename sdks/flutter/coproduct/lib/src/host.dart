@@ -177,7 +177,7 @@ class CoproductHost<H extends Object, C extends Object> {
     // goes through the developer's error reporter rather than behind an assert.
     // An unregistered plugin fails every method on the channel, and one
     // misconfiguration should read as one error, so it reports once per build.
-    // Either method can fail after a shutdown or a newer initialize, and a
+    // Any method can fail after a shutdown or a newer initialize, and a
     // report then would read as an error of the runtime that replaced it
     var hostContextReported = false;
     void reportHostContextUnavailable() {
@@ -220,23 +220,25 @@ class CoproductHost<H extends Object, C extends Object> {
     // the shared deadline and cancellation, and observe it from creation so an
     // early failure never becomes an unhandled async error before publish
     final providers = _metadataProviders;
+    // Surfaced rather than swallowed with the field: the collector treats
+    // every failure alike, and this one names a fixable misconfiguration
+    MetadataProvider reportingUnavailable(MetadataProvider provider) =>
+        () async {
+          try {
+            return await provider();
+          } on HostContextUnavailable {
+            reportHostContextUnavailable();
+            rethrow;
+          }
+        };
     final metadata =
         collectStaticAttributes(
           MetadataProviders(
-            // Surfaced rather than swallowed with the field: the collector treats
-            // every failure alike, and this one names a fixable misconfiguration
-            deviceType: () async {
-              try {
-                return await providers.deviceType();
-              } on HostContextUnavailable {
-                reportHostContextUnavailable();
-                rethrow;
-              }
-            },
+            deviceType: reportingUnavailable(providers.deviceType),
             platform: providers.platform,
-            osVersion: providers.osVersion,
-            appVersion: providers.appVersion,
-            appBuild: providers.appBuild,
+            osVersion: reportingUnavailable(providers.osVersion),
+            appVersion: reportingUnavailable(providers.appVersion),
+            appBuild: reportingUnavailable(providers.appBuild),
             locale: providers.locale,
             timezone: providers.timezone,
           ),

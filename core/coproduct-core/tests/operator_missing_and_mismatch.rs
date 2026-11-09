@@ -15,6 +15,7 @@ fn rhs_for(op: Operator) -> Vec<String> {
         | Operator::SemVerGte
         | Operator::SemVerLt
         | Operator::SemVerLte => &["1.0.0"],
+        Operator::WithinRadius => &["37.7749", "-122.4194", "500"],
         Operator::IsSet | Operator::IsNotSet | Operator::Unknown => &[],
     };
     strs.iter().map(|s| s.to_string()).collect()

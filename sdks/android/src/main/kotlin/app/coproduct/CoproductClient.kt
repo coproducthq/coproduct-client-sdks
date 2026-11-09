@@ -4,7 +4,9 @@ import android.util.Log
 import app.coproduct.paywall.FlagReader
 import uniffi.coproduct_ffi_uniffi.BoolDelivery
 import uniffi.coproduct_ffi_uniffi.CoproductClient as NativeCoproductClient
+import uniffi.coproduct_ffi_uniffi.EvaluationEvent
 import uniffi.coproduct_ffi_uniffi.EvaluationHook
+import uniffi.coproduct_ffi_uniffi.EvaluationListener
 import uniffi.coproduct_ffi_uniffi.EvaluationStage
 import uniffi.coproduct_ffi_uniffi.HandlerHandle
 import uniffi.coproduct_ffi_uniffi.HookContext
@@ -24,6 +26,15 @@ private class ClosureLifecycleHandler(
     private val closure: (LifecycleEvent) -> Unit,
 ) : LifecycleHandler {
     override suspend fun onEvent(event: LifecycleEvent) = closure(event)
+}
+
+// internal (rather than private, like the handlers above) so unit tests can
+// exercise the forwarding contract directly, since NativeCoproductClient
+// cannot be faked to drive it through CoproductClient itself.
+internal class ClosureEvaluationListener(
+    private val closure: (EvaluationEvent) -> Unit,
+) : EvaluationListener {
+    override fun onEvaluation(event: EvaluationEvent) = closure(event)
 }
 
 private class ClosureEvaluationHook(
@@ -63,6 +74,8 @@ class CoproductClient internal constructor(
     fun getInt(key: String, default: Long): Long = inner.getInt(key, default)
     fun getNumber(key: String, default: Double): Double = inner.getNumber(key, default)
     fun getJson(key: String, default: String): String = inner.getJson(key, default)
+    fun getStringList(key: String, default: List<String>): List<String> = inner.getStringList(key, default)
+    fun getNumberList(key: String, default: List<Double>): List<Double> = inner.getNumberList(key, default)
 
     fun getBoolDetails(key: String, default: Boolean): FlagEvaluationDetails =
         inner.getBoolDetails(key, default).toPublic()
@@ -78,6 +91,12 @@ class CoproductClient internal constructor(
 
     fun getJsonDetails(key: String, default: String): FlagEvaluationDetails =
         inner.getJsonDetails(key, default).toPublic()
+
+    fun getStringListDetails(key: String, default: List<String>): FlagEvaluationDetails =
+        inner.getStringListDetails(key, default).toPublic()
+
+    fun getNumberListDetails(key: String, default: List<Double>): FlagEvaluationDetails =
+        inner.getNumberListDetails(key, default).toPublic()
 
     // --- Identity (fire-and-forget) ---
     fun identify(userId: String, attributes: Map<String, AttributeValue> = emptyMap(), linkAnonymous: Boolean = true) {
@@ -208,5 +227,13 @@ class CoproductClient internal constructor(
     fun addEvaluationHook(stage: EvaluationHookStage, handler: (EvaluationHookContext) -> Unit): Cancellable {
         val handle: HookHandle = inner.addEvaluationHook(ClosureEvaluationHook(stage, handler))
         return Cancellable { handle.cancel() }
+    }
+
+    /**
+     * Fires synchronously on every evaluation, so keep [onEvaluation] cheap and
+     * non-blocking -- do not do expensive or blocking work directly in it.
+     */
+    fun setEvaluationListener(onEvaluation: (EvaluationEvent) -> Unit) {
+        inner.setEvaluationListener(ClosureEvaluationListener(onEvaluation))
     }
 }

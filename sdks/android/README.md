@@ -58,6 +58,31 @@ fun CheckoutScreen(client: CoproductClient) {
 }
 ```
 
+## Segmentation by GPS location (geo-fencing)
+
+Target a flag or segment by a **geo-fence**: a center latitude/longitude and a radius. The flag turns on when the device is physically inside that circle. Matching runs on-device, so the raw coordinates never leave the phone.
+
+Author the fence in the dashboard: add a **Location (GPS)** condition with the **within radius of** operator to a segment, set the center and radius, and point your flag's targeting rule at that segment. The SDK's job is to supply the device position as the `device_location` attribute.
+
+Location is opt-in. The SDK never touches location at `initialize`.
+
+```kotlin
+// Start supplying device_location. Returns false if the location permission
+// has not been granted (see the permission note below).
+val enabled = Coproduct.enableLocation()
+
+// Optional: refresh on a foreground interval, in milliseconds.
+// Default 2 minutes, 30s floor, 0 = a single fix with no repeating loop.
+Coproduct.setLocationUpdateInterval(milliseconds = 120_000L)
+
+// Force a one-off refresh.
+Coproduct.refreshLocation()
+```
+
+**Permission is the host app's responsibility on Android.** Unlike iOS, the native Android SDK does not and cannot show the runtime permission dialog: it reads location through the platform `LocationManager` from an application context, and only an `Activity` can present that prompt. Declare `ACCESS_FINE_LOCATION` (or `ACCESS_COARSE_LOCATION`) in your manifest and request it at runtime yourself before calling `enableLocation()`. If it is not granted, `enableLocation()` returns `false` and `device_location` stays unset.
+
+Inside/outside is delivered through the flag you already observe (`observeBool` / `rememberBoolFlag`); there is no separate geo-fence callback. If permission is denied or location is off, geo-fence rules fall through to the flag's default variation.
+
 ## Known compatibility notes
 
 None at v1.0.

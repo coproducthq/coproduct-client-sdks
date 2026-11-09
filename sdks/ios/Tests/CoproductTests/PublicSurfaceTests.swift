@@ -26,11 +26,15 @@ final class PublicSurfaceTests: XCTestCase {
         let _: (String, String) -> String = Coproduct.getString(_:default:)
         let _: (String, Int) -> Int = Coproduct.getInt(_:default:)
         let _: (String, Double) -> Double = Coproduct.getNumber(_:default:)
+        let _: (String, [String]) -> [String] = Coproduct.getStringList(_:default:)
+        let _: (String, [Double]) -> [Double] = Coproduct.getNumberList(_:default:)
 
         let _: (String, Bool) -> FlagEvaluationDetails = Coproduct.getBoolDetails(_:default:)
         let _: (String, String) -> FlagEvaluationDetails = Coproduct.getStringDetails(_:default:)
         let _: (String, Int) -> FlagEvaluationDetails = Coproduct.getIntDetails(_:default:)
         let _: (String, Double) -> FlagEvaluationDetails = Coproduct.getNumberDetails(_:default:)
+        let _: (String, [String]) -> FlagEvaluationDetails = Coproduct.getStringListDetails(_:default:)
+        let _: (String, [Double]) -> FlagEvaluationDetails = Coproduct.getNumberListDetails(_:default:)
 
         // getJSON and getJSONDetails are generic over a Codable type, pinned to a
         // concrete type here. The return type also confirms the as: parameter is gone

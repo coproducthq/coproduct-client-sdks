@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show FlutterError, FlutterErrorDetails;
@@ -6,6 +7,7 @@ import 'attribute_value.dart';
 import 'client_backend.dart';
 import 'config.dart';
 import 'errors.dart';
+import 'evaluation_event.dart';
 import 'flag_observation.dart';
 import 'foreground.dart';
 import 'frb_backend.dart';
@@ -57,6 +59,7 @@ final class CoproductClient implements FlagReader {
   // order against the identity mutators instead of racing them. A second queue
   // would reintroduce exactly the interleaving this one exists to prevent
   final SerialQueue _identityQueue;
+  StreamSubscription<EvaluationEvent>? _evaluationSubscription;
 
   /// Reads a boolean flag.
   ///
@@ -102,6 +105,28 @@ final class CoproductClient implements FlagReader {
   /// Never throws, and does not rebuild a widget when the flag changes
   double getNumber(String key, {required double defaultValue}) =>
       _backend.getNumber(key, defaultValue: defaultValue);
+
+  /// Reads a string-list flag.
+  ///
+  /// Returns [defaultValue] when the SDK cannot resolve the flag, including
+  /// when the flag is not a string list. See [getBool] for what a read
+  /// serves. Never throws, and does not rebuild a widget when the flag
+  /// changes
+  List<String> getStringList(
+    String key, {
+    required List<String> defaultValue,
+  }) => _backend.getStringList(key, defaultValue: defaultValue);
+
+  /// Reads a number-list flag.
+  ///
+  /// Returns [defaultValue] when the SDK cannot resolve the flag, including
+  /// when the flag is not a number list. See [getBool] for what a read
+  /// serves. Never throws, and does not rebuild a widget when the flag
+  /// changes
+  List<double> getNumberList(
+    String key, {
+    required List<double> defaultValue,
+  }) => _backend.getNumberList(key, defaultValue: defaultValue);
 
   /// Reads a JSON flag as a Dart value: a map, list, string, number, bool, or
   /// null.
@@ -344,6 +369,25 @@ final class CoproductClient implements FlagReader {
       events: handle.events,
       cancel: handle.cancel,
     );
+  }
+
+  /// Registers [onEvaluation] to be called for every typed-getter call this
+  /// client makes from now on, including a read made under the hood by a
+  /// paywall or onboarding flow. Observations do not fire this listener: an
+  /// observation's seed and later updates are delivered only through the
+  /// observation itself.
+  ///
+  /// There is a single evaluation-listener slot, not a list of subscribers:
+  /// calling this again installs a new listener and detaches whatever was
+  /// registered before it, matching every other Coproduct SDK.
+  ///
+  /// [onEvaluation] fires on every evaluation, so keep it cheap and
+  /// non-blocking -- do not await inside it or do expensive work directly.
+  /// Forward the event to your own analytics pipeline instead
+  void setEvaluationListener(void Function(EvaluationEvent) onEvaluation) {
+    final previous = _evaluationSubscription;
+    _evaluationSubscription = _backend.evaluationEvents().listen(onEvaluation);
+    unawaited(previous?.cancel().catchError(_reportError));
   }
 }
 

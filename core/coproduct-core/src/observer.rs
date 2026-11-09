@@ -15,6 +15,8 @@ pub enum FlagValue {
     Int(i64),
     Number(f64),
     Json(JsonValue),
+    StringList(Vec<String>),
+    NumberList(Vec<f64>),
 }
 
 impl FlagValue {
@@ -54,6 +56,20 @@ impl FlagValue {
     pub fn as_json_string(&self) -> Option<String> {
         match self {
             FlagValue::Json(value) => Some(value.to_string()),
+            _ => None,
+        }
+    }
+
+    pub fn as_string_list(&self) -> Option<Vec<String>> {
+        match self {
+            FlagValue::StringList(value) => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_number_list(&self) -> Option<Vec<f64>> {
+        match self {
+            FlagValue::NumberList(value) => Some(value.clone()),
             _ => None,
         }
     }

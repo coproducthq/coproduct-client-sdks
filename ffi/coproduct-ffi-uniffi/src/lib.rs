@@ -180,6 +180,8 @@ pub enum FlagValue {
     Int { value: i64 },
     Number { value: f64 },
     Json { value: String },
+    StringList { value: Vec<String> },
+    NumberList { value: Vec<f64> },
 }
 
 impl From<coproduct_core::observer::FlagValue> for FlagValue {
@@ -193,6 +195,31 @@ impl From<coproduct_core::observer::FlagValue> for FlagValue {
             C::Json(value) => FlagValue::Json {
                 value: value.to_string(),
             },
+            C::StringList(value) => FlagValue::StringList { value },
+            C::NumberList(value) => FlagValue::NumberList { value },
+        }
+    }
+}
+
+#[cfg(test)]
+mod flag_value_conversion_tests {
+    use super::FlagValue;
+
+    #[test]
+    fn maps_string_list_and_number_list() {
+        let strings =
+            coproduct_core::observer::FlagValue::StringList(vec!["a".to_string(), "b".to_string()]);
+        match FlagValue::from(strings) {
+            FlagValue::StringList { value } => {
+                assert_eq!(value, vec!["a".to_string(), "b".to_string()])
+            }
+            other => panic!("expected StringList, got {other:?}"),
+        }
+
+        let numbers = coproduct_core::observer::FlagValue::NumberList(vec![1.0, 2.5]);
+        match FlagValue::from(numbers) {
+            FlagValue::NumberList { value } => assert_eq!(value, vec![1.0, 2.5]),
+            other => panic!("expected NumberList, got {other:?}"),
         }
     }
 }
@@ -205,6 +232,7 @@ pub enum ContextValue {
     Number { value: f64 },
     Bool { value: bool },
     StringList { values: Vec<String> },
+    NumberList { values: Vec<f64> },
     Null,
 }
 
@@ -217,6 +245,9 @@ impl ContextValue {
             ContextValue::Bool { value } => AttributeValue::Bool(value),
             ContextValue::StringList { values } => {
                 AttributeValue::Array(values.into_iter().map(AttributeValue::String).collect())
+            }
+            ContextValue::NumberList { values } => {
+                AttributeValue::Array(values.into_iter().map(AttributeValue::Number).collect())
             }
             ContextValue::Null => AttributeValue::Null,
         }
@@ -412,6 +443,26 @@ pub struct FlagEvaluationDetailsJson {
     pub flag_key: String,
 }
 
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsStringList {
+    pub value: Vec<String>,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
+#[derive(Debug, uniffi::Record)]
+pub struct FlagEvaluationDetailsNumberList {
+    pub value: Vec<f64>,
+    pub variant: Option<String>,
+    pub reason: String,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub flag_key: String,
+}
+
 fn details_bool_to_ffi(
     d: coproduct_core::details::FlagEvaluationDetails<bool>,
 ) -> FlagEvaluationDetailsBool {
@@ -477,6 +528,32 @@ fn details_json_to_ffi(
     }
 }
 
+fn details_string_list_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<Vec<String>>,
+) -> FlagEvaluationDetailsStringList {
+    FlagEvaluationDetailsStringList {
+        value: d.value,
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
+fn details_number_list_to_ffi(
+    d: coproduct_core::details::FlagEvaluationDetails<Vec<f64>>,
+) -> FlagEvaluationDetailsNumberList {
+    FlagEvaluationDetailsNumberList {
+        value: d.value,
+        variant: d.variant,
+        reason: d.reason.wire().to_string(),
+        error_code: d.error_code,
+        error_message: d.error_message,
+        flag_key: d.flag_key,
+    }
+}
+
 #[uniffi::export]
 impl CoproductClient {
     pub fn get_bool(&self, key: String, default_value: bool) -> bool {
@@ -501,6 +578,14 @@ impl CoproductClient {
     pub fn get_json(&self, key: String, default_value_json: String) -> String {
         let default = serde_json::from_str(&default_value_json).unwrap_or(serde_json::Value::Null);
         self.inner.get_json(key, default).to_string()
+    }
+
+    pub fn get_string_list(&self, key: String, default_value: Vec<String>) -> Vec<String> {
+        self.inner.get_string_list(key, default_value)
+    }
+
+    pub fn get_number_list(&self, key: String, default_value: Vec<f64>) -> Vec<f64> {
+        self.inner.get_number_list(key, default_value)
     }
 
     pub fn get_bool_details(&self, key: String, default_value: bool) -> FlagEvaluationDetailsBool {
@@ -534,6 +619,22 @@ impl CoproductClient {
     ) -> FlagEvaluationDetailsJson {
         let default = serde_json::from_str(&default_value_json).unwrap_or(serde_json::Value::Null);
         details_json_to_ffi(self.inner.get_json_details(key, default))
+    }
+
+    pub fn get_string_list_details(
+        &self,
+        key: String,
+        default_value: Vec<String>,
+    ) -> FlagEvaluationDetailsStringList {
+        details_string_list_to_ffi(self.inner.get_string_list_details(key, default_value))
+    }
+
+    pub fn get_number_list_details(
+        &self,
+        key: String,
+        default_value: Vec<f64>,
+    ) -> FlagEvaluationDetailsNumberList {
+        details_number_list_to_ffi(self.inner.get_number_list_details(key, default_value))
     }
 
     /// Current value of each key, for seeding a multi-key observation so it is
@@ -1324,6 +1425,8 @@ pub enum FlagType {
     Int,
     Number,
     Json,
+    StringList,
+    NumberList,
 }
 
 impl From<core_hooks::FlagType> for FlagType {
@@ -1335,6 +1438,8 @@ impl From<core_hooks::FlagType> for FlagType {
             C::Int => FlagType::Int,
             C::Number => FlagType::Number,
             C::Json => FlagType::Json,
+            C::StringList => FlagType::StringList,
+            C::NumberList => FlagType::NumberList,
         }
     }
 }
@@ -2078,5 +2183,32 @@ mod init_error_conversion_tests {
             assert!(!rendered.contains("hunter2"), "{rendered:?}");
             assert!(!rendered.contains("password"), "{rendered:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod context_value_tests {
+    use super::ContextValue;
+    use coproduct_core::context::AttributeValue;
+
+    #[test]
+    fn number_list_maps_to_array_of_numbers() {
+        let v = ContextValue::NumberList {
+            values: vec![1.0, 2.0, 3.0],
+        };
+        assert_eq!(
+            v.into_core(),
+            AttributeValue::Array(vec![
+                AttributeValue::Number(1.0),
+                AttributeValue::Number(2.0),
+                AttributeValue::Number(3.0),
+            ])
+        );
+    }
+
+    #[test]
+    fn empty_number_list_maps_to_empty_array() {
+        let v = ContextValue::NumberList { values: vec![] };
+        assert_eq!(v.into_core(), AttributeValue::Array(vec![]));
     }
 }

@@ -46,6 +46,37 @@ same "flutter floor"   "$(pinned "$PRE" PINNED_FLUTTER_FLOOR)"   "$(pinned "$SUI
 CODEGEN_IN_RELEASE="$(grep -oE '"2\.[0-9]+\.[0-9]+"' "$RELEASE" | head -1 | tr -d '"')"
 same "frb codegen" "$(pinned "$PRE" PINNED_CODEGEN)" "$CODEGEN_IN_RELEASE" release.sh
 
+# The CI setup installs the toolchains this checks, so it has to install the
+# same versions. Rust is the exception: setup installs whatever
+# rust-toolchain.toml names, so that file is what preflight is held to
+SETUP="$REPO_ROOT/scripts/release/flutter/ci/setup-toolchains.sh"
+TOOLCHAIN_TOML="$REPO_ROOT/rust-toolchain.toml"
+for name in PINNED_NDK PINNED_CARGO_NDK PINNED_XCODE PINNED_CODEGEN \
+            PINNED_FLUTTER_PRIMARY PINNED_FLUTTER_FLOOR; do
+    same "setup $name" "$(pinned "$PRE" "$name")" "$(pinned "$SETUP" "$name")" setup-toolchains.sh
+done
+same "setup rust" "$(pinned "$PRE" PINNED_RUST)" \
+    "$(awk -F= '$1 ~ /^channel *$/ {gsub(/[" ]/, "", $2); print $2; exit}' "$TOOLCHAIN_TOML")" \
+    rust-toolchain.toml
+
+# A pin the install command does not use agrees with preflight and installs
+# something else, so each command is held to its variable
+uses_pin() { # label, fixed string the setup script must contain
+    if grep -q -F -- "$2" "$SETUP" 2>/dev/null; then
+        printf '  ok   setup installs %s from its pin\n' "$1"
+    else
+        printf '  FAIL setup does not install %s with: %s\n' "$1" "$2"
+        fail=1
+    fi
+}
+uses_pin "the NDK" '"ndk;$PINNED_NDK"'
+uses_pin "cargo-ndk" 'cargo install cargo-ndk --version "$PINNED_CARGO_NDK" --locked'
+uses_pin "the codegen" 'cargo install flutter_rust_bridge_codegen --version "$PINNED_CODEGEN" --locked'
+uses_pin "Xcode" '/Applications/Xcode_${PINNED_XCODE}.app'
+uses_pin "the primary Flutter" 'fvm install "$PINNED_FLUTTER_PRIMARY"'
+uses_pin "the floor Flutter" 'fvm install "$PINNED_FLUTTER_FLOOR"'
+uses_pin "Rust" 'rustup toolchain install'
+
 # A preflight that cannot fail is not a check, and one broken precondition
 # proves nothing about the others. Each check is broken on its own terms:
 # PATH-resolved tools by emptying PATH, the NDK by unsetting the variable it

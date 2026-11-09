@@ -117,6 +117,7 @@ object ShellAssembler {
         is ContextValue.Number -> JsonPrimitive(value)
         is ContextValue.Bool -> JsonPrimitive(value)
         is ContextValue.StringList -> JsonArray(values.map { JsonPrimitive(it) })
+        is ContextValue.NumberList -> JsonArray(values.map { JsonPrimitive(it) })
         is ContextValue.Null -> JsonNull
     }
 }

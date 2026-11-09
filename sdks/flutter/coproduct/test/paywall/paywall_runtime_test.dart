@@ -274,49 +274,48 @@ void main() {
       );
 
       expect(decision, PaywallNavigationDecision.prevent);
-      expect(bridge.purchaseCalls, [('premium_monthly', PackageKind.subscription)]);
+      expect(bridge.purchaseCalls, [
+        ('premium_monthly', PackageKind.subscription),
+      ]);
       expect(client.recordedTransactionIds, ['tx-1']);
       expect(capturedResult?.outcome, PurchaseOutcome.success);
       expect(capturedEntitlements?.single.entitlementId, 'premium');
     },
   );
 
-  test(
-    'a purchase tap threads the resolved kind to bridge.purchase',
-    () async {
-      final bridge = FakeNativePaywallBridge(
-        nextPurchaseResult: PurchaseResult(
-          outcome: PurchaseOutcome.success,
-          transactionId: 'tx-1',
-          productId: 'coins_100',
-          purchaseDate: DateTime.utc(2026, 1, 1),
-        ),
-      );
-      final client = FakePaywallClient();
-      final runtime = PaywallRuntime(
-        bridge: bridge,
-        client: client,
-        appUserId: 'user-1',
-        setPrices: (_) async {},
-      );
-      await runtime.onSnapshotLoaded(
-        buildSnapshot(
-          packages: {
-            'coins': const PaywallPackageRef(
-              iosProductId: 'coins_100',
-              kind: PackageKind.consumable,
-            ),
-          },
-        ),
-      );
+  test('a purchase tap threads the resolved kind to bridge.purchase', () async {
+    final bridge = FakeNativePaywallBridge(
+      nextPurchaseResult: PurchaseResult(
+        outcome: PurchaseOutcome.success,
+        transactionId: 'tx-1',
+        productId: 'coins_100',
+        purchaseDate: DateTime.utc(2026, 1, 1),
+      ),
+    );
+    final client = FakePaywallClient();
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: client,
+      appUserId: 'user-1',
+      setPrices: (_) async {},
+    );
+    await runtime.onSnapshotLoaded(
+      buildSnapshot(
+        packages: {
+          'coins': const PaywallPackageRef(
+            iosProductId: 'coins_100',
+            kind: PackageKind.consumable,
+          ),
+        },
+      ),
+    );
 
-      await runtime.handleNavigationRequest(
-        'coproduct-action:purchase?packageKey=coins',
-      );
+    await runtime.handleNavigationRequest(
+      'coproduct-action:purchase?packageKey=coins',
+    );
 
-      expect(bridge.purchaseCalls, [('coins_100', PackageKind.consumable)]);
-    },
-  );
+    expect(bridge.purchaseCalls, [('coins_100', PackageKind.consumable)]);
+  });
 
   test(
     'a purchase tap for an unresolved packageKey reports unresolvedProduct without calling native',

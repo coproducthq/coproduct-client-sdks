@@ -83,10 +83,7 @@ void main() {
 
   test('purchase sends a consumable kind as CONSUMABLE', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
-      expect(call.arguments, {
-        'productId': 'coins_100',
-        'kind': 'CONSUMABLE',
-      });
+      expect(call.arguments, {'productId': 'coins_100', 'kind': 'CONSUMABLE'});
       return {'outcome': 'success', 'productId': 'coins_100'};
     });
 

@@ -51,8 +51,8 @@ android {
     // (e.g. ndkVersion "23.1.7779620")
     ndkVersion android.ndkVersion
 
-    // Java 17 is what the Kotlin toolchain and the plus plugins already require
-    // of a consuming project, so the module matches rather than lagging
+    // Java 17 is what the Kotlin toolchain and current Flutter plugins already
+    // require of a consuming project, so the module matches rather than lagging
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

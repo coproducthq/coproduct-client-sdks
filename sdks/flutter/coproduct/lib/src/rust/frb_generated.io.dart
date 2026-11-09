@@ -180,6 +180,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<FrbEvaluationEvent>
+  dco_decode_StreamSink_frb_evaluation_event_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<String?> dco_decode_StreamSink_opt_String_Sse(dynamic raw);
 
   @protected
@@ -225,6 +229,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrbContextValue dco_decode_frb_context_value(dynamic raw);
 
   @protected
+  FrbEvaluationEvent dco_decode_frb_evaluation_event(dynamic raw);
+
+  @protected
+  FrbEvaluationReason dco_decode_frb_evaluation_reason(dynamic raw);
+
+  @protected
+  FrbFlagType dco_decode_frb_flag_type(dynamic raw);
+
+  @protected
+  FrbFlagValue dco_decode_frb_flag_value(dynamic raw);
+
+  @protected
   HttpHeader dco_decode_http_header(dynamic raw);
 
   @protected
@@ -256,6 +272,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<HttpHeader> dco_decode_list_http_header(dynamic raw);
+
+  @protected
+  List<double> dco_decode_list_prim_f_64_loose(dynamic raw);
+
+  @protected
+  Float64List dco_decode_list_prim_f_64_strict(dynamic raw);
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -425,6 +447,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<FrbEvaluationEvent>
+  sse_decode_StreamSink_frb_evaluation_event_Sse(SseDeserializer deserializer);
+
+  @protected
   RustStreamSink<String?> sse_decode_StreamSink_opt_String_Sse(
     SseDeserializer deserializer,
   );
@@ -472,6 +498,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrbContextValue sse_decode_frb_context_value(SseDeserializer deserializer);
 
   @protected
+  FrbEvaluationEvent sse_decode_frb_evaluation_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbEvaluationReason sse_decode_frb_evaluation_reason(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FrbFlagType sse_decode_frb_flag_type(SseDeserializer deserializer);
+
+  @protected
+  FrbFlagValue sse_decode_frb_flag_value(SseDeserializer deserializer);
+
+  @protected
   HttpHeader sse_decode_http_header(SseDeserializer deserializer);
 
   @protected
@@ -503,6 +545,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<HttpHeader> sse_decode_list_http_header(SseDeserializer deserializer);
+
+  @protected
+  List<double> sse_decode_list_prim_f_64_loose(SseDeserializer deserializer);
+
+  @protected
+  Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer);
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -713,6 +761,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_frb_evaluation_event_Sse(
+    RustStreamSink<FrbEvaluationEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_opt_String_Sse(
     RustStreamSink<String?> self,
     SseSerializer serializer,
@@ -773,6 +827,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_frb_evaluation_event(
+    FrbEvaluationEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_evaluation_reason(
+    FrbEvaluationReason self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_frb_flag_type(FrbFlagType self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_frb_flag_value(FrbFlagValue self, SseSerializer serializer);
+
+  @protected
   void sse_encode_http_header(HttpHeader self, SseSerializer serializer);
 
   @protected
@@ -805,6 +877,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_http_header(
     List<HttpHeader> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_f_64_loose(
+    List<double> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_f_64_strict(
+    Float64List self,
     SseSerializer serializer,
   );
 

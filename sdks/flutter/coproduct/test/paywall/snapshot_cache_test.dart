@@ -3,13 +3,13 @@ import 'package:coproduct/src/paywall/models/paywall_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 PaywallSnapshot snap(String id) => PaywallSnapshot(
-      paywallId: id,
-      version: 1,
-      templateType: 'hero_single_offer',
-      content: const PaywallContent(offeringKey: 'default', ctas: [], html: '<p/>'),
-      packages: const {},
-      html: '<p/>',
-    );
+  paywallId: id,
+  version: 1,
+  templateType: 'hero_single_offer',
+  content: const PaywallContent(offeringKey: 'default', ctas: [], html: '<p/>'),
+  packages: const {},
+  html: '<p/>',
+);
 
 void main() {
   test('snapshotCacheKey includes env, defaulting to api', () {
@@ -64,8 +64,10 @@ void main() {
     final cache = SnapshotCache(now: () => now);
     await cache.resolve('p1|api', () async => snap('v1'));
     now = DateTime(2026, 1, 1).add(snapshotTtl);
-    final served =
-        await cache.resolve('p1|api', () async => throw StateError('net'));
+    final served = await cache.resolve(
+      'p1|api',
+      () async => throw StateError('net'),
+    );
     expect(served?.paywallId, 'v1');
   });
 

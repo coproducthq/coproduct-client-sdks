@@ -37,6 +37,7 @@ pub const AUTO_POPULATED_ATTRIBUTE_NAMES: &[&str] = &[
     "network_type",
     "first_seen_at",
     "session_count",
+    "device_location",
 ];
 
 /// In-memory identity state. Holds the original auto-anonymous id so it can be

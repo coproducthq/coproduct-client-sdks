@@ -269,12 +269,15 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
 MetadataProviders _providers({
   MetadataProvider? timezone,
   MetadataProvider? deviceType,
+  MetadataProvider? osVersion,
+  MetadataProvider? appVersion,
+  MetadataProvider? appBuild,
 }) => MetadataProviders(
   deviceType: deviceType ?? stringProvider(() async => 'phone'),
   platform: stringProvider(() async => 'android'),
-  osVersion: stringProvider(() async => '14'),
-  appVersion: stringProvider(() async => '1.2.3'),
-  appBuild: stringProvider(() async => '42'),
+  osVersion: osVersion ?? stringProvider(() async => '14'),
+  appVersion: appVersion ?? stringProvider(() async => '1.2.3'),
+  appBuild: appBuild ?? stringProvider(() async => '42'),
   locale: stringProvider(() async => 'en-US'),
   timezone: timezone ?? stringProvider(() async => 'America/New_York'),
 );
@@ -1815,6 +1818,47 @@ void main() {
       );
       await host.shutdown();
     });
+
+    test('a native side missing only readHostInfo still reports', () async {
+      // The three fields share one channel call, so an older native side
+      // fails all three together, and that must read as one error
+      final errors = <Object>[];
+      final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+      final host = _host(
+        bridge,
+        providers: _providers(
+          osVersion: () => throw const HostContextUnavailable(),
+          appVersion: () => throw const HostContextUnavailable(),
+          appBuild: () => throw const HostContextUnavailable(),
+        ),
+        reportError: (error, _) => errors.add(error),
+      );
+      await host.initialize(sdkKey: _key);
+      expect(errors, [const HostContextUnavailable()]);
+      expect(bridge.installedAttributes!.keys, isNot(contains('os_version')));
+      expect(bridge.installedAttributes!['device_type'], isNotNull);
+      await host.shutdown();
+    });
+
+    for (final field in ['os_version', 'app_version', 'app_build']) {
+      test('$field alone failing still reports', () async {
+        final errors = <Object>[];
+        MetadataProvider? failing(String name) =>
+            name == field ? () => throw const HostContextUnavailable() : null;
+        final host = _host(
+          _FakeBridge(stateValue: frb.ProviderState.ready),
+          providers: _providers(
+            osVersion: failing('os_version'),
+            appVersion: failing('app_version'),
+            appBuild: failing('app_build'),
+          ),
+          reportError: (error, _) => errors.add(error),
+        );
+        await host.initialize(sdkKey: _key);
+        expect(errors, [const HostContextUnavailable()]);
+        await host.shutdown();
+      });
+    }
 
     test('a native side missing only beginSession still reports', () async {
       final errors = <Object>[];

@@ -47,3 +47,26 @@ test('passes with a note when nothing is releasable', () => {
 test('fails when release-please proposes no PR list at all', () => {
   assert.match(assertDryRun('something unexpected\n', config, manifestPath)[0], /could not read the dry run/);
 });
+
+test('a dart package must update pubspec.yaml', () => {
+  const dartConfig = {
+    packages: {
+      'sdks/flutter/coproduct': {
+        'release-type': 'dart',
+        component: 'flutter',
+        'extra-files': [{ type: 'generic', path: 'README.md' }],
+      },
+    },
+  };
+  const out = (lines) =>
+    updates(lines).replace('release react-native 1.0.3', 'release flutter 1.2.1');
+  const files = [
+    'sdks/flutter/coproduct/CHANGELOG.md',
+    'sdks/flutter/coproduct/pubspec.yaml',
+    'sdks/flutter/coproduct/README.md',
+    manifestPath,
+  ];
+  assert.deepEqual(assertDryRun(out(files), dartConfig, manifestPath), []);
+  const problems = assertDryRun(out(files.filter((f) => !f.endsWith('pubspec.yaml'))), dartConfig, manifestPath);
+  assert.match(problems[0], /flutter: the release PR would not update sdks\/flutter\/coproduct\/pubspec\.yaml/);
+});
