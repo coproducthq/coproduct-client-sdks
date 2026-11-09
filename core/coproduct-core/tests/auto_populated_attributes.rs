@@ -25,8 +25,49 @@ fn allowlist_covers_exactly_the_sdk_owned_names() {
         "first_seen_at",
         "session_count",
         "device_location",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_source_last",
+        "utm_medium_last",
+        "utm_campaign_last",
+        "utm_term_last",
+        "utm_content_last",
     ];
     assert_eq!(AUTO_POPULATED_ATTRIBUTE_NAMES, &expected);
+}
+
+#[test]
+fn utm_attribution_lands_in_the_auto_populated_layer() {
+    // Every platform publishes captured UTM attribution through the
+    // auto-populated path, so a name missing from the allowlist is dropped
+    // here and a targeting rule on it can never match
+    let names = [
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_source_last",
+        "utm_medium_last",
+        "utm_campaign_last",
+        "utm_term_last",
+        "utm_content_last",
+    ];
+    let mut state = IdentityState::new_anonymous("anon".to_string());
+    let entries: Vec<(&str, AttributeValue)> = names
+        .iter()
+        .map(|name| (*name, AttributeValue::String(format!("{name}-value"))))
+        .collect();
+    upsert(&mut state, &entries);
+    for name in names {
+        assert_eq!(
+            state.context().get_attribute(name),
+            Some(AttributeValue::String(format!("{name}-value"))),
+        );
+    }
 }
 
 #[test]
