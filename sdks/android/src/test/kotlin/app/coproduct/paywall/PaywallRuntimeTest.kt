@@ -29,16 +29,17 @@ class PaywallRuntimeTest {
     )
 
     @Test
-    fun `onSnapshotLoaded injects a price per resolvable package, skipping one that fails`() = runTest {
+    fun `onSnapshotLoaded injects a package per resolvable package, skipping one that fails`() = runTest {
         val bridge = mockk<NativePaywallBridge>()
-        coEvery { bridge.priceFor("monthly_android", PackageKind.SUBSCRIPTION) } returns "$9.99/mo"
-        coEvery { bridge.priceFor("broken_android", PackageKind.SUBSCRIPTION) } throws IllegalStateException("boom")
-        var injectedPrices: Map<String, String>? = null
+        coEvery { bridge.packageFor("monthly_android", PackageKind.SUBSCRIPTION) } returns
+            PaywallPackageRuntime(price = "$9.99/mo", intro = null)
+        coEvery { bridge.packageFor("broken_android", PackageKind.SUBSCRIPTION) } throws IllegalStateException("boom")
+        var injectedPackages: Map<String, PaywallPackageRuntime>? = null
         val runtime = PaywallRuntime(
             bridge = bridge,
             client = mockk(),
             appUserId = "u-1",
-            setPrices = { prices -> injectedPrices = prices },
+            setPackages = { packages -> injectedPackages = packages },
         )
 
         runtime.onSnapshotLoaded(
@@ -50,7 +51,31 @@ class PaywallRuntimeTest {
             )
         )
 
-        assertEquals(mapOf("monthly" to "$9.99/mo"), injectedPrices)
+        assertEquals(mapOf("monthly" to PaywallPackageRuntime(price = "$9.99/mo", intro = null)), injectedPackages)
+    }
+
+    @Test
+    fun `onSnapshotLoaded injects the eligible intro offer a packageFor call resolves`() = runTest {
+        val bridge = mockk<NativePaywallBridge>()
+        coEvery { bridge.packageFor("monthly_android", PackageKind.SUBSCRIPTION) } returns
+            PaywallPackageRuntime(
+                price = "$9.99/mo",
+                intro = PaywallIntroOffer(eligible = true, label = "1 week free, then $9.99/mo"),
+            )
+        var injectedPackages: Map<String, PaywallPackageRuntime>? = null
+        val runtime = PaywallRuntime(
+            bridge = bridge,
+            client = mockk(),
+            appUserId = "u-1",
+            setPackages = { packages -> injectedPackages = packages },
+        )
+
+        runtime.onSnapshotLoaded(
+            snapshotWith(mapOf("monthly" to PaywallPackageRef(null, "monthly_android", null, PackageKind.SUBSCRIPTION)))
+        )
+
+        assertEquals(true, injectedPackages?.get("monthly")?.intro?.eligible)
+        assertEquals("1 week free, then $9.99/mo", injectedPackages?.get("monthly")?.intro?.label)
     }
 
     @Test
@@ -61,7 +86,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = mockk(),
             appUserId = "u-1",
-            setPrices = { called = true },
+            setPackages = { called = true },
         )
 
         runtime.onSnapshotLoaded(
@@ -79,7 +104,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = mockk(),
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseError = { error = it },
         )
         runtime.onSnapshotLoaded(snapshotWith(mapOf()))
@@ -105,7 +130,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = client,
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseResult = { r, e -> result = r; entitlements = e },
         )
         runtime.onSnapshotLoaded(
@@ -129,7 +154,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = mockk(),
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseResult = { r, _ -> result = r },
             onPurchaseError = { errorCalled = true },
         )
@@ -156,7 +181,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = client,
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseError = { error = it },
         )
         runtime.onSnapshotLoaded(
@@ -181,7 +206,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = client,
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseError = { error = it },
         )
         runtime.onSnapshotLoaded(
@@ -203,7 +228,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = mockk(),
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseResult = { r, e -> result = r; entitlements = e },
         )
 
@@ -231,7 +256,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = client,
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseResult = { r, e -> result = r; entitlements = e },
         )
 
@@ -252,7 +277,7 @@ class PaywallRuntimeTest {
             bridge = bridge,
             client = client,
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onPurchaseError = { error = it },
         )
 
@@ -268,7 +293,7 @@ class PaywallRuntimeTest {
             bridge = mockk(),
             client = mockk(),
             appUserId = "u-1",
-            setPrices = {},
+            setPackages = {},
             onDismiss = { dismissed = true },
         )
 
@@ -279,7 +304,7 @@ class PaywallRuntimeTest {
 
     @Test
     fun `an unrecognized url returns navigate without side effects`() = runTest {
-        val runtime = PaywallRuntime(bridge = mockk(), client = mockk(), appUserId = "u-1", setPrices = {})
+        val runtime = PaywallRuntime(bridge = mockk(), client = mockk(), appUserId = "u-1", setPackages = {})
 
         val decision = runtime.handleNavigationRequest("https://example.com")
 

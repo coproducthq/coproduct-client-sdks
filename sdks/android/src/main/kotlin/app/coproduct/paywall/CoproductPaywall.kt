@@ -32,8 +32,9 @@ interface FlagReader {
 
 /**
  * Renders and drives one resolved paywall: fetches it, loads its html into
- * a WebView, resolves and injects live Play Billing prices, and completes
- * a purchase or restore when the user taps a cta. paywallId is resolved
+ * a WebView, resolves and injects live Play Billing packages (price plus
+ * eligible intro offer), and completes a purchase or restore when the user
+ * taps a cta. paywallId is resolved
  * the same way coproduct_onboarding resolves a flowId: from an ordinary
  * flag read, done by the caller before constructing this view. Mirrors
  * sdks/flutter/coproduct/lib/src/paywall/coproduct_paywall.dart and
@@ -117,10 +118,32 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
                 bridge = resolvedBridge,
                 client = resolvedClient,
                 appUserId = appUserId,
-                setPrices = { prices ->
-                    val json = org.json.JSONObject(prices).toString()
-                    webView.evaluateJavascript("window.__coproductSetPrices__($json);", null)
-                    // Prices are the last thing to land, so reveal now.
+                setPackages = { packages ->
+                    val json = org.json.JSONObject().apply {
+                        packages.forEach { (key, pkg) ->
+                            put(
+                                key,
+                                org.json.JSONObject().apply {
+                                    put("price", pkg.price)
+                                    // Explicit null, not an omitted key, so the
+                                    // WebView can distinguish "no offer" from a
+                                    // missing field -- see the bridge shape's own
+                                    // kdoc on PaywallPackageRuntime.
+                                    put(
+                                        "intro",
+                                        pkg.intro?.let { intro ->
+                                            org.json.JSONObject().apply {
+                                                put("eligible", intro.eligible)
+                                                put("label", intro.label)
+                                            }
+                                        } ?: org.json.JSONObject.NULL,
+                                    )
+                                },
+                            )
+                        }
+                    }.toString()
+                    webView.evaluateJavascript("window.__coproductSetPackages__($json);", null)
+                    // Packages are the last thing to land, so reveal now.
                     // onPageFinished still covers the case where they never resolve.
                     reveal()
                 },
@@ -156,10 +179,10 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
                 }
 
                 override fun onPageFinished(view: WebView, url: String?) {
-                    // Reveal if prices have not already; setPrices reveals sooner.
+                    // Reveal if packages have not already; setPackages reveals sooner.
                     reveal()
-                    // Inject prices only now the page's inline script has run, so
-                    // the global it defines exists.
+                    // Inject packages only now the page's inline script has run,
+                    // so the global it defines exists.
                     scope.launch { runtime.onSnapshotLoaded(snapshot) }
                 }
             }
@@ -183,8 +206,8 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
             addView(spinner)
 
             // Hang guard only: reveal is driven by paint (onPageFinished) or
-            // prices (setPrices), never a fixed delay. This fires only if the
-            // WebView never finishes, so a hung load reveals instead of spinning.
+            // packages (setPackages), never a fixed delay. This fires only if
+            // the WebView never finishes, so a hung load reveals instead of spinning.
             revealJob?.cancel()
             revealJob = scope.launch {
                 delay(8000)
