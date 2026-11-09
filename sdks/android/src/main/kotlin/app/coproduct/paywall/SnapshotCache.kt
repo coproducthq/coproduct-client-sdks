@@ -10,19 +10,19 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /** How stale a cached snapshot may be served before an open block-fetches. */
-const val SNAPSHOT_TTL_MS: Long = 6L * 60 * 60 * 1000
+internal const val SNAPSHOT_TTL_MS: Long = 6L * 60 * 60 * 1000
 
-fun snapshotCacheKey(paywallId: String, envSlug: String?): String =
+internal fun snapshotCacheKey(paywallId: String, envSlug: String?): String =
     "$paywallId|${envSlug ?: "api"}"
 
-typealias SnapshotFetch = suspend () -> PaywallSnapshot?
+internal typealias SnapshotFetch = suspend () -> PaywallSnapshot?
 
 /**
  * Process-level cache of fetched snapshots, with a TTL and stale-while-revalidate
  * reads. A snapshot is html plus a product-id map, never a price, so a stale
  * entry risks stale content, not a stale price. [now]/[scope] are injectable for tests.
  */
-class SnapshotCache(
+internal class SnapshotCache(
     private val now: () -> Long = System::currentTimeMillis,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) {
@@ -90,4 +90,4 @@ class SnapshotCache(
 }
 
 /** One warm cache shared across every paywall mount and the prefetch statics. */
-val snapshotCache = SnapshotCache()
+internal val snapshotCache = SnapshotCache()
