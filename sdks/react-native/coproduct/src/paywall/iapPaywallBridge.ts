@@ -3,9 +3,9 @@ import type { Purchase, PurchaseError, PurchaseIOS } from 'react-native-iap';
 import { composeIntroLabel, type IntroOfferKind } from './introOfferLabel';
 import type {
   NativePaywallBridge,
-  PackageIntro,
+  PaywallIntroOffer,
   PackageKind,
-  PackageRuntime,
+  PaywallPackageRuntime,
   PurchaseResult,
   RestoredTransaction,
 } from './nativePaywallBridge';
@@ -48,7 +48,7 @@ function storeTypeFor(kind: PackageKind): 'subs' | 'in-app' {
 // fields on the product, Android exposes subscriptionOfferDetails pricing
 // phases) -- confirm against the installed typings. When eligibility cannot
 // be determined, return null so no trial copy is shown (fail-safe).
-function introFor(product: unknown, regularPrice: string): PackageIntro | null {
+function introFor(product: unknown, regularPrice: string): PaywallIntroOffer | null {
   const offer = readEligibleIntroOffer(product);
   if (offer == null) return null;
   const label = composeIntroLabel({
@@ -133,7 +133,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
     return price;
   }
 
-  async packageFor(productId: string, kind: PackageKind): Promise<PackageRuntime> {
+  async packageFor(productId: string, kind: PackageKind): Promise<PaywallPackageRuntime> {
     await ensureConnection();
     const products =
       (await iap().fetchProducts({ skus: [productId], type: storeTypeFor(kind) })) ?? [];

@@ -3,7 +3,7 @@ import type { PaywallPackageRef, PaywallSnapshot } from './models/paywallSnapsho
 import type {
   NativePaywallBridge,
   PackageKind,
-  PackageRuntime,
+  PaywallPackageRuntime,
   PurchaseResult,
 } from './nativePaywallBridge';
 import { parsePaywallAction } from './paywallAction';
@@ -22,7 +22,7 @@ export interface PaywallPurchaseError {
 }
 
 export type SetPackagesCallback = (
-  packagesByPackageKey: Record<string, PackageRuntime>
+  packagesByPackageKey: Record<string, PaywallPackageRuntime>
 ) => Promise<void>;
 // entitlements is the resolved set after this purchase/restore landed --
 // empty for a cancelled/pending outcome, since nothing was recorded server-side
@@ -82,7 +82,7 @@ export class PaywallRuntime {
   private async resolvePackage(
     productId: string,
     kind: PackageKind
-  ): Promise<PackageRuntime> {
+  ): Promise<PaywallPackageRuntime> {
     if (this.bridge.packageFor != null) return this.bridge.packageFor(productId, kind);
     return { price: await this.bridge.priceFor(productId, kind), intro: null };
   }
@@ -93,7 +93,7 @@ export class PaywallRuntime {
   // the server never renders a price for it either.
   async onSnapshotLoaded(snapshot: PaywallSnapshot): Promise<void> {
     this.snapshot = snapshot;
-    const packages: Record<string, PackageRuntime> = {};
+    const packages: Record<string, PaywallPackageRuntime> = {};
     for (const cta of snapshot.content.ctas) {
       const packageRef = snapshot.packages[cta.packageKey];
       const productId = this.productIdFor(packageRef);

@@ -3,7 +3,7 @@ import { PaywallServerError, type PaywallClient } from '../paywallClient';
 import type {
   NativePaywallBridge,
   PackageKind,
-  PackageRuntime,
+  PaywallPackageRuntime,
   PurchaseResult,
   RestoredTransaction,
 } from '../nativePaywallBridge';
@@ -15,7 +15,7 @@ import type { Entitlement } from '../models/entitlement';
 
 class FakeNativePaywallBridge implements NativePaywallBridge {
   pricesByProductId: Record<string, string>;
-  packageByProductId: Record<string, PackageRuntime> = {};
+  packageByProductId: Record<string, PaywallPackageRuntime> = {};
   productIdsThatThrow: Set<string>;
   nextPurchaseResult: PurchaseResult;
   restoredTransactions: RestoredTransaction[];
@@ -52,7 +52,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   async packageFor(
     productId: string,
     kind: PackageKind
-  ): Promise<PackageRuntime> {
+  ): Promise<PaywallPackageRuntime> {
     this.priceForCalls.push({ productId, kind });
     const pkg = this.packageByProductId[productId];
     if (pkg != null) return pkg;
@@ -154,7 +154,7 @@ describe('PaywallRuntime', () => {
       intro: { eligible: true, label: '7 days free, then $9.99/mo' },
     };
     const client = new FakePaywallClient();
-    let capturedPackages: Record<string, PackageRuntime> | undefined;
+    let capturedPackages: Record<string, PaywallPackageRuntime> | undefined;
     const runtime = new PaywallRuntime({
       bridge,
       client,
@@ -244,7 +244,7 @@ describe('PaywallRuntime', () => {
       productIdsThatThrow: new Set(['premium_monthly']),
     });
     const client = new FakePaywallClient();
-    let capturedPackages: Record<string, PackageRuntime> | undefined;
+    let capturedPackages: Record<string, PaywallPackageRuntime> | undefined;
     const runtime = new PaywallRuntime({
       bridge,
       client,
@@ -322,7 +322,7 @@ describe('PaywallRuntime', () => {
       pricesByProductId: { premium_monthly_android: '$9.99/mo' },
     });
     const client = new FakePaywallClient();
-    let capturedPackages: Record<string, PackageRuntime> | undefined;
+    let capturedPackages: Record<string, PaywallPackageRuntime> | undefined;
     const runtime = new PaywallRuntime({
       bridge,
       client,
