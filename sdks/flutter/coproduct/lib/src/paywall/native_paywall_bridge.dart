@@ -102,7 +102,9 @@ class PaywallPackageRuntime {
 
   @override
   bool operator ==(Object other) =>
-      other is PaywallPackageRuntime && other.price == price && other.intro == intro;
+      other is PaywallPackageRuntime &&
+      other.price == price &&
+      other.intro == intro;
 
   @override
   int get hashCode => Object.hash(price, intro);
