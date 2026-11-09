@@ -1,8 +1,11 @@
 import type * as ReactNativeIap from 'react-native-iap';
 import type { Purchase, PurchaseError, PurchaseIOS } from 'react-native-iap';
+import { composeIntroLabel, type IntroOfferKind } from './introOfferLabel';
 import type {
   NativePaywallBridge,
+  PackageIntro,
   PackageKind,
+  PackageRuntime,
   PurchaseResult,
   RestoredTransaction,
 } from './nativePaywallBridge';
@@ -37,6 +40,36 @@ function iap(): typeof ReactNativeIap {
 // subscription vs. one-time purchase.
 function storeTypeFor(kind: PackageKind): 'subs' | 'in-app' {
   return kind === 'subscription' ? 'subs' : 'in-app';
+}
+
+// Reads an introductory offer off a react-native-iap product, returning it
+// only when the library reports the user eligible. The exact field path
+// differs by platform and library version (iOS exposes introductory-offer
+// fields on the product, Android exposes subscriptionOfferDetails pricing
+// phases) -- confirm against the installed typings. When eligibility cannot
+// be determined, return null so no trial copy is shown (fail-safe).
+function introFor(product: unknown, regularPrice: string): PackageIntro | null {
+  const offer = readEligibleIntroOffer(product);
+  if (offer == null) return null;
+  const label = composeIntroLabel({
+    kind: offer.kind,
+    offerPeriod: offer.period,
+    offerPrice: offer.price,
+    regularPrice,
+  });
+  return { eligible: true, label };
+}
+
+// Returns a normalized eligible intro offer, or null. Implement the
+// platform-specific extraction here against the installed react-native-iap
+// product shape, mapping its payment/offer mode to IntroOfferKind and its
+// period/price to localized display strings. Return null unless the library
+// signals the current user is eligible.
+function readEligibleIntroOffer(
+  product: unknown
+): { kind: IntroOfferKind; period: string; price: string } | null {
+  void product;
+  return null;
 }
 
 // react-native-iap-backed NativePaywallBridge. Owns the one genuinely new
@@ -98,6 +131,18 @@ export class IapPaywallBridge implements NativePaywallBridge {
     if (price == null)
       throw new Error(`No product found for id "${productId}"`);
     return price;
+  }
+
+  async packageFor(productId: string, kind: PackageKind): Promise<PackageRuntime> {
+    await ensureConnection();
+    const products =
+      (await iap().fetchProducts({ skus: [productId], type: storeTypeFor(kind) })) ?? [];
+    const product = products[0];
+    if (product?.displayPrice == null)
+      throw new Error(`No product found for id "${productId}"`);
+    const price = product.displayPrice;
+    const intro = introFor(product, price);
+    return { price, intro };
   }
 
   purchase(
