@@ -26,6 +26,24 @@ class MethodChannelPaywallBridge implements NativePaywallBridge {
   }
 
   @override
+  Future<PaywallPackageRuntime> packageFor(
+    String productId,
+    PackageKind kind,
+  ) async {
+    final Map<Object?, Object?>? raw;
+    try {
+      raw = await _channel.invokeMethod<Map<Object?, Object?>>('packageFor', {
+        'productId': productId,
+        'kind': kind.name.toUpperCase(),
+      });
+    } on MissingPluginException {
+      throw const PaywallBridgeUnavailable();
+    }
+    if (raw == null) throw const PaywallBridgeUnavailable();
+    return _packageRuntimeFromChannel(raw);
+  }
+
+  @override
   Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
     final Map<Object?, Object?>? raw;
     try {
@@ -71,6 +89,19 @@ PurchaseResult _purchaseResultFromChannel(Map<Object?, Object?> raw) {
     productId: raw['productId'] as String?,
     purchaseDate: _parseChannelDate(raw['purchaseDate']),
     expirationDate: _parseChannelDate(raw['expirationDate']),
+  );
+}
+
+PaywallPackageRuntime _packageRuntimeFromChannel(Map<Object?, Object?> raw) {
+  final introRaw = raw['intro'] as Map<Object?, Object?>?;
+  return PaywallPackageRuntime(
+    price: raw['price'] as String,
+    intro: introRaw == null
+        ? null
+        : PaywallIntroOffer(
+            eligible: introRaw['eligible'] as bool,
+            label: introRaw['label'] as String,
+          ),
   );
 }
 

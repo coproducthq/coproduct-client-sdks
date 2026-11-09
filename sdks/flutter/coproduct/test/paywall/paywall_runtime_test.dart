@@ -9,13 +9,16 @@ import 'package:coproduct/src/paywall/models/entitlement.dart';
 
 class FakeNativePaywallBridge implements NativePaywallBridge {
   final Map<String, String> pricesByProductId;
+  final Map<String, PaywallPackageRuntime> packageByProductId;
   final Set<String> productIdsThatThrow;
   PurchaseResult nextPurchaseResult;
   List<RestoredTransaction> restoredTransactions;
   final List<(String, PackageKind)> purchaseCalls = [];
+  final List<(String, PackageKind)> packageForCalls = [];
 
   FakeNativePaywallBridge({
     this.pricesByProductId = const {},
+    this.packageByProductId = const {},
     this.productIdsThatThrow = const {},
     this.nextPurchaseResult = const PurchaseResult(
       outcome: PurchaseOutcome.cancelled,
@@ -31,6 +34,22 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
     final price = pricesByProductId[productId];
     if (price == null) throw const PaywallBridgeUnavailable();
     return price;
+  }
+
+  @override
+  Future<PaywallPackageRuntime> packageFor(
+    String productId,
+    PackageKind kind,
+  ) async {
+    packageForCalls.add((productId, kind));
+    final pkg = packageByProductId[productId];
+    if (pkg != null) return pkg;
+    if (productIdsThatThrow.contains(productId)) {
+      throw Exception('STOREKIT_ERROR: unknown product $productId');
+    }
+    final price = pricesByProductId[productId];
+    if (price == null) throw const PaywallBridgeUnavailable();
+    return PaywallPackageRuntime(price: price);
   }
 
   @override
@@ -110,19 +129,27 @@ PaywallSnapshot buildSnapshot({
 
 void main() {
   test(
-    'onSnapshotLoaded resolves a price for every cta with a known product id',
+    'onSnapshotLoaded resolves a package for every cta with a known product id',
     () async {
       final bridge = FakeNativePaywallBridge(
-        pricesByProductId: {'premium_monthly': '\$9.99/mo'},
+        packageByProductId: {
+          'premium_monthly': const PaywallPackageRuntime(
+            price: '\$9.99/mo',
+            intro: PaywallIntroOffer(
+              eligible: true,
+              label: '7 days free, then \$9.99/mo',
+            ),
+          ),
+        },
       );
       final client = FakePaywallClient();
-      Map<String, String>? capturedPrices;
+      Map<String, PaywallPackageRuntime>? capturedPackages;
       final runtime = PaywallRuntime(
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (prices) async {
-          capturedPrices = prices;
+        setPackages: (packages) async {
+          capturedPackages = packages;
         },
       );
 
@@ -134,7 +161,15 @@ void main() {
         ),
       );
 
-      expect(capturedPrices, {'monthly': '\$9.99/mo'});
+      expect(capturedPackages, {
+        'monthly': const PaywallPackageRuntime(
+          price: '\$9.99/mo',
+          intro: PaywallIntroOffer(
+            eligible: true,
+            label: '7 days free, then \$9.99/mo',
+          ),
+        ),
+      });
     },
   );
 
@@ -145,14 +180,14 @@ void main() {
         pricesByProductId: {'premium_monthly_android': '₹799/mo'},
       );
       final client = FakePaywallClient();
-      Map<String, String>? capturedPrices;
+      Map<String, PaywallPackageRuntime>? capturedPackages;
       final runtime = PaywallRuntime(
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
         platform: 'ANDROID',
-        setPrices: (prices) async {
-          capturedPrices = prices;
+        setPackages: (packages) async {
+          capturedPackages = packages;
         },
       );
 
@@ -167,46 +202,51 @@ void main() {
         ),
       );
 
-      expect(capturedPrices, {'monthly': '₹799/mo'});
+      expect(capturedPackages, {
+        'monthly': const PaywallPackageRuntime(price: '₹799/mo'),
+      });
+      expect(bridge.packageForCalls, [
+        ('premium_monthly_android', PackageKind.subscription),
+      ]);
     },
   );
 
   test(
-    'onSnapshotLoaded does not call setPrices when no cta resolves a product id',
+    'onSnapshotLoaded does not call setPackages when no cta resolves a product id',
     () async {
       final bridge = FakeNativePaywallBridge();
       final client = FakePaywallClient();
-      var setPricesCalled = false;
+      var setPackagesCalled = false;
       final runtime = PaywallRuntime(
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (prices) async {
-          setPricesCalled = true;
+        setPackages: (packages) async {
+          setPackagesCalled = true;
         },
       );
 
       await runtime.onSnapshotLoaded(buildSnapshot());
 
-      expect(setPricesCalled, isFalse);
+      expect(setPackagesCalled, isFalse);
     },
   );
 
   test(
-    'onSnapshotLoaded skips a product whose priceFor throws a non-PaywallBridgeUnavailable error',
+    'onSnapshotLoaded skips a product whose packageFor throws a non-PaywallBridgeUnavailable error',
     () async {
       final bridge = FakeNativePaywallBridge(
         pricesByProductId: {'premium_annual': '\$89.99/yr'},
         productIdsThatThrow: {'premium_monthly'},
       );
       final client = FakePaywallClient();
-      Map<String, String>? capturedPrices;
+      Map<String, PaywallPackageRuntime>? capturedPackages;
       final runtime = PaywallRuntime(
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (prices) async {
-          capturedPrices = prices;
+        setPackages: (packages) async {
+          capturedPackages = packages;
         },
       );
 
@@ -230,10 +270,12 @@ void main() {
       );
 
       // Must not throw out of onSnapshotLoaded even though one product's
-      // priceFor call throws a generic (non-PaywallBridgeUnavailable) error
+      // packageFor call throws a generic (non-PaywallBridgeUnavailable) error
       await runtime.onSnapshotLoaded(snapshot);
 
-      expect(capturedPrices, {'annual': '\$89.99/yr'});
+      expect(capturedPackages, {
+        'annual': const PaywallPackageRuntime(price: '\$89.99/yr'),
+      });
     },
   );
 
@@ -255,7 +297,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
           capturedEntitlements = entitlements;
@@ -297,7 +339,7 @@ void main() {
       bridge: bridge,
       client: client,
       appUserId: 'user-1',
-      setPrices: (_) async {},
+      setPackages: (_) async {},
     );
     await runtime.onSnapshotLoaded(
       buildSnapshot(
@@ -327,7 +369,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseError: (error) {
           capturedError = error;
         },
@@ -360,7 +402,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
         },
@@ -396,7 +438,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
         },
@@ -436,7 +478,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
         },
@@ -480,7 +522,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
         },
@@ -529,7 +571,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
           capturedEntitlements = entitlements;
@@ -573,7 +615,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
           capturedEntitlements = entitlements;
@@ -617,7 +659,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
         },
@@ -651,7 +693,7 @@ void main() {
         bridge: bridge,
         client: client,
         appUserId: 'user-1',
-        setPrices: (_) async {},
+        setPackages: (_) async {},
         onPurchaseResult: (result, entitlements) {
           capturedResult = result;
           capturedEntitlements = entitlements;
@@ -678,7 +720,7 @@ void main() {
       bridge: FakeNativePaywallBridge(),
       client: FakePaywallClient(),
       appUserId: 'user-1',
-      setPrices: (_) async {},
+      setPackages: (_) async {},
       onDismiss: () {
         dismissed = true;
       },
@@ -697,7 +739,7 @@ void main() {
       bridge: FakeNativePaywallBridge(),
       client: FakePaywallClient(),
       appUserId: 'user-1',
-      setPrices: (_) async {},
+      setPackages: (_) async {},
     );
 
     final decision = await runtime.handleNavigationRequest(

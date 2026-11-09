@@ -56,12 +56,88 @@ class PaywallBridgeUnavailable implements Exception {
       'PaywallBridgeUnavailable: no native paywall plugin is registered for this platform';
 }
 
+/// One package's introductory offer as resolved natively, or its absence.
+/// [eligible] is per-user: PaywallRuntime only ever sends an intro when the
+/// store reports this user eligible, so the WebView can reveal trial copy
+/// without re-checking. Encodes to the bridge shape
+/// `{ "eligible": bool, "label": String }`. Mirrors iOS's
+/// `PaywallIntroOffer` (sdks/ios/Sources/Coproduct/Paywall/PaywallPackageRuntime.swift)
+/// and RN's `PaywallIntroOffer`
+/// (sdks/react-native/coproduct/src/paywall/nativePaywallBridge.ts).
+class PaywallIntroOffer {
+  final bool eligible;
+  final String label;
+
+  const PaywallIntroOffer({required this.eligible, required this.label});
+
+  Map<String, Object?> toChannelMap() => {'eligible': eligible, 'label': label};
+
+  @override
+  bool operator ==(Object other) =>
+      other is PaywallIntroOffer &&
+      other.eligible == eligible &&
+      other.label == label;
+
+  @override
+  int get hashCode => Object.hash(eligible, label);
+}
+
+/// One package's live store data for a single paywall render: the regular
+/// localized price and its introductory offer (or null). Encodes to the
+/// `__coproductSetPackages__` value shape
+/// `{ "price": String, "intro": { ... } | null }`.
+class PaywallPackageRuntime {
+  final String price;
+  final PaywallIntroOffer? intro;
+
+  const PaywallPackageRuntime({required this.price, this.intro});
+
+  // Encodes intro explicitly as `null` rather than omitting the key, so the
+  // WebView can distinguish "no offer" from a missing field -- mirrors
+  // PaywallPackageRuntime.swift's explicit `encode` override.
+  Map<String, Object?> toJson() => {
+    'price': price,
+    'intro': intro?.toChannelMap(),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is PaywallPackageRuntime && other.price == price && other.intro == intro;
+
+  @override
+  int get hashCode => Object.hash(price, intro);
+}
+
 /// The native-capability contract PaywallRuntime drives. Deliberately not
 /// MethodChannel-shaped, so PaywallRuntime stays unit-testable against a
 /// fake implementation -- the same testability property
 /// coproduct_onboarding's CoproductClient gives FlowRuntime.
 abstract interface class NativePaywallBridge {
   Future<String> priceFor(String productId, PackageKind kind);
+
+  /// Resolves a package's regular price and, when the store offers one and
+  /// this user is eligible, its introductory offer. Dart interfaces have no
+  /// protocol-extension default the way Swift's `NativePaywallBridge`
+  /// extension or TypeScript's optional `packageFor?` do, so a conformer
+  /// written before packages existed mixes in [PriceOnlyPackageFor] rather
+  /// than implementing this itself, to keep working unchanged.
+  Future<PaywallPackageRuntime> packageFor(String productId, PackageKind kind);
   Future<PurchaseResult> purchase(String productId, PackageKind kind);
   Future<List<RestoredTransaction>> restore();
+}
+
+/// Default [NativePaywallBridge.packageFor] for a conformer that only
+/// implements [NativePaywallBridge.priceFor]: resolves a price-only package
+/// with no introductory offer. Mix this in (`with PriceOnlyPackageFor`)
+/// instead of writing `packageFor` by hand for back-compat with a bridge
+/// written before packages existed -- mirrors iOS's `NativePaywallBridge`
+/// protocol extension default and RN's `resolvePackage` price-only fallback.
+mixin PriceOnlyPackageFor implements NativePaywallBridge {
+  @override
+  Future<PaywallPackageRuntime> packageFor(
+    String productId,
+    PackageKind kind,
+  ) async {
+    return PaywallPackageRuntime(price: await priceFor(productId, kind));
+  }
 }
