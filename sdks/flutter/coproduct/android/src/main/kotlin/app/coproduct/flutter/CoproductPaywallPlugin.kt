@@ -7,6 +7,7 @@ import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.PendingPurchasesParams
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
@@ -36,6 +37,59 @@ import kotlinx.coroutines.withContext
 enum class PackageKind { SUBSCRIPTION, CONSUMABLE, LIFETIME }
 
 enum class PurchaseOutcome { SUCCESS, CANCELLED, PENDING }
+
+/** Play Billing's introductory-offer payment mode, narrowed to the three
+ * cases the label composer handles. Mirrors
+ * sdks/ios/Sources/Coproduct/Paywall/IntroOfferLabel.swift's `IntroOfferKind`
+ * and RN's `IntroOfferKind`
+ * (sdks/react-native/coproduct/src/paywall/introOfferLabel.ts) -- duplicated
+ * rather than shared, since this plugin module has no dependency on either. */
+enum class IntroOfferKind { FREE_TRIAL, PAY_AS_YOU_GO, PAY_UP_FRONT }
+
+/** Assembles the localized intro label from store-provided, already-localized
+ * parts. Mirrors `composeIntroLabel` in IntroOfferLabel.swift/.ts exactly. */
+internal fun composeIntroLabel(
+    kind: IntroOfferKind,
+    offerPeriod: String,
+    offerPrice: String,
+    regularPrice: String,
+): String = when (kind) {
+    IntroOfferKind.FREE_TRIAL -> "$offerPeriod free, then $regularPrice"
+    IntroOfferKind.PAY_AS_YOU_GO, IntroOfferKind.PAY_UP_FRONT -> "$offerPrice for $offerPeriod, then $regularPrice"
+}
+
+/** One package's introductory offer as resolved natively, or its absence.
+ * [eligible] is per-user -- PaywallRuntime (Dart) only ever sends an intro
+ * when the store reports this user eligible. Encodes to the channel shape
+ * `{ "eligible": Boolean, "label": String }`. */
+class PaywallIntroOffer(val eligible: Boolean, val label: String)
+
+/** One package's live store data for a single paywall render: the regular
+ * formatted price and its introductory offer (or null). Encodes to the
+ * channel shape `{ "price": String, "intro": { ... } | null }`, matching
+ * the iOS plugin's `packageFor` response shape exactly. */
+class PaywallPackageRuntime(val price: String, val intro: PaywallIntroOffer? = null)
+
+/** Billing periods Play returns for a pricing phase are ISO 8601 durations
+ * (e.g. "P1W", "P3M", "P1Y", "P7D") -- ordinary store SDKs just display the
+ * price and never need this parsed, but the intro label needs its duration
+ * spelled out in words ("7 days", "3 months"). Returns null, rather than a
+ * best-effort guess, for a period this parser doesn't recognize (e.g. a
+ * combined "P1Y6M"), which composeIntroLabel's caller treats as "can't
+ * cleanly determine this offer" and fails safe to no intro. */
+internal fun formatBillingPeriod(iso: String): String? {
+    val match = Regex("^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)W)?(?:(\\d+)D)?$").matchEntire(iso) ?: return null
+    val (years, months, weeks, days) = match.destructured
+    return when {
+        years.isNotEmpty() && years != "0" -> pluralizePeriod(years.toInt(), "year")
+        months.isNotEmpty() && months != "0" -> pluralizePeriod(months.toInt(), "month")
+        weeks.isNotEmpty() && weeks != "0" -> pluralizePeriod(weeks.toInt(), "week")
+        days.isNotEmpty() && days != "0" -> pluralizePeriod(days.toInt(), "day")
+        else -> null
+    }
+}
+
+private fun pluralizePeriod(count: Int, unit: String): String = "$count $unit${if (count == 1) "" else "s"}"
 
 /** Thrown by purchase() when no Activity is attached (e.g. a purchase
  * attempted before the engine has one). Distinct from the generic
@@ -161,6 +215,21 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
                     }
                 }
             }
+            "packageFor" -> {
+                val productId = args?.get("productId") as? String
+                val kind = parseKind(args?.get("kind") as? String)
+                if (productId == null) {
+                    result.error("INVALID_ARGUMENTS", "productId is required", null)
+                    return
+                }
+                scope.launch {
+                    try {
+                        result.success(packageFor(productId, kind).toChannelMap())
+                    } catch (e: Exception) {
+                        result.error("BILLING_ERROR", e.message, null)
+                    }
+                }
+            }
             "purchase" -> {
                 val productId = args?.get("productId") as? String
                 val kind = parseKind(args?.get("kind") as? String)
@@ -200,6 +269,49 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
                 ?: throw IllegalStateException("No one-time offer found for product \"$productId\"")
             offer.formattedPrice
         }
+    }
+
+    /** Resolves a product's regular price and, when Play Billing returns an
+     * offer with an introductory pricing phase ahead of the regular one,
+     * that offer's localized label. Play Billing filters
+     * queryProductDetails's `subscriptionOfferDetails` server-side to only
+     * the offers this signed-in Play account is currently eligible for
+     * (there is no separate boolean the way StoreKit2's
+     * isEligibleForIntroOffer is) -- so a returned offer with more than one
+     * pricing phase already implies eligibility. Consumable/lifetime
+     * products have no periodic offers and always resolve price-only.
+     * Fails safe to `intro = null`, never fabricating eligibility, when no
+     * such offer is present or its billing period can't be parsed. */
+    internal suspend fun packageFor(productId: String, kind: PackageKind): PaywallPackageRuntime {
+        val productDetails = queryProductDetails(productId, kind)
+        if (kind != PackageKind.SUBSCRIPTION) {
+            val offer = productDetails.oneTimePurchaseOfferDetailsList?.firstOrNull()
+                ?: throw IllegalStateException("No one-time offer found for product \"$productId\"")
+            return PaywallPackageRuntime(price = offer.formattedPrice, intro = null)
+        }
+        val offers = productDetails.subscriptionOfferDetails
+            ?: throw IllegalStateException("No subscription offer found for product \"$productId\"")
+        // The regular price is the last pricing phase of any offer -- every
+        // offer for the same base plan ends at the same recurring price,
+        // whether or not it leads with an introductory phase.
+        val regularPrice = offers.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
+            ?: throw IllegalStateException("No subscription offer found for product \"$productId\"")
+        val intro = offers.firstNotNullOfOrNull { offer ->
+            val phases = offer.pricingPhases.pricingPhaseList
+            if (phases.size < 2) null else introOfferFor(phases.first(), regularPrice)
+        }
+        return PaywallPackageRuntime(price = regularPrice, intro = intro)
+    }
+
+    private fun introOfferFor(introPhase: ProductDetails.PricingPhase, regularPrice: String): PaywallIntroOffer? {
+        val period = formatBillingPeriod(introPhase.billingPeriod) ?: return null
+        val kind = when {
+            introPhase.priceAmountMicros == 0L -> IntroOfferKind.FREE_TRIAL
+            introPhase.recurrenceMode == ProductDetails.RecurrenceMode.NON_RECURRING -> IntroOfferKind.PAY_UP_FRONT
+            else -> IntroOfferKind.PAY_AS_YOU_GO
+        }
+        val label = composeIntroLabel(kind, period, introPhase.formattedPrice, regularPrice)
+        return PaywallIntroOffer(eligible = true, label = label)
     }
 
     internal suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult {
@@ -370,6 +482,11 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
             }
     }
 }
+
+private fun PaywallPackageRuntime.toChannelMap(): Map<String, Any?> = mapOf(
+    "price" to price,
+    "intro" to intro?.let { mapOf("eligible" to it.eligible, "label" to it.label) },
+)
 
 private fun PurchaseResult.toChannelMap(): Map<String, Any?> = mapOf(
     "outcome" to outcome.name.lowercase(),
