@@ -16,6 +16,14 @@ private final class FakeBridge: NativePaywallBridge, @unchecked Sendable {
         return price
     }
 
+    var packageByProductId: [String: PaywallPackageRuntime] = [:]
+    func packageFor(_ productId: String, kind _: PackageKind) async throws -> PaywallPackageRuntime {
+        if let priceError { throw priceError }
+        if let pkg = packageByProductId[productId] { return pkg }
+        guard let price = priceByProductId[productId] else { throw StoreKitPaywallBridgeError.unknownProduct(productId) }
+        return PaywallPackageRuntime(price: price, intro: nil)
+    }
+
     func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult {
         purchasedProductIds.append(productId)
         if let purchaseError { throw purchaseError }
@@ -54,34 +62,33 @@ final class PaywallRuntimeTests: XCTestCase {
         )
     }
 
-    func testOnSnapshotLoadedInjectsResolvedPrices() async {
+    func testOnSnapshotLoadedInjectsResolvedPackages() async {
         let bridge = FakeBridge()
-        bridge.priceByProductId["p1"] = "$4.99"
-        var injectedPrices: [String: String]?
+        bridge.packageByProductId["p1"] = PaywallPackageRuntime(price: "$4.99", intro: PaywallIntroOffer(eligible: true, label: "7 days free, then $4.99/mo"))
+        var injected: [String: PaywallPackageRuntime]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { injectedPrices = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { injected = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
-        XCTAssertEqual(injectedPrices, ["monthly": "$4.99"])
+        XCTAssertEqual(injected, ["monthly": PaywallPackageRuntime(price: "$4.99", intro: PaywallIntroOffer(eligible: true, label: "7 days free, then $4.99/mo"))])
     }
 
-    func testOnSnapshotLoadedSkipsCtaWithNoProductIdAndDoesNotCallSetPricesIfNoneResolve() async {
+    func testOnSnapshotLoadedSkipsCtaWithNoProductIdAndDoesNotCallSetPackagesIfNoneResolve() async {
         let bridge = FakeBridge()
-        var setPricesCalled = false
+        var called = false
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in setPricesCalled = true }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { _ in called = true }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot(packages: ["monthly": PaywallPackageRef(iosProductId: nil, androidProductId: nil, webProductId: nil, kind: .subscription)]))
-        XCTAssertFalse(setPricesCalled)
+        XCTAssertFalse(called)
     }
 
-    func testOnSnapshotLoadedSkipsFailingPriceLookupWithoutAbortingOthers() async {
+    func testOnSnapshotLoadedSkipsFailingPackageLookupWithoutAbortingOthers() async {
         let bridge = FakeBridge()
-        bridge.priceByProductId["p1"] = "$4.99"
-        bridge.priceError = nil // first cta resolves
-        var injectedPrices: [String: String]?
+        bridge.packageByProductId["p1"] = PaywallPackageRuntime(price: "$4.99", intro: nil)
+        var injected: [String: PaywallPackageRuntime]?
         let snapshot = PaywallSnapshot(
             paywallId: "pw_1", version: 1, templateType: "default",
             content: PaywallContent(offeringKey: "off_1", ctas: [
@@ -95,17 +102,17 @@ final class PaywallRuntimeTests: XCTestCase {
         )
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { injectedPrices = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { injected = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(snapshot)
-        XCTAssertEqual(injectedPrices, ["monthly": "$4.99"])
+        XCTAssertEqual(injected, ["monthly": PaywallPackageRuntime(price: "$4.99", intro: nil)])
     }
 
     func testHandleNavigationRequestDismissCallsOnDismiss() async {
         var dismissed = false
         let runtime = PaywallRuntime(
             bridge: FakeBridge(), client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: { dismissed = true }
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: { dismissed = true }
         )
         let decision = await runtime.handleNavigationRequest("coproduct-action:dismiss")
         XCTAssertEqual(decision, .prevent)
@@ -115,7 +122,7 @@ final class PaywallRuntimeTests: XCTestCase {
     func testHandleNavigationRequestNonActionUrlNavigates() async {
         let runtime = PaywallRuntime(
             bridge: FakeBridge(), client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         let decision = await runtime.handleNavigationRequest("https://example.com")
         XCTAssertEqual(decision, .navigate)
@@ -126,7 +133,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot(packages: [:]))
         _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
@@ -141,7 +148,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var errorReported = false
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
+            setPackages: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
             onPurchaseError: { _ in errorReported = true }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
@@ -157,7 +164,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var errorReported = false
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
+            setPackages: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
             onPurchaseError: { _ in errorReported = true }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
@@ -175,7 +182,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedEntitlements: [Entitlement]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, entitlements in reportedEntitlements = entitlements },
+            setPackages: { _ in }, onPurchaseResult: { _, entitlements in reportedEntitlements = entitlements },
             onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
@@ -191,7 +198,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
         _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
@@ -206,7 +213,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
         _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
@@ -220,7 +227,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedEntitlements: [Entitlement]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
+            setPackages: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
             onPurchaseError: { _ in }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
@@ -245,7 +252,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedEntitlements: [Entitlement]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: flakyClient, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
+            setPackages: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
             onPurchaseError: { _ in }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
@@ -260,7 +267,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
         XCTAssertEqual(reportedError?.reason, .networkError)
@@ -275,7 +282,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
         XCTAssertEqual(reportedError?.reason, .networkError)

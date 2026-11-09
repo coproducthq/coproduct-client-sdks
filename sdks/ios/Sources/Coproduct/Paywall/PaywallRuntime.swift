@@ -27,15 +27,16 @@ enum PaywallNavigationDecision: Equatable, Sendable {
 }
 
 /// Owns everything native does for one paywall session: resolving and
-/// injecting prices after load, and intercepting purchase/restore/dismiss
-/// taps. Deliberately does not construct or hold a WebView instance itself,
-/// so this logic stays unit-testable without a real WebView.
+/// injecting packages (price plus eligible intro offer) after load, and
+/// intercepting purchase/restore/dismiss taps. Deliberately does not
+/// construct or hold a WebView instance itself, so this logic stays
+/// unit-testable without a real WebView.
 final class PaywallRuntime: @unchecked Sendable {
     private let bridge: NativePaywallBridge
     private let client: PaywallClient
     private let appUserId: String
     private let platform: String
-    private let setPrices: @Sendable ([String: String]) async -> Void
+    private let setPackages: @Sendable ([String: PaywallPackageRuntime]) async -> Void
     private let onPurchaseResult: @Sendable (PurchaseResult, [Entitlement]) -> Void
     private let onPurchaseError: @Sendable (PaywallPurchaseError) -> Void
     private let onDismiss: @Sendable () -> Void
@@ -46,7 +47,7 @@ final class PaywallRuntime: @unchecked Sendable {
         client: PaywallClient,
         appUserId: String,
         platform: String = "IOS",
-        setPrices: @escaping @Sendable ([String: String]) async -> Void,
+        setPackages: @escaping @Sendable ([String: PaywallPackageRuntime]) async -> Void,
         onPurchaseResult: @escaping @Sendable (PurchaseResult, [Entitlement]) -> Void,
         onPurchaseError: @escaping @Sendable (PaywallPurchaseError) -> Void,
         onDismiss: @escaping @Sendable () -> Void
@@ -55,27 +56,28 @@ final class PaywallRuntime: @unchecked Sendable {
         self.client = client
         self.appUserId = appUserId
         self.platform = platform
-        self.setPrices = setPrices
+        self.setPackages = setPackages
         self.onPurchaseResult = onPurchaseResult
         self.onPurchaseError = onPurchaseError
         self.onDismiss = onDismiss
     }
 
-    /// Resolves a localized price for every cta with a known product id,
-    /// then hands the whole map to `setPrices` in one call. A cta with no
-    /// resolvable product id, or whose `priceFor` call fails, is silently
-    /// skipped -- the server never renders a price for it either.
+    /// Resolves a package (price plus eligible intro offer) for every cta
+    /// with a known product id, then hands the whole map to `setPackages` in
+    /// one call. A cta with no resolvable product id, or whose `packageFor`
+    /// call fails, is silently skipped -- the server never renders a price
+    /// for it either.
     func onSnapshotLoaded(_ snapshot: PaywallSnapshot) async {
         self.snapshot = snapshot
-        var prices: [String: String] = [:]
+        var packages: [String: PaywallPackageRuntime] = [:]
         for cta in snapshot.content.ctas {
             guard let productId = snapshot.packages[cta.packageKey]?.iosProductId else { continue }
             let kind = snapshot.packages[cta.packageKey]?.kind ?? .subscription
-            guard let price = try? await bridge.priceFor(productId, kind: kind) else { continue }
-            prices[cta.packageKey] = price
+            guard let pkg = try? await bridge.packageFor(productId, kind: kind) else { continue }
+            packages[cta.packageKey] = pkg
         }
-        guard !prices.isEmpty else { return }
-        await setPrices(prices)
+        guard !packages.isEmpty else { return }
+        await setPackages(packages)
     }
 
     func handleNavigationRequest(_ url: String) async -> PaywallNavigationDecision {
