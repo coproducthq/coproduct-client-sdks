@@ -12,6 +12,7 @@ commits merged to `main`, so nobody edits them by hand.
    | Title | Release |
    |---|---|
    | `fix(rn): handle an empty flag key` | patch |
+   | `fix(flutter): handle an empty flag key` | patch |
    | `feat(rn): add typed getters` | minor |
    | `feat(rn)!: remove the legacy observer` | major |
    | `refactor:`, `test:`, `chore:`, `docs:`, `build:`, `ci:`, `style:` | none |
@@ -19,14 +20,33 @@ commits merged to `main`, so nobody edits them by hand.
    A README fix that should reach the published documentation uses `fix:`,
    because documentation is published with each release.
 
+   A releasing title becomes a public release note in the SDK's changelog, on
+   pub.dev, and in the GitHub release, so write it for developers who use the
+   SDK. Name the public API or the visible behavior and what it does for them.
+   Leave out internal details, such as the FFI, caches, and internal module
+   names. Leave out other SDKs' names.
+
+   | Title | Verdict |
+   |---|---|
+   | `feat: add getStringList and getNumberList to read list flags` | good |
+   | `feat: typed list flag getters across the FFI` | bad |
+
 2. **If you changed the shared Rust core,** meaning `core/`, `ffi/`,
-   `Cargo.toml`, `Cargo.lock`, or `rust-toolchain.toml`, run:
+   `Cargo.toml`, `Cargo.lock`, or `rust-toolchain.toml`, the SDKs that ship the
+   change need a `CORE_RELEASE_TRIGGER` file. For a pull request from a branch
+   in this repository, the "Core release trigger" workflow writes and commits
+   those files when a releasing title needs them. On such a pull request the
+   "Shared core release" check can fail on your own commit until the workflow's
+   commit lands, so wait for it rather than running the script. After it
+   commits, run `git pull --rebase` before pushing again.
+
+   The check says when you need to run the script yourself, for example on a
+   pull request from a fork or one that edits the release config. Run it and
+   commit the files it writes. They mark which SDKs ship the change:
 
    ```bash
    scripts/release/core-changed.sh
    ```
-
-   and commit the files it writes. They mark which SDKs ship the change.
 
 The PR checks run on every pull request. Each failure states what to fix.
 
@@ -48,6 +68,9 @@ Commit first, because the title and shared core checks read commits. Set
 
 ## Platforms
 
-React Native versions are managed by
-[release-please](https://github.com/googleapis/release-please). Flutter is
-published through its release pipeline in `scripts/release/flutter/`.
+React Native and Flutter versions are managed by
+[release-please](https://github.com/googleapis/release-please). Merging the
+Flutter release PR starts the `Publish Flutter` workflow, which publishes to
+pub.dev once its checks pass. The merge is the release decision, and no one
+approves the publish step afterward. The maintainer steps are in
+`DEVELOPMENT.md`.

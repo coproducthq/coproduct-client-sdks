@@ -10,6 +10,8 @@ contributor guide.
 | `pr-title.sh` | Checks a PR title against Conventional Commits |
 | `identity/check.sh` | Checks that every version line release-please manages equals the manifest, and that only release PRs move it |
 | `core-changed.sh` | Writes `CORE_RELEASE_TRIGGER` into the SDKs a shared core change affects, and checks it on PRs |
+| `core-trigger.sh` | Decides, commits, and pushes missing core release triggers on a PR branch from this repository, for the Core release trigger workflow |
+| `core-trigger-comment.sh` | Posts that workflow's one-time comment asking the author to pull |
 | `release-config-check.sh` | Dry-runs release-please against a pushed branch and checks what a release PR would update |
 | `ci-report.sh`, `checks-result.sh` | Job summaries for the PR checks, and the "All checks passed" decision |
 | `flutter/` | The Flutter SDK's release pipeline |
@@ -44,6 +46,7 @@ flutter/
 ├── verify-seal.sh    re-seals the stage and diffs it against the pipeline's seal
 ├── stages/           the steps that produce the package
 ├── gates/            the checks that decide whether it may ship
+├── ci/               toolchain setup and the package handoff for the CI jobs
 ├── bin/  lib/  test/ Dart tooling for the checks that need real parsing
 ├── assets/           canonical license texts the audit compares against
 └── license-policy.json
@@ -70,6 +73,16 @@ flutter/
 | `gates/privacy-manifest-check.sh` | The release iOS app built from the package carries exactly one Coproduct privacy manifest, declaring `UserDefaults` with reason `CA92.1`. It checks the manifest Xcode's privacy report reads, not the report itself, which Xcode generates only from an archive in the Organizer |
 | `gates/no-rust-gate.sh` | The package builds with no Rust toolchain reachable — the SDK's whole reason for shipping prebuilt binaries |
 | `gates/mutation-gates.sh` | That the release gates it enumerates fail, and name the mutation, when their input is broken. The privacy-manifest check is not yet among them |
+
+### CI — set up the runner and hand the package on
+
+| Script | Does |
+|---|---|
+| `ci/setup-toolchains.sh` | Installs FVM, both Flutter toolchains, Rust from `rust-toolchain.toml`, `cargo-ndk`, the codegen and the NDK, selects Xcode, then runs `preflight.sh`. `--publish` installs only the primary Flutter |
+| `ci/handoff.sh` | Packs the stage, seal and build stamp into one tar and prints its SHA-256, and unpacks it only after checking that hash and refusing any entry that is not a plain file or directory |
+
+`publish.sh` refuses a stage inside a git repository, so a handoff unpacked
+into a checkout cannot be published.
 
 ### Why mutation gates exist
 

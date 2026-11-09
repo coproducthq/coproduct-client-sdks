@@ -63,18 +63,29 @@ class PaywallRuntime {
   /// product id (snapshot.packages has no entry, or this platform's bridge
   /// is unavailable) is silently skipped -- the server never renders a
   /// price for it either, so the skeleton's price span simply stays blank.
+  /// Resolves which product id this platform's store purchases, and which
+  /// PaywallPackageRef.kind to purchase it as. Android reads
+  /// androidProductId; every other platform (today, only iOS) reads
+  /// iosProductId -- webProductId has no purchasing path on any platform yet.
+  String? _productIdFor(PaywallPackageRef? ref) =>
+      platform == 'ANDROID' ? ref?.androidProductId : ref?.iosProductId;
+
   Future<void> onSnapshotLoaded(PaywallSnapshot snapshot) async {
     _snapshot = snapshot;
     final prices = <String, String>{};
     for (final cta in snapshot.content.ctas) {
-      final productId = snapshot.packages[cta.packageKey]?.iosProductId;
+      final ref = snapshot.packages[cta.packageKey];
+      final productId = _productIdFor(ref);
       if (productId == null) continue;
       try {
-        prices[cta.packageKey] = await bridge.priceFor(productId);
+        prices[cta.packageKey] = await bridge.priceFor(
+          productId,
+          ref?.kind ?? PackageKind.subscription,
+        );
       } catch (_) {
         // One product's pricing failure (plugin unavailable, or a native
-        // StoreKit error for this specific product such as UNKNOWN_PRODUCT)
-        // must not abort pricing for the rest of the ctas in this snapshot
+        // store error for this specific product) must not abort pricing
+        // for the rest of the ctas in this snapshot
         continue;
       }
     }
@@ -97,7 +108,8 @@ class PaywallRuntime {
   }
 
   Future<void> _handlePurchase(String packageKey) async {
-    final productId = _snapshot?.packages[packageKey]?.iosProductId;
+    final ref = _snapshot?.packages[packageKey];
+    final productId = _productIdFor(ref);
     if (productId == null) {
       onPurchaseError?.call(
         const PaywallPurchaseError(
@@ -107,7 +119,10 @@ class PaywallRuntime {
       return;
     }
 
-    final result = await bridge.purchase(productId);
+    final result = await bridge.purchase(
+      productId,
+      ref?.kind ?? PackageKind.subscription,
+    );
     if (result.outcome != PurchaseOutcome.success) {
       onPurchaseResult?.call(result, const []);
       return;

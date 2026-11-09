@@ -807,9 +807,17 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details(
     ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list(
+    ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details(
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string(
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details(
+    ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list(
+    ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details(
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify(
     ): Int
@@ -996,9 +1004,17 @@ external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number(`p
 ): Double
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Double,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_identify(`ptr`: Long,`userId`: RustBuffer.ByValue,`attributes`: RustBuffer.ByValue,`linkAnonymous`: Byte,
 ): Long
@@ -1363,10 +1379,22 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_details() != 55106) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list() != 44253) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details() != 44721) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string() != 49273) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details() != 55912) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list() != 7990) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details() != 15168) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_identify() != 53130) {
@@ -2849,9 +2877,17 @@ public interface CoproductClientInterface {
     
     fun `getNumberDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Double): FlagEvaluationDetailsNumber
     
+    fun `getNumberList`(`key`: kotlin.String, `defaultValue`: List<kotlin.Double>): List<kotlin.Double>
+    
+    fun `getNumberListDetails`(`key`: kotlin.String, `defaultValue`: List<kotlin.Double>): FlagEvaluationDetailsNumberList
+    
     fun `getString`(`key`: kotlin.String, `defaultValue`: kotlin.String): kotlin.String
     
     fun `getStringDetails`(`key`: kotlin.String, `defaultValue`: kotlin.String): FlagEvaluationDetailsString
+    
+    fun `getStringList`(`key`: kotlin.String, `defaultValue`: List<kotlin.String>): List<kotlin.String>
+    
+    fun `getStringListDetails`(`key`: kotlin.String, `defaultValue`: List<kotlin.String>): FlagEvaluationDetailsStringList
     
     suspend fun `identify`(`userId`: kotlin.String, `attributes`: Map<kotlin.String, ContextValue>, `linkAnonymous`: kotlin.Boolean)
     
@@ -3147,6 +3183,32 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     }
     
 
+    override fun `getNumberList`(`key`: kotlin.String, `defaultValue`: List<kotlin.Double>): List<kotlin.Double> {
+            return FfiConverterSequenceDouble.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterSequenceDouble.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getNumberListDetails`(`key`: kotlin.String, `defaultValue`: List<kotlin.Double>): FlagEvaluationDetailsNumberList {
+            return FfiConverterTypeFlagEvaluationDetailsNumberList.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterSequenceDouble.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
     override fun `getString`(`key`: kotlin.String, `defaultValue`: kotlin.String): kotlin.String {
             return FfiConverterString.lift(
     callWithHandle {
@@ -3167,6 +3229,32 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_details(
         it,
         FfiConverterString.lower(`key`),FfiConverterString.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getStringList`(`key`: kotlin.String, `defaultValue`: List<kotlin.String>): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterSequenceString.lower(`defaultValue`),_status)
+}
+    }
+    )
+    }
+    
+
+    override fun `getStringListDetails`(`key`: kotlin.String, `defaultValue`: List<kotlin.String>): FlagEvaluationDetailsStringList {
+            return FfiConverterTypeFlagEvaluationDetailsStringList.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(
+        it,
+        FfiConverterString.lower(`key`),FfiConverterSequenceString.lower(`defaultValue`),_status)
 }
     }
     )
@@ -7839,6 +7927,64 @@ public object FfiConverterTypeFlagEvaluationDetailsNumber: FfiConverterRustBuffe
 
 
 
+data class FlagEvaluationDetailsNumberList (
+    var `value`: List<kotlin.Double>
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsNumberList: FfiConverterRustBuffer<FlagEvaluationDetailsNumberList> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsNumberList {
+        return FlagEvaluationDetailsNumberList(
+            FfiConverterSequenceDouble.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsNumberList) = (
+            FfiConverterSequenceDouble.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsNumberList, buf: ByteBuffer) {
+            FfiConverterSequenceDouble.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
 data class FlagEvaluationDetailsString (
     var `value`: kotlin.String
     , 
@@ -7887,6 +8033,64 @@ public object FfiConverterTypeFlagEvaluationDetailsString: FfiConverterRustBuffe
 
     override fun write(value: FlagEvaluationDetailsString, buf: ByteBuffer) {
             FfiConverterString.write(value.`value`, buf)
+            FfiConverterOptionalString.write(value.`variant`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterOptionalString.write(value.`errorCode`, buf)
+            FfiConverterOptionalString.write(value.`errorMessage`, buf)
+            FfiConverterString.write(value.`flagKey`, buf)
+    }
+}
+
+
+
+data class FlagEvaluationDetailsStringList (
+    var `value`: List<kotlin.String>
+    , 
+    var `variant`: kotlin.String?
+    , 
+    var `reason`: kotlin.String
+    , 
+    var `errorCode`: kotlin.String?
+    , 
+    var `errorMessage`: kotlin.String?
+    , 
+    var `flagKey`: kotlin.String
+    
+){
+    
+
+    
+
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeFlagEvaluationDetailsStringList: FfiConverterRustBuffer<FlagEvaluationDetailsStringList> {
+    override fun read(buf: ByteBuffer): FlagEvaluationDetailsStringList {
+        return FlagEvaluationDetailsStringList(
+            FfiConverterSequenceString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: FlagEvaluationDetailsStringList) = (
+            FfiConverterSequenceString.allocationSize(value.`value`) +
+            FfiConverterOptionalString.allocationSize(value.`variant`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterOptionalString.allocationSize(value.`errorCode`) +
+            FfiConverterOptionalString.allocationSize(value.`errorMessage`) +
+            FfiConverterString.allocationSize(value.`flagKey`)
+    )
+
+    override fun write(value: FlagEvaluationDetailsStringList, buf: ByteBuffer) {
+            FfiConverterSequenceString.write(value.`value`, buf)
             FfiConverterOptionalString.write(value.`variant`, buf)
             FfiConverterString.write(value.`reason`, buf)
             FfiConverterOptionalString.write(value.`errorCode`, buf)
@@ -8411,6 +8615,15 @@ sealed class ContextValue {
         companion object
     }
     
+    data class NumberList(
+        val `values`: List<kotlin.Double>) : ContextValue()
+        
+    {
+        
+
+        companion object
+    }
+    
     object Null : ContextValue()
     
     
@@ -8442,7 +8655,10 @@ public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue
             4 -> ContextValue.StringList(
                 FfiConverterSequenceString.read(buf),
                 )
-            5 -> ContextValue.Null
+            5 -> ContextValue.NumberList(
+                FfiConverterSequenceDouble.read(buf),
+                )
+            6 -> ContextValue.Null
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
     }
@@ -8476,6 +8692,13 @@ public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue
                 + FfiConverterSequenceString.allocationSize(value.`values`)
             )
         }
+        is ContextValue.NumberList -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterSequenceDouble.allocationSize(value.`values`)
+            )
+        }
         is ContextValue.Null -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -8506,8 +8729,13 @@ public object FfiConverterTypeContextValue : FfiConverterRustBuffer<ContextValue
                 FfiConverterSequenceString.write(value.`values`, buf)
                 Unit
             }
-            is ContextValue.Null -> {
+            is ContextValue.NumberList -> {
                 buf.putInt(5)
+                FfiConverterSequenceDouble.write(value.`values`, buf)
+                Unit
+            }
+            is ContextValue.Null -> {
+                buf.putInt(6)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -8663,7 +8891,9 @@ enum class FlagType {
     STRING,
     INT,
     NUMBER,
-    JSON;
+    JSON,
+    STRING_LIST,
+    NUMBER_LIST;
 
     
 
@@ -8746,6 +8976,24 @@ sealed class FlagValue {
         companion object
     }
     
+    data class StringList(
+        val `value`: List<kotlin.String>) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
+    data class NumberList(
+        val `value`: List<kotlin.Double>) : FlagValue()
+        
+    {
+        
+
+        companion object
+    }
+    
 
     
 
@@ -8776,6 +9024,12 @@ public object FfiConverterTypeFlagValue : FfiConverterRustBuffer<FlagValue>{
                 )
             5 -> FlagValue.Json(
                 FfiConverterString.read(buf),
+                )
+            6 -> FlagValue.StringList(
+                FfiConverterSequenceString.read(buf),
+                )
+            7 -> FlagValue.NumberList(
+                FfiConverterSequenceDouble.read(buf),
                 )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
         }
@@ -8817,6 +9071,20 @@ public object FfiConverterTypeFlagValue : FfiConverterRustBuffer<FlagValue>{
                 + FfiConverterString.allocationSize(value.`value`)
             )
         }
+        is FlagValue.StringList -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterSequenceString.allocationSize(value.`value`)
+            )
+        }
+        is FlagValue.NumberList -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterSequenceDouble.allocationSize(value.`value`)
+            )
+        }
     }
 
     override fun write(value: FlagValue, buf: ByteBuffer) {
@@ -8844,6 +9112,16 @@ public object FfiConverterTypeFlagValue : FfiConverterRustBuffer<FlagValue>{
             is FlagValue.Json -> {
                 buf.putInt(5)
                 FfiConverterString.write(value.`value`, buf)
+                Unit
+            }
+            is FlagValue.StringList -> {
+                buf.putInt(6)
+                FfiConverterSequenceString.write(value.`value`, buf)
+                Unit
+            }
+            is FlagValue.NumberList -> {
+                buf.putInt(7)
+                FfiConverterSequenceDouble.write(value.`value`, buf)
                 Unit
             }
         }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
@@ -10116,6 +10394,34 @@ public object FfiConverterOptionalTypeFlagValue: FfiConverterRustBuffer<FlagValu
         } else {
             buf.put(1)
             FfiConverterTypeFlagValue.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceDouble: FfiConverterRustBuffer<List<kotlin.Double>> {
+    override fun read(buf: ByteBuffer): List<kotlin.Double> {
+        val len = buf.getInt()
+        return List<kotlin.Double>(len) {
+            FfiConverterDouble.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<kotlin.Double>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterDouble.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<kotlin.Double>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterDouble.write(it, buf)
         }
     }
 }

@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 import 'dart:developer' as developer;
 
 import 'package:coproduct/coproduct.dart';
+import 'package:coproduct/paywall.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -12,6 +13,19 @@ void main() {
 // flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 const String _sdkKey = String.fromEnvironment('COPRODUCT_SDK_KEY');
 
+// Optional: a real paywallId deployed in Coproduct. When set, the paywall demo
+// fetches that live paywall from the backend via the real HttpPaywallClient
+// instead of the bundled local snapshot:
+// flutter run --dart-define=COPRODUCT_PAYWALL_ID=<paywallId>
+const String _paywallId = String.fromEnvironment('COPRODUCT_PAYWALL_ID');
+
+// Optional environment slug. When set alongside COPRODUCT_PAYWALL_ID, the demo
+// reads the published paywall straight from the public content CDN for that
+// environment (no SDK key needed for the fetch) instead of the authenticated
+// edge api. Set it to the environment the paywall was deployed to, e.g.
+// --dart-define=COPRODUCT_ENV_SLUG=production
+const String _envSlug = String.fromEnvironment('COPRODUCT_ENV_SLUG');
+
 // Demo flag keys, one per value type. When the key's project has none of these
 // flags, the reads return the defaults passed here, so every read and mutate
 // surface still runs end to end
@@ -20,6 +34,79 @@ const String _stringFlag = 'greeting';
 const String _intFlag = 'max-items';
 const String _numberFlag = 'ratio';
 const String _jsonFlag = 'theme';
+
+/// A paywall demo with no real backend: fetchPaywall returns a fixed
+/// snapshot whose one package is Google's static test product id
+/// (android.test.purchased), which the Play Store app resolves specially
+/// for any installed app with no Play Console configuration needed.
+/// recordPurchase/getEntitlements just log, matching this demo's
+/// bridge-level verification goal rather than a backend integration test.
+class _DemoPaywallClient implements PaywallClient {
+  // CoproductPaywall loads the top-level snapshot.html into the WebView
+  // (content.html is never read directly), so the demo markup lives here and
+  // the top-level html carries the identical string, mirroring the server.
+  static const _demoHtml = '''
+<section style="font-family: sans-serif; padding: 24px; text-align: center;">
+  <h1>Coproduct demo paywall</h1>
+  <p>This exercises the real MethodChannelPaywallBridge and, on Android,
+     the Play Billing plugin.</p>
+  <button data-cp-cta="test"
+          style="font-size: 18px; padding: 14px 28px; margin: 12px;">
+    Buy <span data-cp-price="test"></span>
+  </button>
+  <br/>
+  <button data-cp-restore style="padding: 10px 20px; margin: 8px;">Restore</button>
+  <button data-cp-dismiss style="padding: 10px 20px; margin: 8px;">Close</button>
+</section>
+''';
+
+  @override
+  Future<PaywallSnapshot?> fetchPaywall(String paywallId) async {
+    return const PaywallSnapshot(
+      paywallId: 'demo',
+      version: 1,
+      templateType: 'hero_single_offer',
+      content: PaywallContent(
+        offeringKey: 'default',
+        ctas: [PaywallCta(packageKey: 'test', label: 'Buy (test)')],
+        html: _demoHtml,
+      ),
+      packages: {
+        'test': PaywallPackageRef(
+          androidProductId: 'android.test.purchased',
+          kind: PackageKind.consumable,
+        ),
+      },
+      html: _demoHtml,
+    );
+  }
+
+  @override
+  Future<List<Entitlement>> recordPurchase({
+    required String appUserId,
+    required String platform,
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+  }) async {
+    developer.log(
+      'COPRODUCT_FLUTTER_DEMO_PAYWALL_PURCHASE_RECORDED '
+      'platform=$platform storeProductId=$storeProductId',
+      name: 'coproduct',
+    );
+    return const [];
+  }
+
+  @override
+  Future<List<Entitlement>> getEntitlements(String appUserId) async => const [];
+
+  @override
+  Future<void> identify({
+    required String appUserId,
+    required String targetingKey,
+  }) async {}
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key, this.sdkKey = _sdkKey});
@@ -285,7 +372,66 @@ class _FlagDemo extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // Opens a demo paywall against the real MethodChannelPaywallBridge,
+          // so on Android it drives the real CoproductPaywallPlugin and Play
+          // Billing. _DemoPaywallClient supplies a fixed snapshot and only
+          // logs recordPurchase, so no backend is needed to exercise the
+          // native purchase flow
+          const Text('Paywall', style: TextStyle(fontWeight: FontWeight.bold)),
+          ElevatedButton(
+            onPressed: () => _openPaywall(context),
+            child: const Text('open paywall'),
+          ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openPaywall(BuildContext context) async {
+    // platformScriptJs must be loaded before building the widget, so load it
+    // here and only then push the route
+    final platformScriptJs = await CoproductPaywall.loadPlatformScript();
+    if (!context.mounted) return;
+    // With COPRODUCT_PAYWALL_ID set, fetch the live paywall from the backend
+    // (default HttpPaywallClient, keyed by the SDK key). Otherwise fall back to
+    // the bundled local demo snapshot so the example runs with no backend.
+    final live = _paywallId.isNotEmpty;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (routeContext) => Scaffold(
+          body: SafeArea(
+            child: CoproductPaywall(
+              paywallId: live ? _paywallId : 'demo',
+              appUserId: 'demo-user',
+              sdkKey: _sdkKey,
+              envSlug: live && _envSlug.isNotEmpty ? _envSlug : null,
+              platformScriptJs: platformScriptJs,
+              client: live ? null : _DemoPaywallClient(),
+              onDismiss: () => Navigator.of(routeContext).maybePop(),
+              onLoadError: (error) {
+                developer.log(
+                  'COPRODUCT_FLUTTER_DEMO_PAYWALL_LOAD_ERROR ${error.message}',
+                  name: 'coproduct',
+                );
+              },
+              onPurchaseResult: (result, entitlements) {
+                developer.log(
+                  'COPRODUCT_FLUTTER_DEMO_PAYWALL_RESULT outcome=${result.outcome}',
+                  name: 'coproduct',
+                );
+              },
+              onPurchaseError: (error) {
+                developer.log(
+                  'COPRODUCT_FLUTTER_DEMO_PAYWALL_ERROR reason=${error.reason}',
+                  name: 'coproduct',
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

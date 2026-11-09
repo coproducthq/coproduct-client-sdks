@@ -55,14 +55,15 @@ extension FrbContextValuePatterns on FrbContextValue {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbContextValue_String value)?  string,TResult Function( FrbContextValue_Number value)?  number,TResult Function( FrbContextValue_Bool value)?  bool,TResult Function( FrbContextValue_StringList value)?  stringList,TResult Function( FrbContextValue_Null value)?  null_,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbContextValue_String value)?  string,TResult Function( FrbContextValue_Number value)?  number,TResult Function( FrbContextValue_Bool value)?  bool,TResult Function( FrbContextValue_StringList value)?  stringList,TResult Function( FrbContextValue_NumberList value)?  numberList,TResult Function( FrbContextValue_Null value)?  null_,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that);case FrbContextValue_Number() when number != null:
 return number(_that);case FrbContextValue_Bool() when bool != null:
 return bool(_that);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that);case FrbContextValue_Null() when null_ != null:
+return stringList(_that);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that);case FrbContextValue_Null() when null_ != null:
 return null_(_that);case _:
   return orElse();
 
@@ -81,14 +82,15 @@ return null_(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbContextValue_String value)  string,required TResult Function( FrbContextValue_Number value)  number,required TResult Function( FrbContextValue_Bool value)  bool,required TResult Function( FrbContextValue_StringList value)  stringList,required TResult Function( FrbContextValue_Null value)  null_,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbContextValue_String value)  string,required TResult Function( FrbContextValue_Number value)  number,required TResult Function( FrbContextValue_Bool value)  bool,required TResult Function( FrbContextValue_StringList value)  stringList,required TResult Function( FrbContextValue_NumberList value)  numberList,required TResult Function( FrbContextValue_Null value)  null_,}){
 final _that = this;
 switch (_that) {
 case FrbContextValue_String():
 return string(_that);case FrbContextValue_Number():
 return number(_that);case FrbContextValue_Bool():
 return bool(_that);case FrbContextValue_StringList():
-return stringList(_that);case FrbContextValue_Null():
+return stringList(_that);case FrbContextValue_NumberList():
+return numberList(_that);case FrbContextValue_Null():
 return null_(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
@@ -103,14 +105,15 @@ return null_(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbContextValue_String value)?  string,TResult? Function( FrbContextValue_Number value)?  number,TResult? Function( FrbContextValue_Bool value)?  bool,TResult? Function( FrbContextValue_StringList value)?  stringList,TResult? Function( FrbContextValue_Null value)?  null_,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbContextValue_String value)?  string,TResult? Function( FrbContextValue_Number value)?  number,TResult? Function( FrbContextValue_Bool value)?  bool,TResult? Function( FrbContextValue_StringList value)?  stringList,TResult? Function( FrbContextValue_NumberList value)?  numberList,TResult? Function( FrbContextValue_Null value)?  null_,}){
 final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that);case FrbContextValue_Number() when number != null:
 return number(_that);case FrbContextValue_Bool() when bool != null:
 return bool(_that);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that);case FrbContextValue_Null() when null_ != null:
+return stringList(_that);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that);case FrbContextValue_Null() when null_ != null:
 return null_(_that);case _:
   return null;
 
@@ -128,13 +131,14 @@ return null_(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field0)?  string,TResult Function( double field0)?  number,TResult Function( bool field0)?  bool,TResult Function( List<String> field0)?  stringList,TResult Function()?  null_,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field0)?  string,TResult Function( double field0)?  number,TResult Function( bool field0)?  bool,TResult Function( List<String> field0)?  stringList,TResult Function( Float64List field0)?  numberList,TResult Function()?  null_,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that.field0);case FrbContextValue_Number() when number != null:
 return number(_that.field0);case FrbContextValue_Bool() when bool != null:
 return bool(_that.field0);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that.field0);case FrbContextValue_Null() when null_ != null:
+return stringList(_that.field0);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that.field0);case FrbContextValue_Null() when null_ != null:
 return null_();case _:
   return orElse();
 
@@ -153,13 +157,14 @@ return null_();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field0)  string,required TResult Function( double field0)  number,required TResult Function( bool field0)  bool,required TResult Function( List<String> field0)  stringList,required TResult Function()  null_,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field0)  string,required TResult Function( double field0)  number,required TResult Function( bool field0)  bool,required TResult Function( List<String> field0)  stringList,required TResult Function( Float64List field0)  numberList,required TResult Function()  null_,}) {final _that = this;
 switch (_that) {
 case FrbContextValue_String():
 return string(_that.field0);case FrbContextValue_Number():
 return number(_that.field0);case FrbContextValue_Bool():
 return bool(_that.field0);case FrbContextValue_StringList():
-return stringList(_that.field0);case FrbContextValue_Null():
+return stringList(_that.field0);case FrbContextValue_NumberList():
+return numberList(_that.field0);case FrbContextValue_Null():
 return null_();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -174,13 +179,14 @@ return null_();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field0)?  string,TResult? Function( double field0)?  number,TResult? Function( bool field0)?  bool,TResult? Function( List<String> field0)?  stringList,TResult? Function()?  null_,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field0)?  string,TResult? Function( double field0)?  number,TResult? Function( bool field0)?  bool,TResult? Function( List<String> field0)?  stringList,TResult? Function( Float64List field0)?  numberList,TResult? Function()?  null_,}) {final _that = this;
 switch (_that) {
 case FrbContextValue_String() when string != null:
 return string(_that.field0);case FrbContextValue_Number() when number != null:
 return number(_that.field0);case FrbContextValue_Bool() when bool != null:
 return bool(_that.field0);case FrbContextValue_StringList() when stringList != null:
-return stringList(_that.field0);case FrbContextValue_Null() when null_ != null:
+return stringList(_that.field0);case FrbContextValue_NumberList() when numberList != null:
+return numberList(_that.field0);case FrbContextValue_Null() when null_ != null:
 return null_();case _:
   return null;
 
@@ -462,6 +468,72 @@ as List<String>,
 /// @nodoc
 
 
+class FrbContextValue_NumberList extends FrbContextValue {
+  const FrbContextValue_NumberList(this.field0): super._();
+  
+
+ final  Float64List field0;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbContextValue_NumberListCopyWith<FrbContextValue_NumberList> get copyWith => _$FrbContextValue_NumberListCopyWithImpl<FrbContextValue_NumberList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbContextValue_NumberList&&const DeepCollectionEquality().equals(other.field0, field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(field0));
+
+@override
+String toString() {
+  return 'FrbContextValue.numberList(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbContextValue_NumberListCopyWith<$Res> implements $FrbContextValueCopyWith<$Res> {
+  factory $FrbContextValue_NumberListCopyWith(FrbContextValue_NumberList value, $Res Function(FrbContextValue_NumberList) _then) = _$FrbContextValue_NumberListCopyWithImpl;
+@useResult
+$Res call({
+ Float64List field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbContextValue_NumberListCopyWithImpl<$Res>
+    implements $FrbContextValue_NumberListCopyWith<$Res> {
+  _$FrbContextValue_NumberListCopyWithImpl(this._self, this._then);
+
+  final FrbContextValue_NumberList _self;
+  final $Res Function(FrbContextValue_NumberList) _then;
+
+/// Create a copy of FrbContextValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FrbContextValue_NumberList(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as Float64List,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
 class FrbContextValue_Null extends FrbContextValue {
   const FrbContextValue_Null(): super._();
   
@@ -490,6 +562,664 @@ String toString() {
 
 
 
+
+/// @nodoc
+mixin _$FrbFlagValue {
+
+ Object get value;
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue&&const DeepCollectionEquality().equals(other.value, value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(value));
+
+@override
+String toString() {
+  return 'FrbFlagValue(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+class $FrbFlagValueCopyWith<$Res>  {
+$FrbFlagValueCopyWith(FrbFlagValue _, $Res Function(FrbFlagValue) __);
+}
+
+
+/// Adds pattern-matching-related methods to [FrbFlagValue].
+extension FrbFlagValuePatterns on FrbFlagValue {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FrbFlagValue_Bool value)?  bool,TResult Function( FrbFlagValue_String value)?  string,TResult Function( FrbFlagValue_Int value)?  int,TResult Function( FrbFlagValue_Number value)?  number,TResult Function( FrbFlagValue_Json value)?  json,TResult Function( FrbFlagValue_StringList value)?  stringList,TResult Function( FrbFlagValue_NumberList value)?  numberList,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that);case FrbFlagValue_String() when string != null:
+return string(_that);case FrbFlagValue_Int() when int != null:
+return int(_that);case FrbFlagValue_Number() when number != null:
+return number(_that);case FrbFlagValue_Json() when json != null:
+return json(_that);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FrbFlagValue_Bool value)  bool,required TResult Function( FrbFlagValue_String value)  string,required TResult Function( FrbFlagValue_Int value)  int,required TResult Function( FrbFlagValue_Number value)  number,required TResult Function( FrbFlagValue_Json value)  json,required TResult Function( FrbFlagValue_StringList value)  stringList,required TResult Function( FrbFlagValue_NumberList value)  numberList,}){
+final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool():
+return bool(_that);case FrbFlagValue_String():
+return string(_that);case FrbFlagValue_Int():
+return int(_that);case FrbFlagValue_Number():
+return number(_that);case FrbFlagValue_Json():
+return json(_that);case FrbFlagValue_StringList():
+return stringList(_that);case FrbFlagValue_NumberList():
+return numberList(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FrbFlagValue_Bool value)?  bool,TResult? Function( FrbFlagValue_String value)?  string,TResult? Function( FrbFlagValue_Int value)?  int,TResult? Function( FrbFlagValue_Number value)?  number,TResult? Function( FrbFlagValue_Json value)?  json,TResult? Function( FrbFlagValue_StringList value)?  stringList,TResult? Function( FrbFlagValue_NumberList value)?  numberList,}){
+final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that);case FrbFlagValue_String() when string != null:
+return string(_that);case FrbFlagValue_Int() when int != null:
+return int(_that);case FrbFlagValue_Number() when number != null:
+return number(_that);case FrbFlagValue_Json() when json != null:
+return json(_that);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( bool value)?  bool,TResult Function( String value)?  string,TResult Function( PlatformInt64 value)?  int,TResult Function( double value)?  number,TResult Function( String value)?  json,TResult Function( List<String> value)?  stringList,TResult Function( Float64List value)?  numberList,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that.value);case FrbFlagValue_String() when string != null:
+return string(_that.value);case FrbFlagValue_Int() when int != null:
+return int(_that.value);case FrbFlagValue_Number() when number != null:
+return number(_that.value);case FrbFlagValue_Json() when json != null:
+return json(_that.value);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that.value);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that.value);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( bool value)  bool,required TResult Function( String value)  string,required TResult Function( PlatformInt64 value)  int,required TResult Function( double value)  number,required TResult Function( String value)  json,required TResult Function( List<String> value)  stringList,required TResult Function( Float64List value)  numberList,}) {final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool():
+return bool(_that.value);case FrbFlagValue_String():
+return string(_that.value);case FrbFlagValue_Int():
+return int(_that.value);case FrbFlagValue_Number():
+return number(_that.value);case FrbFlagValue_Json():
+return json(_that.value);case FrbFlagValue_StringList():
+return stringList(_that.value);case FrbFlagValue_NumberList():
+return numberList(_that.value);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( bool value)?  bool,TResult? Function( String value)?  string,TResult? Function( PlatformInt64 value)?  int,TResult? Function( double value)?  number,TResult? Function( String value)?  json,TResult? Function( List<String> value)?  stringList,TResult? Function( Float64List value)?  numberList,}) {final _that = this;
+switch (_that) {
+case FrbFlagValue_Bool() when bool != null:
+return bool(_that.value);case FrbFlagValue_String() when string != null:
+return string(_that.value);case FrbFlagValue_Int() when int != null:
+return int(_that.value);case FrbFlagValue_Number() when number != null:
+return number(_that.value);case FrbFlagValue_Json() when json != null:
+return json(_that.value);case FrbFlagValue_StringList() when stringList != null:
+return stringList(_that.value);case FrbFlagValue_NumberList() when numberList != null:
+return numberList(_that.value);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Bool extends FrbFlagValue {
+  const FrbFlagValue_Bool({required this.value}): super._();
+  
+
+@override final  bool value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_BoolCopyWith<FrbFlagValue_Bool> get copyWith => _$FrbFlagValue_BoolCopyWithImpl<FrbFlagValue_Bool>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Bool&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.bool(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_BoolCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_BoolCopyWith(FrbFlagValue_Bool value, $Res Function(FrbFlagValue_Bool) _then) = _$FrbFlagValue_BoolCopyWithImpl;
+@useResult
+$Res call({
+ bool value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_BoolCopyWithImpl<$Res>
+    implements $FrbFlagValue_BoolCopyWith<$Res> {
+  _$FrbFlagValue_BoolCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Bool _self;
+  final $Res Function(FrbFlagValue_Bool) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Bool(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_String extends FrbFlagValue {
+  const FrbFlagValue_String({required this.value}): super._();
+  
+
+@override final  String value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_StringCopyWith<FrbFlagValue_String> get copyWith => _$FrbFlagValue_StringCopyWithImpl<FrbFlagValue_String>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_String&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.string(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_StringCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_StringCopyWith(FrbFlagValue_String value, $Res Function(FrbFlagValue_String) _then) = _$FrbFlagValue_StringCopyWithImpl;
+@useResult
+$Res call({
+ String value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_StringCopyWithImpl<$Res>
+    implements $FrbFlagValue_StringCopyWith<$Res> {
+  _$FrbFlagValue_StringCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_String _self;
+  final $Res Function(FrbFlagValue_String) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_String(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Int extends FrbFlagValue {
+  const FrbFlagValue_Int({required this.value}): super._();
+  
+
+@override final  PlatformInt64 value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_IntCopyWith<FrbFlagValue_Int> get copyWith => _$FrbFlagValue_IntCopyWithImpl<FrbFlagValue_Int>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Int&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.int(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_IntCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_IntCopyWith(FrbFlagValue_Int value, $Res Function(FrbFlagValue_Int) _then) = _$FrbFlagValue_IntCopyWithImpl;
+@useResult
+$Res call({
+ PlatformInt64 value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_IntCopyWithImpl<$Res>
+    implements $FrbFlagValue_IntCopyWith<$Res> {
+  _$FrbFlagValue_IntCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Int _self;
+  final $Res Function(FrbFlagValue_Int) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Int(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Number extends FrbFlagValue {
+  const FrbFlagValue_Number({required this.value}): super._();
+  
+
+@override final  double value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_NumberCopyWith<FrbFlagValue_Number> get copyWith => _$FrbFlagValue_NumberCopyWithImpl<FrbFlagValue_Number>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Number&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.number(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_NumberCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_NumberCopyWith(FrbFlagValue_Number value, $Res Function(FrbFlagValue_Number) _then) = _$FrbFlagValue_NumberCopyWithImpl;
+@useResult
+$Res call({
+ double value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_NumberCopyWithImpl<$Res>
+    implements $FrbFlagValue_NumberCopyWith<$Res> {
+  _$FrbFlagValue_NumberCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Number _self;
+  final $Res Function(FrbFlagValue_Number) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Number(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as double,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_Json extends FrbFlagValue {
+  const FrbFlagValue_Json({required this.value}): super._();
+  
+
+@override final  String value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_JsonCopyWith<FrbFlagValue_Json> get copyWith => _$FrbFlagValue_JsonCopyWithImpl<FrbFlagValue_Json>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_Json&&(identical(other.value, value) || other.value == value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,value);
+
+@override
+String toString() {
+  return 'FrbFlagValue.json(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_JsonCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_JsonCopyWith(FrbFlagValue_Json value, $Res Function(FrbFlagValue_Json) _then) = _$FrbFlagValue_JsonCopyWithImpl;
+@useResult
+$Res call({
+ String value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_JsonCopyWithImpl<$Res>
+    implements $FrbFlagValue_JsonCopyWith<$Res> {
+  _$FrbFlagValue_JsonCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_Json _self;
+  final $Res Function(FrbFlagValue_Json) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_Json(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_StringList extends FrbFlagValue {
+  const FrbFlagValue_StringList({required final  List<String> value}): _value = value,super._();
+  
+
+ final  List<String> _value;
+@override List<String> get value {
+  if (_value is EqualUnmodifiableListView) return _value;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_value);
+}
+
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_StringListCopyWith<FrbFlagValue_StringList> get copyWith => _$FrbFlagValue_StringListCopyWithImpl<FrbFlagValue_StringList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_StringList&&const DeepCollectionEquality().equals(other._value, _value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_value));
+
+@override
+String toString() {
+  return 'FrbFlagValue.stringList(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_StringListCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_StringListCopyWith(FrbFlagValue_StringList value, $Res Function(FrbFlagValue_StringList) _then) = _$FrbFlagValue_StringListCopyWithImpl;
+@useResult
+$Res call({
+ List<String> value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_StringListCopyWithImpl<$Res>
+    implements $FrbFlagValue_StringListCopyWith<$Res> {
+  _$FrbFlagValue_StringListCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_StringList _self;
+  final $Res Function(FrbFlagValue_StringList) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_StringList(
+value: null == value ? _self._value : value // ignore: cast_nullable_to_non_nullable
+as List<String>,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class FrbFlagValue_NumberList extends FrbFlagValue {
+  const FrbFlagValue_NumberList({required this.value}): super._();
+  
+
+@override final  Float64List value;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FrbFlagValue_NumberListCopyWith<FrbFlagValue_NumberList> get copyWith => _$FrbFlagValue_NumberListCopyWithImpl<FrbFlagValue_NumberList>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FrbFlagValue_NumberList&&const DeepCollectionEquality().equals(other.value, value));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(value));
+
+@override
+String toString() {
+  return 'FrbFlagValue.numberList(value: $value)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $FrbFlagValue_NumberListCopyWith<$Res> implements $FrbFlagValueCopyWith<$Res> {
+  factory $FrbFlagValue_NumberListCopyWith(FrbFlagValue_NumberList value, $Res Function(FrbFlagValue_NumberList) _then) = _$FrbFlagValue_NumberListCopyWithImpl;
+@useResult
+$Res call({
+ Float64List value
+});
+
+
+
+
+}
+/// @nodoc
+class _$FrbFlagValue_NumberListCopyWithImpl<$Res>
+    implements $FrbFlagValue_NumberListCopyWith<$Res> {
+  _$FrbFlagValue_NumberListCopyWithImpl(this._self, this._then);
+
+  final FrbFlagValue_NumberList _self;
+  final $Res Function(FrbFlagValue_NumberList) _then;
+
+/// Create a copy of FrbFlagValue
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? value = null,}) {
+  return _then(FrbFlagValue_NumberList(
+value: null == value ? _self.value : value // ignore: cast_nullable_to_non_nullable
+as Float64List,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$InitError {

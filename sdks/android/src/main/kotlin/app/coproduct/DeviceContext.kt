@@ -1,8 +1,8 @@
 package app.coproduct
 
 import android.content.Context
-import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import java.util.Locale
 import java.util.TimeZone
@@ -10,67 +10,54 @@ import java.util.TimeZone
 /**
  * Collects the static SDK-owned device attributes once per initialize. Pure
  * reads with no side effects: session persistence lives in SessionStore and
- * the live network fact lives in NetworkMonitor. Values are raw platform
- * facts, the core normalizes them (version padding, locale hyphenation) so
- * every platform wrapper stays parity-identical
+ * the live network fact lives in NetworkMonitor.
  */
 internal object DeviceContext {
-    /** The sw600dp threshold Android's own resource qualifier uses */
-    internal const val TABLET_MIN_WIDTH_DP = 600
-
     fun staticAttributes(context: Context): Map<String, AttributeValue> {
         val attrs = mutableMapOf<String, AttributeValue>()
-        attrs["platform"] = AttributeValue.String("android")
-        attrs["os_version"] = AttributeValue.String(Build.VERSION.RELEASE)
+        attrs["platform"] = AttributeValue.Str("android")
+        attrs["os_version"] = AttributeValue.Str(Build.VERSION.RELEASE ?: "")
 
-        val packageInfo = packageInfoOrNull(context)
-        packageInfo?.versionName?.let { attrs["app_version"] = AttributeValue.String(it) }
-        packageInfo?.let { info ->
-            attrs["app_build"] = AttributeValue.String(versionCodeOf(info).toString())
+        appVersionInfo(context)?.let { (version, build) ->
+            attrs["app_version"] = AttributeValue.Str(version)
+            attrs["app_build"] = AttributeValue.Str(build)
         }
 
-        // Passed through raw: locale hyphenation is the core's normalization
-        // contract, not a wrapper responsibility
-        attrs["locale"] = AttributeValue.String(Locale.getDefault().toLanguageTag())
-        attrs["timezone"] = AttributeValue.String(TimeZone.getDefault().id)
-
-        deviceTypeForWidth(context.resources.configuration.smallestScreenWidthDp)?.let {
-            attrs["device_type"] = AttributeValue.String(it)
+        val locale = Locale.getDefault().toLanguageTag()
+        if (locale.isNotEmpty() && locale != "und") {
+            attrs["locale"] = AttributeValue.Str(locale)
         }
+        attrs["timezone"] = AttributeValue.Str(TimeZone.getDefault().id)
 
+        deviceType(context.resources.configuration)?.let {
+            attrs["device_type"] = AttributeValue.Str(it)
+        }
         return attrs
     }
 
-    /**
-     * Looks up this app's own package info. Guarded rather than propagated:
-     * a lookup failure omits `app_version`/`app_build` instead of failing the
-     * whole collector
-     */
-    private fun packageInfoOrNull(context: Context): PackageInfo? =
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        } catch (e: PackageManager.NameNotFoundException) {
-            null
+    private fun appVersionInfo(context: Context): Pair<String, String>? = try {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        val buildCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode.toString()
+        } else {
+            @Suppress("DEPRECATION")
+            info.versionCode.toString()
         }
+        (info.versionName ?: "") to buildCode
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    }
 
     /**
-     * [PackageInfo.longVersionCode] only exists from API 28. Below that,
-     * the deprecated 32-bit [PackageInfo.versionCode] is the only build
-     * number available
+     * phone and tablet only. An unmapped bucket omits the attribute entirely
+     * so is_set/is_not_set stay meaningful — the vocabulary widens only when
+     * the platform recognizes a new device-type value, never by inventing one
+     * here. Android has no first-party "idiom" API; this uses the AOSP
+     * convention that a smallestScreenWidthDp >= 600 is a tablet.
      */
-    @Suppress("DEPRECATION")
-    private fun versionCodeOf(info: PackageInfo): Long =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
-
-    /**
-     * phone and tablet only, keyed off smallestScreenWidthDp against the
-     * 600dp threshold. An indeterminate width omits the attribute entirely
-     * so is_set and is_not_set stay meaningful. The vocabulary widens only
-     * when the platform recognizes a new device_type value, never by
-     * inventing values here
-     */
-    internal fun deviceTypeForWidth(smallestScreenWidthDp: Int): String? {
-        if (smallestScreenWidthDp <= 0) return null
-        return if (smallestScreenWidthDp >= TABLET_MIN_WIDTH_DP) "tablet" else "phone"
+    fun deviceType(configuration: Configuration): String? = when {
+        configuration.smallestScreenWidthDp == Configuration.SMALLEST_SCREEN_WIDTH_DP_UNDEFINED -> null
+        configuration.smallestScreenWidthDp >= 600 -> "tablet"
+        else -> "phone"
     }
 }

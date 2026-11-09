@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show FlutterError, FlutterErrorDetails;
@@ -6,6 +7,7 @@ import 'attribute_value.dart';
 import 'client_backend.dart';
 import 'config.dart';
 import 'errors.dart';
+import 'evaluation_event.dart';
 import 'flag_observation.dart';
 import 'foreground.dart';
 import 'frb_backend.dart';
@@ -15,6 +17,7 @@ import 'isolate_probe.dart';
 import 'http_transport.dart';
 import 'json_value.dart';
 import 'native_bridge.dart';
+import 'paywall/coproduct_paywall.dart' show FlagReader;
 import 'platform_metadata.dart';
 import 'provider_state.dart';
 import 'rust/api.dart' as frb;
@@ -54,7 +57,7 @@ CoproductClient createClientForBackend(
 /// an ignored future that fails becomes an unhandled asynchronous error.
 /// Identity is not saved between launches, so call [identify] again after
 /// `initialize` on each launch
-final class CoproductClient {
+final class CoproductClient implements FlagReader {
   CoproductClient._(this._backend, this._identityQueue, this._utmStore);
 
   final CoproductClientBackend _backend;
@@ -63,6 +66,7 @@ final class CoproductClient {
   // would reintroduce exactly the interleaving this one exists to prevent
   final SerialQueue _identityQueue;
   final UtmStore _utmStore;
+  StreamSubscription<EvaluationEvent>? _evaluationSubscription;
 
   /// Reads a boolean flag.
   ///
@@ -86,6 +90,7 @@ final class CoproductClient {
   /// Returns [defaultValue] when the SDK cannot resolve the flag, including
   /// when the flag is not a string. See [getBool] for what a read serves.
   /// Never throws, and does not rebuild a widget when the flag changes
+  @override
   String getString(String key, {required String defaultValue}) =>
       _backend.getString(key, defaultValue: defaultValue);
 
@@ -107,6 +112,28 @@ final class CoproductClient {
   /// Never throws, and does not rebuild a widget when the flag changes
   double getNumber(String key, {required double defaultValue}) =>
       _backend.getNumber(key, defaultValue: defaultValue);
+
+  /// Reads a string-list flag.
+  ///
+  /// Returns [defaultValue] when the SDK cannot resolve the flag, including
+  /// when the flag is not a string list. See [getBool] for what a read
+  /// serves. Never throws, and does not rebuild a widget when the flag
+  /// changes
+  List<String> getStringList(
+    String key, {
+    required List<String> defaultValue,
+  }) => _backend.getStringList(key, defaultValue: defaultValue);
+
+  /// Reads a number-list flag.
+  ///
+  /// Returns [defaultValue] when the SDK cannot resolve the flag, including
+  /// when the flag is not a number list. See [getBool] for what a read
+  /// serves. Never throws, and does not rebuild a widget when the flag
+  /// changes
+  List<double> getNumberList(
+    String key, {
+    required List<double> defaultValue,
+  }) => _backend.getNumberList(key, defaultValue: defaultValue);
 
   /// Reads a JSON flag as a Dart value: a map, list, string, number, bool, or
   /// null.
@@ -368,6 +395,25 @@ final class CoproductClient {
       events: handle.events,
       cancel: handle.cancel,
     );
+  }
+
+  /// Registers [onEvaluation] to be called for every typed-getter call this
+  /// client makes from now on, including a read made under the hood by a
+  /// paywall or onboarding flow. Observations do not fire this listener: an
+  /// observation's seed and later updates are delivered only through the
+  /// observation itself.
+  ///
+  /// There is a single evaluation-listener slot, not a list of subscribers:
+  /// calling this again installs a new listener and detaches whatever was
+  /// registered before it, matching every other Coproduct SDK.
+  ///
+  /// [onEvaluation] fires on every evaluation, so keep it cheap and
+  /// non-blocking -- do not await inside it or do expensive work directly.
+  /// Forward the event to your own analytics pipeline instead
+  void setEvaluationListener(void Function(EvaluationEvent) onEvaluation) {
+    final previous = _evaluationSubscription;
+    _evaluationSubscription = _backend.evaluationEvents().listen(onEvaluation);
+    unawaited(previous?.cancel().catchError(_reportError));
   }
 }
 

@@ -27,7 +27,7 @@ private class FakeReferrerSource(
 }
 
 /** A trivial in-memory [UtmStorage] so this file does not depend on UtmStoreTest's private fake */
-private class FakeUtmStorage : UtmStorage {
+private class InMemoryUtmStorage : UtmStorage {
     private var first: Map<String, String> = emptyMap()
     private var last: Map<String, String> = emptyMap()
 
@@ -69,7 +69,7 @@ class InstallReferrerCaptureTest {
     ): InstallReferrerCapture =
         InstallReferrerCapture(
             source = source,
-            store = UtmStore(FakeUtmStorage(), ::fakeParse, logFailure = {}),
+            store = UtmStore(InMemoryUtmStorage(), ::fakeParse, logFailure = {}),
             scope = scope,
             publish = { published.add(it) },
             logFailure = { errors.add(it) },
@@ -87,8 +87,8 @@ class InstallReferrerCaptureTest {
 
             assertEquals(1, published.size)
             val attributes = published.single()
-            assertEquals("google", (attributes["utm_source"] as AttributeValue.String).value)
-            assertEquals("cpc", (attributes["utm_medium"] as AttributeValue.String).value)
+            assertEquals("google", (attributes["utm_source"] as AttributeValue.Str).value)
+            assertEquals("cpc", (attributes["utm_medium"] as AttributeValue.Str).value)
         }
 
     @Test

@@ -35,13 +35,13 @@ Every SDK surface has a build script under `scripts/build/`. Use these rather th
 The two acceptance gates additionally require a booted simulator/emulator device id, passed via `COPRODUCT_ACCEPTANCE_IOS_DEVICE` / `COPRODUCT_ACCEPTANCE_ANDROID_DEVICE` (see `flutter devices`); they consume an already-booted device and do not boot or provision one. Each emits `COPRODUCT_FLUTTER_ACCEPTANCE_<PLATFORM>_STATUS pass=true` on success.
 
 FVM is maintainer-only release infrastructure, not a consumer requirement. The
-Flutter floor-verification matrix and the release-preparation step run through
+Flutter floor-verification matrix and the release pipeline run through
 `scripts/build/with-fvm-toolchain.sh <flutter-version> -- <command>`, which pins
 an exact FVM-managed Flutter and Dart onto `PATH` for every nested process and
 purges the native config that would otherwise pin a global SDK, without mutating
 the repository. A developer integrating Coproduct needs only the documented
 supported Flutter/Dart versions; FVM never appears in the package README. See
-`DEVELOPMENT.md` for the floor gate and the release-preparation procedure.
+`DEVELOPMENT.md` for the floor gate and the release runbooks.
 
 Android-touching scripts require `JAVA_HOME` (JDK 17), `ANDROID_HOME`, and `ANDROID_NDK_HOME` (`27.1.12297006`) to be set (except `scripts/package/rn-build-native.sh android` and `scripts/package/android-build-jnilibs.sh`, which need only `ANDROID_NDK_HOME` and `cargo-ndk`). iOS-touching scripts require Xcode and CocoaPods on PATH (except `scripts/package/rn-build-native.sh ios`, which needs only Xcode). Supporting packaging scripts live under `scripts/package/` (`ios-build-xcframework.sh` rebuilds `CoproductFFI.xcframework` from Rust source, `ios-spm-binary.sh` archives it, `ios-spm-fixture.sh` packages the consumer-test fixture). When a change alters the UniFFI-exposed surface, rebuild the xcframework (the source-linked iOS build does this automatically) so the iOS bindings link against the live symbols.
 
@@ -244,11 +244,14 @@ Comment and doc terminology. Reserve `user` for the evaluated end-user (the targ
 
 ## Release Identity
 
-React Native's versions are managed by release-please. The version in
-`.github/.release-please-manifest.json` is the single source of truth, and
-release PRs are the only changes that move it. Every line marked
-`x-release-please-version`, and the SDK's `package.json`, must equal it.
-`scripts/release/identity/check.sh` enforces this on every PR.
+React Native's and Flutter's versions are managed by release-please. The
+version each has in `.github/.release-please-manifest.json` is its single source
+of truth, and release PRs are the only changes that move it. Every line marked
+`x-release-please-version` must equal it, and so must the SDK's `package.json`
+for React Native and its `pubspec.yaml` for Flutter. Flutter has three marked
+places: `lib/src/sdk_version.dart`, `ios/coproduct.podspec`, and the install
+example in its `README.md`. `scripts/release/identity/check.sh` enforces all of
+this on every PR. Release notes come from PR titles.
 
 Contributors need two things:
 
@@ -258,8 +261,24 @@ Contributors need two things:
    `test`, `chore`, `docs`, `build`, `ci`, and `style` release nothing. A README
    fix that must reach the published docs uses `fix:`.
 2. If you changed `core/`, `ffi/`, `Cargo.toml`, `Cargo.lock`, or
-   `rust-toolchain.toml`, run `scripts/release/core-changed.sh` and commit
-   what it writes. The PR checks say when it is needed.
+   `rust-toolchain.toml`, the SDKs that ship the change need a
+   `CORE_RELEASE_TRIGGER` file. For a PR from a branch in this repository, the
+   "Core release trigger" workflow writes and commits those files when a
+   releasing title needs them. On such a PR the "Shared core release" check can
+   fail on your own commit until the workflow's commit lands, so wait for it
+   rather than running the script. After the workflow commits, run
+   `git pull --rebase` before pushing again. The check says when you need to run
+   `scripts/release/core-changed.sh` yourself, for example on a PR from a fork
+   or one that edits the release config. Run it and commit what it writes.
+
+A releasing title becomes a public release note in the SDK's changelog, on
+pub.dev, and in the GitHub release, so write it for developers who use the SDK.
+Name the public API or the visible behavior and what it does for them. Leave out
+internal details, such as the FFI, caches, and internal module names. Leave out
+other SDKs' names.
+
+- Good: `feat: add getStringList and getNumberList to read list flags`
+- Bad: `feat: typed list flag getters across the FFI`
 
 Never:
 
@@ -268,8 +287,7 @@ Never:
 
 Releases go through the automated release pipeline. Publishing or tagging by
 hand is only for an urgent or emergency release, following the maintainer
-runbook in `DEVELOPMENT.md`. Flutter is not on the automated pipeline, so every
-Flutter release follows its runbook there.
+runbook in `DEVELOPMENT.md`.
 
 The PR checks run on every PR, and every failure states its fix. Read a failing
 check's summary with `gh pr checks`. Running `scripts/release/check-all.sh`
@@ -280,9 +298,7 @@ install.
 ended for SDKs on the release pipeline. If your branch sets React Native's
 `USER_AGENT` to a `-dev` value, take `main`'s line when you rebase.
 
-SDKs not yet on the release pipeline keep their own process. Flutter publishes
-through `scripts/release/flutter/` (see `DEVELOPMENT.md`), and its four version
-lines must agree with `pubspec.yaml`. iOS and Android set their `User-Agent` in
+SDKs not yet on the release pipeline keep their own process. iOS and Android set their `User-Agent` in
 their wrappers (`coproductUserAgent` in
 `sdks/ios/Sources/Coproduct/Coproduct.swift`, and `USER_AGENT` in the Android
 wrapper), and their install docs must not present a command for an
@@ -392,13 +408,13 @@ Load-bearing invariants. Breaking any of these breaks the build or runtime:
 - The exported API lives in `ffi/coproduct-ffi-frb/src/api.rs`, and `lib.rs` is only `mod frb_generated; pub mod api;`. FRB injects `frb_generated.rs` at the crate root, and `rust_input: crate::api` must point at a submodule, never the crate root. Do not move the API back into `lib.rs`.
 - Host callbacks use `anyhow::Result<T>`, not custom error enums. FRB does not support a custom error type as the error of a `DartFnFuture<Result<T, E>>`. The Rust adapters convert `anyhow::Error` into the typed core errors. This is an intentional divergence from the UniFFI crate, which keeps typed errors.
 - Free functions take the client by reference (`&CoproductClientHandle`) and `initialize` / the typed observation registrations (`observe_bool` and its siblings) return bare handles, not `Arc<...>`. Passing the handle by value makes FRB move-and-dispose the Dart handle (`DroppableDisposedException`), and returning `Arc<...>` emits an `Arc`-prefixed Dart type that mismatches the borrowed-parameter type.
-- The plugin is a hybrid plugin: `pubspec.yaml` declares `ffiPlugin: true` for android and ios **and** a `pluginClass`, alongside a small registered plugin class on each platform, `CoproductHostContextPlugin` in Kotlin and in Swift, with the helpers it delegates to beside it (`DeviceClassifier`, `SessionStore`, `NetworkTypeClassifier`, and `NetworkTypeObserver`). FRB still loads the native library directly and must never be routed through a channel; the registered class exists only to answer host-context questions Dart cannot answer correctly on its own, such as the interface idiom behind `device_type`, to run the session transaction, and to stream `network_type` over its own event channel, `app.coproduct.flutter/network_type`, which has no task queue so all observation state stays on the main thread. Keep it that way: it performs no upsert and holds no SDK state beyond the session transaction's process-wide guard and failure latch and one network observation per engine, and knows nothing about the SDK key or the evaluation core.
+- The plugin is a hybrid plugin: `pubspec.yaml` declares `ffiPlugin: true` for android and ios **and** a `pluginClass`, alongside a small registered plugin class on each platform, `CoproductHostContextPlugin` in Kotlin and in Swift, with the helpers it delegates to beside it (`DeviceClassifier`, `HostInfo`, `SessionStore`, `NetworkTypeClassifier`, and `NetworkTypeObserver`). FRB still loads the native library directly and must never be routed through a channel; the registered class exists only to answer host-context questions Dart cannot answer correctly on its own, such as the interface idiom behind `device_type`, to read the OS version and the app's version and build number, to run the session transaction, and to stream `network_type` over its own event channel, `app.coproduct.flutter/network_type`, which has no task queue so all observation state stays on the main thread. Keep it that way: it performs no upsert and holds no SDK state beyond the session transaction's process-wide guard and failure latch and one network observation per engine, and knows nothing about the SDK key or the evaluation core.
 - On iOS the Dart wrapper inits with `RustLib.init(externalLibrary: ExternalLibrary.open('CoproductFFI.framework/CoproductFFI'))`. The podspec vendors `CoproductFFI.xcframework`, a dynamic `CoproductFFI.framework` per slice that CocoaPods embeds and signs with the app. FRB's default Apple loader is not used: it looks for a framework named after the crate, and first tries a `rust_builder` framework that another FRB plugin in the same app may provide. Android uses the default loader (`lib<crate>.so`).
 - Regenerate bindings with `flutter_rust_bridge_codegen generate` after editing `api.rs`. The codegen binary is pinned to the same version as the `flutter_rust_bridge` crate (`2.12.0`). Codegen rewrites `frb_generated.rs`, `lib/src/rust/*`, and re-injects the `mod frb_generated;` line.
 - Run `cargo fmt --all` after regenerating FRB bindings. `rustfmt.toml` lists `frb_generated.rs` in `ignore`, but `ignore` is a nightly-only feature, so on the stable toolchain rustfmt still formats the file. The committed `frb_generated.rs` must be fmt-formatted or `cargo fmt --all --check` fails the green gate, and the codegen output is not fmt-clean on its own.
 - Avoid FFI parameter names that are Dart reserved words. Do not use `default`; use `default_value`. This matches the UniFFI crate, where `default` is also a Swift keyword.
 
-Android toolchain. Cargokit is gone, along with its Gradle 9 `project.exec` patch: the Android module carries no build hook and the Android Gradle Plugin packages `src/main/jniLibs` directly. The unshipped `linux/`, `macos/` and `windows/` scaffolding that referenced it was deleted with it: those were `flutter create` leftovers pointing at a nonexistent `../rust`, excluded by `.pubignore`, and never declared platforms in `pubspec.yaml`. `sdks/flutter/coproduct/example/` and `sdks/react-native/coproduct/example/` share **Gradle 8.14 + JDK 17** from the React Native example template's defaults. The React Native example stays on **AGP 8.12.0**; the Flutter example is on **AGP 8.12.1**, the minimum `device_info_plus` and `package_info_plus` declare. They declare it without enforcing it: a fresh `flutter create` app on Flutter 3.38.1 keeps the AGP 8.11.1 its template generates and builds with the SDK, and the release gate builds exactly that app, so do not raise the published floor on a dependency's declared minimum alone. Native Android source-linked demos use **Gradle 9.4.1 + JDK 17 + AGP 9.2.1** to match Android Studio Panda's generated defaults. `consumer-tests/flutter/` runs on bleeding-edge **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20** to verify the packaged libraries hold for real adopters on modern toolchains. The SDK's `compileSdkVersion` is `36.1` for native Android and `36` for Flutter's current AGP path. Do not enable Swift Package Manager for the plugin: FRB needs the CocoaPods `Classes/` layout, and Flutter only warns about the missing SwiftPM support.
+Android toolchain. Cargokit is gone, along with its Gradle 9 `project.exec` patch: the Android module carries no build hook and the Android Gradle Plugin packages `src/main/jniLibs` directly. The unshipped `linux/`, `macos/` and `windows/` scaffolding that referenced it was deleted with it: those were `flutter create` leftovers pointing at a nonexistent `../rust`, excluded by `.pubignore`, and never declared platforms in `pubspec.yaml`. `sdks/flutter/coproduct/example/` and `sdks/react-native/coproduct/example/` share **Gradle 8.14 + JDK 17** from the React Native example template's defaults. The React Native example stays on **AGP 8.12.0**; the Flutter example is on **AGP 8.12.1**. A dependency's declared minimum AGP is not enforced: a fresh `flutter create` app on Flutter 3.38.1 keeps the AGP 8.11.1 its template generates and builds with the SDK, and the release gate builds exactly that app, so do not raise the published floor on a dependency's declared minimum alone. Native Android source-linked demos use **Gradle 9.4.1 + JDK 17 + AGP 9.2.1** to match Android Studio Panda's generated defaults. `consumer-tests/flutter/` runs on bleeding-edge **Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20** to verify the packaged libraries hold for real adopters on modern toolchains. The SDK's `compileSdkVersion` is `36.1` for native Android and `36` for Flutter's current AGP path. Do not enable Swift Package Manager for the plugin: FRB needs the CocoaPods `Classes/` layout, and Flutter only warns about the missing SwiftPM support.
 
 Maintainer inner loop. Removing cargokit removed the maintainer's build path as well as the integrator's, so `scripts/package/flutter-build-native.sh [ios|android|all]` rebuilds the debug XCFramework and jniLibs from current source. Both source-linked Flutter demo scripts invoke it automatically, because a forgotten preparation step would otherwise package a stale library. Running `flutter run` directly from the example requires it to have run first. Its artifacts are gitignored and are never release inputs: the release pipeline builds its own from a clean commit into an external directory.
 

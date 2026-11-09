@@ -4,6 +4,42 @@ use coproduct_core::observer::FlagValue;
 use coproduct_core::snapshot::test_support::{bool_flag, snapshot_with_flags};
 use coproduct_core::snapshot::{Flag, FlagType, Variation, VariationValue};
 
+// VariationValue::as_string_list/as_number_list are empty-aware: an empty `[]`
+// deserializes to whichever list variant serde's untagged matcher tries first
+// (StringList, since it is declared ahead of NumberList), so a NUMBER_LIST flag
+// whose wire value is `[]` still parses as StringList(vec![]). The projections
+// treat that empty case as valid for either requested type, while a non-empty
+// list of the wrong element type never satisfies the other projection.
+#[test]
+fn variation_value_list_projections_are_empty_aware_but_not_cross_type() {
+    assert_eq!(
+        VariationValue::StringList(vec!["a".to_string()]).as_string_list(),
+        Some(vec!["a".to_string()])
+    );
+    assert_eq!(
+        VariationValue::NumberList(vec![1.0, 2.0]).as_number_list(),
+        Some(vec![1.0, 2.0])
+    );
+
+    // The empty-array ambiguity: an empty list of either variant projects as an
+    // empty list of the other requested type.
+    assert_eq!(
+        VariationValue::NumberList(vec![]).as_string_list(),
+        Some(vec![])
+    );
+    assert_eq!(
+        VariationValue::StringList(vec![]).as_number_list(),
+        Some(vec![])
+    );
+
+    // A non-empty list never satisfies the other projection.
+    assert_eq!(VariationValue::NumberList(vec![1.0]).as_string_list(), None);
+    assert_eq!(
+        VariationValue::StringList(vec!["a".to_string()]).as_number_list(),
+        None
+    );
+}
+
 // A BOOL flag present but whose served variation holds a String is unusable: the
 // bool projection fails, so observer evaluation is unavailable (None), not
 // Some(false), and an observation with default true is never told false

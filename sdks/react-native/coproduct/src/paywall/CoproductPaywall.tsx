@@ -13,9 +13,32 @@ import {
 } from './paywallRuntime';
 import { assemblePaywallShell } from './paywallShellAssembler';
 import { platformScriptJs as bundledPlatformScriptJs } from './platformScript.generated';
+import { snapshotCache, snapshotCacheKey } from './snapshotCache';
 
 export interface PaywallLoadError {
   message: string;
+}
+
+export interface PaywallPrefetchArgs {
+  paywallId: string;
+  sdkKey: string;
+  envSlug?: string;
+  client?: PaywallClient;
+}
+
+// Minimal flag-reader surface this module needs from the base client, declared
+// structurally so the paywall module keeps its independence from the base SDK.
+// The base CoproductClient satisfies it.
+export interface FlagReader {
+  getString(key: string, defaultValue: string): string;
+}
+
+export interface PaywallPrefetchPlacementsArgs {
+  client: FlagReader;
+  flagKeys: string[];
+  sdkKey: string;
+  envSlug?: string;
+  paywallClient?: PaywallClient;
 }
 
 export interface CoproductPaywallProps {
@@ -83,18 +106,29 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     bridge: bridgeOverride,
   } = props;
   const [html, setHtml] = useState<string | undefined>(undefined);
+  // The WebView is mounted hidden and revealed only once it has painted its
+  // html and had live prices applied. Until then the loading indicator stays
+  // on top, so the user never sees the WebView's blank first paint (a white
+  // flash on iOS) nor the half-rendered, price-less intermediate frame.
+  const [visible, setVisible] = useState(false);
   const runtimeRef = useRef<PaywallRuntime | undefined>(undefined);
   const webViewRef = useRef<WebView | null>(null);
   const loadedSnapshotRef = useRef<PaywallSnapshot | undefined>(undefined);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   const boot = useCallback(async (): Promise<void> => {
     const client = clientOverride ?? new HttpPaywallClient({ sdkKey, envSlug });
     const bridge = createBridge(bridgeOverride, onLoadError);
     if (bridge == null) return;
 
+    const cacheKey = snapshotCacheKey(paywallId, envSlug);
     let snapshot: PaywallSnapshot | undefined;
     try {
-      snapshot = await client.fetchPaywall(paywallId);
+      snapshot = await snapshotCache.resolve(cacheKey, () =>
+        client.fetchPaywall(paywallId)
+      );
     } catch (error) {
       onLoadError?.({ message: String(error) });
       return;
@@ -130,6 +164,10 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
         } catch {
           // The WebView may already be torn down by the time prices resolve
         }
+        // Prices are the last thing to land, so the paywall is now fully
+        // formed -- reveal it. onLoadEnd's fallback timer still covers the
+        // case where prices never resolve (e.g. the store is unreachable).
+        setVisible(true);
       },
       // The default [data-cp-result] sections (success/cancel/fail) own
       // showing the outcome and, for cancel/fail, waiting for the user's own
@@ -160,6 +198,16 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
       platformScriptJs,
     });
     setHtml(shellHtml);
+
+    // Hang guard only. The paywall is revealed when its content has actually
+    // painted (onLoadEnd) or its prices land (setPrices) -- never on a fixed
+    // delay, because the WebView is transparent while hidden, so revealing it
+    // before it has painted shows through to the host background (a black gap)
+    // until paint catches up. This timer exists solely so a WebView that never
+    // fires onLoadEnd (load hung, no network) still reveals rather than
+    // spinning forever; it is deliberately far longer than any real load.
+    if (revealTimerRef.current != null) clearTimeout(revealTimerRef.current);
+    revealTimerRef.current = setTimeout(() => setVisible(true), 8000);
   }, [
     appUserId,
     bridgeOverride,
@@ -180,50 +228,62 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     // path reacts to.
     // eslint-disable-next-line no-void
     void boot();
+    return () => {
+      if (revealTimerRef.current != null) clearTimeout(revealTimerRef.current);
+    };
     // Boots once per mount, matching Flutter's one-shot initState boot.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (html == null) {
-    return (
-      <View style={styles.splashContainer}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
+  // The WebView is mounted as soon as the html exists but stays hidden
+  // (opacity 0, transparent background) beneath the loading indicator until
+  // `visible` flips. This loads and paints it off-screen, so revealing it is
+  // a single cut from spinner to a fully-formed, priced paywall rather than
+  // the white-flash -> half-ui -> full-ui sequence a plain mount shows.
   return (
     <View style={styles.flexContainer}>
-      {/* The explicit <object> type argument is load-bearing -- see
-          CoproductOnboardingFlow.tsx's identical comment for why. */}
-      <WebView<object>
-        ref={webViewRef}
-        originWhitelist={['*']}
-        source={{ html }}
-        onLoadEnd={() => {
-          // Price injection runs JS against the page's own global, so it
-          // must wait for the inline <script> to have actually executed --
-          // firing right after the shell is assembled (before the WebView
-          // has painted) races a cold WebView's first paint and can
-          // silently miss, especially since a cached StoreKit price can
-          // resolve faster than that paint. Mirrors Flutter's
-          // onPageFinished placement exactly.
-          const snapshot = loadedSnapshotRef.current;
-          if (snapshot != null) {
-            // eslint-disable-next-line no-void
-            void runtimeRef.current?.onSnapshotLoaded(snapshot);
-          }
-        }}
-        onShouldStartLoadWithRequest={(request) => {
-          const runtime = runtimeRef.current;
-          const isAction = request.url.startsWith('coproduct-action:');
-          if (isAction && runtime != null) {
-            // eslint-disable-next-line no-void
-            void runtime.handleNavigationRequest(request.url);
-          }
-          return !isAction;
-        }}
-      />
+      {html != null && (
+        /* The explicit <object> type argument is load-bearing -- see
+           CoproductOnboardingFlow.tsx's identical comment for why. */
+        <WebView<object>
+          ref={webViewRef}
+          originWhitelist={['*']}
+          source={{ html }}
+          style={[styles.webView, { opacity: visible ? 1 : 0 }]}
+          onLoadEnd={() => {
+            // Price injection runs JS against the page's own global, so it
+            // must wait for the inline <script> to have actually executed --
+            // firing right after the shell is assembled (before the WebView
+            // has painted) races a cold WebView's first paint and can
+            // silently miss, especially since a cached StoreKit price can
+            // resolve faster than that paint. Mirrors Flutter's
+            // onPageFinished placement exactly.
+            const snapshot = loadedSnapshotRef.current;
+            if (snapshot != null) {
+              // eslint-disable-next-line no-void
+              void runtimeRef.current?.onSnapshotLoaded(snapshot);
+            }
+            // The whole document (including external resources) has loaded, so
+            // reveal if the cap in boot has not already. setPrices reveals
+            // sooner once prices land.
+            setVisible(true);
+          }}
+          onShouldStartLoadWithRequest={(request) => {
+            const runtime = runtimeRef.current;
+            const isAction = request.url.startsWith('coproduct-action:');
+            if (isAction && runtime != null) {
+              // eslint-disable-next-line no-void
+              void runtime.handleNavigationRequest(request.url);
+            }
+            return !isAction;
+          }}
+        />
+      )}
+      {!visible && (
+        <View style={[styles.splashContainer, StyleSheet.absoluteFill]}>
+          <ActivityIndicator />
+        </View>
+      )}
     </View>
   );
 }
@@ -235,7 +295,57 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
 CoproductPaywall.loadPlatformScript = async (): Promise<string> =>
   bundledPlatformScriptJs;
 
+/**
+ * Fetches a paywall's snapshot and holds it in a process-level cache so a
+ * later CoproductPaywall for the same id and environment renders without a
+ * network round-trip. Call this once at app launch (right after the SDK is
+ * initialized) for any paywall the user is likely to reach, so the first open
+ * is instant instead of showing a spinner while the snapshot downloads.
+ *
+ * Best-effort: a failed fetch is swallowed, leaving the cache cold so the
+ * paywall's own boot() fetches and reports errors normally. Safe to call more
+ * than once; a later call simply refreshes the cached snapshot.
+ */
+CoproductPaywall.prefetch = async (
+  args: PaywallPrefetchArgs
+): Promise<void> => {
+  const client =
+    args.client ??
+    new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
+  await snapshotCache.warm(snapshotCacheKey(args.paywallId, args.envSlug), () =>
+    client.fetchPaywall(args.paywallId)
+  );
+};
+
+// Warms every paywall the given placement flags currently resolve to. A
+// placement is an ordinary string flag whose value is a paywallId, resolved
+// here through the base client so targeting is respected. Call once at launch
+// with the app's paywall flag keys. Best-effort; failures leave the cache cold.
+CoproductPaywall.prefetchPlacements = async (
+  args: PaywallPrefetchPlacementsArgs
+): Promise<void> => {
+  const paywallClient =
+    args.paywallClient ??
+    new HttpPaywallClient({ sdkKey: args.sdkKey, envSlug: args.envSlug });
+  const seen = new Set<string>();
+  await Promise.all(
+    args.flagKeys.map(async (flagKey) => {
+      const paywallId = args.client.getString(flagKey, '');
+      if (paywallId.length === 0 || seen.has(paywallId)) return;
+      seen.add(paywallId);
+      await snapshotCache.warm(
+        snapshotCacheKey(paywallId, args.envSlug),
+        () => paywallClient.fetchPaywall(paywallId)
+      );
+    })
+  );
+};
+
 const styles = StyleSheet.create({
   splashContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   flexContainer: { flex: 1 },
+  // Transparent so the WebView's own blank first paint is never a white flash:
+  // while hidden there is nothing to see through to but the host background,
+  // and the paywall html paints its own (dark) background once loaded.
+  webView: { flex: 1, backgroundColor: 'transparent' },
 });

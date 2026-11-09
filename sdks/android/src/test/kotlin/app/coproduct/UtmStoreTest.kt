@@ -49,8 +49,8 @@ class UtmStoreTest {
         val later = storeOf(storage) { mapOf("utm_source" to "facebook", "utm_medium" to "social") }
         val result = later.capture("https://example.com/?utm_source=facebook&utm_medium=social")
 
-        assertEquals("google", (result["utm_source"] as AttributeValue.String).value)
-        assertEquals("cpc", (result["utm_medium"] as AttributeValue.String).value)
+        assertEquals("google", (result["utm_source"] as AttributeValue.Str).value)
+        assertEquals("cpc", (result["utm_medium"] as AttributeValue.Str).value)
     }
 
     @Test
@@ -61,9 +61,9 @@ class UtmStoreTest {
         val later = storeOf(storage) { mapOf("utm_source" to "facebook") }
         val result = later.capture("second")
 
-        assertEquals("facebook", (result["utm_source_last"] as AttributeValue.String).value)
+        assertEquals("facebook", (result["utm_source_last"] as AttributeValue.Str).value)
         // The first-touch value stays frozen alongside the updated last-touch one
-        assertEquals("google", (result["utm_source"] as AttributeValue.String).value)
+        assertEquals("google", (result["utm_source"] as AttributeValue.Str).value)
     }
 
     @Test
@@ -75,7 +75,7 @@ class UtmStoreTest {
 
         assertTrue(!result.containsKey("utm_source"))
         assertTrue(!result.containsKey("utm_source_last"))
-        assertEquals("cpc", (result["utm_medium"] as AttributeValue.String).value)
+        assertEquals("cpc", (result["utm_medium"] as AttributeValue.Str).value)
         assertTrue(!storage.first.containsKey("utm_source"))
     }
 
@@ -89,7 +89,7 @@ class UtmStoreTest {
         val result = store.capture("a url with no utm parameters")
 
         assertEquals(1, storage.writes) // unchanged: nothing persisted
-        assertEquals("google", (result["utm_source"] as AttributeValue.String).value)
+        assertEquals("google", (result["utm_source"] as AttributeValue.Str).value)
     }
 
     @Test
@@ -101,8 +101,8 @@ class UtmStoreTest {
 
         val result = store.utmAttributes()
 
-        assertEquals("spring_sale", (result["utm_campaign"] as AttributeValue.String).value)
-        assertEquals("spring_sale", (result["utm_campaign_last"] as AttributeValue.String).value)
+        assertEquals("spring_sale", (result["utm_campaign"] as AttributeValue.Str).value)
+        assertEquals("spring_sale", (result["utm_campaign_last"] as AttributeValue.Str).value)
         assertEquals(0, storage.writes)
     }
 
@@ -117,7 +117,7 @@ class UtmStoreTest {
         val relaunched = storeOf(storage) { emptyMap() }
         val result = relaunched.utmAttributes()
 
-        assertEquals("running shoes", (result["utm_term"] as AttributeValue.String).value)
+        assertEquals("running shoes", (result["utm_term"] as AttributeValue.Str).value)
     }
 
     @Test

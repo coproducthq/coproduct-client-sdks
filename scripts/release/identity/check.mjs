@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 export const CONFIG = '.github/release-please-config.json';
 export const MANIFEST = '.github/.release-please-manifest.json';
 const MARKER = 'x-release-please-version';
+const BLOCK_START = 'x-release-please-start-version';
+const BLOCK_END = 'x-release-please-end';
 const RELEASE_BRANCH = /^release-please--branches--/;
 const STABLE = /^\d+\.\d+\.\d+$/;
 const ANY_VERSION = /\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/;
@@ -62,20 +64,43 @@ export function checkIdentity({ root, only, base, branch }) {
         problems.push(`${sdk}: ${path}/package.json has ${actual}, but the manifest has ${version}. Set it back to ${version}. ${NEVER_EDIT}`);
       }
     }
+    if (pkg['release-type'] === 'dart') {
+      const actual = read(join(path, 'pubspec.yaml')).match(/^version:\s*(\S+)/m)?.[1];
+      if (actual !== version) {
+        problems.push(`${sdk}: ${path}/pubspec.yaml has ${actual ?? 'no version'}, but the manifest has ${version}. Set it back to ${version}. ${NEVER_EDIT}`);
+      }
+    }
     for (const extra of pkg['extra-files'] ?? []) {
       const file = join(path, typeof extra === 'string' ? extra : extra.path);
       if (!existsSync(join(root, file))) {
         problems.push(`${sdk}: ${file} is listed in ${CONFIG} but does not exist. This is configuration damage: when a version line moves, update extra-files to match.`);
         continue;
       }
-      const marked = read(file)
-        .split('\n')
-        .flatMap((text, i) => (text.includes(MARKER) ? [{ text, line: i + 1 }] : []));
-      if (marked.length === 0) {
+      const lines = read(file).split('\n');
+      const marked = lines.flatMap((text, i) => (text.includes(MARKER) ? [{ text, line: i + 1 }] : []));
+      const starts = lines.flatMap((text, i) => (text.includes(BLOCK_START) ? [i] : []));
+      const ends = lines.flatMap((text, i) => (text.includes(BLOCK_END) ? [i] : []));
+      if (marked.length === 0 && starts.length === 0 && ends.length === 0) {
         problems.push(`${sdk}: ${file} has no ${MARKER} marker. This is configuration damage: release-please would stop updating the line. Restore the marker comment on its version line.`);
         continue;
       }
-      for (const { text, line } of marked) {
+      const versioned = [...marked];
+      if (starts.length > 0 || ends.length > 0) {
+        const damage = `${sdk}: ${file} must hold exactly one ${BLOCK_START} and ${BLOCK_END} pair around exactly one version line. This is configuration damage: release-please would update the wrong text or none.`;
+        if (starts.length !== 1 || ends.length !== 1 || ends[0] < starts[0]) {
+          problems.push(damage.replace('must hold', `holds ${starts.length} start and ${ends.length} end markers but must hold`));
+          continue;
+        }
+        const inside = lines
+          .slice(starts[0] + 1, ends[0])
+          .flatMap((text, i) => (ANY_VERSION.test(text) ? [{ text, line: starts[0] + 2 + i }] : []));
+        if (inside.length !== 1) {
+          problems.push(damage.replace('must hold', `holds ${inside.length} version lines in the block but must hold`));
+          continue;
+        }
+        versioned.push(...inside);
+      }
+      for (const { text, line } of versioned) {
         const found = text.match(ANY_VERSION)?.[0];
         if (found !== version) {
           problems.push(`${sdk}: ${file}:${line} has ${found ?? 'no version'}, but the manifest has ${version}. Set it back to ${version}. ${NEVER_EDIT}`);

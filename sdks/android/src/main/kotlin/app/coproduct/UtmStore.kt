@@ -153,10 +153,10 @@ internal class UtmStore(
     private fun flatten(first: Map<String, String>, last: Map<String, String>): Map<String, AttributeValue> {
         val result = mutableMapOf<String, AttributeValue>()
         for ((key, value) in first) {
-            if (value.isNotEmpty()) result[key] = AttributeValue.String(value)
+            if (value.isNotEmpty()) result[key] = AttributeValue.Str(value)
         }
         for ((key, value) in last) {
-            if (value.isNotEmpty()) result["${key}_last"] = AttributeValue.String(value)
+            if (value.isNotEmpty()) result["${key}_last"] = AttributeValue.Str(value)
         }
         return result
     }

@@ -11,6 +11,7 @@ pub mod eval;
 pub mod evaluation_event;
 pub mod events;
 pub mod fanout;
+pub mod geo;
 pub mod hooks;
 pub mod identity;
 pub mod identity_state;

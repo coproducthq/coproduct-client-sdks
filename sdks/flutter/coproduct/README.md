@@ -22,8 +22,10 @@ you choose and `false` to everyone else.
 - [Initializing and shutting down](#initializing-and-shutting-down)
 - [Reading flags](#reading-flags)
 - [Reacting to flag changes](#reacting-to-flag-changes)
+- [Evaluation events](#evaluation-events)
 - [Identity and attributes](#identity-and-attributes)
 - [Automatic attributes](#automatic-attributes)
+- [Location and geo-fencing](#location-and-geo-fencing)
 - [Configuration](#configuration)
 - [Checking for updates](#checking-for-updates)
 - [Onboarding and paywall](#onboarding-and-paywall)
@@ -67,10 +69,12 @@ flutter pub add coproduct
 
 This adds the dependency to your `pubspec.yaml`:
 
+<!-- x-release-please-start-version -->
 ```yaml
 dependencies:
-  coproduct: ^1.2.0
+  coproduct: ^1.4.2
 ```
+<!-- x-release-please-end -->
 
 The package ships prebuilt native libraries, so you do not need a Rust
 toolchain.
@@ -220,8 +224,9 @@ as `new-checkout`. Every read passes a key and a **default value** (the
 `defaultValue` argument): the value your code uses when the SDK cannot resolve
 the flag. In prose this README also calls it your default.
 
-Flags have four types: boolean, string, number, and JSON. Read each with the
-matching getter, builder, or observation.
+Flags have six types: boolean, string, number, JSON, string list, and number
+list. Read each with the matching getter, builder, or observation. List flags
+have getters only. See [List flags](#list-flags).
 
 ### What a read serves
 
@@ -324,7 +329,7 @@ call `shutdown` only at final teardown, if at all.
 | What you are doing | Use |
 |---|---|
 | Building UI that should change when the flag changes | **`CoproductFlagBuilder`**, the right choice for most flag-gated widgets. One entry point per type: `boolFlag`, `stringFlag`, `intFlag`, `numberFlag`, `jsonFlag` |
-| Reading the current value once, in logic outside the widget tree | **The getters**: `getBool`, `getString`, `getInt`, `getNumber`, `getJson` |
+| Reading the current value once, in logic outside the widget tree | **The getters**: `getBool`, `getString`, `getInt`, `getNumber`, `getJson`, `getStringList`, `getNumberList` |
 | Holding a value in your own `State`, or in Provider, Riverpod, or BLoC | **The observations**: `observeBool`, `observeString`, `observeInt`, `observeNumber`, `observeJson` |
 
 **Calling `getBool` inside `build` does not make your widget rebuild when the
@@ -334,9 +339,10 @@ something else rebuilds it. Use the builder for UI.
 
 ### Getters
 
-There are five getters over four flag types. Each takes the flag key and your
-default. Reach the client from a widget with `CoproductScope.of(context)`, or
-keep the one `initialize` returned:
+There are seven getters over six flag types. Each takes the flag key and your
+default. This example shows the five scalar and JSON getters, and
+[List flags](#list-flags) shows the other two. Reach the client from a widget
+with `CoproductScope.of(context)`, or keep the one `initialize` returned:
 
 ```dart
 final client = CoproductScope.of(context);
@@ -363,6 +369,33 @@ default comes back.
 - **Pass `getJson` a JSON-encodable default**: null, a number, string, or
   bool, or lists and string-keyed maps of those. A default that cannot be
   encoded is returned exactly as you passed it.
+
+### List flags
+
+A string-list flag holds a list of strings, and a number-list flag holds a
+list of numbers. Read them with `getStringList` and `getNumberList`:
+
+```dart
+final client = CoproductScope.of(context);
+
+final List<String> tabs = client.getStringList(
+  'home-tabs',
+  defaultValue: const ['feed', 'search'],
+);
+final List<double> tiers = client.getNumberList(
+  'discount-tiers',
+  defaultValue: const [0.1, 0.2],
+);
+```
+
+They behave like the other getters: they never throw, and they serve your
+default when the SDK cannot resolve the flag or the flag is a different type.
+An empty list set in Coproduct is a real value, so it comes back as an empty
+list, not as your default.
+
+List flags have getters only. `CoproductFlagBuilder` and the observations do
+not support them yet, so a widget that reads one does not rebuild when it
+changes. `CoproductTestHarness` cannot set list flags yet either.
 
 ## Reacting to flag changes
 
@@ -405,6 +438,58 @@ with all three. If your app already holds the client in one of them, pass it
 as `client:` and skip `CoproductScope`. Whoever creates an observation
 disposes it. Worked examples, plus one that uses no package, are in
 [doc/state_management_recipes.md](doc/state_management_recipes.md).
+
+## Evaluation events
+
+To record which value each getter served, for example in your own analytics,
+register an evaluation listener on the client:
+
+```dart
+client.setEvaluationListener((EvaluationEvent event) {
+  analytics.track('flag_evaluated', {
+    'flag': event.flagKey,
+    'reason': event.reason.name,
+    'variant': event.variant,
+  });
+});
+```
+
+The listener receives an event for every getter call on the client while the
+SDK is running, from the moment you register it. That includes the calls your
+onboarding adapter and `CoproductPaywall.prefetchPlacements` make through the
+client. Observations and `CoproductFlagBuilder` do not produce events.
+
+- **One listener at a time.** Calling `setEvaluationListener` again replaces
+  the previous listener, which receives no further events.
+- **Events arrive asynchronously.** A getter returns its value straight away,
+  and its event reaches your listener a moment later.
+- **Keep the listener cheap.** It runs for every getter call, so forward the
+  event and return rather than doing slow work inside it.
+- **Events stay on the device.** The SDK sends them nowhere. It only passes
+  them to your listener.
+
+Each `EvaluationEvent` carries:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `flagKey` | `String` | The key that was read |
+| `flagType` | `FlagType` | Which getter type triggered the evaluation: `bool`, `string`, `int`, `number`, `json`, `stringList`, or `numberList` |
+| `value` | `FlagValue` | The value the evaluation served |
+| `defaultValue` | `FlagValue` | The default the read passed |
+| `variant` | `String?` | The key of the variation that was served. Unset when the evaluation failed |
+| `reason` | `EvaluationReason` | `targetingMatch`, `fallthrough`, `off`, `prerequisiteFailed`, or `error` |
+| `ruleId` | `String?` | Reserved for the id of the matching rule. This version always leaves it unset |
+| `errorCode` | `String?` | Set only for `error`, such as `FLAG_NOT_FOUND`, `TYPE_MISMATCH`, or `PROVIDER_NOT_READY` |
+| `evaluatedAt` | `String` | When the evaluation ran, as an RFC 3339 timestamp |
+
+`FlagValue` is a sealed class with one subtype per value kind, such as
+`BoolFlagValue` and `JsonFlagValue`. A JSON value arrives as encoded JSON text
+in `JsonFlagValue`, not as a decoded Dart value. The string-list and
+number-list subtypes are not exported, so give a `switch` on a `FlagValue` a
+default branch.
+
+`CoproductTestHarness` performs no evaluations, so a listener registered on
+its client receives no events.
 
 ## Identity and attributes
 
@@ -464,18 +549,27 @@ the device in the same group as before sign-in.
 
 ### Attribute values
 
-An attribute value is one of five kinds:
+An attribute value is one of six kinds:
 
 ```dart
 const AttributeValue.string('pro')
-const AttributeValue.number(5)     // stored as a double
+const AttributeValue.number(5)          // stored as a double
 const AttributeValue.bool(true)
 AttributeValue.stringList(['beta', 'staff'])
-const AttributeValue.nullValue()   // an explicit null, not a removed key
+AttributeValue.numberList([4.5, 12.0])  // takes any Iterable<double>
+const AttributeValue.nullValue()        // an explicit null, not a removed key
 ```
 
 Pass large integer ids as strings. A number is stored as a double, so an
 integer above 2^53 loses precision.
+
+**Rules match list attributes only by whether they are set.** A rule can use
+`is_set` or `is_not_set` on a string list or a number list. The comparison
+operators, such as `equals`, `in`, `contains`, and the numeric ones, never
+match a list attribute, so a rule that compares one does not match. The
+exception is the geo-fence operator, which matches a number list of exactly
+two values, a latitude and a longitude. See
+[Location and geo-fencing](#location-and-geo-fencing).
 
 The SDK normalizes a few values for you: `country`, `continent`, and
 `region_code` are uppercased, `locale` uses hyphens, and `os_version` and
@@ -551,6 +645,28 @@ Coproduct also supplies approximate location attributes (`country`,
 `continent`, `region_code`, `city`) derived from the request's IP address.
 Your attributes and the automatic ones override them. See
 [doc/automatic_attributes.md](doc/automatic_attributes.md#location-attributes-from-coproduct).
+
+## Location and geo-fencing
+
+Target a flag or segment by a **geo-fence**: a center latitude/longitude and a
+radius, matched on-device so raw GPS coordinates never leave the phone. This
+SDK ships no location code itself, so apps that only use flags never carry any
+location-permission API.
+
+No location permission is requested or declared by default. It is added only
+when you depend on `coproduct_location`, so geo-fencing stays entirely opt-in.
+
+Add the [`coproduct_location`](https://pub.dev/packages/coproduct_location)
+package to opt in. It supplies the `device_location` attribute your geo-fence
+targeting rules match against:
+
+```dart
+final client = await Coproduct.initialize(sdkKey: '...');
+await CoproductLocation.enable(client);
+```
+
+See `coproduct_location`'s README for the full API, including the permission
+flow and the refresh interval.
 
 ## Configuration
 
@@ -679,7 +795,7 @@ on them. The SDK passes them to `FlutterError.onError`, with `library` set to
 
 | Reported | Meaning |
 |---|---|
-| `HostContextUnavailable` | The SDK's native plugin did not answer on the host-context or network-type channel, so one or more of `device_type`, `network_type`, `first_seen_at`, and `session_count` may be absent or no longer updating |
+| `HostContextUnavailable` | The SDK's native plugin did not answer on the host-context or network-type channel, so one or more of `device_type`, `os_version`, `app_version`, `app_build`, `network_type`, `first_seen_at`, and `session_count` may be absent or no longer updating |
 | `SessionAttributesUnavailable` | The SDK could not read or save its launch record, so `first_seen_at` and `session_count` are unset for this launch. `cause` is `SessionAttributesUnavailableCause.storageFailure` (the device's storage failed, or could not be trusted, for example before the first unlock after a restart) or `SessionAttributesUnavailableCause.malformedResponse` (the native side returned something unreadable). More causes may be added, so a `switch` on it needs a default branch |
 
 See [Troubleshooting](#troubleshooting) for what to do about each.
@@ -722,11 +838,20 @@ See [doc/automatic_attributes.md](doc/automatic_attributes.md#location-attribute
 The user id you pass to `identify` and the attributes you set are held in
 memory only.
 
-### Android permission
+### Android permissions
 
 The SDK declares the `ACCESS_NETWORK_STATE` permission to read the connection
 type for `network_type`. It is a normal permission: Android grants it at
 install without a prompt. It merges into your app's manifest automatically.
+
+The Google Play Billing Library, which the SDK bundles for the paywall, adds
+the `com.android.vending.BILLING` permission to your app's manifest the same
+way, whether or not your app shows a paywall. It needs no prompt either.
+
+The SDK does not declare any location permission. If you use
+[geo-fencing](#location-and-geo-fencing) through `coproduct_location`, add
+`ACCESS_FINE_LOCATION` (or `ACCESS_COARSE_LOCATION`) to your own manifest.
+`CoproductLocation.enable` then requests it at runtime through `geolocator`.
 
 ### iOS privacy manifest
 
@@ -816,11 +941,11 @@ exception and what to do about it.
 **`FlutterError.onError` reports `HostContextUnavailable`.** The SDK's native
 plugin did not answer on the host-context or network-type channel. Either it
 is not registered on the engine that ran `initialize`, or its native side is
-older than the Dart side. One or more of `device_type`, `network_type`,
-`first_seen_at`, and `session_count` may then be absent or no longer
-updating. Rules that need an absent attribute to have a value do not match,
-and an `is_not_set` rule on it does. Flags otherwise evaluate normally. To fix
-it:
+older than the Dart side. One or more of `device_type`, `os_version`,
+`app_version`, `app_build`, `network_type`, `first_seen_at`, and
+`session_count` may then be absent or no longer updating. Rules that need an
+absent attribute to have a value do not match, and an `is_not_set` rule on it
+does. Flags otherwise evaluate normally. To fix it:
 
 - If you add Flutter to an existing native app, make sure plugins are
   registered on every `FlutterEngine` you create.
@@ -861,7 +986,98 @@ the opposite of the quick start. Both approaches are supported. See
 
 ## Onboarding and paywall
 
-This package also includes onboarding flows (`package:coproduct/onboarding.dart`) and paywalls (`package:coproduct/paywall.dart`). Both show content you author and publish on the Coproduct platform, so your app contains no screen-building code for them. Onboarding runs on iOS and Android. The paywall runs on iOS only, with StoreKit 2. See [Onboarding and paywall](doc/onboarding_and_paywall.md) for the integration guide.
+This package also includes onboarding flows
+(`package:coproduct/onboarding.dart`) and paywalls
+(`package:coproduct/paywall.dart`). Both show content you author and publish on
+the Coproduct platform, so your app contains no screen-building code for them.
+Both run on iOS and Android. The paywall purchases through StoreKit 2 on iOS
+and Google Play Billing on Android. See
+[Onboarding and paywall](doc/onboarding_and_paywall.md) for the integration
+guide.
+
+### Paywall purchases on Android
+
+On Android the paywall sells products from your app's Google Play Console
+listing. The package bundles the Google Play Billing Library, so you add no
+dependency, and the library merges the `com.android.vending.BILLING`
+permission into your app's manifest for you. There is nothing to add to your
+build files or your manifest.
+
+1. In the Play Console, create the products your paywall offers. A
+   subscription package needs a subscription with an active base plan. A
+   consumable or lifetime package needs a one-time product.
+2. In Coproduct, set the **Android product ID** (`androidProductId`) on each
+   package the paywall offers to the product ID from the Play Console. A
+   package with no Android product ID shows no price on Android, and tapping it
+   reports `PaywallPurchaseErrorReason.unresolvedProduct` to `onPurchaseError`.
+3. To test purchases, upload a build to a Play Console testing track and add
+   your Google account as a license tester. Google Play Billing returns your
+   products only to an app whose package name the Play Console knows.
+
+The paywall shows the price as Google Play formats it for the Google account
+on the device. For a subscription it shows the recurring price of the first
+offer Google Play returns for the product, and a purchase uses that same
+offer.
+
+After a successful purchase the SDK settles it with Google Play, so Google does
+not refund it automatically: a consumable is consumed, so it can be bought
+again, and a subscription or lifetime product is acknowledged. The SDK then
+records the purchase with Coproduct and passes the resulting entitlements to
+`onPurchaseResult`. A purchase that Google Play holds for a slow payment
+method reports `PurchaseOutcome.pending` with no entitlements.
+
+A restore asks Google Play for the purchases the signed-in Google account
+owns: active subscriptions and lifetime products. Consumed purchases are not
+returned. The SDK records each one with Coproduct and passes the combined
+entitlements to `onPurchaseResult`. A restore that finds nothing reports
+`PurchaseOutcome.success` with an empty list. If purchases were found but none
+could be recorded, it reports `PaywallPurchaseErrorReason.networkError` to
+`onPurchaseError`.
+
+### Opening a paywall without a wait
+
+The SDK keeps each paywall it fetches in memory for the life of the app
+process, so it can show the paywall again without a network request. To make
+the first open instant too, fetch your paywalls ahead of time, right after
+`initialize`:
+
+```dart
+final client = await Coproduct.initialize(sdkKey: sdkKey);
+
+// Fetch the paywalls the placement flags currently resolve to
+await CoproductPaywall.prefetchPlacements(
+  client: client,
+  flagKeys: const ['paywall-onboarding', 'paywall-upgrade'],
+  sdkKey: sdkKey,
+);
+
+// Or fetch one paywall by its id
+await CoproductPaywall.prefetch(paywallId: paywallId, sdkKey: sdkKey);
+```
+
+`prefetchPlacements` reads each flag with `getString` through the client, so
+targeting applies, and fetches every distinct paywall id they resolve to. A
+flag that resolves to an empty string is skipped. Both calls are best effort:
+a failed fetch is ignored, and the paywall then fetches when it opens and
+reports a failure through `onLoadError` as usual. Pass the same `envSlug` you
+give `CoproductPaywall`, or leave it out of both, because the cache keeps each
+environment separately.
+
+What you can observe:
+
+- **A cached paywall opens instantly.** For up to six hours after it was last
+  fetched, an open shows the cached content straight away and fetches the
+  latest version in the background.
+- **A newly published edit appears on the following open.** The first open
+  after you publish an edit can still show the earlier content, and that open
+  fetches the edit for the next one.
+- **Older content waits for the network.** An open more than six hours after
+  the last fetch waits for the latest version. If that fetch fails, it shows
+  the cached content instead.
+- **Prices are always live.** The cache holds the paywall's content and its
+  product IDs, never a price. Every open asks the store for current prices.
+
+There is no setting to turn the cache off.
 
 ## Building from source
 

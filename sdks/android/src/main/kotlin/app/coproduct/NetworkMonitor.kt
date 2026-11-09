@@ -1,78 +1,71 @@
 package app.coproduct
 
-import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 
-/**
- * Source of connectivity facts. Production wraps ConnectivityManager's
- * default network callback. Tests inject a fake so a unit test can drive a
- * connectivity change without the Android connectivity stack. Implementations
- * must deliver updates serially: one at a time, in order, never overlapping
- * or reordered. [NetworkMonitor]'s dedup relies on that contract rather than
- * synchronizing dedup and delivery as a single atomic step
- */
+/** Connectivity facts one network update carries, decoupled from Android types so tests can fabricate updates. */
+internal data class NetworkPathFacts(
+    val satisfied: Boolean,
+    val wifi: Boolean,
+    val cellular: Boolean,
+    val ethernet: Boolean,
+)
+
+/** Source of connectivity facts. Production wraps ConnectivityManager; tests inject a fake. */
 internal interface NetworkPathSource {
     fun start(onUpdate: (NetworkPathFacts) -> Unit)
-
-    fun stop()
+    fun cancel()
 }
 
-/**
- * Thin adapter over ConnectivityManager's default network callback,
- * deliberately logic-free: everything worth testing lives behind the
- * [NetworkPathSource] seam
- */
-internal class ConnectivityManagerPathSource(context: Context) : NetworkPathSource {
-    private val connectivityManager =
-        context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+/** Thin adapter over ConnectivityManager, deliberately logic-free. */
+internal class ConnectivityManagerSource(
+    private val connectivityManager: ConnectivityManager,
+) : NetworkPathSource {
     private var callback: ConnectivityManager.NetworkCallback? = null
 
     override fun start(onUpdate: (NetworkPathFacts) -> Unit) {
-        val networkCallback =
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    connectivityManager.getNetworkCapabilities(network)?.let {
-                        onUpdate(factsFrom(it))
-                    }
-                }
-
-                override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-                    onUpdate(factsFrom(capabilities))
-                }
-
-                override fun onLost(network: Network) {
-                    onUpdate(
-                        NetworkPathFacts(satisfied = false, wifi = false, cellular = false, ethernet = false),
-                    )
-                }
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                onUpdate(
+                    NetworkPathFacts(
+                        satisfied = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET),
+                        wifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI),
+                        cellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR),
+                        ethernet = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET),
+                    ),
+                )
             }
-        callback = networkCallback
-        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
+            override fun onLost(network: Network) {
+                onUpdate(NetworkPathFacts(satisfied = false, wifi = false, cellular = false, ethernet = false))
+            }
+        }
+        callback = cb
+        connectivityManager.registerNetworkCallback(NetworkRequest.Builder().build(), cb)
     }
 
-    override fun stop() {
+    override fun cancel() {
         callback?.let { connectivityManager.unregisterNetworkCallback(it) }
         callback = null
     }
+}
 
-    private fun factsFrom(capabilities: NetworkCapabilities): NetworkPathFacts =
-        NetworkPathFacts(
-            satisfied = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
-            wifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI),
-            cellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR),
-            ethernet = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET),
-        )
+/** Maps path facts to the network_type vocabulary. Pure, so unit-testable in isolation. */
+internal object NetworkTypeClassifier {
+    fun classify(satisfied: Boolean, wifi: Boolean, cellular: Boolean, ethernet: Boolean): String = when {
+        !satisfied -> "none"
+        wifi -> "wifi"
+        cellular -> "cellular"
+        ethernet -> "ethernet"
+        else -> "other"
+    }
 }
 
 /**
  * Watches connectivity and reports the classified network_type on every
- * value change. The attribute is absent until the first path callback:
- * initialize is never blocked on the monitor, reads in that window fall
- * through conservatively, and the observer fanout corrects values when the
- * first callback lands
+ * value change. The attribute is absent until the first path callback.
  */
 internal class NetworkMonitor(
     private val source: NetworkPathSource,
@@ -80,30 +73,39 @@ internal class NetworkMonitor(
 ) {
     private val lock = Any()
     private var lastReported: String? = null
+    private var stopped = false
 
     fun start() {
-        source.start { facts -> deliver(NetworkTypeClassifier.classify(facts)) }
-    }
-
-    fun stop() {
-        source.stop()
-    }
-
-    /**
-     * Deduplicates so path churn that lands on the same classification does
-     * not enqueue redundant upserts. The core also stays silent on a no-op,
-     * this just avoids the crossing. The dedup check and the onChange call
-     * below are not atomic with each other. Correctness depends on the
-     * source honoring the [NetworkPathSource] contract of serial, in-order
-     * delivery, so two updates can never race each other into this method
-     */
-    private fun deliver(type: String) {
-        val changed =
-            synchronized(lock) {
-                val isChanged = lastReported != type
-                if (isChanged) lastReported = type
-                isChanged
+        synchronized(lock) {
+            if (stopped) return
+            source.start { facts ->
+                deliver(
+                    NetworkTypeClassifier.classify(
+                        satisfied = facts.satisfied,
+                        wifi = facts.wifi,
+                        cellular = facts.cellular,
+                        ethernet = facts.ethernet,
+                    ),
+                )
             }
+        }
+    }
+
+    fun cancel() {
+        synchronized(lock) {
+            stopped = true
+            source.cancel()
+        }
+    }
+
+    // Deduplicates so path churn landing on the same classification does not
+    // enqueue redundant upserts
+    private fun deliver(type: String) {
+        val changed = synchronized(lock) {
+            val isNew = lastReported != type
+            if (isNew) lastReported = type
+            isNew
+        }
         if (changed) onChange(type)
     }
 }

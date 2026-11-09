@@ -14,6 +14,7 @@
 pub use crate::snapshot::Operator;
 
 use crate::context::AttributeValue;
+use crate::geo::haversine_meters;
 use crate::snapshot::ConditionOutcome;
 
 /// Evaluates an operator against a context attribute and the rule value list,
@@ -67,6 +68,7 @@ pub fn evaluate(op: Operator, lhs: &AttributeValue, rhs: &[String]) -> Condition
         | Operator::SemVerGte
         | Operator::SemVerLt
         | Operator::SemVerLte => evaluate_semver(op, lhs, rhs),
+        Operator::WithinRadius => within_radius(lhs, rhs),
         // is_set / is_not_set never reach this dispatcher. The condition tree
         // routes them to their own helpers because they must observe `None` for
         // a missing attribute, and this function only sees the resolved
@@ -286,6 +288,47 @@ fn evaluate_semver(op: Operator, lhs: &AttributeValue, rhs: &[String]) -> Condit
         ConditionOutcome::Indeterminate
     } else {
         ConditionOutcome::NoMatch
+    }
+}
+
+/// Circular geo-fence membership: Match when the device point is within the fence
+/// radius of its center. Fail-safe like the numeric operators -- an absent or
+/// malformed point, or a fence that is not three numbers with a non-negative
+/// radius, is `Indeterminate`, never a circuit-break
+fn within_radius(lhs: &AttributeValue, rhs: &[String]) -> ConditionOutcome {
+    let Some((device_lat, device_lng)) = lhs_as_point(lhs) else {
+        return ConditionOutcome::Indeterminate;
+    };
+    let (Some(center_lat), Some(center_lng), Some(radius_m)) = (
+        rhs.first().and_then(|s| parse_numeric_rhs(s)),
+        rhs.get(1).and_then(|s| parse_numeric_rhs(s)),
+        rhs.get(2).and_then(|s| parse_numeric_rhs(s)),
+    ) else {
+        return ConditionOutcome::Indeterminate;
+    };
+    if radius_m < 0.0 {
+        return ConditionOutcome::Indeterminate;
+    }
+    if haversine_meters(device_lat, device_lng, center_lat, center_lng) <= radius_m {
+        ConditionOutcome::Match
+    } else {
+        ConditionOutcome::NoMatch
+    }
+}
+
+/// The device position as `(lat, lng)`: a two-element array of finite numbers.
+/// Any other shape is `None`, so the geo-fence operator fails safe
+fn lhs_as_point(lhs: &AttributeValue) -> Option<(f64, f64)> {
+    let AttributeValue::Array(items) = lhs else {
+        return None;
+    };
+    let [AttributeValue::Number(lat), AttributeValue::Number(lng)] = items.as_slice() else {
+        return None;
+    };
+    if lat.is_finite() && lng.is_finite() {
+        Some((*lat, *lng))
+    } else {
+        None
     }
 }
 

@@ -12,6 +12,8 @@ label() {
     release-config) echo 'Release config' ;;
     rn-tests) echo 'React Native tests' ;;
     readme) echo 'README examples compile' ;;
+    flutter) echo 'Flutter checks' ;;
+    release-archive) echo 'Flutter release archive' ;;
     docs) echo 'Docs links' ;;
     tooling) echo 'Release tooling tests' ;;
     *) echo "$1" ;;

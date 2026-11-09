@@ -47,3 +47,24 @@ fn untagged_disambiguates_bool_from_number() {
     let n: VariationValue = serde_json::from_str("0").unwrap();
     assert_eq!(n, VariationValue::Number(0.0));
 }
+
+#[test]
+fn string_list_variation_round_trips() {
+    let wire = r#"{ "key": "on", "value": ["a@x.com"] }"#;
+    let v: Variation = serde_json::from_str(wire).unwrap();
+    assert_eq!(
+        v.value,
+        VariationValue::StringList(vec!["a@x.com".to_string()])
+    );
+    let back = serde_json::to_value(&v).unwrap();
+    assert_eq!(back["value"], serde_json::json!(["a@x.com"]));
+}
+
+#[test]
+fn number_list_variation_round_trips() {
+    let wire = r#"{ "key": "on", "value": [1.5, 2.5] }"#;
+    let v: Variation = serde_json::from_str(wire).unwrap();
+    assert_eq!(v.value, VariationValue::NumberList(vec![1.5, 2.5]));
+    let back = serde_json::to_value(&v).unwrap();
+    assert_eq!(back["value"], serde_json::json!([1.5, 2.5]));
+}

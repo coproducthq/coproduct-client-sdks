@@ -22,4 +22,8 @@ expect 1 'a non-object entry fails' '{"title":"x"}'
 expect 1 'a null top level fails' 'null'
 out=$(printf '%s' '{"identity":{"result":"failure"},"docs":{"result":"failure"}}' | "$script" 2>&1)
 if printf '%s' "$out" | grep -q '2 checks failed: Version identity, Docs links'; then echo 'ok   names failed checks'; else echo "FAIL names failed checks: $out"; fails=$((fails + 1)); fi
+out=$(printf '%s' '{"flutter":{"result":"failure"}}' | "$script" 2>&1)
+if printf '%s' "$out" | grep -q '1 check failed: Flutter checks'; then echo 'ok   labels the Flutter check'; else echo "FAIL labels the Flutter check: $out"; fails=$((fails + 1)); fi
+out=$(printf '%s' '{"release-archive":{"result":"failure"}}' | "$script" 2>&1)
+if printf '%s' "$out" | grep -q '1 check failed: Flutter release archive'; then echo 'ok   labels the Flutter release archive check'; else echo "FAIL labels the Flutter release archive check: $out"; fails=$((fails + 1)); fi
 [ "$fails" -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }

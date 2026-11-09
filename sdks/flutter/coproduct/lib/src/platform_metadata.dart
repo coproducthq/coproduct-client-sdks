@@ -1,9 +1,7 @@
 import 'dart:io' show Platform;
 import 'dart:ui' show PlatformDispatcher;
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import 'host_context_channel.dart';
 import 'metadata_collector.dart';
@@ -20,15 +18,16 @@ String _platformName() {
 /// bounded, fail-closed source the collector runs concurrently. Values are raw,
 /// the core normalizes them.
 MetadataProviders platformMetadataProviders() {
-  final deviceInfo = DeviceInfoPlugin();
-  // Share one PackageInfo channel call across app_version and app_build. Both
-  // read the same record, and the first call after a cold launch pays the whole
-  // platform-channel warm-up, so two calls would double that cost. A failure
-  // resets the memo so a later initialize can retry rather than caching it
-  Future<PackageInfo>? packageInfo;
-  Future<PackageInfo> loadPackageInfo() =>
-      packageInfo ??= PackageInfo.fromPlatform().onError((error, stack) {
-        packageInfo = null;
+  // Share one channel call across os_version, app_version, and app_build. All
+  // three come from the same answer, and the first call after a cold launch
+  // pays the whole platform-channel warm-up, so three calls would triple that
+  // cost. A failure resets the memo so a later initialize can retry rather
+  // than caching it
+  Future<HostInfo>? hostInfo;
+  Future<HostInfo> loadHostInfo() => hostInfo ??= const HostContextChannel()
+      .readHostInfo()
+      .onError((error, stack) {
+        hostInfo = null;
         Error.throwWithStackTrace(error!, stack);
       });
   return MetadataProviders(
@@ -36,15 +35,9 @@ MetadataProviders platformMetadataProviders() {
       () => const HostContextChannel().readDeviceType(),
     ),
     platform: stringProvider(() async => _platformName()),
-    osVersion: stringProvider(() async {
-      if (Platform.isAndroid) {
-        return (await deviceInfo.androidInfo).version.release;
-      }
-      if (Platform.isIOS) return (await deviceInfo.iosInfo).systemVersion;
-      return null;
-    }),
-    appVersion: stringProvider(() async => (await loadPackageInfo()).version),
-    appBuild: stringProvider(() async => (await loadPackageInfo()).buildNumber),
+    osVersion: stringProvider(() async => (await loadHostInfo()).osVersion),
+    appVersion: stringProvider(() async => (await loadHostInfo()).appVersion),
+    appBuild: stringProvider(() async => (await loadHostInfo()).appBuild),
     locale: stringProvider(
       () async => PlatformDispatcher.instance.locale.toLanguageTag(),
     ),

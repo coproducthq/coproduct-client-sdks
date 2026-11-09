@@ -3,6 +3,8 @@ package app.coproduct.flutter
 import android.content.Context
 import android.content.res.Configuration
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -17,7 +19,7 @@ import io.flutter.plugin.common.StandardMethodCodec
  * about the SDK key or the evaluation core. The native library the core runs in
  * is still loaded directly rather than through these channels
  */
-class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
     // Written on the platform thread by attach and detach, read on the task
     // queue by onMethodCall, so the two need a happens-before edge
     @Volatile private var channel: MethodChannel? = null
@@ -25,6 +27,10 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     @Volatile internal var context: Context? = null
     // Main-thread only, like the observer it holds
     private var networkBinding: NetworkChannelBinding? = null
+    // Constructed in onAttachedToEngine, torn down in onDetachedFromEngine --
+    // same lifecycle as this plugin's own channel and network binding.
+    // Internal so a test can attach one directly without a real engine
+    @Volatile internal var paywallPlugin: CoproductPaywallPlugin? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -33,6 +39,7 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             binding.binaryMessenger,
             ConnectivityNetworkSource(binding.applicationContext),
         )
+        paywallPlugin = CoproductPaywallPlugin().also { it.onAttachedToEngine(binding) }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -40,15 +47,34 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         channel = null
         networkBinding?.detach()
         networkBinding = null
+        paywallPlugin?.onDetachedFromEngine(binding)
+        paywallPlugin = null
         context = null
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "readDeviceType" -> result.success(readDeviceType())
+            "readHostInfo" -> result.success(readHostInfo())
             "beginSession" -> result.success(beginSession()?.toChannel())
             else -> result.notImplemented()
         }
+    }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        paywallPlugin?.activity = binding.activity
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        paywallPlugin?.activity = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        paywallPlugin?.activity = binding.activity
+    }
+
+    override fun onDetachedFromActivity() {
+        paywallPlugin?.activity = null
     }
 
     /**
@@ -72,6 +98,15 @@ class CoproductHostContextPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             configuration.smallestScreenWidthDp,
             appContext.packageManager::hasSystemFeature,
         )
+    }
+
+    /**
+     * Null when the engine is detached, which the Dart side reads as every
+     * field absent, as it does for readDeviceType
+     */
+    private fun readHostInfo(): Map<String, String?>? {
+        val appContext = context ?: return null
+        return HostInfo.read(appContext)
     }
 
     companion object {

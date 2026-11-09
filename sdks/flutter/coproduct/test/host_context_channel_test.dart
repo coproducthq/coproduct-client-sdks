@@ -45,11 +45,103 @@ void main() {
     expect(message, contains('network_type'));
     expect(message, contains('first_seen_at'));
     expect(message, contains('session_count'));
+    expect(message, contains('os_version'));
+    expect(message, contains('app_version'));
+    expect(message, contains('app_build'));
     // Both causes, because an unregistered plugin and a native side that lacks
     // the method raise the same exception
     expect(message, contains('not registered'));
     expect(message, contains('older'));
     expect(message, isNot(contains('cpk_mob_')));
+  });
+
+  group('readHostInfo', () {
+    Future<HostInfo> answer(Object? raw) {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'readHostInfo');
+        return raw;
+      });
+      return const HostContextChannel().readHostInfo();
+    }
+
+    test('each value maps to its field verbatim', () async {
+      expect(
+        await answer({
+          'os_version': '18.2.1',
+          'app_version': '2.4.0',
+          'app_build': '20260101',
+        }),
+        const HostInfo(
+          osVersion: '18.2.1',
+          appVersion: '2.4.0',
+          appBuild: '20260101',
+        ),
+      );
+    });
+
+    test('a null value is absent and leaves the others in place', () async {
+      expect(
+        await answer({
+          'os_version': 'Baklava',
+          'app_version': null,
+          'app_build': '7',
+        }),
+        const HostInfo(osVersion: 'Baklava', appBuild: '7'),
+      );
+    });
+
+    test('a missing key is absent', () async {
+      expect(
+        await answer({'os_version': '15'}),
+        const HostInfo(osVersion: '15'),
+      );
+    });
+
+    test('a wrong-typed value is dropped on its own', () async {
+      expect(
+        await answer({'os_version': 15, 'app_version': '1.0', 'app_build': 3}),
+        const HostInfo(appVersion: '1.0'),
+      );
+    });
+
+    test('a null answer is all absent', () async {
+      expect(await answer(null), const HostInfo());
+    });
+
+    test('a wrong-shaped answer is all absent', () async {
+      expect(await answer(['18.2.1']), const HostInfo());
+      expect(await answer('18.2.1'), const HostInfo());
+    });
+
+    test('an unregistered plugin raises HostContextUnavailable', () async {
+      expect(
+        () => const HostContextChannel().readHostInfo(),
+        throwsA(isA<HostContextUnavailable>()),
+      );
+    });
+
+    test('a native side without the method raises HostContextUnavailable', () {
+      // An older native side answers not-implemented for a method it lacks,
+      // which reaches Dart as the same missing-plugin signal an unregistered
+      // plugin produces
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        throw MissingPluginException();
+      });
+      expect(
+        () => const HostContextChannel().readHostInfo(),
+        throwsA(isA<HostContextUnavailable>()),
+      );
+    });
+
+    test('a native failure propagates rather than reading as absent', () {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        throw PlatformException(code: 'boom');
+      });
+      expect(
+        () => const HostContextChannel().readHostInfo(),
+        throwsA(isA<PlatformException>()),
+      );
+    });
   });
 
   group('beginSession', () {

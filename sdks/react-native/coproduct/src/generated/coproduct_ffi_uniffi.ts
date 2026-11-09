@@ -306,6 +306,8 @@ export enum FlagType {
   Int,
   Number,
   Json,
+  StringList,
+  NumberList,
 }
 
 const FfiConverterTypeFlagType = (() => {
@@ -323,6 +325,10 @@ const FfiConverterTypeFlagType = (() => {
           return FlagType.Number;
         case 5:
           return FlagType.Json;
+        case 6:
+          return FlagType.StringList;
+        case 7:
+          return FlagType.NumberList;
         default:
           throw new UniffiInternalError.UnexpectedEnumCase();
       }
@@ -339,6 +345,10 @@ const FfiConverterTypeFlagType = (() => {
           return c.writeI32(4);
         case FlagType.Json:
           return c.writeI32(5);
+        case FlagType.StringList:
+          return c.writeI32(6);
+        case FlagType.NumberList:
+          return c.writeI32(7);
       }
     }
     allocationSize(value: TypeName): number {
@@ -355,6 +365,8 @@ export enum FlagValue_Tags {
   Int = 'Int',
   Number = 'Number',
   Json = 'Json',
+  StringList = 'StringList',
+  NumberList = 'NumberList',
 }
 /**
  * Typed flag value crossing the observer, hook, and event callback boundaries.
@@ -493,6 +505,58 @@ export const FlagValue = (() => {
     }
   }
 
+  type StringList__interface = {
+    tag: FlagValue_Tags.StringList;
+    inner: Readonly<{ value: Array<string> }>;
+  };
+  class StringList_ extends UniffiEnum implements StringList__interface {
+    /**
+     * @private
+     * This field is private and should not be used, use `tag` instead.
+     */
+    readonly [uniffiTypeNameSymbol] = 'FlagValue';
+    readonly tag = FlagValue_Tags.StringList;
+    readonly inner: Readonly<{ value: Array<string> }>;
+    constructor(inner: { value: Array<string> }) {
+      super('FlagValue', 'StringList');
+
+      this.inner = Object.freeze(inner);
+    }
+    static new(inner: { value: Array<string> }): StringList_ {
+      return new StringList_(inner);
+    }
+
+    static instanceOf(obj: any): obj is StringList_ {
+      return obj.tag === FlagValue_Tags.StringList;
+    }
+  }
+
+  type NumberList__interface = {
+    tag: FlagValue_Tags.NumberList;
+    inner: Readonly<{ value: Array<number> }>;
+  };
+  class NumberList_ extends UniffiEnum implements NumberList__interface {
+    /**
+     * @private
+     * This field is private and should not be used, use `tag` instead.
+     */
+    readonly [uniffiTypeNameSymbol] = 'FlagValue';
+    readonly tag = FlagValue_Tags.NumberList;
+    readonly inner: Readonly<{ value: Array<number> }>;
+    constructor(inner: { value: Array<number> }) {
+      super('FlagValue', 'NumberList');
+
+      this.inner = Object.freeze(inner);
+    }
+    static new(inner: { value: Array<number> }): NumberList_ {
+      return new NumberList_(inner);
+    }
+
+    static instanceOf(obj: any): obj is NumberList_ {
+      return obj.tag === FlagValue_Tags.NumberList;
+    }
+  }
+
   function instanceOf(obj: any): obj is FlagValue {
     return obj[uniffiTypeNameSymbol] === 'FlagValue';
   }
@@ -504,6 +568,8 @@ export const FlagValue = (() => {
     Int: Int_,
     Number: Number_,
     Json: Json_,
+    StringList: StringList_,
+    NumberList: NumberList_,
   });
 })();
 /**
@@ -513,7 +579,14 @@ export const FlagValue = (() => {
  * JSON-encoded string because the binding layer has no native JSON type
  */
 export type FlagValue = InstanceType<
-  (typeof FlagValue)['Bool' | 'String' | 'Int' | 'Number' | 'Json']
+  (typeof FlagValue)[
+    | 'Bool'
+    | 'String'
+    | 'Int'
+    | 'Number'
+    | 'Json'
+    | 'StringList'
+    | 'NumberList']
 >;
 
 // FfiConverter for enum FlagValue
@@ -541,6 +614,14 @@ const FfiConverterTypeFlagValue = (() => {
         case 5:
           return new FlagValue.Json({
             value: FfiConverterString.readFromCursor(c),
+          });
+        case 6:
+          return new FlagValue.StringList({
+            value: FfiConverterSequenceString.readFromCursor(c),
+          });
+        case 7:
+          return new FlagValue.NumberList({
+            value: FfiConverterSequenceFloat64.readFromCursor(c),
           });
         default:
           throw new UniffiInternalError.UnexpectedEnumCase();
@@ -578,6 +659,18 @@ const FfiConverterTypeFlagValue = (() => {
           FfiConverterString.writeIntoCursor(inner.value, c);
           return;
         }
+        case FlagValue_Tags.StringList: {
+          c.writeI32(6);
+          const inner = value.inner;
+          FfiConverterSequenceString.writeIntoCursor(inner.value, c);
+          return;
+        }
+        case FlagValue_Tags.NumberList: {
+          c.writeI32(7);
+          const inner = value.inner;
+          FfiConverterSequenceFloat64.writeIntoCursor(inner.value, c);
+          return;
+        }
         default:
           // Throwing from here means that FlagValue_Tags hasn't matched an ordinal.
           throw new UniffiInternalError.UnexpectedEnumCase();
@@ -613,6 +706,18 @@ const FfiConverterTypeFlagValue = (() => {
           const inner = value.inner;
           let size = 4;
           size += FfiConverterString.allocationSize(inner.value);
+          return size;
+        }
+        case FlagValue_Tags.StringList: {
+          const inner = value.inner;
+          let size = 4;
+          size += FfiConverterSequenceString.allocationSize(inner.value);
+          return size;
+        }
+        case FlagValue_Tags.NumberList: {
+          const inner = value.inner;
+          let size = 4;
+          size += FfiConverterSequenceFloat64.allocationSize(inner.value);
           return size;
         }
         default:
@@ -1070,6 +1175,69 @@ const FfiConverterTypeFlagEvaluationDetailsNumber = (() => {
   return new FFIConverter();
 })();
 
+export type FlagEvaluationDetailsNumberList = {
+  value: Array<number>;
+  variant?: string;
+  reason: string;
+  errorCode?: string;
+  errorMessage?: string;
+  flagKey: string;
+};
+
+/**
+ * Generated factory for {@link FlagEvaluationDetailsNumberList} record objects.
+ */
+export const FlagEvaluationDetailsNumberList = (() => {
+  const defaults = () => ({});
+  const create = (() => {
+    return uniffiCreateRecord<
+      FlagEvaluationDetailsNumberList,
+      ReturnType<typeof defaults>
+    >(defaults);
+  })();
+  return Object.freeze({
+    create,
+    new: create,
+    defaults: () =>
+      Object.freeze(defaults()) as Partial<FlagEvaluationDetailsNumberList>,
+  });
+})();
+
+const FfiConverterTypeFlagEvaluationDetailsNumberList = (() => {
+  type TypeName = FlagEvaluationDetailsNumberList;
+  class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+    readFromCursor(c: Cursor): TypeName {
+      return {
+        value: FfiConverterSequenceFloat64.readFromCursor(c),
+        variant: FfiConverterOptionalString.readFromCursor(c),
+        reason: FfiConverterString.readFromCursor(c),
+        errorCode: FfiConverterOptionalString.readFromCursor(c),
+        errorMessage: FfiConverterOptionalString.readFromCursor(c),
+        flagKey: FfiConverterString.readFromCursor(c),
+      };
+    }
+    writeIntoCursor(value: TypeName, c: Cursor): void {
+      FfiConverterSequenceFloat64.writeIntoCursor(value.value, c);
+      FfiConverterOptionalString.writeIntoCursor(value.variant, c);
+      FfiConverterString.writeIntoCursor(value.reason, c);
+      FfiConverterOptionalString.writeIntoCursor(value.errorCode, c);
+      FfiConverterOptionalString.writeIntoCursor(value.errorMessage, c);
+      FfiConverterString.writeIntoCursor(value.flagKey, c);
+    }
+    allocationSize(value: TypeName): number {
+      return (
+        FfiConverterSequenceFloat64.allocationSize(value.value) +
+        FfiConverterOptionalString.allocationSize(value.variant) +
+        FfiConverterString.allocationSize(value.reason) +
+        FfiConverterOptionalString.allocationSize(value.errorCode) +
+        FfiConverterOptionalString.allocationSize(value.errorMessage) +
+        FfiConverterString.allocationSize(value.flagKey)
+      );
+    }
+  }
+  return new FFIConverter();
+})();
+
 export type FlagEvaluationDetailsString = {
   value: string;
   variant?: string;
@@ -1122,6 +1290,69 @@ const FfiConverterTypeFlagEvaluationDetailsString = (() => {
     allocationSize(value: TypeName): number {
       return (
         FfiConverterString.allocationSize(value.value) +
+        FfiConverterOptionalString.allocationSize(value.variant) +
+        FfiConverterString.allocationSize(value.reason) +
+        FfiConverterOptionalString.allocationSize(value.errorCode) +
+        FfiConverterOptionalString.allocationSize(value.errorMessage) +
+        FfiConverterString.allocationSize(value.flagKey)
+      );
+    }
+  }
+  return new FFIConverter();
+})();
+
+export type FlagEvaluationDetailsStringList = {
+  value: Array<string>;
+  variant?: string;
+  reason: string;
+  errorCode?: string;
+  errorMessage?: string;
+  flagKey: string;
+};
+
+/**
+ * Generated factory for {@link FlagEvaluationDetailsStringList} record objects.
+ */
+export const FlagEvaluationDetailsStringList = (() => {
+  const defaults = () => ({});
+  const create = (() => {
+    return uniffiCreateRecord<
+      FlagEvaluationDetailsStringList,
+      ReturnType<typeof defaults>
+    >(defaults);
+  })();
+  return Object.freeze({
+    create,
+    new: create,
+    defaults: () =>
+      Object.freeze(defaults()) as Partial<FlagEvaluationDetailsStringList>,
+  });
+})();
+
+const FfiConverterTypeFlagEvaluationDetailsStringList = (() => {
+  type TypeName = FlagEvaluationDetailsStringList;
+  class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+    readFromCursor(c: Cursor): TypeName {
+      return {
+        value: FfiConverterSequenceString.readFromCursor(c),
+        variant: FfiConverterOptionalString.readFromCursor(c),
+        reason: FfiConverterString.readFromCursor(c),
+        errorCode: FfiConverterOptionalString.readFromCursor(c),
+        errorMessage: FfiConverterOptionalString.readFromCursor(c),
+        flagKey: FfiConverterString.readFromCursor(c),
+      };
+    }
+    writeIntoCursor(value: TypeName, c: Cursor): void {
+      FfiConverterSequenceString.writeIntoCursor(value.value, c);
+      FfiConverterOptionalString.writeIntoCursor(value.variant, c);
+      FfiConverterString.writeIntoCursor(value.reason, c);
+      FfiConverterOptionalString.writeIntoCursor(value.errorCode, c);
+      FfiConverterOptionalString.writeIntoCursor(value.errorMessage, c);
+      FfiConverterString.writeIntoCursor(value.flagKey, c);
+    }
+    allocationSize(value: TypeName): number {
+      return (
+        FfiConverterSequenceString.allocationSize(value.value) +
         FfiConverterOptionalString.allocationSize(value.variant) +
         FfiConverterString.allocationSize(value.reason) +
         FfiConverterOptionalString.allocationSize(value.errorCode) +
@@ -1870,6 +2101,7 @@ export enum ContextValue_Tags {
   Number = 'Number',
   Bool = 'Bool',
   StringList = 'StringList',
+  NumberList = 'NumberList',
   Null = 'Null',
 }
 /**
@@ -1981,6 +2213,32 @@ export const ContextValue = (() => {
     }
   }
 
+  type NumberList__interface = {
+    tag: ContextValue_Tags.NumberList;
+    inner: Readonly<{ values: Array<number> }>;
+  };
+  class NumberList_ extends UniffiEnum implements NumberList__interface {
+    /**
+     * @private
+     * This field is private and should not be used, use `tag` instead.
+     */
+    readonly [uniffiTypeNameSymbol] = 'ContextValue';
+    readonly tag = ContextValue_Tags.NumberList;
+    readonly inner: Readonly<{ values: Array<number> }>;
+    constructor(inner: { values: Array<number> }) {
+      super('ContextValue', 'NumberList');
+
+      this.inner = Object.freeze(inner);
+    }
+    static new(inner: { values: Array<number> }): NumberList_ {
+      return new NumberList_(inner);
+    }
+
+    static instanceOf(obj: any): obj is NumberList_ {
+      return obj.tag === ContextValue_Tags.NumberList;
+    }
+  }
+
   type Null__interface = {
     tag: ContextValue_Tags.Null;
   };
@@ -2014,6 +2272,7 @@ export const ContextValue = (() => {
     Number: Number_,
     Bool: Bool_,
     StringList: StringList_,
+    NumberList: NumberList_,
     Null: Null_,
   });
 })();
@@ -2022,7 +2281,13 @@ export const ContextValue = (() => {
  * type is not exported directly so the boundary keeps a stable local shape
  */
 export type ContextValue = InstanceType<
-  (typeof ContextValue)['String' | 'Number' | 'Bool' | 'StringList' | 'Null']
+  (typeof ContextValue)[
+    | 'String'
+    | 'Number'
+    | 'Bool'
+    | 'StringList'
+    | 'NumberList'
+    | 'Null']
 >;
 
 // FfiConverter for enum ContextValue
@@ -2048,6 +2313,10 @@ const FfiConverterTypeContextValue = (() => {
             values: FfiConverterSequenceString.readFromCursor(c),
           });
         case 5:
+          return new ContextValue.NumberList({
+            values: FfiConverterSequenceFloat64.readFromCursor(c),
+          });
+        case 6:
           return new ContextValue.Null();
         default:
           throw new UniffiInternalError.UnexpectedEnumCase();
@@ -2079,8 +2348,14 @@ const FfiConverterTypeContextValue = (() => {
           FfiConverterSequenceString.writeIntoCursor(inner.values, c);
           return;
         }
-        case ContextValue_Tags.Null: {
+        case ContextValue_Tags.NumberList: {
           c.writeI32(5);
+          const inner = value.inner;
+          FfiConverterSequenceFloat64.writeIntoCursor(inner.values, c);
+          return;
+        }
+        case ContextValue_Tags.Null: {
+          c.writeI32(6);
           return;
         }
         default:
@@ -2112,6 +2387,12 @@ const FfiConverterTypeContextValue = (() => {
           const inner = value.inner;
           let size = 4;
           size += FfiConverterSequenceString.allocationSize(inner.values);
+          return size;
+        }
+        case ContextValue_Tags.NumberList: {
+          const inner = value.inner;
+          let size = 4;
+          size += FfiConverterSequenceFloat64.allocationSize(inner.values);
           return size;
         }
         case ContextValue_Tags.Null: {
@@ -6390,11 +6671,21 @@ export interface CoproductClientLike {
     key: string,
     defaultValue: number
   ): FlagEvaluationDetailsNumber;
+  getNumberList(key: string, defaultValue: Array<number>): Array<number>;
+  getNumberListDetails(
+    key: string,
+    defaultValue: Array<number>
+  ): FlagEvaluationDetailsNumberList;
   getString(key: string, defaultValue: string): string;
   getStringDetails(
     key: string,
     defaultValue: string
   ): FlagEvaluationDetailsString;
+  getStringList(key: string, defaultValue: Array<string>): Array<string>;
+  getStringListDetails(
+    key: string,
+    defaultValue: Array<string>
+  ): FlagEvaluationDetailsStringList;
   identify(
     userId: string,
     attributes: Map<string, ContextValue>,
@@ -6705,6 +6996,53 @@ export class CoproductClient
     }
   }
 
+  getNumberList(key: string, defaultValue: Array<number>): Array<number> {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list(
+          uniffiTypeCoproductClientObjectFactory.clonePointer(this),
+          FfiConverterString.lower(key, nativeModule().rustbuffer_alloc),
+          FfiConverterSequenceFloat64.lower(
+            defaultValue,
+            nativeModule().rustbuffer_alloc
+          ),
+          callStatus
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString)
+    );
+    try {
+      return FfiConverterSequenceFloat64.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  getNumberListDetails(
+    key: string,
+    defaultValue: Array<number>
+  ): FlagEvaluationDetailsNumberList {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_number_list_details(
+          uniffiTypeCoproductClientObjectFactory.clonePointer(this),
+          FfiConverterString.lower(key, nativeModule().rustbuffer_alloc),
+          FfiConverterSequenceFloat64.lower(
+            defaultValue,
+            nativeModule().rustbuffer_alloc
+          ),
+          callStatus
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString)
+    );
+    try {
+      return FfiConverterTypeFlagEvaluationDetailsNumberList.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
   getString(key: string, defaultValue: string): string {
     const __rb: Uint8Array = uniffiCaller.rustCall(
       /*caller:*/ (callStatus) => {
@@ -6747,6 +7085,53 @@ export class CoproductClient
     );
     try {
       return FfiConverterTypeFlagEvaluationDetailsString.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  getStringList(key: string, defaultValue: Array<string>): Array<string> {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list(
+          uniffiTypeCoproductClientObjectFactory.clonePointer(this),
+          FfiConverterString.lower(key, nativeModule().rustbuffer_alloc),
+          FfiConverterSequenceString.lower(
+            defaultValue,
+            nativeModule().rustbuffer_alloc
+          ),
+          callStatus
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString)
+    );
+    try {
+      return FfiConverterSequenceString.lift(__rb);
+    } finally {
+      nativeModule().rustbuffer_free(__rb);
+    }
+  }
+
+  getStringListDetails(
+    key: string,
+    defaultValue: Array<string>
+  ): FlagEvaluationDetailsStringList {
+    const __rb: Uint8Array = uniffiCaller.rustCall(
+      /*caller:*/ (callStatus) => {
+        return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_string_list_details(
+          uniffiTypeCoproductClientObjectFactory.clonePointer(this),
+          FfiConverterString.lower(key, nativeModule().rustbuffer_alloc),
+          FfiConverterSequenceString.lower(
+            defaultValue,
+            nativeModule().rustbuffer_alloc
+          ),
+          callStatus
+        );
+      },
+      /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString)
+    );
+    try {
+      return FfiConverterTypeFlagEvaluationDetailsStringList.lift(__rb);
     } finally {
       nativeModule().rustbuffer_free(__rb);
     }
@@ -8045,6 +8430,12 @@ const uniffiCallbackInterfaceHostTransport: {
   },
 };
 
+// FfiConverter for Array<string>
+const FfiConverterSequenceString = new FfiConverterArray(FfiConverterString);
+
+// FfiConverter for Array<number>
+const FfiConverterSequenceFloat64 = new FfiConverterArray(FfiConverterFloat64);
+
 // FfiConverter for string | undefined
 const FfiConverterOptionalString = new FfiConverterOptional(FfiConverterString);
 
@@ -8071,9 +8462,6 @@ const FfiConverterMapStringOptionalTypeFlagValue = new FfiConverterMap(
   FfiConverterString,
   FfiConverterOptionalTypeFlagValue
 );
-
-// FfiConverter for Array<string>
-const FfiConverterSequenceString = new FfiConverterArray(FfiConverterString);
 
 // FfiConverter for bigint | undefined
 const FfiConverterOptionalInt64 = new FfiConverterOptional(FfiConverterInt64);
@@ -8321,6 +8709,22 @@ function uniffiEnsureInitialized() {
     );
   }
   if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list() !==
+    44253
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list'
+    );
+  }
+  if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details() !==
+    44721
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_number_list_details'
+    );
+  }
+  if (
     nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string() !==
     49273
   ) {
@@ -8334,6 +8738,22 @@ function uniffiEnsureInitialized() {
   ) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_details'
+    );
+  }
+  if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list() !==
+    7990
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list'
+    );
+  }
+  if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details() !==
+    15168
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_string_list_details'
     );
   }
   if (
@@ -8799,7 +9219,9 @@ export default Object.freeze({
     FfiConverterTypeFlagEvaluationDetailsInt,
     FfiConverterTypeFlagEvaluationDetailsJson,
     FfiConverterTypeFlagEvaluationDetailsNumber,
+    FfiConverterTypeFlagEvaluationDetailsNumberList,
     FfiConverterTypeFlagEvaluationDetailsString,
+    FfiConverterTypeFlagEvaluationDetailsStringList,
     FfiConverterTypeFlagType,
     FfiConverterTypeFlagValue,
     FfiConverterTypeHandlerHandle,

@@ -26,3 +26,5 @@ rootProject.name = "CoproductAndroidDemo"
 include(":app")
 include(":coproduct-android")
 project(":coproduct-android").projectDir = file("../../sdks/android")
+include(":coproduct-android-compose")
+project(":coproduct-android-compose").projectDir = file("../../sdks/android-compose")

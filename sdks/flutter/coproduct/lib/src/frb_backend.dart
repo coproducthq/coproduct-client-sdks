@@ -1,5 +1,6 @@
 import 'attribute_value.dart';
 import 'client_backend.dart';
+import 'evaluation_event.dart';
 import 'identity_error_translation.dart';
 import 'provider_state.dart';
 import 'rust/api.dart' as frb;
@@ -33,6 +34,18 @@ final class FrbBackend implements CoproductClientBackend {
   @override
   double getNumber(String key, {required double defaultValue}) =>
       frb.getNumber(client: handle, key: key, defaultValue: defaultValue);
+
+  @override
+  List<String> getStringList(
+    String key, {
+    required List<String> defaultValue,
+  }) => frb.getStringList(client: handle, key: key, defaultValue: defaultValue);
+
+  @override
+  List<double> getNumberList(
+    String key, {
+    required List<double> defaultValue,
+  }) => frb.getNumberList(client: handle, key: key, defaultValue: defaultValue);
 
   @override
   String getJson(String key, {required String defaultValueJson}) =>
@@ -91,6 +104,10 @@ final class FrbBackend implements CoproductClientBackend {
       cancel: () => frb.cancelJsonObservation(session: session),
     );
   }
+
+  @override
+  Stream<EvaluationEvent> evaluationEvents() =>
+      frb.setEvaluationListener(client: handle).map(evaluationEventFromFrb);
 
   @override
   Future<void> identify({

@@ -15,7 +15,7 @@ Both render an experience you author and publish on the Coproduct platform, in a
 | Feature | iOS | Android |
 |---|---|---|
 | Onboarding | Supported | Supported |
-| Paywall | Supported (StoreKit 2) | Not available |
+| Paywall | Supported (StoreKit 2) | Supported (Google Play Billing) |
 
 ## Prerequisites
 
@@ -87,7 +87,7 @@ Progress, meaning the current screen and the answers so far, is saved on the dev
 
 ## Paywall
 
-`CoproductPaywall` shows one paywall and handles the purchase or restore through StoreKit 2. It runs on iOS only. Show it only on iOS, for example behind `Platform.isIOS` from `dart:io`. On Android it still renders, but its purchase buttons do nothing.
+`CoproductPaywall` shows one paywall and handles the purchase or restore through StoreKit 2 on iOS and Google Play Billing on Android.
 
 ```dart
 final platformScript = await CoproductPaywall.loadPlatformScript();
@@ -113,4 +113,8 @@ CoproductPaywall(
 );
 ```
 
-The paywall shows live App Store prices. The SDK fetches and formats them, so your app never does.
+The paywall shows live store prices, from the App Store on iOS and Google Play on Android. The SDK fetches and formats them, so your app never does.
+
+Each package the paywall offers needs a product ID for each store: an iOS product ID from App Store Connect and an Android product ID from the Play Console. A package without one for the current platform shows no price there, and tapping it reports `PaywallPurchaseErrorReason.unresolvedProduct`. For the Play Console setup, testing, and how purchases and restores behave on Android, see [Paywall purchases on Android](../README.md#paywall-purchases-on-android).
+
+To open a paywall without waiting for its content to download, fetch it ahead of time with `CoproductPaywall.prefetch` or `CoproductPaywall.prefetchPlacements`. See [Opening a paywall without a wait](../README.md#opening-a-paywall-without-a-wait).

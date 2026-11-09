@@ -1,4 +1,7 @@
-import { attributesToContext } from '../attributeValue';
+import {
+  attributesToContext,
+  attributeValueToContextValue,
+} from '../attributeValue';
 import { ContextValue } from '../generated/coproduct_ffi_uniffi';
 
 describe('attributesToContext', () => {
@@ -47,5 +50,25 @@ describe('attributesToContext', () => {
   it('converts multiple attributes into one map', () => {
     const result = attributesToContext({ plan: 'pro', age: 42 });
     expect(result.size).toBe(2);
+  });
+});
+
+describe('attributeValueToContextValue', () => {
+  it('maps a number array to NumberList', () => {
+    expect(attributeValueToContextValue([1, 2, 3])).toEqual(
+      ContextValue.NumberList.new({ values: [1, 2, 3] })
+    );
+  });
+
+  it('maps a string array to StringList', () => {
+    expect(attributeValueToContextValue(['a', 'b'])).toEqual(
+      ContextValue.StringList.new({ values: ['a', 'b'] })
+    );
+  });
+
+  it('maps an empty array to StringList', () => {
+    expect(attributeValueToContextValue([])).toEqual(
+      ContextValue.StringList.new({ values: [] })
+    );
   });
 });

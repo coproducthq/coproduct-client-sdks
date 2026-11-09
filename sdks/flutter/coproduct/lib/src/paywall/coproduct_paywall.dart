@@ -1,5 +1,6 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Timer, unawaited;
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -12,6 +13,7 @@ import 'native_paywall_bridge.dart';
 import 'paywall_client.dart';
 import 'paywall_runtime.dart';
 import 'paywall_shell_assembler.dart';
+import 'snapshot_cache.dart';
 
 /// Thrown through [CoproductPaywall.onLoadError] when a paywall can't be
 /// fetched -- not found for this environment, or the request itself failed.
@@ -20,9 +22,18 @@ class PaywallLoadError {
   const PaywallLoadError(this.message);
 }
 
+/// Minimal flag-reading surface the placement warm needs. The base
+/// [CoproductClient] implements it (its `getString` has this exact shape), so a
+/// host passes its client directly, and a test can supply a lightweight fake
+/// without a native handle. Mirrors the React Native `FlagReader`.
+abstract interface class FlagReader {
+  String getString(String key, {required String defaultValue});
+}
+
 /// Renders and drives one resolved paywall: fetches it, loads its html into
-/// a WebView, resolves and injects live StoreKit2 prices, and completes a
-/// purchase or restore when the user taps a cta. [paywallId] is resolved
+/// a WebView, resolves and injects live store prices (StoreKit 2 on iOS,
+/// Google Play Billing on Android), and completes a purchase or restore when
+/// the user taps a cta. [paywallId] is resolved
 /// the same way coproduct_onboarding resolves a flowId: from an ordinary
 /// flag read, done by the caller before constructing this widget.
 class CoproductPaywall extends StatefulWidget {
@@ -40,11 +51,11 @@ class CoproductPaywall extends StatefulWidget {
   /// instead of the edge-worker api, with no fallback between the two. Omit
   /// this to keep using the api, unconditionally -- the safe default for a
   /// paywall that may not have been redeployed since this content-CDN path
-  /// shipped (see coproduct-platform's R2 content delivery work).
+  /// shipped.
   final String? envSlug;
 
   /// Overridable for tests. Defaults to the real HTTP client and the real
-  /// StoreKit2 MethodChannel bridge.
+  /// MethodChannel bridge (StoreKit 2 on iOS, Play Billing on Android).
   final PaywallClient? client;
   final NativePaywallBridge? bridge;
 
@@ -71,6 +82,56 @@ class CoproductPaywall extends StatefulWidget {
     'packages/coproduct/assets/paywall/paywall-platform-script.js',
   );
 
+  /// Fetches a paywall's snapshot and holds it in a process-level cache so a
+  /// later [CoproductPaywall] for the same id and environment renders without
+  /// a network round-trip. Call this once at app launch (right after the SDK
+  /// is initialized) for any paywall the user is likely to reach, so the first
+  /// open is instant instead of showing a spinner while the snapshot
+  /// downloads.
+  ///
+  /// Best-effort: a failed fetch is swallowed, leaving the cache cold so the
+  /// paywall's own boot fetches and reports errors normally. Safe to call more
+  /// than once; a later call simply refreshes the cached snapshot.
+  static Future<void> prefetch({
+    required String paywallId,
+    required String sdkKey,
+    String? envSlug,
+    PaywallClient? client,
+  }) async {
+    final c = client ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
+    await snapshotCache.warm(
+      snapshotCacheKey(paywallId, envSlug),
+      () => c.fetchPaywall(paywallId),
+    );
+  }
+
+  /// Warms every paywall the given placement flags currently resolve to. A
+  /// placement is an ordinary string flag whose value is a paywallId, resolved
+  /// here through [client] so targeting is respected. Call once at launch with
+  /// the app's paywall flag keys. Best-effort; failures leave the cache cold.
+  static Future<void> prefetchPlacements({
+    required FlagReader client,
+    required List<String> flagKeys,
+    required String sdkKey,
+    String? envSlug,
+    PaywallClient? paywallClient,
+  }) async {
+    final c =
+        paywallClient ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug);
+    final seen = <String>{};
+    await Future.wait(
+      flagKeys.map((flagKey) async {
+        final paywallId = client.getString(flagKey, defaultValue: '');
+        if (paywallId.isEmpty || seen.contains(paywallId)) return;
+        seen.add(paywallId);
+        await snapshotCache.warm(
+          snapshotCacheKey(paywallId, envSlug),
+          () => c.fetchPaywall(paywallId),
+        );
+      }),
+    );
+  }
+
   @override
   State<CoproductPaywall> createState() => _CoproductPaywallState();
 }
@@ -78,11 +139,28 @@ class CoproductPaywall extends StatefulWidget {
 class _CoproductPaywallState extends State<CoproductPaywall> {
   WebViewController? _controller;
   bool _ready = false;
+  // The WebView is built hidden and revealed only once it has painted its
+  // html and had live prices applied. Until then a loading indicator stays on
+  // top, so the user never sees the WebView's blank first paint (a white flash
+  // on iOS) nor the half-rendered, price-less intermediate frame.
+  bool _visible = false;
+  Timer? _revealTimer;
+
+  void _reveal() {
+    if (!mounted || _visible) return;
+    setState(() => _visible = true);
+  }
 
   @override
   void initState() {
     super.initState();
     _boot();
+  }
+
+  @override
+  void dispose() {
+    _revealTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _boot() async {
@@ -91,9 +169,13 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
         HttpPaywallClient(sdkKey: widget.sdkKey, envSlug: widget.envSlug);
     final bridge = widget.bridge ?? const MethodChannelPaywallBridge();
 
+    final cacheKey = snapshotCacheKey(widget.paywallId, widget.envSlug);
     PaywallSnapshot? snapshot;
     try {
-      snapshot = await client.fetchPaywall(widget.paywallId);
+      snapshot = await snapshotCache.resolve(
+        cacheKey,
+        () => client.fetchPaywall(widget.paywallId),
+      );
     } catch (e) {
       widget.onLoadError?.call(PaywallLoadError(e.toString()));
       return;
@@ -123,6 +205,7 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       bridge: bridge,
       client: client,
       appUserId: widget.appUserId,
+      platform: Platform.isAndroid ? 'ANDROID' : 'IOS',
       setPrices: (prices) async {
         try {
           await _controller?.runJavaScript(
@@ -132,6 +215,10 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
           // The WebView may already be torn down by the time prices
           // resolve -- nothing to do
         }
+        // Prices are the last thing to land, so the paywall is now fully
+        // formed -- reveal it. The onPageFinished fallback below still covers
+        // the case where prices never resolve (e.g. the store is unreachable).
+        _reveal();
       },
       // The default [data-cp-result] sections (success/cancel/fail) own
       // showing the outcome and, for cancel/fail, waiting for the user's own
@@ -163,6 +250,10 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
 
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      // Transparent so the WebView's own blank first paint is never a white
+      // flash: while hidden there is nothing to see through to but the host
+      // background, and the paywall html paints its own background once loaded.
+      ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (request) async {
@@ -179,6 +270,10 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
           // price can resolve faster than that paint
           onPageFinished: (_) {
             unawaited(runtime.onSnapshotLoaded(resolvedSnapshot));
+            // The whole document (including external resources) has loaded, so
+            // reveal if the cap below has not already. setPrices reveals sooner
+            // once prices land.
+            _reveal();
           },
         ),
       )
@@ -189,11 +284,36 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       _controller = controller;
       _ready = true;
     });
+
+    // Hang guard only. The paywall is revealed when its content has actually
+    // painted (onPageFinished) or its prices land (setPrices) -- never on a
+    // fixed delay, because the WebView is transparent while hidden, so
+    // revealing it before it has painted shows through to the host background
+    // (a black gap) until paint catches up. This timer exists solely so a
+    // WebView that never finishes (load hung, no network) still reveals rather
+    // than spinning forever; it is deliberately far longer than any real load.
+    _revealTimer?.cancel();
+    _revealTimer = Timer(const Duration(seconds: 8), _reveal);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_ready || _controller == null) return const SizedBox.shrink();
-    return WebViewWidget(controller: _controller!);
+    final controller = _controller;
+    // The WebView is built as soon as the controller exists but stays hidden
+    // (Opacity 0, transparent background) beneath the loading indicator until
+    // `_visible` flips. This loads and paints it off-screen, so revealing it
+    // is a single cut from spinner to a fully-formed, priced paywall rather
+    // than the white-flash -> half-ui -> full-ui sequence a plain mount shows.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_ready && controller != null)
+          Opacity(
+            opacity: _visible ? 1 : 0,
+            child: WebViewWidget(controller: controller),
+          ),
+        if (!_visible) const Center(child: CircularProgressIndicator()),
+      ],
+    );
   }
 }

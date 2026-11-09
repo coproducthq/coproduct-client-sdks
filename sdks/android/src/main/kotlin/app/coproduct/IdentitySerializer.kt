@@ -1,68 +1,52 @@
 package app.coproduct
 
 import android.util.Log
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 
 /**
- * Applies fire-and-forget identity mutations in the order they were
- * enqueued, independent of how long any single mutation takes. Each call
- * chains onto the previous one's completion rather than running
- * concurrently, so a slow earlier mutation cannot let a faster later one
- * land out of order. [scope] defaults to a dedicated scope so the
- * serializer's own lifetime is independent of the caller's
+ * Serializes identity mutations so they apply in the order they were called.
+ * The public identity API is synchronous and fire-and-forget, so without a
+ * single ordered queue two rapid calls could reach the core out of order.
  */
 internal class IdentitySerializer(
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    // Injectable so a JVM unit test can exercise the error-swallowing path
-    // without reaching the real android.util.Log, which throws when not
-    // mocked outside an instrumented test
-    private val logError: (Throwable) -> Unit = { e -> Log.e(LOG_TAG, "identity mutation failed", e) },
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
 ) {
     private val lock = Any()
-    private var tail: Job? = null
+    private var tail: Deferred<Unit>? = null
 
     /**
-     * Enqueues [block] to run after every previously enqueued block has
-     * completed. A thrown error is logged and swallowed so one failing
-     * mutation never crashes the caller or blocks the queue for later calls
+     * Enqueues [operation] to run after every previously enqueued operation has
+     * finished, preserving call order. If [operation] throws, the exception is
+     * caught and logged internally (tag "Coproduct") — it is never rethrown into
+     * the chain and never propagates to the caller's [scope]. Callers do not need
+     * their own try/catch around [enqueue]; a failing operation never poisons
+     * operations enqueued after it and never cancels the caller's scope.
      */
-    fun enqueue(block: suspend () -> Unit) {
+    fun enqueue(operation: suspend () -> Unit) {
         synchronized(lock) {
             val previous = tail
-            tail =
-                scope.launch {
-                    previous?.join()
+            tail = scope.async {
+                previous?.await()
+                try {
+                    operation()
+                } catch (t: Throwable) {
                     try {
-                        block()
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Throwable) {
-                        logError(error)
+                        Log.e("Coproduct", "Identity operation failed", t)
+                    } catch (_: Throwable) {
+                        // Log.e itself is unmocked under plain JUnit; never let logging
+                        // failure reintroduce the poisoning this catch exists to prevent.
                     }
                 }
+            }
         }
     }
 
-    /**
-     * Awaits every block enqueued so far. Used by tests to observe the
-     * settled state after a burst of fire-and-forget identity calls
-     */
-    internal suspend fun drain() {
-        currentTail()?.join()
-    }
-
-    /** Reads the current tail under the lock. Synchronous so the lock is never held across a suspension */
-    private fun currentTail(): Job? = synchronized(lock) { tail }
-
-    companion object {
-        /** The ordered queue the Android wrapper's identity bridges enqueue onto */
-        val shared = IdentitySerializer()
+    /** Awaits the work enqueued so far. Used during initialize and by tests. */
+    suspend fun drain() {
+        val current = synchronized(lock) { tail }
+        current?.await()
     }
 }
-
-private const val LOG_TAG = "Coproduct"

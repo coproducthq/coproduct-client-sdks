@@ -134,3 +134,31 @@ fn get_json_details_returns_typed_value() {
     let details = client.get_json_details("c".to_string(), json!({}));
     assert_eq!(details.value, payload);
 }
+
+#[test]
+fn get_string_list_details_returns_typed_value() {
+    let s = snap(vec![flag(
+        "emails",
+        FlagType::StringList,
+        VariationValue::StringList(vec!["a@x.com".to_string()]),
+    )]);
+    let client = CoproductClient::with_snapshot_for_test(s);
+    let details = client.get_string_list_details("emails".to_string(), vec!["fb".to_string()]);
+    assert_eq!(details.value, vec!["a@x.com".to_string()]);
+    assert_eq!(details.variant.as_deref(), Some("on"));
+    assert!(details.error_code.is_none());
+}
+
+#[test]
+fn get_number_list_details_returns_typed_value() {
+    let s = snap(vec![flag(
+        "weights",
+        FlagType::NumberList,
+        VariationValue::NumberList(vec![1.5, 2.5]),
+    )]);
+    let client = CoproductClient::with_snapshot_for_test(s);
+    let details = client.get_number_list_details("weights".to_string(), vec![0.0]);
+    assert_eq!(details.value, vec![1.5, 2.5]);
+    assert_eq!(details.variant.as_deref(), Some("on"));
+    assert!(details.error_code.is_none());
+}

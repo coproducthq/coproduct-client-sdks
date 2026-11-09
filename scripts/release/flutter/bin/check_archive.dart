@@ -12,7 +12,7 @@ import '../lib/pub_file_list.dart';
 
 /// The exact number of files pub publishes. See the assertion below for why a
 /// count earns its keep next to the membership allowlist.
-const _expectedFileCount = 193;
+const _expectedFileCount = 198;
 
 const _maxCompressedMb = 35;
 const _maxUncompressedMb = 115;
@@ -48,6 +48,7 @@ const _platformExact = <String>[
   'ios/Classes/CoproductHostContextPlugin.swift',
   'ios/Classes/CoproductPaywallPlugin.swift',
   'ios/Classes/DeviceClassifier.swift',
+  'ios/Classes/HostInfo.swift',
   'ios/Classes/NetworkTypeClassifier.swift',
   'ios/Classes/NetworkTypeObserver.swift',
   'ios/Classes/SessionStore.swift',
@@ -69,7 +70,9 @@ const _platformExact = <String>[
   'android/src/main/jniLibs/x86_64/libcoproduct_ffi_frb.so',
   'android/src/main/kotlin/app/coproduct/flutter/ConnectivityNetworkSource.kt',
   'android/src/main/kotlin/app/coproduct/flutter/CoproductHostContextPlugin.kt',
+  'android/src/main/kotlin/app/coproduct/flutter/CoproductPaywallPlugin.kt',
   'android/src/main/kotlin/app/coproduct/flutter/DeviceClassifier.kt',
+  'android/src/main/kotlin/app/coproduct/flutter/HostInfo.kt',
   'android/src/main/kotlin/app/coproduct/flutter/NetworkTypeClassifier.kt',
   'android/src/main/kotlin/app/coproduct/flutter/NetworkTypeObserver.kt',
   'android/src/main/kotlin/app/coproduct/flutter/SessionStore.kt',
@@ -130,8 +133,18 @@ void main(List<String> args) {
   // different flutter_rust_bridge complaint would slip past a looser test.
   final expectedPin = RegExp(
       r'Your dependency on "flutter_rust_bridge" should allow more than one version');
+  // pub groups its findings into error, "potential issue" (warning), and hint
+  // sections, and exits nonzero only for warnings, never for a hint alone. A
+  // hint is informational, such as pub noting that this version skips a number
+  // on pub.dev when an earlier tagged version never published, so it is not a
+  // reason to hold a release. Scan for warnings only up to the hint section.
+  final hintHeader = RegExp(
+      r'^Package validation found the following (?:\d+ )?hints?:',
+      multiLine: true);
+  final hintStart = hintHeader.firstMatch(output)?.start ?? output.length;
+  final warningScan = output.substring(0, hintStart);
   final warnings = RegExp(r'^\* (.+)$', multiLine: true)
-      .allMatches(output)
+      .allMatches(warningScan)
       .map((m) => m.group(1)!)
       .toList();
   final pinWarnings = warnings.where(expectedPin.hasMatch).toList();
