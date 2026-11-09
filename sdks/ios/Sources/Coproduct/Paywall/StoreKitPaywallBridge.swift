@@ -15,6 +15,34 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
         return product.displayPrice
     }
 
+    public func packageFor(_ productId: String, kind _: PackageKind) async throws -> PaywallPackageRuntime {
+        let products = try await Product.products(for: [productId])
+        guard let product = products.first else {
+            throw StoreKitPaywallBridgeError.unknownProduct(productId)
+        }
+        guard
+            let subscription = product.subscription,
+            let offer = subscription.introductoryOffer,
+            await subscription.isEligibleForIntroOffer
+        else {
+            return PaywallPackageRuntime(price: product.displayPrice, intro: nil)
+        }
+        let kind: IntroOfferKind
+        switch offer.paymentMode {
+        case .freeTrial: kind = .freeTrial
+        case .payAsYouGo: kind = .payAsYouGo
+        case .payUpFront: kind = .payUpFront
+        default: return PaywallPackageRuntime(price: product.displayPrice, intro: nil)
+        }
+        let label = composeIntroLabel(
+            kind: kind,
+            offerPeriod: offer.period.formatted(product.subscriptionPeriodFormatStyle),
+            offerPrice: offer.displayPrice,
+            regularPrice: product.displayPrice
+        )
+        return PaywallPackageRuntime(price: product.displayPrice, intro: PaywallIntroOffer(eligible: true, label: label))
+    }
+
     public func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult {
         let products = try await Product.products(for: [productId])
         guard let product = products.first else {

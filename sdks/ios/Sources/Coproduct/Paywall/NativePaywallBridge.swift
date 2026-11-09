@@ -49,6 +49,16 @@ public struct RestoredTransaction: Equatable, Sendable {
 /// implementation, whose calls are kind-agnostic.
 public protocol NativePaywallBridge: Sendable {
     func priceFor(_ productId: String, kind: PackageKind) async throws -> String
+    /// Resolves a package's regular price and, when the store offers one and
+    /// this user is eligible, its introductory offer. Defaults to a
+    /// price-only result so existing conformers keep working.
+    func packageFor(_ productId: String, kind: PackageKind) async throws -> PaywallPackageRuntime
     func purchase(_ productId: String, kind: PackageKind) async throws -> PurchaseResult
     func restore() async throws -> [RestoredTransaction]
+}
+
+public extension NativePaywallBridge {
+    func packageFor(_ productId: String, kind: PackageKind) async throws -> PaywallPackageRuntime {
+        PaywallPackageRuntime(price: try await priceFor(productId, kind: kind), intro: nil)
+    }
 }

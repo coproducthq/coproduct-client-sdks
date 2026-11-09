@@ -308,3 +308,18 @@ private final class FlakyFakePaywallClient: PaywallClient, @unchecked Sendable {
     func getEntitlements(_: String) async throws -> [Entitlement] { [] }
     func identify(appUserId _: String, targetingKey _: String) async throws {}
 }
+
+/// A bridge that implements only priceFor, to prove the protocol-extension
+/// default for packageFor delegates to it with no intro.
+private final class PriceOnlyBridge: NativePaywallBridge, @unchecked Sendable {
+    func priceFor(_ productId: String, kind _: PackageKind) async throws -> String { "$4.99" }
+    func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult { .init(outcome: .cancelled) }
+    func restore() async throws -> [RestoredTransaction] { [] }
+}
+
+final class NativePaywallBridgeDefaultTests: XCTestCase {
+    func testPackageForDefaultsToPriceWithNoIntro() async throws {
+        let runtime = try await PriceOnlyBridge().packageFor("p1", kind: .subscription)
+        XCTAssertEqual(runtime, PaywallPackageRuntime(price: "$4.99", intro: nil))
+    }
+}
