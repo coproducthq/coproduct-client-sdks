@@ -116,30 +116,23 @@ class PaywallPackageRuntime {
 /// coproduct_onboarding's CoproductClient gives FlowRuntime.
 abstract interface class NativePaywallBridge {
   Future<String> priceFor(String productId, PackageKind kind);
-
-  /// Resolves a package's regular price and, when the store offers one and
-  /// this user is eligible, its introductory offer. Dart interfaces have no
-  /// protocol-extension default the way Swift's `NativePaywallBridge`
-  /// extension or TypeScript's optional `packageFor?` do, so a conformer
-  /// written before packages existed mixes in [PriceOnlyPackageFor] rather
-  /// than implementing this itself, to keep working unchanged.
-  Future<PaywallPackageRuntime> packageFor(String productId, PackageKind kind);
   Future<PurchaseResult> purchase(String productId, PackageKind kind);
   Future<List<RestoredTransaction>> restore();
 }
 
-/// Default [NativePaywallBridge.packageFor] for a conformer that only
-/// implements [NativePaywallBridge.priceFor]: resolves a price-only package
-/// with no introductory offer. Mix this in (`with PriceOnlyPackageFor`)
-/// instead of writing `packageFor` by hand for back-compat with a bridge
-/// written before packages existed -- mirrors iOS's `NativePaywallBridge`
-/// protocol extension default and RN's `resolvePackage` price-only fallback.
-mixin PriceOnlyPackageFor implements NativePaywallBridge {
-  @override
-  Future<PaywallPackageRuntime> packageFor(
-    String productId,
-    PackageKind kind,
-  ) async {
-    return PaywallPackageRuntime(price: await priceFor(productId, kind));
-  }
+/// Optional capability: a bridge that resolves a full package (the regular
+/// price plus the eligible introductory offer), not just a price. The built-in
+/// [MethodChannelPaywallBridge] implements it. A bridge that does not is driven
+/// through [NativePaywallBridge.priceFor] and rendered as a price-only package
+/// with no intro offer, so a custom bridge written before packages existed
+/// keeps working unchanged.
+///
+/// This lives on its own interface, not on [NativePaywallBridge], on purpose.
+/// Adding a required method to the public NativePaywallBridge would break every
+/// existing implementer, so PaywallRuntime checks `is PackageResolvingBridge`
+/// instead. It is Dart's equivalent of RN's optional `packageFor?` and iOS's
+/// protocol-extension default. It extends NativePaywallBridge so the `is` check
+/// in PaywallRuntime promotes the bridge (Dart only promotes to a subtype).
+abstract interface class PackageResolvingBridge implements NativePaywallBridge {
+  Future<PaywallPackageRuntime> packageFor(String productId, PackageKind kind);
 }

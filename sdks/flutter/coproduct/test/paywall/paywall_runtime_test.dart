@@ -7,7 +7,8 @@ import 'package:coproduct/src/paywall/native_paywall_bridge.dart';
 import 'package:coproduct/src/paywall/models/paywall_snapshot.dart';
 import 'package:coproduct/src/paywall/models/entitlement.dart';
 
-class FakeNativePaywallBridge implements NativePaywallBridge {
+class FakeNativePaywallBridge
+    implements NativePaywallBridge, PackageResolvingBridge {
   final Map<String, String> pricesByProductId;
   final Map<String, PaywallPackageRuntime> packageByProductId;
   final Set<String> productIdsThatThrow;
@@ -60,6 +61,26 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
 
   @override
   Future<List<RestoredTransaction>> restore() async => restoredTransactions;
+}
+
+/// A bridge written before packages existed: implements only
+/// NativePaywallBridge, not PackageResolvingBridge. PaywallRuntime must drive
+/// it through priceFor and render a price-only package, proving packageFor is
+/// a non-breaking, optional capability.
+class PriceOnlyFakeBridge implements NativePaywallBridge {
+  final Map<String, String> pricesByProductId;
+  PriceOnlyFakeBridge(this.pricesByProductId);
+
+  @override
+  Future<String> priceFor(String productId, PackageKind kind) async =>
+      pricesByProductId[productId] ?? (throw const PaywallBridgeUnavailable());
+
+  @override
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) async =>
+      const PurchaseResult(outcome: PurchaseOutcome.cancelled);
+
+  @override
+  Future<List<RestoredTransaction>> restore() async => const [];
 }
 
 class FakePaywallClient implements PaywallClient {
@@ -169,6 +190,36 @@ void main() {
             label: '7 days free, then \$9.99/mo',
           ),
         ),
+      });
+    },
+  );
+
+  test(
+    'onSnapshotLoaded falls back to a price-only package for a bridge that is '
+    'not a PackageResolvingBridge',
+    () async {
+      final bridge = PriceOnlyFakeBridge({'premium_monthly': '\$9.99/mo'});
+      Map<String, PaywallPackageRuntime>? capturedPackages;
+      final runtime = PaywallRuntime(
+        bridge: bridge,
+        client: FakePaywallClient(),
+        appUserId: 'user-1',
+        setPackages: (packages) async {
+          capturedPackages = packages;
+        },
+      );
+
+      await runtime.onSnapshotLoaded(
+        buildSnapshot(
+          packages: {
+            'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly'),
+          },
+        ),
+      );
+
+      // Price resolved, no intro offer (the price-only bridge can't report one).
+      expect(capturedPackages, {
+        'monthly': const PaywallPackageRuntime(price: '\$9.99/mo'),
       });
     },
   );

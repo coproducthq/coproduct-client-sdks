@@ -81,10 +81,19 @@ class PaywallRuntime {
       final productId = _productIdFor(ref);
       if (productId == null) continue;
       try {
-        packages[cta.packageKey] = await bridge.packageFor(
-          productId,
-          ref?.kind ?? PackageKind.subscription,
-        );
+        final kind = ref?.kind ?? PackageKind.subscription;
+        final b = bridge;
+        // A bridge that resolves full packages (price + eligible intro offer)
+        // implements PackageResolvingBridge. One that only knows prices falls
+        // back to a price-only package with no intro -- so a custom bridge
+        // written before packages existed keeps working unchanged.
+        if (b is PackageResolvingBridge) {
+          packages[cta.packageKey] = await b.packageFor(productId, kind);
+        } else {
+          packages[cta.packageKey] = PaywallPackageRuntime(
+            price: await b.priceFor(productId, kind),
+          );
+        }
       } catch (_) {
         // One product's pricing failure (plugin unavailable, or a native
         // store error for this specific product) must not abort pricing

@@ -6,7 +6,8 @@ import 'native_paywall_bridge.dart';
 /// Google Play Billing on Android, over one method channel. Request and
 /// response only, with no state of its own -- mirrors coproduct's
 /// HostContextChannel in shape.
-class MethodChannelPaywallBridge implements NativePaywallBridge {
+class MethodChannelPaywallBridge
+    implements NativePaywallBridge, PackageResolvingBridge {
   const MethodChannelPaywallBridge();
 
   static const _channel = MethodChannel('app.coproduct.flutter/paywall');
