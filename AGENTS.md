@@ -144,6 +144,25 @@ Documented per-platform deviations:
   would leave the native session registered, which is why disposal is the documented verb.
 - The OpenFeature `errorCode` enum (`FLAG_NOT_FOUND`, `TYPE_MISMATCH`, etc.) is a separate concept from thrown error names. The codes are data on `FlagEvaluationDetails.errorCode`, not catchable exception types.
 
+## Public API and breaking changes
+
+Before you change anything a consumer can import or implement, decide whether the change is breaking, and prefer a non-breaking shape. These SDKs are published (see Release Identity), so a careless public change forces a major version bump or breaks adopters silently.
+
+What counts as public: a symbol exported from the package's public entrypoint (Dart `lib/*.dart` exports, Swift `public`, the React Native package root and its subpath exports, a Kotlin `public` type), or a type a consumer implements or injects (for example a bridge passed into the paywall view or widget). A type used only internally is not public even if its language visibility looks open, so confirm against the package's actual exports, not just a keyword. A rename of an internal callback type or runtime class is safe; a rename of an exported one is breaking.
+
+Adding a required member to a public interface or protocol that consumers implement is breaking: their existing conformers stop compiling. Renaming or removing a public symbol is breaking. When you add an optional capability, use the per-platform non-breaking idiom instead of requiring a new member:
+
+| Platform | Non-breaking "optional new method" |
+|---|---|
+| TypeScript (RN) | optional member `foo?(...)` plus a runtime null check and fallback |
+| Swift (iOS) | a protocol-extension default implementation |
+| Kotlin (Android) | an interface default method |
+| Dart (Flutter) | a separate capability interface that `implements` the base, driven by a runtime `is` check with a fallback. Dart has no optional members and no usable default for `implements`, so do not add the method to the base interface. See `PackageResolvingBridge` and `PaywallRuntime` |
+
+Keep the same decision across all four SDKs: if a new bridge method is optional on one platform it must be optional on the others, or the SDKs diverge (see Identifier unification principle).
+
+If a change is genuinely breaking and unavoidable, mark it as breaking so release-please bumps the major version: put `!` after the type or scope in the PR title (see Release Identity), and include a migration note in the body. Never ship a breaking public change under a `feat`/`fix` minor or patch bump.
+
 ## Evaluation semantics (cross-platform)
 
 These are evaluation rules every platform SDK must match, not just the reference
