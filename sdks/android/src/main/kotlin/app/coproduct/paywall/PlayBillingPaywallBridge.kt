@@ -52,8 +52,29 @@ import kotlinx.coroutines.launch
  */
 class PlayBillingPaywallBridge(
     private val billingClient: BillingClient,
+    /**
+     * Decides whether a returned intro offer may be shown and bought. Play
+     * filters `subscriptionOfferDetails` to eligible offers only for offers
+     * whose eligibility Play itself determines (new customer acquisition,
+     * upgrade, ...). Offers configured as "developer determined" are
+     * returned to EVERY user, and Play exposes no field marking them. The
+     * default therefore excludes any offer tagged
+     * [DEVELOPER_DETERMINED_OFFER_TAG] in Play Console; apps with their own
+     * eligibility logic pass a predicate instead.
+     */
+    private val isIntroOfferEligible: (ProductDetails.SubscriptionOfferDetails) -> Boolean = { offer ->
+        DEVELOPER_DETERMINED_OFFER_TAG !in offer.offerTags
+    },
     private val activityProvider: () -> android.app.Activity,
 ) : NativePaywallBridge, PurchasesUpdatedListener {
+
+    companion object {
+        /**
+         * Play Console offer tag that marks a developer-determined offer the
+         * default eligibility check must never present as a trial.
+         */
+        const val DEVELOPER_DETERMINED_OFFER_TAG = "cp-developer-determined"
+    }
 
     private var pendingPurchase: PendingPurchase? = null
 
@@ -66,9 +87,7 @@ class PlayBillingPaywallBridge(
     override suspend fun priceFor(productId: String, kind: PackageKind): String {
         val productDetails = queryProductDetails(productId, kind)
         return if (kind == PackageKind.SUBSCRIPTION) {
-            val offer = productDetails.subscriptionOfferDetails?.firstOrNull()
-                ?: throw IllegalStateException("No subscription offer found for product \"$productId\"")
-            offer.pricingPhases.pricingPhaseList.last().formattedPrice
+            selectSubscriptionOffer(productId, productDetails).regularPhase.formattedPrice
         } else {
             val offer = productDetails.oneTimePurchaseOfferDetailsList?.firstOrNull()
                 ?: throw IllegalStateException("No one-time offer found for product \"$productId\"")
@@ -80,11 +99,12 @@ class PlayBillingPaywallBridge(
      * Resolves a product's regular price and, when Play Billing returns an
      * offer with an introductory pricing phase ahead of the regular one,
      * that offer's localized label. Play Billing filters
-     * queryProductDetails's `subscriptionOfferDetails` server-side to only
-     * the offers this signed-in Play account is currently eligible for
-     * (there is no separate boolean the way StoreKit2's
-     * isEligibleForIntroOffer is) -- so a returned offer with more than one
-     * pricing phase already implies eligibility. Consumable/lifetime
+     * queryProductDetails's `subscriptionOfferDetails` server-side to the
+     * offers this Play account is eligible for -- except developer-determined
+     * offers, which it returns to everyone; those are screened by
+     * [isIntroOfferEligible]. Offer choice lives in [selectSubscriptionOffer]
+     * and is shared with [purchase], so the offer labelled is the offer
+     * bought. Consumable/lifetime
      * products have no periodic offers and always resolve price-only.
      * Fails safe to `intro = null`, never fabricating eligibility, when no
      * such offer is present or its billing period can't be parsed. Ported
@@ -98,35 +118,81 @@ class PlayBillingPaywallBridge(
                 ?: throw IllegalStateException("No one-time offer found for product \"$productId\"")
             return PaywallPackageRuntime(price = offer.formattedPrice, intro = null)
         }
-        val offers = productDetails.subscriptionOfferDetails
-            ?: throw IllegalStateException("No subscription offer found for product \"$productId\"")
-        // The regular price is the last pricing phase of any offer -- every
-        // offer for the same base plan ends at the same recurring price,
-        // whether or not it leads with an introductory phase.
-        val regularPrice = offers.firstOrNull()?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice
-            ?: throw IllegalStateException("No subscription offer found for product \"$productId\"")
-        val intro = offers.firstNotNullOfOrNull { offer ->
-            val phases = offer.pricingPhases.pricingPhaseList
-            if (phases.size < 2) null else introOfferFor(phases.first(), regularPrice)
-        }
-        return PaywallPackageRuntime(price = regularPrice, intro = intro)
+        val selection = selectSubscriptionOffer(productId, productDetails)
+        return PaywallPackageRuntime(price = selection.regularPhase.formattedPrice, intro = selection.intro)
     }
 
-    private fun introOfferFor(introPhase: ProductDetails.PricingPhase, regularPrice: String): PaywallIntroOffer? {
-        val period = formatBillingPeriod(introPhase.billingPeriod) ?: return null
+    /**
+     * The one offer a subscription package is both labelled and bought
+     * with, so the paywall can never show one offer's trial and then
+     * charge through another offer's token.
+     */
+    internal class SubscriptionOfferSelection(
+        val offer: ProductDetails.SubscriptionOfferDetails,
+        val regularPhase: ProductDetails.PricingPhase,
+        val intro: PaywallIntroOffer?,
+    )
+
+    /**
+     * Picks a single base plan (the one Play lists a plain base-plan offer
+     * for first, else the first offer's), then within ONLY that base plan:
+     * the regular price comes from the base-plan offer's recurring phase,
+     * and the intro comes from the first eligible offer whose leading phase
+     * is discounted below that regular price. Offers from other base plans
+     * are ignored, so the price and the trial always describe the same
+     * plan. Falls back to the base-plan offer with `intro = null` whenever
+     * no offer can be cleanly labelled -- never a fabricated trial.
+     */
+    internal fun selectSubscriptionOffer(productId: String, productDetails: ProductDetails): SubscriptionOfferSelection {
+        val offers = productDetails.subscriptionOfferDetails.orEmpty()
+        if (offers.isEmpty()) throw IllegalStateException("No subscription offer found for product \"$productId\"")
+        val basePlanId = (offers.firstOrNull { it.offerId == null } ?: offers.first()).basePlanId
+        val planOffers = offers.filter { it.basePlanId == basePlanId }
+        val baseOffer = planOffers.firstOrNull { it.offerId == null } ?: planOffers.first()
+        val regularPhase = recurringPhase(baseOffer)
+            ?: throw IllegalStateException("No subscription offer found for product \"$productId\"")
+
+        for (offer in planOffers) {
+            if (offer.offerId == null || !isIntroOfferEligible(offer)) continue
+            val phases = offer.pricingPhases.pricingPhaseList
+            if (phases.size < 2) continue
+            val introPhase = phases.first()
+            if (introPhase.priceAmountMicros >= regularPhase.priceAmountMicros) continue
+            val label = introLabelFor(introPhase, regularPhase) ?: continue
+            return SubscriptionOfferSelection(offer, regularPhase, PaywallIntroOffer(eligible = true, label = label))
+        }
+        return SubscriptionOfferSelection(baseOffer, regularPhase, intro = null)
+    }
+
+    private fun recurringPhase(offer: ProductDetails.SubscriptionOfferDetails): ProductDetails.PricingPhase? {
+        val phases = offer.pricingPhases.pricingPhaseList
+        return phases.lastOrNull { it.recurrenceMode == ProductDetails.RecurrenceMode.INFINITE_RECURRING }
+            ?: phases.lastOrNull()
+    }
+
+    private fun introLabelFor(introPhase: ProductDetails.PricingPhase, regularPhase: ProductDetails.PricingPhase): String? {
         val kind = when {
             introPhase.priceAmountMicros == 0L -> IntroOfferKind.FREE_TRIAL
             introPhase.recurrenceMode == ProductDetails.RecurrenceMode.NON_RECURRING -> IntroOfferKind.PAY_UP_FRONT
             else -> IntroOfferKind.PAY_AS_YOU_GO
         }
-        val label = composeIntroLabel(kind, period, introPhase.formattedPrice, regularPrice)
-        return PaywallIntroOffer(eligible = true, label = label)
+        // A FINITE_RECURRING phase repeats its billingPeriod
+        // billingCycleCount times ("$1.99/mo for 3 months" is P1M x 3); a
+        // NON_RECURRING one is charged once for its whole billingPeriod.
+        val cycles = if (introPhase.recurrenceMode == ProductDetails.RecurrenceMode.FINITE_RECURRING) {
+            introPhase.billingCycleCount
+        } else {
+            1
+        }
+        val period = formatBillingPeriod(introPhase.billingPeriod, cycles) ?: return null
+        val regularPrice = appendRenewalSuffix(regularPhase.formattedPrice, regularPhase.billingPeriod) ?: return null
+        return composeIntroLabel(kind, period, introPhase.formattedPrice, regularPrice)
     }
 
     override suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult {
         val productDetails = queryProductDetails(productId, kind)
         val offerToken = if (kind == PackageKind.SUBSCRIPTION) {
-            productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+            selectSubscriptionOffer(productId, productDetails).offer.offerToken
         } else {
             productDetails.oneTimePurchaseOfferDetailsList?.firstOrNull()?.offerToken
         } ?: throw IllegalStateException("No purchasable offer found for product \"$productId\"")
@@ -285,24 +351,43 @@ class PlayBillingPaywallBridge(
 
 /**
  * Billing periods Play returns for a pricing phase are ISO 8601 durations
- * (e.g. "P1W", "P3M", "P1Y", "P7D") -- ordinary store SDKs just display the
- * price and never need this parsed, but the intro label needs its duration
- * spelled out in words ("7 days", "3 months"). Returns null, rather than a
- * best-effort guess, for a period this parser doesn't recognize (e.g. a
- * combined "P1Y6M"), which packageFor's caller treats as "can't cleanly
- * determine this offer" and fails safe to no intro. Ported from
- * sdks/flutter/coproduct/android/src/main/kotlin/app/coproduct/flutter/CoproductPaywallPlugin.kt.
+ * (e.g. "P1W", "P3M", "P1Y", "P7D"). Parses exactly one non-zero
+ * component; returns null for a combined period (e.g. "P1Y6M") or anything
+ * unrecognized, which callers treat as "can't cleanly label this offer" and
+ * fail safe to no intro.
  */
-internal fun formatBillingPeriod(iso: String): String? {
+internal fun parseBillingPeriod(iso: String): Pair<Int, String>? {
     val match = Regex("^P(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)W)?(?:(\\d+)D)?$").matchEntire(iso) ?: return null
-    val (years, months, weeks, days) = match.destructured
-    return when {
-        years.isNotEmpty() && years != "0" -> pluralizePeriod(years.toInt(), "year")
-        months.isNotEmpty() && months != "0" -> pluralizePeriod(months.toInt(), "month")
-        weeks.isNotEmpty() && weeks != "0" -> pluralizePeriod(weeks.toInt(), "week")
-        days.isNotEmpty() && days != "0" -> pluralizePeriod(days.toInt(), "day")
-        else -> null
-    }
+    val components = match.groupValues.drop(1)
+        .zip(listOf("year", "month", "week", "day"))
+        .mapNotNull { (value, unit) -> value.toIntOrNull()?.takeIf { it > 0 }?.let { it to unit } }
+    return components.singleOrNull()
 }
 
-private fun pluralizePeriod(count: Int, unit: String): String = "$count $unit${if (count == 1) "" else "s"}"
+/**
+ * Spells out a billing period's TOTAL duration in words -- [cycles]
+ * repetitions of [iso] -- e.g. ("P1M", 3) -> "3 months". Ported from
+ * sdks/flutter/coproduct/android/src/main/kotlin/app/coproduct/flutter/CoproductPaywallPlugin.kt.
+ */
+internal fun formatBillingPeriod(iso: String, cycles: Int = 1): String? {
+    val (count, unit) = parseBillingPeriod(iso) ?: return null
+    val total = count * cycles.coerceAtLeast(1)
+    return "$total $unit${if (total == 1) "" else "s"}"
+}
+
+/**
+ * Appends a short renewal suffix for a single-unit recurring period, e.g.
+ * ("$39.99", "P1Y") -> "$39.99/yr". A multi-unit period ("P3M") reads as
+ * "$24.99 every 3 months". Returns null when the period can't be parsed.
+ */
+internal fun appendRenewalSuffix(formattedPrice: String, iso: String): String? {
+    val (count, unit) = parseBillingPeriod(iso) ?: return null
+    if (count != 1) return "$formattedPrice every $count ${unit}s"
+    val suffix = when (unit) {
+        "year" -> "/yr"
+        "month" -> "/mo"
+        "week" -> "/wk"
+        else -> "/day"
+    }
+    return "$formattedPrice$suffix"
+}

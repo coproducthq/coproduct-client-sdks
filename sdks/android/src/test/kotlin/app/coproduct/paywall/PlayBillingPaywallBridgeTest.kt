@@ -132,13 +132,8 @@ class PlayBillingPaywallBridgeTest {
         // assert on; must still be answered or the mock throws.
         every { productDetails.zza() } returns ""
         if (isSubscription) {
-            val pricingPhase = mockk<ProductDetails.PricingPhase> {
-                every { this@mockk.formattedPrice } returns formattedPrice
-            }
-            val offer = mockk<ProductDetails.SubscriptionOfferDetails> {
-                every { offerToken } returns "offer-token-$productId"
-                every { pricingPhases.pricingPhaseList } returns listOf(pricingPhase)
-            }
+            val pricingPhase = fakePricingPhase(formattedPrice, 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING)
+            val offer = fakeSubscriptionOffer(pricingPhase, offerToken = "offer-token-$productId")
             every { productDetails.subscriptionOfferDetails } returns listOf(offer)
         } else {
             val offer = mockk<ProductDetails.OneTimePurchaseOfferDetails> {
@@ -217,18 +212,34 @@ class PlayBillingPaywallBridgeTest {
         priceAmountMicros: Long,
         billingPeriod: String,
         recurrenceMode: Int,
+        billingCycleCount: Int = 1,
     ): ProductDetails.PricingPhase = mockk {
         every { this@mockk.formattedPrice } returns formattedPrice
         every { this@mockk.priceAmountMicros } returns priceAmountMicros
         every { this@mockk.billingPeriod } returns billingPeriod
         every { this@mockk.recurrenceMode } returns recurrenceMode
+        every { this@mockk.billingCycleCount } returns billingCycleCount
     }
 
     private fun fakeSubscriptionOffer(
         vararg phases: ProductDetails.PricingPhase,
+        basePlanId: String = "monthly",
+        offerId: String? = null,
+        offerTags: List<String> = emptyList(),
+        offerToken: String = "token-${basePlanId}-${offerId ?: "base"}",
     ): ProductDetails.SubscriptionOfferDetails = mockk {
         every { pricingPhases.pricingPhaseList } returns phases.toList()
+        every { this@mockk.basePlanId } returns basePlanId
+        every { this@mockk.offerId } returns offerId
+        every { this@mockk.offerTags } returns offerTags
+        every { this@mockk.offerToken } returns offerToken
     }
+
+    private fun basePlanOffer(price: String = "$9.99", micros: Long = 9_990_000L, period: String = "P1M", basePlanId: String = "monthly") =
+        fakeSubscriptionOffer(
+            fakePricingPhase(price, micros, period, ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+            basePlanId = basePlanId,
+        )
 
     private fun fakeSubscriptionProductDetailsWithOffers(
         vararg offers: ProductDetails.SubscriptionOfferDetails,
@@ -241,18 +252,14 @@ class PlayBillingPaywallBridgeTest {
     @Test
     fun `packageFor resolves price-only when the only offer is the base plan`() = runTest {
         val billingClient = mockk<BillingClient>()
-        val details = fakeSubscriptionProductDetailsWithOffers(
-            fakeSubscriptionOffer(
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
-            ),
-        )
+        val details = fakeSubscriptionProductDetailsWithOffers(basePlanOffer())
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(details))
 
         val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val pkg = bridge.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals(null, pkg.intro)
     }
 
@@ -262,7 +269,8 @@ class PlayBillingPaywallBridgeTest {
         val details = fakeSubscriptionProductDetailsWithOffers(
             fakeSubscriptionOffer(
                 fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -271,7 +279,7 @@ class PlayBillingPaywallBridgeTest {
         val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val pkg = bridge.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals(true, pkg.intro?.eligible)
         assertEquals("1 week free, then $9.99/mo", pkg.intro?.label)
     }
@@ -282,7 +290,8 @@ class PlayBillingPaywallBridgeTest {
         val details = fakeSubscriptionProductDetailsWithOffers(
             fakeSubscriptionOffer(
                 fakePricingPhase("$0.99", 990_000L, "P3M", ProductDetails.RecurrenceMode.NON_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -291,7 +300,7 @@ class PlayBillingPaywallBridgeTest {
         val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val pkg = bridge.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals("$0.99 for 3 months, then $9.99/mo", pkg.intro?.label)
     }
 
@@ -301,7 +310,8 @@ class PlayBillingPaywallBridgeTest {
         val details = fakeSubscriptionProductDetailsWithOffers(
             fakeSubscriptionOffer(
                 fakePricingPhase("$1.99", 1_990_000L, "P2M", ProductDetails.RecurrenceMode.FINITE_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -310,7 +320,7 @@ class PlayBillingPaywallBridgeTest {
         val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val pkg = bridge.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals("$1.99 for 2 months, then $9.99/mo", pkg.intro?.label)
     }
 
@@ -322,7 +332,8 @@ class PlayBillingPaywallBridgeTest {
                 // Combined periods (e.g. "P1Y6M") are a real ISO 8601 shape
                 // this parser deliberately doesn't claim to spell out
                 fakePricingPhase("Free", 0L, "P1Y6M", ProductDetails.RecurrenceMode.FINITE_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -331,7 +342,7 @@ class PlayBillingPaywallBridgeTest {
         val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         val pkg = bridge.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals(null, pkg.intro)
     }
 
@@ -347,6 +358,122 @@ class PlayBillingPaywallBridgeTest {
 
         assertEquals("$4.99", pkg.price)
         assertEquals(null, pkg.intro)
+    }
+
+    private suspend fun packageWith(vararg offers: ProductDetails.SubscriptionOfferDetails, bridgeFactory: (BillingClient) -> PlayBillingPaywallBridge = { PlayBillingPaywallBridge(it) { mockk<android.app.Activity>() } }): PaywallPackageRuntime {
+        val billingClient = mockk<BillingClient>()
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(fakeSubscriptionProductDetailsWithOffers(*offers)))
+        return bridgeFactory(billingClient).packageFor("premium", PackageKind.SUBSCRIPTION)
+    }
+
+    @Test
+    fun `packageFor labels a multi-cycle pay-as-you-go phase with its total duration`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(),
+            fakeSubscriptionOffer(
+                fakePricingPhase("$1.99", 1_990_000L, "P1M", ProductDetails.RecurrenceMode.FINITE_RECURRING, billingCycleCount = 3),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
+            ),
+        )
+        assertEquals("$1.99 for 3 months, then $9.99/mo", pkg.intro?.label)
+    }
+
+    @Test
+    fun `packageFor suffixes an annual regular price with its period`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(price = "$39.99", micros = 39_990_000L, period = "P1Y", basePlanId = "annual"),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P7D", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$39.99", 39_990_000L, "P1Y", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                basePlanId = "annual",
+                offerId = "trial",
+            ),
+        )
+        assertEquals("$39.99", pkg.price)
+        assertEquals("7 days free, then $39.99/yr", pkg.intro?.label)
+    }
+
+    @Test
+    fun `packageFor never pairs one base plan's price with another base plan's trial`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(),
+            basePlanOffer(price = "$39.99", micros = 39_990_000L, period = "P1Y", basePlanId = "annual"),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$39.99", 39_990_000L, "P1Y", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                basePlanId = "annual",
+                offerId = "annual-trial",
+            ),
+        )
+        assertEquals("$9.99", pkg.price)
+        assertEquals(null, pkg.intro)
+    }
+
+    @Test
+    fun `packageFor skips a developer-determined offer by default`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "winback",
+                offerTags = listOf(PlayBillingPaywallBridge.DEVELOPER_DETERMINED_OFFER_TAG),
+            ),
+        )
+        assertEquals(null, pkg.intro)
+    }
+
+    @Test
+    fun `packageFor defers to a caller-supplied eligibility predicate`() = runTest {
+        val trial = fakeSubscriptionOffer(
+            fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+            fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+            offerId = "trial",
+        )
+        val pkg = packageWith(basePlanOffer(), trial) { client ->
+            PlayBillingPaywallBridge(client, isIntroOfferEligible = { false }) { mockk<android.app.Activity>() }
+        }
+        assertEquals(null, pkg.intro)
+    }
+
+    @Test
+    fun `purchase buys through the same offer token the trial label came from`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val details = fakeSubscriptionProductDetailsWithOffers(
+            basePlanOffer(),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "trial",
+                offerToken = "trial-token",
+            ),
+        )
+        every { details.productId } returns "premium"
+        coEvery { billingClient.queryProductDetails(any()) } returns ProductDetailsResult(okResult(), listOf(details))
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
+
+        val selection = bridge.selectSubscriptionOffer("premium", details)
+
+        assertEquals("trial-token", selection.offer.offerToken)
+        assertEquals("1 week free, then $9.99/mo", selection.intro?.label)
+    }
+
+    @Test
+    fun `formatBillingPeriod multiplies by the cycle count`() {
+        assertEquals("3 months", formatBillingPeriod("P1M", 3))
+        assertEquals("6 weeks", formatBillingPeriod("P2W", 3))
+        assertEquals("1 month", formatBillingPeriod("P1M", 0))
+    }
+
+    @Test
+    fun `appendRenewalSuffix describes the recurring period`() {
+        assertEquals("$9.99/mo", appendRenewalSuffix("$9.99", "P1M"))
+        assertEquals("$39.99/yr", appendRenewalSuffix("$39.99", "P1Y"))
+        assertEquals("$2.99/wk", appendRenewalSuffix("$2.99", "P1W"))
+        assertEquals("$24.99 every 3 months", appendRenewalSuffix("$24.99", "P3M"))
+        assertEquals(null, appendRenewalSuffix("$9.99", "P1Y6M"))
     }
 
     @Test
