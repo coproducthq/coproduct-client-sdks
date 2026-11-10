@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import Coproduct
 
@@ -106,6 +107,35 @@ final class PaywallRuntimeTests: XCTestCase {
         )
         await runtime.onSnapshotLoaded(snapshot)
         XCTAssertEqual(injected, ["monthly": PaywallPackageRuntime(price: "$4.99", intro: nil)])
+    }
+
+    func testOnSnapshotLoadedResolvesCtasConcurrently() async {
+        // Each packageFor call sleeps for a fixed duration and tracks how
+        // many calls are in flight at once. If onSnapshotLoaded resolved ctas
+        // serially (a for/await loop), at most one call would ever be in
+        // flight. Fanning out concurrently puts all three in flight together.
+        let bridge = ConcurrencyTrackingBridge()
+        var injected: [String: PaywallPackageRuntime]?
+        let runtime = PaywallRuntime(
+            bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
+            setPackages: { injected = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+        )
+        let snapshot = PaywallSnapshot(
+            paywallId: "pw_1", version: 1, templateType: "default",
+            content: PaywallContent(offeringKey: "off_1", ctas: [
+                PaywallCta(packageKey: "a", label: "A"),
+                PaywallCta(packageKey: "b", label: "B"),
+                PaywallCta(packageKey: "c", label: "C"),
+            ], html: ""),
+            packages: [
+                "a": PaywallPackageRef(iosProductId: "p_a", androidProductId: nil, webProductId: nil, kind: .subscription),
+                "b": PaywallPackageRef(iosProductId: "p_b", androidProductId: nil, webProductId: nil, kind: .subscription),
+                "c": PaywallPackageRef(iosProductId: "p_c", androidProductId: nil, webProductId: nil, kind: .subscription),
+            ], html: ""
+        )
+        await runtime.onSnapshotLoaded(snapshot)
+        XCTAssertEqual(bridge.maxConcurrent, 3)
+        XCTAssertEqual(injected?.count, 3)
     }
 
     func testHandleNavigationRequestDismissCallsOnDismiss() async {
@@ -321,6 +351,32 @@ private final class FlakyFakePaywallClient: PaywallClient, @unchecked Sendable {
 private final class PriceOnlyBridge: NativePaywallBridge, @unchecked Sendable {
     func priceFor(_ productId: String, kind _: PackageKind) async throws -> String { "$4.99" }
     func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult { .init(outcome: .cancelled) }
+    func restore() async throws -> [RestoredTransaction] { [] }
+}
+
+/// Tracks how many `packageFor` calls are in flight at once, to distinguish
+/// concurrent fan-out from a serial for/await loop without depending on wall
+/// clock timing of the whole test.
+private final class ConcurrencyTrackingBridge: NativePaywallBridge, @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = 0
+    private(set) var maxConcurrent = 0
+
+    func priceFor(_ productId: String, kind _: PackageKind) async throws -> String { "$0" }
+
+    func packageFor(_ productId: String, kind _: PackageKind) async throws -> PaywallPackageRuntime {
+        lock.lock()
+        current += 1
+        maxConcurrent = max(maxConcurrent, current)
+        lock.unlock()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        lock.lock()
+        current -= 1
+        lock.unlock()
+        return PaywallPackageRuntime(price: productId, intro: nil)
+    }
+
+    func purchase(_: String, kind _: PackageKind) async throws -> PurchaseResult { .init(outcome: .success) }
     func restore() async throws -> [RestoredTransaction] { [] }
 }
 

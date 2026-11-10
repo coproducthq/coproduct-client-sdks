@@ -64,18 +64,34 @@ final class PaywallRuntime: @unchecked Sendable {
 
     /// Resolves a package (price plus eligible intro offer) for every cta
     /// with a known product id, then hands the whole map to `setPackages` in
-    /// one call. A cta with no resolvable product id, or whose `packageFor`
-    /// call fails, is silently skipped -- the server never renders a price
-    /// for it either.
+    /// one call. Resolution fans out concurrently -- each `packageFor` call
+    /// awaits StoreKit's `isEligibleForIntroOffer`, so resolving serially
+    /// made a multi-cta paywall reveal as slowly as the sum of every cta
+    /// instead of the slowest one. A cta with no resolvable product id, or
+    /// whose `packageFor` call fails, is silently skipped -- the server never
+    /// renders a price for it either.
     func onSnapshotLoaded(_ snapshot: PaywallSnapshot) async {
         self.snapshot = snapshot
-        var packages: [String: PaywallPackageRuntime] = [:]
-        for cta in snapshot.content.ctas {
-            guard let productId = snapshot.packages[cta.packageKey]?.iosProductId else { continue }
+        let resolvable: [(packageKey: String, productId: String, kind: PackageKind)] = snapshot.content.ctas.compactMap { cta in
+            guard let productId = snapshot.packages[cta.packageKey]?.iosProductId else { return nil }
             let kind = snapshot.packages[cta.packageKey]?.kind ?? .subscription
-            guard let pkg = try? await bridge.packageFor(productId, kind: kind) else { continue }
-            packages[cta.packageKey] = pkg
+            return (cta.packageKey, productId, kind)
         }
+        let resolved = await withTaskGroup(of: (String, PaywallPackageRuntime)?.self) { group in
+            for entry in resolvable {
+                group.addTask { [bridge] in
+                    guard let pkg = try? await bridge.packageFor(entry.productId, kind: entry.kind) else { return nil }
+                    return (entry.packageKey, pkg)
+                }
+            }
+            var results: [(String, PaywallPackageRuntime)] = []
+            for await result in group {
+                guard let result else { continue }
+                results.append(result)
+            }
+            return results
+        }
+        let packages = Dictionary(uniqueKeysWithValues: resolved)
         guard !packages.isEmpty else { return }
         await setPackages(packages)
     }

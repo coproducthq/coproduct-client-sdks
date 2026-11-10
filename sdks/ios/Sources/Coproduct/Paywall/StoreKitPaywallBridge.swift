@@ -36,11 +36,32 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
         }
         let label = composeIntroLabel(
             kind: kind,
-            offerPeriod: offer.period.formatted(product.subscriptionPeriodFormatStyle),
+            offerPeriod: formattedOfferPeriod(
+                unit: Self.subscriptionPeriodUnit(from: offer.period.unit),
+                value: offer.period.value,
+                periodCount: offer.periodCount
+            ),
             offerPrice: offer.displayPrice,
-            regularPrice: product.displayPrice
+            regularPrice: appendingRenewalSuffix(
+                to: product.displayPrice,
+                unit: Self.subscriptionPeriodUnit(from: subscription.subscriptionPeriod.unit)
+            )
         )
         return PaywallPackageRuntime(price: product.displayPrice, intro: PaywallIntroOffer(eligible: true, label: label))
+    }
+
+    /// Narrows StoreKit2's `Product.SubscriptionPeriod.Unit` to this SDK's
+    /// own pure `SubscriptionPeriodUnit`, so the offer-period and
+    /// regular-price formatting in `IntroOfferLabel.swift` stays testable
+    /// without importing StoreKit.
+    private static func subscriptionPeriodUnit(from unit: Product.SubscriptionPeriod.Unit) -> SubscriptionPeriodUnit {
+        switch unit {
+        case .day: return .day
+        case .week: return .week
+        case .month: return .month
+        case .year: return .year
+        @unknown default: return .month
+        }
     }
 
     public func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult {
