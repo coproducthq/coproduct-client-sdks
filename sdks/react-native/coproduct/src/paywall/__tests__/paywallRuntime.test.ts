@@ -20,7 +20,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
   nextPurchaseResult: PurchaseResult;
   restoredTransactions: RestoredTransaction[];
   purchaseCalls: string[] = [];
-  priceForCalls: Array<{ productId: string; kind: PackageKind }> = [];
+  packageForCalls: Array<{ productId: string; kind: PackageKind }> = [];
   purchaseKinds: Array<{ productId: string; kind: PackageKind }> = [];
 
   constructor(
@@ -39,8 +39,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
     this.restoredTransactions = args.restoredTransactions ?? [];
   }
 
-  async priceFor(productId: string, kind: PackageKind): Promise<string> {
-    this.priceForCalls.push({ productId, kind });
+  async priceFor(productId: string, _kind: PackageKind): Promise<string> {
     if (this.productIdsThatThrow.has(productId)) {
       throw new Error(`STOREKIT_ERROR: unknown product ${productId}`);
     }
@@ -53,7 +52,7 @@ class FakeNativePaywallBridge implements NativePaywallBridge {
     productId: string,
     kind: PackageKind
   ): Promise<PaywallPackageRuntime> {
-    this.priceForCalls.push({ productId, kind });
+    this.packageForCalls.push({ productId, kind });
     const pkg = this.packageByProductId[productId];
     if (pkg != null) return pkg;
     if (this.productIdsThatThrow.has(productId)) {
@@ -149,7 +148,7 @@ function buildSnapshot(
 describe('PaywallRuntime', () => {
   it('onSnapshotLoaded resolves a package for every cta with a known product id', async () => {
     const bridge = new FakeNativePaywallBridge();
-    bridge.packageByProductId['premium_monthly'] = {
+    bridge.packageByProductId.premium_monthly = {
       price: '$9.99/mo',
       intro: { eligible: true, label: '7 days free, then $9.99/mo' },
     };
@@ -176,7 +175,7 @@ describe('PaywallRuntime', () => {
     });
   });
 
-  it("onSnapshotLoaded passes each package's kind through to priceFor, defaulting to subscription when unset", async () => {
+  it("onSnapshotLoaded passes each package's kind through to packageFor, defaulting to subscription when unset", async () => {
     const bridge = new FakeNativePaywallBridge({
       pricesByProductId: {
         premium_monthly: '$9.99/mo',
@@ -212,7 +211,7 @@ describe('PaywallRuntime', () => {
 
     await runtime.onSnapshotLoaded(snapshot);
 
-    expect(bridge.priceForCalls).toEqual(
+    expect(bridge.packageForCalls).toEqual(
       expect.arrayContaining([
         { productId: 'premium_monthly', kind: 'subscription' },
         { productId: 'points_pack_300', kind: 'consumable' },
@@ -277,6 +276,79 @@ describe('PaywallRuntime', () => {
 
     expect(capturedPackages).toEqual({
       annual: { price: '$89.99/yr', intro: null },
+    });
+  });
+
+  it('onSnapshotLoaded resolves every cta package in parallel, not one at a time', async () => {
+    const startedProductIds: string[] = [];
+    let resolveSlowProduct: (() => void) | undefined;
+    const bridge: NativePaywallBridge = {
+      priceFor: async () => {
+        throw new Error(
+          'priceFor should not be used when packageFor is implemented'
+        );
+      },
+      packageFor: async (productId) => {
+        startedProductIds.push(productId);
+        if (productId === 'slow_product') {
+          // Resolved explicitly by the test below, once it has confirmed
+          // the other cta's lookup already started -- a serial for/await
+          // loop would never reach that second lookup until this one settles.
+          await new Promise<void>((resolve) => {
+            resolveSlowProduct = resolve;
+          });
+        }
+        return { price: '$9.99/mo', intro: null };
+      },
+      purchase: async () => ({ outcome: 'cancelled' }),
+      restore: async () => [],
+    };
+    const client = new FakePaywallClient();
+    let capturedPackages: Record<string, PaywallPackageRuntime> | undefined;
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      setPackages: async (packages) => {
+        capturedPackages = packages;
+      },
+    });
+
+    const snapshot: PaywallSnapshot = {
+      paywallId: 'p-1',
+      version: 1,
+      templateType: 'hero_single_offer',
+      content: {
+        offeringKey: 'default',
+        ctas: [
+          { packageKey: 'slow', label: 'Slow' },
+          { packageKey: 'fast', label: 'Fast' },
+        ],
+        html: '<section></section>',
+      },
+      packages: {
+        slow: { iosProductId: 'slow_product' },
+        fast: { iosProductId: 'fast_product' },
+      },
+      html: '<section></section>',
+    };
+
+    const loaded = runtime.onSnapshotLoaded(snapshot);
+    // Flush microtasks so every synchronously-reachable packageFor call has
+    // had the chance to start, without waiting on slow_product to settle.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(startedProductIds).toEqual(
+      expect.arrayContaining(['slow_product', 'fast_product'])
+    );
+
+    resolveSlowProduct?.();
+    await loaded;
+
+    expect(capturedPackages).toEqual({
+      slow: { price: '$9.99/mo', intro: null },
+      fast: { price: '$9.99/mo', intro: null },
     });
   });
 
@@ -345,7 +417,7 @@ describe('PaywallRuntime', () => {
     expect(capturedPackages).toEqual({
       monthly: { price: '$9.99/mo', intro: null },
     });
-    expect(bridge.priceForCalls).toEqual([
+    expect(bridge.packageForCalls).toEqual([
       { productId: 'premium_monthly_android', kind: 'subscription' },
     ]);
   });

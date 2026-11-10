@@ -88,24 +88,33 @@ export class PaywallRuntime {
   }
 
   // Resolves a package for every cta with a known product id, then hands
-  // the whole map to setPackages in one call. A cta with no resolvable
-  // product id, or whose resolvePackage call fails, is silently skipped --
-  // the server never renders a price for it either.
+  // the whole map to setPackages in one call. Resolved in parallel rather
+  // than one at a time, so a multi-cta paywall reveals as soon as the
+  // slowest single lookup finishes rather than waiting on their sum. A cta
+  // with no resolvable product id, or whose resolvePackage call fails, is
+  // silently skipped -- the server never renders a price for it either.
   async onSnapshotLoaded(snapshot: PaywallSnapshot): Promise<void> {
     this.snapshot = snapshot;
+    const resolved = await Promise.all(
+      snapshot.content.ctas.map(async (cta) => {
+        const packageRef = snapshot.packages[cta.packageKey];
+        const productId = this.productIdFor(packageRef);
+        if (productId == null) return null;
+        try {
+          const pkg = await this.resolvePackage(
+            productId,
+            packageRef?.kind ?? 'subscription'
+          );
+          return { packageKey: cta.packageKey, pkg };
+        } catch {
+          return null;
+        }
+      })
+    );
+
     const packages: Record<string, PaywallPackageRuntime> = {};
-    for (const cta of snapshot.content.ctas) {
-      const packageRef = snapshot.packages[cta.packageKey];
-      const productId = this.productIdFor(packageRef);
-      if (productId == null) continue;
-      try {
-        packages[cta.packageKey] = await this.resolvePackage(
-          productId,
-          packageRef?.kind ?? 'subscription'
-        );
-      } catch {
-        continue;
-      }
+    for (const entry of resolved) {
+      if (entry != null) packages[entry.packageKey] = entry.pkg;
     }
     if (Object.keys(packages).length > 0) await this.setPackages(packages);
   }
