@@ -24,6 +24,37 @@ private func composeIntroLabel(kind: IntroOfferKind, offerPeriod: String, offerP
     }
 }
 
+/// Formats an offer's TOTAL duration: one `offer.period` of `value` units,
+/// repeated `offer.periodCount` times ("$1.99/month for 3 months" is
+/// 1 month x 3). Mirrors `formattedOfferPeriod` in
+/// sdks/ios/Sources/Coproduct/Paywall/IntroOfferLabel.swift.
+private func formattedOfferPeriod(_ period: Product.SubscriptionPeriod, periodCount: Int) -> String {
+    let total = period.value * max(periodCount, 1)
+    return "\(total) \(periodNoun(period.unit))\(total == 1 ? "" : "s")"
+}
+
+/// Appends a renewal suffix to the regular price, e.g. "$39.99/yr". Mirrors
+/// `appendingRenewalSuffix` in IntroOfferLabel.swift.
+private func appendingRenewalSuffix(to price: String, unit: Product.SubscriptionPeriod.Unit) -> String {
+    switch unit {
+    case .day: return "\(price)/day"
+    case .week: return "\(price)/wk"
+    case .month: return "\(price)/mo"
+    case .year: return "\(price)/yr"
+    @unknown default: return "\(price)/mo"
+    }
+}
+
+private func periodNoun(_ unit: Product.SubscriptionPeriod.Unit) -> String {
+    switch unit {
+    case .day: return "day"
+    case .week: return "week"
+    case .month: return "month"
+    case .year: return "year"
+    @unknown default: return "month"
+    }
+}
+
 /// The native side of app.coproduct.flutter/paywall: StoreKit2 price
 /// lookup, purchase, and restore. Deliberately small -- it holds no SDK
 /// state, knows nothing about the SDK key, and performs no network call of
@@ -109,9 +140,9 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
             }
             let label = composeIntroLabel(
                 kind: kind,
-                offerPeriod: offer.period.formatted(product.subscriptionPeriodFormatStyle),
+                offerPeriod: formattedOfferPeriod(offer.period, periodCount: offer.periodCount),
                 offerPrice: offer.displayPrice,
-                regularPrice: product.displayPrice
+                regularPrice: appendingRenewalSuffix(to: product.displayPrice, unit: subscription.subscriptionPeriod.unit)
             )
             result([
                 "price": product.displayPrice,

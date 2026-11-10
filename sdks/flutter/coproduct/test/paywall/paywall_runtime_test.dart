@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -148,7 +149,68 @@ PaywallSnapshot buildSnapshot({
   html: '<section></section>',
 );
 
+/// Holds every packageFor call open until [release] completes, so a test
+/// can see how many calls are in flight at once.
+class GatedPackageBridge extends FakeNativePaywallBridge {
+  final release = Completer<void>();
+  int inFlight = 0;
+  int maxInFlight = 0;
+
+  @override
+  Future<PaywallPackageRuntime> packageFor(
+    String productId,
+    PackageKind kind,
+  ) async {
+    inFlight++;
+    if (inFlight > maxInFlight) maxInFlight = inFlight;
+    await release.future;
+    inFlight--;
+    return PaywallPackageRuntime(price: productId);
+  }
+}
+
 void main() {
+  test('onSnapshotLoaded resolves every cta concurrently', () async {
+    final bridge = GatedPackageBridge();
+    Map<String, PaywallPackageRuntime>? capturedPackages;
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: FakePaywallClient(),
+      appUserId: 'user-1',
+      setPackages: (packages) async {
+        capturedPackages = packages;
+      },
+    );
+    final snapshot = PaywallSnapshot(
+      paywallId: 'p-1',
+      version: 1,
+      templateType: 'hero_single_offer',
+      content: const PaywallContent(
+        offeringKey: 'default',
+        ctas: [
+          PaywallCta(packageKey: 'a', label: 'A'),
+          PaywallCta(packageKey: 'b', label: 'B'),
+          PaywallCta(packageKey: 'c', label: 'C'),
+        ],
+        html: '',
+      ),
+      packages: const {
+        'a': PaywallPackageRef(iosProductId: 'p_a'),
+        'b': PaywallPackageRef(iosProductId: 'p_b'),
+        'c': PaywallPackageRef(iosProductId: 'p_c'),
+      },
+      html: '',
+    );
+
+    final loading = runtime.onSnapshotLoaded(snapshot);
+    await Future<void>.delayed(Duration.zero);
+    expect(bridge.maxInFlight, 3);
+    bridge.release.complete();
+    await loading;
+
+    expect(capturedPackages?.keys, unorderedEquals(['a', 'b', 'c']));
+  });
+
   test(
     'onSnapshotLoaded resolves a package for every cta with a known product id',
     () async {

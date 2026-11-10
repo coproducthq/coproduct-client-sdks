@@ -97,13 +97,8 @@ class CoproductPaywallPluginTest {
         every { productDetails.oneTimePurchaseOfferDetails } returns null
         every { productDetails.zza() } returns ""
         if (isSubscription) {
-            val pricingPhase = mockk<ProductDetails.PricingPhase> {
-                every { this@mockk.formattedPrice } returns formattedPrice
-            }
-            val offer = mockk<ProductDetails.SubscriptionOfferDetails> {
-                every { offerToken } returns "offer-token-$productId"
-                every { pricingPhases.pricingPhaseList } returns listOf(pricingPhase)
-            }
+            val pricingPhase = fakePricingPhase(formattedPrice, 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING)
+            val offer = fakeSubscriptionOffer(pricingPhase, offerToken = "offer-token-$productId")
             every { productDetails.subscriptionOfferDetails } returns listOf(offer)
         } else {
             val offer = mockk<ProductDetails.OneTimePurchaseOfferDetails> {
@@ -120,17 +115,42 @@ class CoproductPaywallPluginTest {
         priceAmountMicros: Long,
         billingPeriod: String,
         recurrenceMode: Int,
+        billingCycleCount: Int = 1,
     ): ProductDetails.PricingPhase = mockk {
         every { this@mockk.formattedPrice } returns formattedPrice
         every { this@mockk.priceAmountMicros } returns priceAmountMicros
         every { this@mockk.billingPeriod } returns billingPeriod
         every { this@mockk.recurrenceMode } returns recurrenceMode
+        every { this@mockk.billingCycleCount } returns billingCycleCount
     }
 
     private fun fakeSubscriptionOffer(
         vararg phases: ProductDetails.PricingPhase,
+        basePlanId: String = "monthly",
+        offerId: String? = null,
+        offerTags: List<String> = emptyList(),
+        offerToken: String = "token-${basePlanId}-${offerId ?: "base"}",
     ): ProductDetails.SubscriptionOfferDetails = mockk {
         every { pricingPhases.pricingPhaseList } returns phases.toList()
+        every { this@mockk.basePlanId } returns basePlanId
+        every { this@mockk.offerId } returns offerId
+        every { this@mockk.offerTags } returns offerTags
+        every { this@mockk.offerToken } returns offerToken
+    }
+
+    private fun basePlanOffer(price: String = "$9.99", micros: Long = 9_990_000L, period: String = "P1M", basePlanId: String = "monthly") =
+        fakeSubscriptionOffer(
+            fakePricingPhase(price, micros, period, ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+            basePlanId = basePlanId,
+        )
+
+    private suspend fun packageWith(vararg offers: ProductDetails.SubscriptionOfferDetails): PaywallPackageRuntime {
+        val billingClient = mockk<BillingClient>()
+        val plugin = CoproductPaywallPlugin()
+        plugin.billingClientForTest = billingClient
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(fakeSubscriptionProductDetailsWithOffers(*offers)))
+        return plugin.packageFor("premium", PackageKind.SUBSCRIPTION)
     }
 
     private fun fakeSubscriptionProductDetailsWithOffers(
@@ -201,17 +221,13 @@ class CoproductPaywallPluginTest {
         val billingClient = mockk<BillingClient>()
         val plugin = CoproductPaywallPlugin()
         plugin.billingClientForTest = billingClient
-        val details = fakeSubscriptionProductDetailsWithOffers(
-            fakeSubscriptionOffer(
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
-            ),
-        )
+        val details = fakeSubscriptionProductDetailsWithOffers(basePlanOffer())
         coEvery { billingClient.queryProductDetails(any()) } returns
             ProductDetailsResult(okResult(), listOf(details))
 
         val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertNull(pkg.intro)
     }
 
@@ -223,7 +239,8 @@ class CoproductPaywallPluginTest {
         val details = fakeSubscriptionProductDetailsWithOffers(
             fakeSubscriptionOffer(
                 fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -231,7 +248,7 @@ class CoproductPaywallPluginTest {
 
         val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals(true, pkg.intro?.eligible)
         assertEquals("1 week free, then $9.99/mo", pkg.intro?.label)
     }
@@ -244,7 +261,8 @@ class CoproductPaywallPluginTest {
         val details = fakeSubscriptionProductDetailsWithOffers(
             fakeSubscriptionOffer(
                 fakePricingPhase("$0.99", 990_000L, "P3M", ProductDetails.RecurrenceMode.NON_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -252,7 +270,7 @@ class CoproductPaywallPluginTest {
 
         val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals("$0.99 for 3 months, then $9.99/mo", pkg.intro?.label)
     }
 
@@ -264,7 +282,8 @@ class CoproductPaywallPluginTest {
         val details = fakeSubscriptionProductDetailsWithOffers(
             fakeSubscriptionOffer(
                 fakePricingPhase("$1.99", 1_990_000L, "P2M", ProductDetails.RecurrenceMode.FINITE_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -272,7 +291,7 @@ class CoproductPaywallPluginTest {
 
         val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertEquals("$1.99 for 2 months, then $9.99/mo", pkg.intro?.label)
     }
 
@@ -286,7 +305,8 @@ class CoproductPaywallPluginTest {
                 // Combined periods (e.g. "P1Y6M") are a real ISO 8601 shape
                 // this parser deliberately doesn't claim to spell out
                 fakePricingPhase("Free", 0L, "P1Y6M", ProductDetails.RecurrenceMode.FINITE_RECURRING),
-                fakePricingPhase("$9.99/mo", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
             ),
         )
         coEvery { billingClient.queryProductDetails(any()) } returns
@@ -294,7 +314,7 @@ class CoproductPaywallPluginTest {
 
         val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
 
-        assertEquals("$9.99/mo", pkg.price)
+        assertEquals("$9.99", pkg.price)
         assertNull(pkg.intro)
     }
 
@@ -311,6 +331,75 @@ class CoproductPaywallPluginTest {
 
         assertEquals("$1.99", pkg.price)
         assertNull(pkg.intro)
+    }
+
+    @Test
+    fun `packageFor labels a multi-cycle pay-as-you-go phase with its total duration`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(),
+            fakeSubscriptionOffer(
+                fakePricingPhase("$1.99", 1_990_000L, "P1M", ProductDetails.RecurrenceMode.FINITE_RECURRING, billingCycleCount = 3),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "intro",
+            ),
+        )
+        assertEquals("$1.99 for 3 months, then $9.99/mo", pkg.intro?.label)
+    }
+
+    @Test
+    fun `packageFor never pairs one base plan's price with another base plan's trial`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(),
+            basePlanOffer(price = "$39.99", micros = 39_990_000L, period = "P1Y", basePlanId = "annual"),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$39.99", 39_990_000L, "P1Y", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                basePlanId = "annual",
+                offerId = "annual-trial",
+            ),
+        )
+        assertEquals("$9.99", pkg.price)
+        assertNull(pkg.intro)
+    }
+
+    @Test
+    fun `packageFor skips a developer-determined offer`() = runTest {
+        val pkg = packageWith(
+            basePlanOffer(),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "winback",
+                offerTags = listOf(DEVELOPER_DETERMINED_OFFER_TAG),
+            ),
+        )
+        assertNull(pkg.intro)
+    }
+
+    @Test
+    fun `selectSubscriptionOffer returns the trial offer's own token for purchase`() = runTest {
+        val plugin = CoproductPaywallPlugin()
+        plugin.billingClientForTest = mockk()
+        val details = fakeSubscriptionProductDetailsWithOffers(
+            basePlanOffer(),
+            fakeSubscriptionOffer(
+                fakePricingPhase("Free", 0L, "P1W", ProductDetails.RecurrenceMode.FINITE_RECURRING),
+                fakePricingPhase("$9.99", 9_990_000L, "P1M", ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                offerId = "trial",
+                offerToken = "trial-token",
+            ),
+        )
+        val selection = plugin.selectSubscriptionOffer("premium", details)
+        assertEquals("trial-token", selection.offer.offerToken)
+        assertEquals("1 week free, then $9.99/mo", selection.intro?.label)
+    }
+
+    @Test
+    fun `formatBillingPeriod multiplies by the cycle count and appendRenewalSuffix adds the period`() {
+        assertEquals("3 months", formatBillingPeriod("P1M", 3))
+        assertEquals("$39.99/yr", appendRenewalSuffix("$39.99", "P1Y"))
+        assertEquals("$24.99 every 3 months", appendRenewalSuffix("$24.99", "P3M"))
+        assertNull(appendRenewalSuffix("$9.99", "P1Y6M"))
     }
 
     @Test

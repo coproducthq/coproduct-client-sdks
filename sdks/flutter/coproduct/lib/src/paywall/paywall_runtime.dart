@@ -69,38 +69,43 @@ class PaywallRuntime {
 
   /// Resolves a package (price plus eligible intro offer) for every cta with
   /// a known product id, then hands the whole map to setPackages in one
-  /// call. A cta with no resolvable product id (snapshot.packages has no
-  /// entry, or this platform's bridge is unavailable), or whose packageFor
-  /// call fails, is silently skipped -- the server never renders a price
-  /// for it either, so the skeleton's price span simply stays blank.
+  /// call. Resolution runs concurrently, since each native lookup awaits the
+  /// store, so a multi-cta paywall reveals as fast as its slowest product
+  /// rather than the sum of all of them. A cta with no resolvable product id
+  /// (snapshot.packages has no entry, or this platform's bridge is
+  /// unavailable), or whose packageFor call fails, is silently skipped --
+  /// the server never renders a price for it either, so the skeleton's price
+  /// span simply stays blank.
   Future<void> onSnapshotLoaded(PaywallSnapshot snapshot) async {
     _snapshot = snapshot;
-    final packages = <String, PaywallPackageRuntime>{};
-    for (final cta in snapshot.content.ctas) {
-      final ref = snapshot.packages[cta.packageKey];
-      final productId = _productIdFor(ref);
-      if (productId == null) continue;
-      try {
-        final kind = ref?.kind ?? PackageKind.subscription;
-        final b = bridge;
-        // A bridge that resolves full packages (price + eligible intro offer)
-        // implements PackageResolvingBridge. One that only knows prices falls
-        // back to a price-only package with no intro -- so a custom bridge
-        // written before packages existed keeps working unchanged.
-        if (b is PackageResolvingBridge) {
-          packages[cta.packageKey] = await b.packageFor(productId, kind);
-        } else {
-          packages[cta.packageKey] = PaywallPackageRuntime(
-            price: await b.priceFor(productId, kind),
-          );
+    final resolved = await Future.wait(
+      snapshot.content.ctas.map((cta) async {
+        final ref = snapshot.packages[cta.packageKey];
+        final productId = _productIdFor(ref);
+        if (productId == null) return null;
+        try {
+          final kind = ref?.kind ?? PackageKind.subscription;
+          final b = bridge;
+          // A bridge that resolves full packages (price + eligible intro
+          // offer) implements PackageResolvingBridge. One that only knows
+          // prices falls back to a price-only package with no intro -- so a
+          // custom bridge written before packages existed keeps working
+          // unchanged.
+          final pkg = b is PackageResolvingBridge
+              ? await b.packageFor(productId, kind)
+              : PaywallPackageRuntime(price: await b.priceFor(productId, kind));
+          return MapEntry(cta.packageKey, pkg);
+        } catch (_) {
+          // One product's pricing failure (plugin unavailable, or a native
+          // store error for this specific product) must not abort pricing
+          // for the rest of the ctas in this snapshot
+          return null;
         }
-      } catch (_) {
-        // One product's pricing failure (plugin unavailable, or a native
-        // store error for this specific product) must not abort pricing
-        // for the rest of the ctas in this snapshot
-        continue;
-      }
-    }
+      }),
+    );
+    final packages = Map<String, PaywallPackageRuntime>.fromEntries(
+      resolved.whereType<MapEntry<String, PaywallPackageRuntime>>(),
+    );
     if (packages.isNotEmpty) await setPackages(packages);
   }
 
