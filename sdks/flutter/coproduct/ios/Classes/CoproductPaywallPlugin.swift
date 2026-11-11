@@ -24,6 +24,15 @@ private func composeIntroLabel(kind: IntroOfferKind, offerPeriod: String, offerP
     }
 }
 
+/// The `packageFor` channel response: price, intro (`NSNull` for none), and
+/// the StoreKit `displayName` as `title` for a paywall's `data-cp-title-for`
+/// slot -- omitted when empty so the page keeps the author's fallback text.
+private func packageResult(price: String, intro: Any, product: Product) -> [String: Any] {
+    var response: [String: Any] = ["price": price, "intro": intro]
+    if !product.displayName.isEmpty { response["title"] = product.displayName }
+    return response
+}
+
 /// Formats an offer's TOTAL duration: one `offer.period` of `value` units,
 /// repeated `offer.periodCount` times ("$1.99/month for 3 months" is
 /// 1 month x 3). Mirrors `formattedOfferPeriod` in
@@ -126,7 +135,7 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                 let offer = subscription.introductoryOffer,
                 await subscription.isEligibleForIntroOffer
             else {
-                result(["price": product.displayPrice, "intro": NSNull()])
+                result(packageResult(price: product.displayPrice, intro: NSNull(), product: product))
                 return
             }
             let kind: IntroOfferKind
@@ -135,7 +144,7 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
             case .payAsYouGo: kind = .payAsYouGo
             case .payUpFront: kind = .payUpFront
             default:
-                result(["price": product.displayPrice, "intro": NSNull()])
+                result(packageResult(price: product.displayPrice, intro: NSNull(), product: product))
                 return
             }
             let label = composeIntroLabel(
@@ -144,10 +153,7 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                 offerPrice: offer.displayPrice,
                 regularPrice: appendingRenewalSuffix(to: product.displayPrice, unit: subscription.subscriptionPeriod.unit)
             )
-            result([
-                "price": product.displayPrice,
-                "intro": ["eligible": true, "label": label],
-            ])
+            result(packageResult(price: product.displayPrice, intro: ["eligible": true, "label": label], product: product))
         } catch {
             result(FlutterError(code: "STOREKIT_ERROR", message: error.localizedDescription, details: nil))
         }

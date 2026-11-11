@@ -22,6 +22,7 @@ import io.mockk.unmockkStatic
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
@@ -118,6 +119,7 @@ class PlayBillingPaywallBridgeTest {
     private fun fakeProductDetails(productId: String, formattedPrice: String, isSubscription: Boolean): ProductDetails {
         val productDetails = mockk<ProductDetails>()
         every { productDetails.productId } returns productId
+        every { productDetails.name } returns "Name of $productId"
         // BillingFlowParams.ProductDetailsParams.Builder.setProductDetails() --
         // real, unmocked code -- reads this singular (legacy, pre-multi-offer)
         // getter itself (confirmed via javap -c disassembly) to opportunistically
@@ -243,8 +245,10 @@ class PlayBillingPaywallBridgeTest {
 
     private fun fakeSubscriptionProductDetailsWithOffers(
         vararg offers: ProductDetails.SubscriptionOfferDetails,
+        name: String = "Premium",
     ): ProductDetails = mockk {
         every { zza() } returns ""
+        every { this@mockk.name } returns name
         every { oneTimePurchaseOfferDetails } returns null
         every { subscriptionOfferDetails } returns offers.toList()
     }
@@ -751,5 +755,31 @@ class PlayBillingPaywallBridgeTest {
 
         val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
         assertEquals(emptyList<RestoredTransaction>(), bridge.restore())
+    }
+
+    @Test
+    fun `packageFor sends the Play product name as the title`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val details = fakeSubscriptionProductDetailsWithOffers(basePlanOffer(), name = "Pro Monthly")
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(details))
+
+        val pkg = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
+            .packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
+
+        assertEquals("Pro Monthly", pkg.title)
+    }
+
+    @Test
+    fun `packageFor leaves the title null when the Play product name is blank`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val details = fakeSubscriptionProductDetailsWithOffers(basePlanOffer(), name = "  ")
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(details))
+
+        val pkg = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
+            .packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
+
+        assertNull(pkg.title)
     }
 }

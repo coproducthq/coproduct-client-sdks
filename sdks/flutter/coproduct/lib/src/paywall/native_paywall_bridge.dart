@@ -83,31 +83,38 @@ class PaywallIntroOffer {
 }
 
 /// One package's live store data for a single paywall render: the regular
-/// localized price and its introductory offer (or null). Encodes to the
+/// localized price, its introductory offer (or null), and the store's
+/// localized product name (or null). Encodes to the
 /// `__coproductSetPackages__` value shape
-/// `{ "price": String, "intro": { ... } | null }`.
+/// `{ "price": String, "intro": { ... } | null, "title"?: String }`.
+/// [title] fills a paywall's optional `data-cp-title-for` slot; it is omitted
+/// when null, so a page keeps the author's fallback text.
 class PaywallPackageRuntime {
   final String price;
   final PaywallIntroOffer? intro;
+  final String? title;
 
-  const PaywallPackageRuntime({required this.price, this.intro});
+  const PaywallPackageRuntime({required this.price, this.intro, this.title});
 
   // Encodes intro explicitly as `null` rather than omitting the key, so the
   // WebView can distinguish "no offer" from a missing field -- mirrors
-  // PaywallPackageRuntime.swift's explicit `encode` override.
+  // PaywallPackageRuntime.swift's explicit `encode` override. title is
+  // omitted when null, matching the Swift encodeIfPresent.
   Map<String, Object?> toJson() => {
     'price': price,
     'intro': intro?.toChannelMap(),
+    if (title != null) 'title': title,
   };
 
   @override
   bool operator ==(Object other) =>
       other is PaywallPackageRuntime &&
       other.price == price &&
-      other.intro == intro;
+      other.intro == intro &&
+      other.title == title;
 
   @override
-  int get hashCode => Object.hash(price, intro);
+  int get hashCode => Object.hash(price, intro, title);
 }
 
 /// The native-capability contract PaywallRuntime drives. Deliberately not

@@ -65,10 +65,15 @@ internal fun composeIntroLabel(
 class PaywallIntroOffer(val eligible: Boolean, val label: String)
 
 /** One package's live store data for a single paywall render: the regular
- * formatted price and its introductory offer (or null). Encodes to the
- * channel shape `{ "price": String, "intro": { ... } | null }`, matching
+ * formatted price, its introductory offer (or null), and the Play product
+ * name (or null). Encodes to the channel shape
+ * `{ "price": String, "intro": { ... } | null, "title"?: String }`, matching
  * the iOS plugin's `packageFor` response shape exactly. */
-class PaywallPackageRuntime(val price: String, val intro: PaywallIntroOffer? = null)
+class PaywallPackageRuntime(
+    val price: String,
+    val intro: PaywallIntroOffer? = null,
+    val title: String? = null,
+)
 
 /** Billing periods Play returns for a pricing phase are ISO 8601 durations
  * (e.g. "P1W", "P3M", "P1Y", "P7D"). Parses exactly one non-zero component;
@@ -304,10 +309,14 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
         if (kind != PackageKind.SUBSCRIPTION) {
             val offer = productDetails.oneTimePurchaseOfferDetailsList?.firstOrNull()
                 ?: throw IllegalStateException("No one-time offer found for product \"$productId\"")
-            return PaywallPackageRuntime(price = offer.formattedPrice, intro = null)
+            return PaywallPackageRuntime(price = offer.formattedPrice, intro = null, title = productTitle(productDetails))
         }
         val selection = selectSubscriptionOffer(productId, productDetails)
-        return PaywallPackageRuntime(price = selection.regularPhase.formattedPrice, intro = selection.intro)
+        return PaywallPackageRuntime(
+            price = selection.regularPhase.formattedPrice,
+            intro = selection.intro,
+            title = productTitle(productDetails),
+        )
     }
 
     /** The one offer a subscription package is both labelled and bought
@@ -538,10 +547,17 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
     }
 }
 
-private fun PaywallPackageRuntime.toChannelMap(): Map<String, Any?> = mapOf(
-    "price" to price,
-    "intro" to intro?.let { mapOf("eligible" to it.eligible, "label" to it.label) },
-)
+internal fun PaywallPackageRuntime.toChannelMap(): Map<String, Any?> = buildMap {
+    put("price", price)
+    put("intro", intro?.let { mapOf("eligible" to it.eligible, "label" to it.label) })
+    title?.let { put("title", it) }
+}
+
+/** Play's product `name` (without the app name `title` appends) for a
+ * paywall's `data-cp-title-for` slot, or null when blank so the page keeps
+ * the author's fallback text. */
+internal fun productTitle(productDetails: ProductDetails): String? =
+    productDetails.name.takeIf { it.isNotBlank() }
 
 private fun PurchaseResult.toChannelMap(): Map<String, Any?> = mapOf(
     "outcome" to outcome.name.lowercase(),

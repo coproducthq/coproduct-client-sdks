@@ -243,6 +243,28 @@ function readEligibleIntroOffer(
   };
 }
 
+// The store's own product name for a paywall's data-cp-title-for slot:
+// StoreKit's displayName on iOS and Play's name on Android (not Play's title,
+// which appends the app name), falling back to the cross-platform
+// displayName. Returns null when blank so the page keeps the author's
+// fallback text.
+function productTitle(product: unknown): string | null {
+  const p = product as {
+    platform?: string;
+    displayNameIOS?: string | null;
+    nameAndroid?: string | null;
+    displayName?: string | null;
+  };
+  const platformName =
+    p.platform === 'ios'
+      ? p.displayNameIOS
+      : p.platform === 'android'
+        ? p.nameAndroid
+        : null;
+  const name = (platformName ?? p.displayName ?? '').trim();
+  return name === '' ? null : name;
+}
+
 function introFor(
   product: unknown,
   regularPrice: string
@@ -325,7 +347,8 @@ export class IapPaywallBridge implements NativePaywallBridge {
       throw new Error(`No product found for id "${productId}"`);
     const price = priceWithPeriod(product, product.displayPrice);
     const intro = introFor(product, price);
-    return { price, intro };
+    const title = productTitle(product);
+    return title == null ? { price, intro } : { price, intro, title };
   }
 
   async priceFor(productId: string, kind: PackageKind): Promise<string> {

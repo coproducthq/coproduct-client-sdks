@@ -44,11 +44,18 @@ data class PaywallIntroOffer(val eligible: Boolean, val label: String)
 
 /**
  * One package's live store data for a single paywall render: the regular
- * localized price and its introductory offer (or null). Encodes to the
+ * localized price, its introductory offer (or null), and the store's
+ * localized product name (or null). Encodes to the
  * `__coproductSetPackages__` value shape
- * `{ "price": String, "intro": { ... } | null }`.
+ * `{ "price": String, "intro": { ... } | null, "title"?: String }`.
+ * [title] fills a paywall's optional `data-cp-title-for` slot; it is omitted
+ * when null, so a page keeps the author's fallback text.
  */
-data class PaywallPackageRuntime(val price: String, val intro: PaywallIntroOffer?)
+data class PaywallPackageRuntime(
+    val price: String,
+    val intro: PaywallIntroOffer?,
+    val title: String? = null,
+)
 
 /**
  * The native-capability contract PaywallRuntime drives. Deliberately not
