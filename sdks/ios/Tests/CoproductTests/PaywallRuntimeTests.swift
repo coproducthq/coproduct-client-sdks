@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import Coproduct
 
@@ -14,6 +15,14 @@ private final class FakeBridge: NativePaywallBridge, @unchecked Sendable {
         if let priceError { throw priceError }
         guard let price = priceByProductId[productId] else { throw StoreKitPaywallBridgeError.unknownProduct(productId) }
         return price
+    }
+
+    var packageByProductId: [String: PaywallPackageRuntime] = [:]
+    func packageFor(_ productId: String, kind _: PackageKind) async throws -> PaywallPackageRuntime {
+        if let priceError { throw priceError }
+        if let pkg = packageByProductId[productId] { return pkg }
+        guard let price = priceByProductId[productId] else { throw StoreKitPaywallBridgeError.unknownProduct(productId) }
+        return PaywallPackageRuntime(price: price, intro: nil)
     }
 
     func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult {
@@ -54,34 +63,33 @@ final class PaywallRuntimeTests: XCTestCase {
         )
     }
 
-    func testOnSnapshotLoadedInjectsResolvedPrices() async {
+    func testOnSnapshotLoadedInjectsResolvedPackages() async {
         let bridge = FakeBridge()
-        bridge.priceByProductId["p1"] = "$4.99"
-        var injectedPrices: [String: String]?
+        bridge.packageByProductId["p1"] = PaywallPackageRuntime(price: "$4.99", intro: PaywallIntroOffer(eligible: true, label: "7 days free, then $4.99/mo"))
+        var injected: [String: PaywallPackageRuntime]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { injectedPrices = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { injected = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
-        XCTAssertEqual(injectedPrices, ["monthly": "$4.99"])
+        XCTAssertEqual(injected, ["monthly": PaywallPackageRuntime(price: "$4.99", intro: PaywallIntroOffer(eligible: true, label: "7 days free, then $4.99/mo"))])
     }
 
-    func testOnSnapshotLoadedSkipsCtaWithNoProductIdAndDoesNotCallSetPricesIfNoneResolve() async {
+    func testOnSnapshotLoadedSkipsCtaWithNoProductIdAndDoesNotCallSetPackagesIfNoneResolve() async {
         let bridge = FakeBridge()
-        var setPricesCalled = false
+        var called = false
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in setPricesCalled = true }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { _ in called = true }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot(packages: ["monthly": PaywallPackageRef(iosProductId: nil, androidProductId: nil, webProductId: nil, kind: .subscription)]))
-        XCTAssertFalse(setPricesCalled)
+        XCTAssertFalse(called)
     }
 
-    func testOnSnapshotLoadedSkipsFailingPriceLookupWithoutAbortingOthers() async {
+    func testOnSnapshotLoadedSkipsFailingPackageLookupWithoutAbortingOthers() async {
         let bridge = FakeBridge()
-        bridge.priceByProductId["p1"] = "$4.99"
-        bridge.priceError = nil // first cta resolves
-        var injectedPrices: [String: String]?
+        bridge.packageByProductId["p1"] = PaywallPackageRuntime(price: "$4.99", intro: nil)
+        var injected: [String: PaywallPackageRuntime]?
         let snapshot = PaywallSnapshot(
             paywallId: "pw_1", version: 1, templateType: "default",
             content: PaywallContent(offeringKey: "off_1", ctas: [
@@ -95,17 +103,46 @@ final class PaywallRuntimeTests: XCTestCase {
         )
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { injectedPrices = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { injected = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(snapshot)
-        XCTAssertEqual(injectedPrices, ["monthly": "$4.99"])
+        XCTAssertEqual(injected, ["monthly": PaywallPackageRuntime(price: "$4.99", intro: nil)])
+    }
+
+    func testOnSnapshotLoadedResolvesCtasConcurrently() async {
+        // Each packageFor call sleeps for a fixed duration and tracks how
+        // many calls are in flight at once. If onSnapshotLoaded resolved ctas
+        // serially (a for/await loop), at most one call would ever be in
+        // flight. Fanning out concurrently puts all three in flight together.
+        let bridge = ConcurrencyTrackingBridge()
+        var injected: [String: PaywallPackageRuntime]?
+        let runtime = PaywallRuntime(
+            bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
+            setPackages: { injected = $0 }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+        )
+        let snapshot = PaywallSnapshot(
+            paywallId: "pw_1", version: 1, templateType: "default",
+            content: PaywallContent(offeringKey: "off_1", ctas: [
+                PaywallCta(packageKey: "a", label: "A"),
+                PaywallCta(packageKey: "b", label: "B"),
+                PaywallCta(packageKey: "c", label: "C"),
+            ], html: ""),
+            packages: [
+                "a": PaywallPackageRef(iosProductId: "p_a", androidProductId: nil, webProductId: nil, kind: .subscription),
+                "b": PaywallPackageRef(iosProductId: "p_b", androidProductId: nil, webProductId: nil, kind: .subscription),
+                "c": PaywallPackageRef(iosProductId: "p_c", androidProductId: nil, webProductId: nil, kind: .subscription),
+            ], html: ""
+        )
+        await runtime.onSnapshotLoaded(snapshot)
+        XCTAssertEqual(bridge.maxConcurrent, 3)
+        XCTAssertEqual(injected?.count, 3)
     }
 
     func testHandleNavigationRequestDismissCallsOnDismiss() async {
         var dismissed = false
         let runtime = PaywallRuntime(
             bridge: FakeBridge(), client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: { dismissed = true }
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: { dismissed = true }
         )
         let decision = await runtime.handleNavigationRequest("coproduct-action:dismiss")
         XCTAssertEqual(decision, .prevent)
@@ -115,7 +152,7 @@ final class PaywallRuntimeTests: XCTestCase {
     func testHandleNavigationRequestNonActionUrlNavigates() async {
         let runtime = PaywallRuntime(
             bridge: FakeBridge(), client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
         )
         let decision = await runtime.handleNavigationRequest("https://example.com")
         XCTAssertEqual(decision, .navigate)
@@ -126,7 +163,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot(packages: [:]))
         _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
@@ -141,7 +178,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var errorReported = false
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
+            setPackages: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
             onPurchaseError: { _ in errorReported = true }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
@@ -157,7 +194,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var errorReported = false
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
+            setPackages: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
             onPurchaseError: { _ in errorReported = true }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
@@ -175,7 +212,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedEntitlements: [Entitlement]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, entitlements in reportedEntitlements = entitlements },
+            setPackages: { _ in }, onPurchaseResult: { _, entitlements in reportedEntitlements = entitlements },
             onPurchaseError: { _ in }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
@@ -191,7 +228,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
         _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
@@ -206,7 +243,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         await runtime.onSnapshotLoaded(makeSnapshot())
         _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
@@ -220,7 +257,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedEntitlements: [Entitlement]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
+            setPackages: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
             onPurchaseError: { _ in }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
@@ -245,7 +282,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedEntitlements: [Entitlement]?
         let runtime = PaywallRuntime(
             bridge: bridge, client: flakyClient, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
+            setPackages: { _ in }, onPurchaseResult: { result, entitlements in reportedResult = result; reportedEntitlements = entitlements },
             onPurchaseError: { _ in }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
@@ -260,7 +297,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: FakePaywallClient(), appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
         XCTAssertEqual(reportedError?.reason, .networkError)
@@ -275,7 +312,7 @@ final class PaywallRuntimeTests: XCTestCase {
         var reportedError: PaywallPurchaseError?
         let runtime = PaywallRuntime(
             bridge: bridge, client: client, appUserId: "u1",
-            setPrices: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { reportedError = $0 }, onDismiss: {}
         )
         _ = await runtime.handleNavigationRequest("coproduct-action:restore")
         XCTAssertEqual(reportedError?.reason, .networkError)
@@ -307,4 +344,45 @@ private final class FlakyFakePaywallClient: PaywallClient, @unchecked Sendable {
 
     func getEntitlements(_: String) async throws -> [Entitlement] { [] }
     func identify(appUserId _: String, targetingKey _: String) async throws {}
+}
+
+/// A bridge that implements only priceFor, to prove the protocol-extension
+/// default for packageFor delegates to it with no intro.
+private final class PriceOnlyBridge: NativePaywallBridge, @unchecked Sendable {
+    func priceFor(_ productId: String, kind _: PackageKind) async throws -> String { "$4.99" }
+    func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult { .init(outcome: .cancelled) }
+    func restore() async throws -> [RestoredTransaction] { [] }
+}
+
+/// Tracks how many `packageFor` calls are in flight at once, to distinguish
+/// concurrent fan-out from a serial for/await loop without depending on wall
+/// clock timing of the whole test.
+private final class ConcurrencyTrackingBridge: NativePaywallBridge, @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = 0
+    private(set) var maxConcurrent = 0
+
+    func priceFor(_ productId: String, kind _: PackageKind) async throws -> String { "$0" }
+
+    func packageFor(_ productId: String, kind _: PackageKind) async throws -> PaywallPackageRuntime {
+        lock.lock()
+        current += 1
+        maxConcurrent = max(maxConcurrent, current)
+        lock.unlock()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        lock.lock()
+        current -= 1
+        lock.unlock()
+        return PaywallPackageRuntime(price: productId, intro: nil)
+    }
+
+    func purchase(_: String, kind _: PackageKind) async throws -> PurchaseResult { .init(outcome: .success) }
+    func restore() async throws -> [RestoredTransaction] { [] }
+}
+
+final class NativePaywallBridgeDefaultTests: XCTestCase {
+    func testPackageForDefaultsToPriceWithNoIntro() async throws {
+        let runtime = try await PriceOnlyBridge().packageFor("p1", kind: .subscription)
+        XCTAssertEqual(runtime, PaywallPackageRuntime(price: "$4.99", intro: nil))
+    }
 }

@@ -144,6 +144,11 @@ jobs:
       - run: scripts/release/flutter/ci/setup-toolchains.sh --publish
       - run: |
           cd sdks/flutter/coproduct
+          # Resolve dependencies first: `flutter analyze` does not implicitly
+          # run pub get (unlike `flutter test`), so without this the analyzer
+          # cannot resolve package: URIs such as flutter_lints in
+          # analysis_options.yaml and fails before looking at any code.
+          ../../../scripts/release/ci-report.sh "Flutter pub get" -- flutter pub get
           ../../../scripts/release/ci-report.sh "Flutter format" -- dart format --set-exit-if-changed .
           ../../../scripts/release/ci-report.sh "Flutter analyze" -- flutter analyze
           ../../../scripts/release/ci-report.sh "Flutter tests" -- flutter test

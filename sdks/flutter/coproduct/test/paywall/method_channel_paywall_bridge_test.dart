@@ -31,6 +31,58 @@ void main() {
     },
   );
 
+  test(
+    'packageFor sends productId and kind and decodes a price-only package',
+    () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'packageFor');
+        expect(call.arguments, {
+          'productId': 'premium_monthly',
+          'kind': 'SUBSCRIPTION',
+        });
+        return {'price': '\$9.99/mo', 'intro': null};
+      });
+
+      final package = await const MethodChannelPaywallBridge().packageFor(
+        'premium_monthly',
+        PackageKind.subscription,
+      );
+      expect(package.price, '\$9.99/mo');
+      expect(package.intro, isNull);
+    },
+  );
+
+  test('packageFor decodes an eligible introductory offer', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      return {
+        'price': '\$9.99/mo',
+        'intro': {'eligible': true, 'label': '7 days free, then \$9.99/mo'},
+      };
+    });
+
+    final package = await const MethodChannelPaywallBridge().packageFor(
+      'premium_monthly',
+      PackageKind.subscription,
+    );
+    expect(package.price, '\$9.99/mo');
+    expect(package.intro, isNotNull);
+    expect(package.intro!.eligible, isTrue);
+    expect(package.intro!.label, '7 days free, then \$9.99/mo');
+  });
+
+  test(
+    'packageFor throws PaywallBridgeUnavailable when no plugin is registered',
+    () async {
+      expect(
+        () => const MethodChannelPaywallBridge().packageFor(
+          'premium_monthly',
+          PackageKind.subscription,
+        ),
+        throwsA(isA<PaywallBridgeUnavailable>()),
+      );
+    },
+  );
+
   test('purchase decodes a successful transaction', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
       expect(call.method, 'purchase');

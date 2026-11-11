@@ -34,11 +34,31 @@ export interface RestoredTransaction {
   expirationDate?: Date;
 }
 
+// One package's introductory offer as resolved natively, or its absence.
+// eligible is per-user: the runtime only ever sends an intro when the store
+// reports this user eligible, so the WebView can reveal trial copy without
+// re-checking.
+export interface PaywallIntroOffer {
+  eligible: boolean;
+  label: string;
+}
+
+// One package's live store data for a single paywall render: the regular
+// localized price and its introductory offer (or null).
+export interface PaywallPackageRuntime {
+  price: string;
+  intro: PaywallIntroOffer | null;
+}
+
 // The native-capability contract PaywallRuntime drives. Deliberately not
 // react-native-iap-shaped, so PaywallRuntime stays unit-testable against a
 // fake implementation.
 export interface NativePaywallBridge {
   priceFor(productId: string, kind: PackageKind): Promise<string>;
+  // Resolves a package's price and, when the store offers one and this user
+  // is eligible, its introductory offer. Optional: a bridge that implements
+  // only priceFor still works, the runtime falls back to a price-only result.
+  packageFor?(productId: string, kind: PackageKind): Promise<PaywallPackageRuntime>;
   purchase(productId: string, kind: PackageKind): Promise<PurchaseResult>;
   restore(): Promise<RestoredTransaction[]>;
 }

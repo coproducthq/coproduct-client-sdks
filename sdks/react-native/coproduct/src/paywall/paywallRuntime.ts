@@ -2,6 +2,8 @@ import type { Entitlement } from './models/entitlement';
 import type { PaywallPackageRef, PaywallSnapshot } from './models/paywallSnapshot';
 import type {
   NativePaywallBridge,
+  PackageKind,
+  PaywallPackageRuntime,
   PurchaseResult,
 } from './nativePaywallBridge';
 import { parsePaywallAction } from './paywallAction';
@@ -19,8 +21,8 @@ export interface PaywallPurchaseError {
   serverCode?: string;
 }
 
-export type SetPricesCallback = (
-  pricesByPackageKey: Record<string, string>
+export type SetPackagesCallback = (
+  packagesByPackageKey: Record<string, PaywallPackageRuntime>
 ) => Promise<void>;
 // entitlements is the resolved set after this purchase/restore landed --
 // empty for a cancelled/pending outcome, since nothing was recorded server-side
@@ -40,7 +42,7 @@ export class PaywallRuntime {
   private readonly client: PaywallClient;
   private readonly appUserId: string;
   private readonly platform: string;
-  private readonly setPrices: SetPricesCallback;
+  private readonly setPackages: SetPackagesCallback;
   private readonly onPurchaseResult?: PurchaseResultCallback;
   private readonly onPurchaseError?: PurchaseErrorCallback;
   private readonly onDismiss?: () => void;
@@ -50,7 +52,7 @@ export class PaywallRuntime {
     bridge: NativePaywallBridge;
     client: PaywallClient;
     appUserId: string;
-    setPrices: SetPricesCallback;
+    setPackages: SetPackagesCallback;
     onPurchaseResult?: PurchaseResultCallback;
     onPurchaseError?: PurchaseErrorCallback;
     onDismiss?: () => void;
@@ -59,7 +61,7 @@ export class PaywallRuntime {
     this.bridge = args.bridge;
     this.client = args.client;
     this.appUserId = args.appUserId;
-    this.setPrices = args.setPrices;
+    this.setPackages = args.setPackages;
     this.onPurchaseResult = args.onPurchaseResult;
     this.onPurchaseError = args.onPurchaseError;
     this.onDismiss = args.onDismiss;
@@ -74,27 +76,47 @@ export class PaywallRuntime {
     return this.platform === 'ANDROID' ? ref?.androidProductId : ref?.iosProductId;
   }
 
-  // Resolves a localized price for every cta with a known product id, then
-  // hands the whole map to setPrices in one call. A cta with no resolvable
-  // product id, or whose priceFor call fails, is silently skipped -- the
-  // server never renders a price for it either.
+  // Resolves a package's price and, when the bridge supports it, its
+  // introductory offer. Falls back to a price-only result for a bridge that
+  // implements only priceFor.
+  private async resolvePackage(
+    productId: string,
+    kind: PackageKind
+  ): Promise<PaywallPackageRuntime> {
+    if (this.bridge.packageFor != null) return this.bridge.packageFor(productId, kind);
+    return { price: await this.bridge.priceFor(productId, kind), intro: null };
+  }
+
+  // Resolves a package for every cta with a known product id, then hands
+  // the whole map to setPackages in one call. Resolved in parallel rather
+  // than one at a time, so a multi-cta paywall reveals as soon as the
+  // slowest single lookup finishes rather than waiting on their sum. A cta
+  // with no resolvable product id, or whose resolvePackage call fails, is
+  // silently skipped -- the server never renders a price for it either.
   async onSnapshotLoaded(snapshot: PaywallSnapshot): Promise<void> {
     this.snapshot = snapshot;
-    const prices: Record<string, string> = {};
-    for (const cta of snapshot.content.ctas) {
-      const packageRef = snapshot.packages[cta.packageKey];
-      const productId = this.productIdFor(packageRef);
-      if (productId == null) continue;
-      try {
-        prices[cta.packageKey] = await this.bridge.priceFor(
-          productId,
-          packageRef?.kind ?? 'subscription'
-        );
-      } catch {
-        continue;
-      }
+    const resolved = await Promise.all(
+      snapshot.content.ctas.map(async (cta) => {
+        const packageRef = snapshot.packages[cta.packageKey];
+        const productId = this.productIdFor(packageRef);
+        if (productId == null) return null;
+        try {
+          const pkg = await this.resolvePackage(
+            productId,
+            packageRef?.kind ?? 'subscription'
+          );
+          return { packageKey: cta.packageKey, pkg };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const packages: Record<string, PaywallPackageRuntime> = {};
+    for (const entry of resolved) {
+      if (entry != null) packages[entry.packageKey] = entry.pkg;
     }
-    if (Object.keys(prices).length > 0) await this.setPrices(prices);
+    if (Object.keys(packages).length > 0) await this.setPackages(packages);
   }
 
   async handleNavigationRequest(

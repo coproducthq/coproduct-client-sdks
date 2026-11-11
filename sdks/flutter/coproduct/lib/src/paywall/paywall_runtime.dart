@@ -22,8 +22,10 @@ class PaywallPurchaseError {
   const PaywallPurchaseError(this.reason, {this.serverCode});
 }
 
-typedef SetPricesCallback =
-    Future<void> Function(Map<String, String> pricesByPackageKey);
+typedef SetPackagesCallback =
+    Future<void> Function(
+      Map<String, PaywallPackageRuntime> packagesByPackageKey,
+    );
 // entitlements is the resolved set after this purchase/restore landed --
 // empty for a cancelled/pending outcome, since nothing was recorded server-side
 typedef PurchaseResultCallback =
@@ -40,7 +42,7 @@ class PaywallRuntime {
   final PaywallClient client;
   final String appUserId;
   final String platform;
-  final SetPricesCallback setPrices;
+  final SetPackagesCallback setPackages;
   final PurchaseResultCallback? onPurchaseResult;
   final PurchaseErrorCallback? onPurchaseError;
   final void Function()? onDismiss;
@@ -51,18 +53,13 @@ class PaywallRuntime {
     required this.bridge,
     required this.client,
     required this.appUserId,
-    required this.setPrices,
+    required this.setPackages,
     this.onPurchaseResult,
     this.onPurchaseError,
     this.onDismiss,
     this.platform = 'IOS',
   });
 
-  /// Resolves a localized price for every cta with a known product id, then
-  /// hands the whole map to setPrices in one call. A cta with no resolvable
-  /// product id (snapshot.packages has no entry, or this platform's bridge
-  /// is unavailable) is silently skipped -- the server never renders a
-  /// price for it either, so the skeleton's price span simply stays blank.
   /// Resolves which product id this platform's store purchases, and which
   /// PaywallPackageRef.kind to purchase it as. Android reads
   /// androidProductId; every other platform (today, only iOS) reads
@@ -70,26 +67,46 @@ class PaywallRuntime {
   String? _productIdFor(PaywallPackageRef? ref) =>
       platform == 'ANDROID' ? ref?.androidProductId : ref?.iosProductId;
 
+  /// Resolves a package (price plus eligible intro offer) for every cta with
+  /// a known product id, then hands the whole map to setPackages in one
+  /// call. Resolution runs concurrently, since each native lookup awaits the
+  /// store, so a multi-cta paywall reveals as fast as its slowest product
+  /// rather than the sum of all of them. A cta with no resolvable product id
+  /// (snapshot.packages has no entry, or this platform's bridge is
+  /// unavailable), or whose packageFor call fails, is silently skipped --
+  /// the server never renders a price for it either, so the skeleton's price
+  /// span simply stays blank.
   Future<void> onSnapshotLoaded(PaywallSnapshot snapshot) async {
     _snapshot = snapshot;
-    final prices = <String, String>{};
-    for (final cta in snapshot.content.ctas) {
-      final ref = snapshot.packages[cta.packageKey];
-      final productId = _productIdFor(ref);
-      if (productId == null) continue;
-      try {
-        prices[cta.packageKey] = await bridge.priceFor(
-          productId,
-          ref?.kind ?? PackageKind.subscription,
-        );
-      } catch (_) {
-        // One product's pricing failure (plugin unavailable, or a native
-        // store error for this specific product) must not abort pricing
-        // for the rest of the ctas in this snapshot
-        continue;
-      }
-    }
-    if (prices.isNotEmpty) await setPrices(prices);
+    final resolved = await Future.wait(
+      snapshot.content.ctas.map((cta) async {
+        final ref = snapshot.packages[cta.packageKey];
+        final productId = _productIdFor(ref);
+        if (productId == null) return null;
+        try {
+          final kind = ref?.kind ?? PackageKind.subscription;
+          final b = bridge;
+          // A bridge that resolves full packages (price + eligible intro
+          // offer) implements PackageResolvingBridge. One that only knows
+          // prices falls back to a price-only package with no intro -- so a
+          // custom bridge written before packages existed keeps working
+          // unchanged.
+          final pkg = b is PackageResolvingBridge
+              ? await b.packageFor(productId, kind)
+              : PaywallPackageRuntime(price: await b.priceFor(productId, kind));
+          return MapEntry(cta.packageKey, pkg);
+        } catch (_) {
+          // One product's pricing failure (plugin unavailable, or a native
+          // store error for this specific product) must not abort pricing
+          // for the rest of the ctas in this snapshot
+          return null;
+        }
+      }),
+    );
+    final packages = Map<String, PaywallPackageRuntime>.fromEntries(
+      resolved.whereType<MapEntry<String, PaywallPackageRuntime>>(),
+    );
+    if (packages.isNotEmpty) await setPackages(packages);
   }
 
   Future<PaywallNavigationDecision> handleNavigationRequest(String url) async {

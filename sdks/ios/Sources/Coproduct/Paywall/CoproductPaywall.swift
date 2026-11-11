@@ -146,7 +146,7 @@ struct PaywallWebViewHost: UIViewRepresentable {
     }
 
     // The WebView is mounted hidden and transparent beneath a spinner, and
-    // revealed only once it has painted and had prices applied (see
+    // revealed only once it has painted and had packages applied (see
     // Coordinator.reveal), so the user never sees a white flash or a price-less frame.
     func makeUIView(context: Context) -> UIView {
         let container = UIView()
@@ -250,7 +250,7 @@ struct PaywallWebViewHost: UIViewRepresentable {
 
             let runtime = PaywallRuntime(
                 bridge: bridge, client: client, appUserId: appUserId,
-                setPrices: { [weak self] prices in await self?.injectPrices(prices) },
+                setPackages: { [weak self] packages in await self?.injectPackages(packages) },
                 onPurchaseResult: { [weak self] result, entitlements in
                     // `PaywallRuntime` holds these as plain synchronous
                     // `@Sendable` closures with no actor affinity, but the
@@ -284,8 +284,8 @@ struct PaywallWebViewHost: UIViewRepresentable {
             )
             webView?.loadHTMLString(shellHtml, baseURL: nil)
 
-            // Hang guard only: reveal is driven by paint (didFinish) or prices
-            // (injectPrices), never a fixed delay. This fires only if the
+            // Hang guard only: reveal is driven by paint (didFinish) or packages
+            // (injectPackages), never a fixed delay. This fires only if the
             // WebView never finishes, so a hung load reveals instead of spinning.
             revealTask?.cancel()
             revealTask = Task { [weak self] in
@@ -316,15 +316,12 @@ struct PaywallWebViewHost: UIViewRepresentable {
             )
         }
 
-        private func injectPrices(_ prices: [String: String]) async {
-            guard let data = try? JSONEncoder().encode(prices), let json = String(data: data, encoding: .utf8) else { return }
+        private func injectPackages(_ packages: [String: PaywallPackageRuntime]) async {
+            guard let data = try? JSONEncoder().encode(packages), let json = String(data: data, encoding: .utf8) else { return }
             // Explicit `completionHandler: nil` disambiguates from the
-            // `async throws` overload of `evaluateJavaScript`, which this
-            // `async` function would otherwise resolve to -- this call
-            // stays fire-and-forget, matching `reportToWebView` below.
-            webView?.evaluateJavaScript("window.__coproductSetPrices__(\(json));", completionHandler: nil)
-            // Prices are the last thing to land, so reveal now. didFinish still
-            // covers the case where they never resolve.
+            // `async throws` overload of `evaluateJavaScript`, keeping this
+            // call fire-and-forget like `reportToWebView`.
+            webView?.evaluateJavaScript("window.__coproductSetPackages__(\(json));", completionHandler: nil)
             reveal()
         }
 
@@ -339,14 +336,14 @@ struct PaywallWebViewHost: UIViewRepresentable {
             return literal
         }
 
-        // Price injection runs JS against the page's own global, so it must
+        // Package injection runs JS against the page's own global, so it must
         // wait for the inline <script> to have actually executed -- firing
         // right after loadHTMLString returns (before the WebView has
         // painted) races a cold WebView's first paint and can silently
         // miss, especially since a cached StoreKit price can resolve
         // faster than that paint.
         func webView(_: WKWebView, didFinish _: WKNavigation!) {
-            // Reveal if prices have not already; injectPrices reveals sooner.
+            // Reveal if packages have not already; injectPackages reveals sooner.
             reveal()
             guard let snapshot = loadedSnapshot, let runtime else { return }
             Task { await runtime.onSnapshotLoaded(snapshot) }

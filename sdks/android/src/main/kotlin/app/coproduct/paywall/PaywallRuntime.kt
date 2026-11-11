@@ -16,7 +16,7 @@ enum class PaywallPurchaseErrorReason { UNRESOLVED_PRODUCT, SERVER_REJECTED, NET
 
 data class PaywallPurchaseError(val reason: PaywallPurchaseErrorReason, val serverCode: String? = null)
 
-typealias SetPricesCallback = (pricesByPackageKey: Map<String, String>) -> Unit
+typealias SetPackagesCallback = (packagesByPackageKey: Map<String, PaywallPackageRuntime>) -> Unit
 // entitlements is the resolved set after this purchase/restore landed --
 // empty for a cancelled/pending outcome, since nothing was recorded server-side
 typealias PurchaseResultCallback = (result: PurchaseResult, entitlements: List<Entitlement>) -> Unit
@@ -24,8 +24,9 @@ typealias PurchaseErrorCallback = (error: PaywallPurchaseError) -> Unit
 
 /**
  * Owns everything native does for one paywall session: resolving and
- * injecting prices after load, and intercepting purchase/restore/dismiss
- * taps. Deliberately does not construct or hold a WebView itself, so this
+ * injecting packages (price plus eligible intro offer) after load, and
+ * intercepting purchase/restore/dismiss taps. Deliberately does not
+ * construct or hold a WebView itself, so this
  * logic stays unit-testable without a real WebView -- mirrors Flutter's
  * PaywallRuntime (paywall_runtime.dart) and RN's (paywallRuntime.ts)
  * class-for-class, reading androidProductId instead of iosProductId.
@@ -34,7 +35,7 @@ class PaywallRuntime(
     private val bridge: NativePaywallBridge,
     private val client: PaywallClient,
     private val appUserId: String,
-    private val setPrices: SetPricesCallback,
+    private val setPackages: SetPackagesCallback,
     private val onPurchaseResult: PurchaseResultCallback? = null,
     private val onPurchaseError: PurchaseErrorCallback? = null,
     private val onDismiss: (() -> Unit)? = null,
@@ -43,24 +44,25 @@ class PaywallRuntime(
     private var snapshot: PaywallSnapshot? = null
 
     /**
-     * Resolves a localized price for every cta with a known product id,
-     * then hands the whole map to setPrices in one call. A cta with no
-     * resolvable product id, or whose priceFor call fails, is silently
-     * skipped -- the server never renders a price for it either.
+     * Resolves a package (price plus eligible intro offer) for every cta
+     * with a known product id, then hands the whole map to setPackages in
+     * one call. A cta with no resolvable product id, or whose packageFor
+     * call fails, is silently skipped -- the server never renders a price
+     * for it either.
      */
     suspend fun onSnapshotLoaded(snapshot: PaywallSnapshot) {
         this.snapshot = snapshot
-        val prices = mutableMapOf<String, String>()
+        val packages = mutableMapOf<String, PaywallPackageRuntime>()
         for (cta in snapshot.content.ctas) {
             val packageRef = snapshot.packages[cta.packageKey]
             val productId = packageRef?.androidProductId ?: continue
             try {
-                prices[cta.packageKey] = bridge.priceFor(productId, packageRef.kind)
+                packages[cta.packageKey] = bridge.packageFor(productId, packageRef.kind)
             } catch (_: Exception) {
                 continue
             }
         }
-        if (prices.isNotEmpty()) setPrices(prices)
+        if (packages.isNotEmpty()) setPackages(packages)
     }
 
     suspend fun handleNavigationRequest(url: String): PaywallNavigationDecision {

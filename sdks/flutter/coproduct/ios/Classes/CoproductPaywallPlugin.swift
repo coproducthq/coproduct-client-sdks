@@ -1,6 +1,60 @@
 import Flutter
 import StoreKit
 
+/// StoreKit2's introductory-offer payment mode, narrowed to the three cases
+/// the label composer handles. Mirrors
+/// sdks/ios/Sources/Coproduct/Paywall/IntroOfferLabel.swift's `IntroOfferKind`
+/// -- duplicated rather than shared because this plugin target is a separate
+/// package from sdks/ios's Coproduct package.
+private enum IntroOfferKind: Equatable {
+    case freeTrial
+    case payAsYouGo
+    case payUpFront
+}
+
+/// Assembles the localized intro label from store-provided, already-localized
+/// parts. Mirrors `composeIntroLabel` in
+/// sdks/ios/Sources/Coproduct/Paywall/IntroOfferLabel.swift exactly.
+private func composeIntroLabel(kind: IntroOfferKind, offerPeriod: String, offerPrice: String, regularPrice: String) -> String {
+    switch kind {
+    case .freeTrial:
+        return "\(offerPeriod) free, then \(regularPrice)"
+    case .payAsYouGo, .payUpFront:
+        return "\(offerPrice) for \(offerPeriod), then \(regularPrice)"
+    }
+}
+
+/// Formats an offer's TOTAL duration: one `offer.period` of `value` units,
+/// repeated `offer.periodCount` times ("$1.99/month for 3 months" is
+/// 1 month x 3). Mirrors `formattedOfferPeriod` in
+/// sdks/ios/Sources/Coproduct/Paywall/IntroOfferLabel.swift.
+private func formattedOfferPeriod(_ period: Product.SubscriptionPeriod, periodCount: Int) -> String {
+    let total = period.value * max(periodCount, 1)
+    return "\(total) \(periodNoun(period.unit))\(total == 1 ? "" : "s")"
+}
+
+/// Appends a renewal suffix to the regular price, e.g. "$39.99/yr". Mirrors
+/// `appendingRenewalSuffix` in IntroOfferLabel.swift.
+private func appendingRenewalSuffix(to price: String, unit: Product.SubscriptionPeriod.Unit) -> String {
+    switch unit {
+    case .day: return "\(price)/day"
+    case .week: return "\(price)/wk"
+    case .month: return "\(price)/mo"
+    case .year: return "\(price)/yr"
+    @unknown default: return "\(price)/mo"
+    }
+}
+
+private func periodNoun(_ unit: Product.SubscriptionPeriod.Unit) -> String {
+    switch unit {
+    case .day: return "day"
+    case .week: return "week"
+    case .month: return "month"
+    case .year: return "year"
+    @unknown default: return "month"
+    }
+}
+
 /// The native side of app.coproduct.flutter/paywall: StoreKit2 price
 /// lookup, purchase, and restore. Deliberately small -- it holds no SDK
 /// state, knows nothing about the SDK key, and performs no network call of
@@ -22,6 +76,12 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                 return
             }
             Task { await self.priceFor(productId: productId, result: result) }
+        case "packageFor":
+            guard let productId = (call.arguments as? [String: Any])?["productId"] as? String else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "productId is required", details: nil))
+                return
+            }
+            Task { await self.packageFor(productId: productId, result: result) }
         case "purchase":
             guard let productId = (call.arguments as? [String: Any])?["productId"] as? String else {
                 result(FlutterError(code: "INVALID_ARGUMENTS", message: "productId is required", details: nil))
@@ -43,6 +103,51 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                 return
             }
             result(product.displayPrice)
+        } catch {
+            result(FlutterError(code: "STOREKIT_ERROR", message: error.localizedDescription, details: nil))
+        }
+    }
+
+    /// Resolves a product's regular price and, when StoreKit2 reports an
+    /// introductory offer this user is eligible for, that offer's localized
+    /// label. Ported from
+    /// sdks/ios/Sources/Coproduct/Paywall/StoreKitPaywallBridge.swift's
+    /// `packageFor`, minus the in-process `NativePaywallBridge` conformance
+    /// -- this is called over the Flutter method channel instead.
+    private func packageFor(productId: String, result: @escaping FlutterResult) async {
+        do {
+            let products = try await Product.products(for: [productId])
+            guard let product = products.first else {
+                result(FlutterError(code: "UNKNOWN_PRODUCT", message: "No StoreKit product for id \(productId)", details: nil))
+                return
+            }
+            guard
+                let subscription = product.subscription,
+                let offer = subscription.introductoryOffer,
+                await subscription.isEligibleForIntroOffer
+            else {
+                result(["price": product.displayPrice, "intro": NSNull()])
+                return
+            }
+            let kind: IntroOfferKind
+            switch offer.paymentMode {
+            case .freeTrial: kind = .freeTrial
+            case .payAsYouGo: kind = .payAsYouGo
+            case .payUpFront: kind = .payUpFront
+            default:
+                result(["price": product.displayPrice, "intro": NSNull()])
+                return
+            }
+            let label = composeIntroLabel(
+                kind: kind,
+                offerPeriod: formattedOfferPeriod(offer.period, periodCount: offer.periodCount),
+                offerPrice: offer.displayPrice,
+                regularPrice: appendingRenewalSuffix(to: product.displayPrice, unit: subscription.subscriptionPeriod.unit)
+            )
+            result([
+                "price": product.displayPrice,
+                "intro": ["eligible": true, "label": label],
+            ])
         } catch {
             result(FlutterError(code: "STOREKIT_ERROR", message: error.localizedDescription, details: nil))
         }

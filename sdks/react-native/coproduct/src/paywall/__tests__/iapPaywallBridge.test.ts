@@ -98,6 +98,292 @@ describe('IapPaywallBridge', () => {
     });
   });
 
+  describe('packageFor', () => {
+    it('returns a price-only result, unchanged, when the product reports no subscriptionOffers', async () => {
+      mockFetchProducts.mockResolvedValue([
+        { id: 'premium_monthly', displayPrice: '$9.99/mo' },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_monthly', 'subscription');
+
+      expect(pkg).toEqual({ price: '$9.99/mo', intro: null });
+    });
+
+    it('appends the iOS base subscription period to the regular price', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_annual',
+          displayPrice: '$39.99',
+          subscriptionPeriodUnitIOS: 'year',
+          subscriptionPeriodNumberIOS: '1',
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_annual', 'subscription');
+
+      expect(pkg).toEqual({ price: '$39.99/yr', intro: null });
+    });
+
+    it('builds a free-trial intro label whose "then" price carries the base period', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_annual',
+          displayPrice: '$39.99',
+          subscriptionPeriodUnitIOS: 'year',
+          subscriptionPeriodNumberIOS: '1',
+          subscriptionOffers: [
+            {
+              id: 'intro-trial',
+              type: 'introductory',
+              paymentMode: 'free-trial',
+              price: 0,
+              displayPrice: '',
+              period: { unit: 'day', value: 7 },
+            },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_annual', 'subscription');
+
+      expect(pkg).toEqual({
+        price: '$39.99/yr',
+        intro: { eligible: true, label: '7 days free, then $39.99/yr' },
+      });
+    });
+
+    it('multiplies period by periodCount, so a 3-month intro reads as 3 months, not 1', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99',
+          subscriptionPeriodUnitIOS: 'month',
+          subscriptionPeriodNumberIOS: '1',
+          subscriptionOffers: [
+            {
+              id: 'intro-discount',
+              type: 'introductory',
+              paymentMode: 'pay-as-you-go',
+              price: 1.99,
+              displayPrice: '$1.99',
+              period: { unit: 'month', value: 1 },
+              periodCount: 3,
+            },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_monthly', 'subscription');
+
+      expect(pkg).toEqual({
+        price: '$9.99/mo',
+        intro: {
+          eligible: true,
+          label: '$1.99 for 3 months, then $9.99/mo',
+        },
+      });
+    });
+
+    it('derives the Android base period from the final (indefinitely recurring) pricing phase', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_annual_android',
+          displayPrice: '$39.99',
+          subscriptionOffers: [
+            {
+              id: 'base-plan',
+              offerTokenAndroid: 'token-abc',
+              type: 'introductory',
+              paymentMode: 'free-trial',
+              price: 0,
+              displayPrice: '',
+              pricingPhasesAndroid: {
+                pricingPhaseList: [
+                  {
+                    billingPeriod: 'P1W',
+                    billingCycleCount: 1,
+                    formattedPrice: 'Free',
+                    priceAmountMicros: '0',
+                    priceCurrencyCode: 'USD',
+                    recurrenceMode: 2,
+                  },
+                  {
+                    billingPeriod: 'P1Y',
+                    billingCycleCount: 0,
+                    formattedPrice: '$39.99',
+                    priceAmountMicros: '39990000',
+                    priceCurrencyCode: 'USD',
+                    recurrenceMode: 1,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor(
+        'premium_annual_android',
+        'subscription'
+      );
+
+      expect(pkg).toEqual({
+        price: '$39.99/yr',
+        intro: { eligible: true, label: '1 week free, then $39.99/yr' },
+      });
+    });
+
+    it('multiplies the Android intro phase by its billingCycleCount when period/periodCount are absent', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly_android',
+          displayPrice: '$9.99',
+          subscriptionOffers: [
+            {
+              id: 'base-plan',
+              offerTokenAndroid: 'token-abc',
+              type: 'introductory',
+              paymentMode: 'pay-as-you-go',
+              price: 1.99,
+              displayPrice: '$1.99',
+              pricingPhasesAndroid: {
+                pricingPhaseList: [
+                  {
+                    billingPeriod: 'P1M',
+                    billingCycleCount: 3,
+                    formattedPrice: '$1.99',
+                    priceAmountMicros: '1990000',
+                    priceCurrencyCode: 'USD',
+                    recurrenceMode: 2,
+                  },
+                  {
+                    billingPeriod: 'P1M',
+                    billingCycleCount: 0,
+                    formattedPrice: '$9.99',
+                    priceAmountMicros: '9990000',
+                    priceCurrencyCode: 'USD',
+                    recurrenceMode: 1,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor(
+        'premium_monthly_android',
+        'subscription'
+      );
+
+      expect(pkg).toEqual({
+        price: '$9.99/mo',
+        intro: {
+          eligible: true,
+          label: '$1.99 for 3 months, then $9.99/mo',
+        },
+      });
+    });
+
+    it('reports no intro offer when no entry is typed "introductory", as with a plain Android base-plan offer', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99/mo',
+          subscriptionOffers: [
+            { id: 'base-plan', offerTokenAndroid: 'token-abc' },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_monthly', 'subscription');
+
+      expect(pkg.intro).toBeNull();
+    });
+
+    it('reports no intro offer for an unmapped payment mode, rather than guessing one', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99/mo',
+          subscriptionOffers: [
+            {
+              id: 'intro-unknown',
+              type: 'introductory',
+              paymentMode: 'unknown',
+              price: 0,
+              displayPrice: '',
+              period: { unit: 'month', value: 1 },
+            },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_monthly', 'subscription');
+
+      expect(pkg.intro).toBeNull();
+    });
+
+    it('reports no intro offer for a discounted offer with no displayed price', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99/mo',
+          subscriptionOffers: [
+            {
+              id: 'intro-discount',
+              type: 'introductory',
+              paymentMode: 'pay-up-front',
+              price: 0,
+              displayPrice: '',
+              period: { unit: 'month', value: 1 },
+            },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const pkg = await bridge.packageFor('premium_monthly', 'subscription');
+
+      expect(pkg.intro).toBeNull();
+    });
+
+    it('throws when no product is found', async () => {
+      mockFetchProducts.mockResolvedValue([]);
+
+      const bridge = new IapPaywallBridge();
+      await expect(
+        bridge.packageFor('unknown', 'subscription')
+      ).rejects.toThrow('No product found');
+    });
+  });
+
+  describe('priceFor delegating to packageFor', () => {
+    it("returns packageFor's period-suffixed price", async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_annual',
+          displayPrice: '$39.99',
+          subscriptionPeriodUnitIOS: 'year',
+          subscriptionPeriodNumberIOS: '1',
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const price = await bridge.priceFor('premium_annual', 'subscription');
+
+      expect(price).toBe('$39.99/yr');
+    });
+  });
+
   describe('purchase', () => {
     it('resolves success after finishing the transaction, for the matching product only', async () => {
       const bridge = new IapPaywallBridge();
@@ -263,7 +549,9 @@ describe('IapPaywallBridge', () => {
         {
           id: 'premium_monthly',
           displayPrice: '$9.99/mo',
-          subscriptionOffers: [{ id: 'base-plan', offerTokenAndroid: 'token-abc' }],
+          subscriptionOffers: [
+            { id: 'base-plan', offerTokenAndroid: 'token-abc' },
+          ],
         },
       ]);
 
@@ -297,7 +585,11 @@ describe('IapPaywallBridge', () => {
 
     it('sends a plain google.skus request with no subscriptionOffers when the product has none', async () => {
       mockFetchProducts.mockResolvedValue([
-        { id: 'premium_monthly', displayPrice: '$9.99/mo', subscriptionOffers: [] },
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99/mo',
+          subscriptionOffers: [],
+        },
       ]);
 
       const bridge = new IapPaywallBridge();

@@ -206,18 +206,21 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
       client: client,
       appUserId: widget.appUserId,
       platform: Platform.isAndroid ? 'ANDROID' : 'IOS',
-      setPrices: (prices) async {
+      setPackages: (packages) async {
         try {
+          final json = jsonEncode(
+            packages.map((key, value) => MapEntry(key, value.toJson())),
+          );
           await _controller?.runJavaScript(
-            'window.__coproductSetPrices__(${jsonEncode(prices)})',
+            'window.__coproductSetPackages__($json)',
           );
         } catch (_) {
-          // The WebView may already be torn down by the time prices
+          // The WebView may already be torn down by the time packages
           // resolve -- nothing to do
         }
-        // Prices are the last thing to land, so the paywall is now fully
+        // Packages are the last thing to land, so the paywall is now fully
         // formed -- reveal it. The onPageFinished fallback below still covers
-        // the case where prices never resolve (e.g. the store is unreachable).
+        // the case where packages never resolve (e.g. the store is unreachable).
         _reveal();
       },
       // The default [data-cp-result] sections (success/cancel/fail) own
@@ -271,8 +274,8 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
           onPageFinished: (_) {
             unawaited(runtime.onSnapshotLoaded(resolvedSnapshot));
             // The whole document (including external resources) has loaded, so
-            // reveal if the cap below has not already. setPrices reveals sooner
-            // once prices land.
+            // reveal if the cap below has not already. setPackages reveals
+            // sooner once packages land.
             _reveal();
           },
         ),
@@ -286,7 +289,7 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
     });
 
     // Hang guard only. The paywall is revealed when its content has actually
-    // painted (onPageFinished) or its prices land (setPrices) -- never on a
+    // painted (onPageFinished) or its packages land (setPackages) -- never on a
     // fixed delay, because the WebView is transparent while hidden, so
     // revealing it before it has painted shows through to the host background
     // (a black gap) until paint catches up. This timer exists solely so a

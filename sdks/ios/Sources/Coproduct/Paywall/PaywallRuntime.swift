@@ -27,15 +27,16 @@ enum PaywallNavigationDecision: Equatable, Sendable {
 }
 
 /// Owns everything native does for one paywall session: resolving and
-/// injecting prices after load, and intercepting purchase/restore/dismiss
-/// taps. Deliberately does not construct or hold a WebView instance itself,
-/// so this logic stays unit-testable without a real WebView.
+/// injecting packages (price plus eligible intro offer) after load, and
+/// intercepting purchase/restore/dismiss taps. Deliberately does not
+/// construct or hold a WebView instance itself, so this logic stays
+/// unit-testable without a real WebView.
 final class PaywallRuntime: @unchecked Sendable {
     private let bridge: NativePaywallBridge
     private let client: PaywallClient
     private let appUserId: String
     private let platform: String
-    private let setPrices: @Sendable ([String: String]) async -> Void
+    private let setPackages: @Sendable ([String: PaywallPackageRuntime]) async -> Void
     private let onPurchaseResult: @Sendable (PurchaseResult, [Entitlement]) -> Void
     private let onPurchaseError: @Sendable (PaywallPurchaseError) -> Void
     private let onDismiss: @Sendable () -> Void
@@ -46,7 +47,7 @@ final class PaywallRuntime: @unchecked Sendable {
         client: PaywallClient,
         appUserId: String,
         platform: String = "IOS",
-        setPrices: @escaping @Sendable ([String: String]) async -> Void,
+        setPackages: @escaping @Sendable ([String: PaywallPackageRuntime]) async -> Void,
         onPurchaseResult: @escaping @Sendable (PurchaseResult, [Entitlement]) -> Void,
         onPurchaseError: @escaping @Sendable (PaywallPurchaseError) -> Void,
         onDismiss: @escaping @Sendable () -> Void
@@ -55,27 +56,44 @@ final class PaywallRuntime: @unchecked Sendable {
         self.client = client
         self.appUserId = appUserId
         self.platform = platform
-        self.setPrices = setPrices
+        self.setPackages = setPackages
         self.onPurchaseResult = onPurchaseResult
         self.onPurchaseError = onPurchaseError
         self.onDismiss = onDismiss
     }
 
-    /// Resolves a localized price for every cta with a known product id,
-    /// then hands the whole map to `setPrices` in one call. A cta with no
-    /// resolvable product id, or whose `priceFor` call fails, is silently
-    /// skipped -- the server never renders a price for it either.
+    /// Resolves a package (price plus eligible intro offer) for every cta
+    /// with a known product id, then hands the whole map to `setPackages` in
+    /// one call. Resolution fans out concurrently -- each `packageFor` call
+    /// awaits StoreKit's `isEligibleForIntroOffer`, so resolving serially
+    /// made a multi-cta paywall reveal as slowly as the sum of every cta
+    /// instead of the slowest one. A cta with no resolvable product id, or
+    /// whose `packageFor` call fails, is silently skipped -- the server never
+    /// renders a price for it either.
     func onSnapshotLoaded(_ snapshot: PaywallSnapshot) async {
         self.snapshot = snapshot
-        var prices: [String: String] = [:]
-        for cta in snapshot.content.ctas {
-            guard let productId = snapshot.packages[cta.packageKey]?.iosProductId else { continue }
+        let resolvable: [(packageKey: String, productId: String, kind: PackageKind)] = snapshot.content.ctas.compactMap { cta in
+            guard let productId = snapshot.packages[cta.packageKey]?.iosProductId else { return nil }
             let kind = snapshot.packages[cta.packageKey]?.kind ?? .subscription
-            guard let price = try? await bridge.priceFor(productId, kind: kind) else { continue }
-            prices[cta.packageKey] = price
+            return (cta.packageKey, productId, kind)
         }
-        guard !prices.isEmpty else { return }
-        await setPrices(prices)
+        let resolved = await withTaskGroup(of: (String, PaywallPackageRuntime)?.self) { group in
+            for entry in resolvable {
+                group.addTask { [bridge] in
+                    guard let pkg = try? await bridge.packageFor(entry.productId, kind: entry.kind) else { return nil }
+                    return (entry.packageKey, pkg)
+                }
+            }
+            var results: [(String, PaywallPackageRuntime)] = []
+            for await result in group {
+                guard let result else { continue }
+                results.append(result)
+            }
+            return results
+        }
+        let packages = Dictionary(uniqueKeysWithValues: resolved)
+        guard !packages.isEmpty else { return }
+        await setPackages(packages)
     }
 
     func handleNavigationRequest(_ url: String) async -> PaywallNavigationDecision {
