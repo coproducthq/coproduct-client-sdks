@@ -26,6 +26,7 @@ This package bundles prebuilt native binaries statically linked against the foll
 | digest | 0.11.3 | MIT | [`digest-0.11.3-LICENSE-MIT`](third_party_licenses/digest-0.11.3-LICENSE-MIT) |
 | env_filter | 0.1.4 | MIT | [`env_filter-0.1.4-LICENSE-MIT`](third_party_licenses/env_filter-0.1.4-LICENSE-MIT) |
 | flutter_rust_bridge | 2.12.0 | MIT | [`flutter_rust_bridge-2.12.0-MIT.txt`](third_party_licenses/flutter_rust_bridge-2.12.0-MIT.txt) |
+| form_urlencoded | 1.2.2 | MIT | [`form_urlencoded-1.2.2-LICENSE-MIT`](third_party_licenses/form_urlencoded-1.2.2-LICENSE-MIT) |
 | futures | 0.3.32 | MIT | [`futures-0.3.32-LICENSE-MIT`](third_party_licenses/futures-0.3.32-LICENSE-MIT) |
 | futures-channel | 0.3.32 | MIT | [`futures-channel-0.3.32-LICENSE-MIT`](third_party_licenses/futures-channel-0.3.32-LICENSE-MIT) |
 | futures-core | 0.3.32 | MIT | [`futures-core-0.3.32-LICENSE-MIT`](third_party_licenses/futures-core-0.3.32-LICENSE-MIT) |
@@ -53,6 +54,7 @@ This package bundles prebuilt native binaries statically linked against the foll
 | oslog | 0.2.0 | MIT | [`oslog-0.2.0-LICENSE`](third_party_licenses/oslog-0.2.0-LICENSE) |
 | parking_lot | 0.12.5 | MIT | [`parking_lot-0.12.5-LICENSE-MIT`](third_party_licenses/parking_lot-0.12.5-LICENSE-MIT) |
 | parking_lot_core | 0.9.12 | MIT | [`parking_lot_core-0.9.12-LICENSE-MIT`](third_party_licenses/parking_lot_core-0.9.12-LICENSE-MIT) |
+| percent-encoding | 2.3.2 | MIT | [`percent-encoding-2.3.2-LICENSE-MIT`](third_party_licenses/percent-encoding-2.3.2-LICENSE-MIT) |
 | pin-project-lite | 0.2.17 | MIT | [`pin-project-lite-0.2.17-LICENSE-MIT`](third_party_licenses/pin-project-lite-0.2.17-LICENSE-MIT) |
 | portable-atomic | 1.13.1 | MIT | [`portable-atomic-1.13.1-LICENSE-MIT`](third_party_licenses/portable-atomic-1.13.1-LICENSE-MIT) |
 | powerfmt | 0.2.0 | MIT | [`powerfmt-0.2.0-LICENSE-MIT`](third_party_licenses/powerfmt-0.2.0-LICENSE-MIT) |
