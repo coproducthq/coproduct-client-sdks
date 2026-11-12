@@ -7,7 +7,10 @@ fn extracts_all_five_keys_from_a_full_url() {
     );
     assert_eq!(m.get("utm_source").map(String::as_str), Some("google"));
     assert_eq!(m.get("utm_medium").map(String::as_str), Some("cpc"));
-    assert_eq!(m.get("utm_campaign").map(String::as_str), Some("black-friday"));
+    assert_eq!(
+        m.get("utm_campaign").map(String::as_str),
+        Some("black-friday")
+    );
     assert_eq!(m.get("utm_term").map(String::as_str), Some("shoes"));
     assert_eq!(m.get("utm_content").map(String::as_str), Some("ad1"));
     assert_eq!(m.len(), 5);
@@ -32,7 +35,10 @@ fn ignores_non_utm_parameters() {
 #[test]
 fn percent_decodes_and_plus_decodes_values() {
     let m = parse_utm_parameters("utm_campaign=summer%20sale&utm_content=buy+now");
-    assert_eq!(m.get("utm_campaign").map(String::as_str), Some("summer sale"));
+    assert_eq!(
+        m.get("utm_campaign").map(String::as_str),
+        Some("summer sale")
+    );
     assert_eq!(m.get("utm_content").map(String::as_str), Some("buy now"));
 }
 
