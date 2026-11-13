@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.4.2...flutter-v1.5.0) (2026-11-13)
+
+
+### Features
+
+* add support to target flags by UTM campaign parameters ([#43](https://github.com/coproducthq/coproduct-client-sdks/issues/43)) ([55a5add](https://github.com/coproducthq/coproduct-client-sdks/commit/55a5add55c84a02192454f17d85dc40df9482668))
+* support interactive ui elements onboarding and paywall screens ([#73](https://github.com/coproducthq/coproduct-client-sdks/issues/73)) ([9e9c4ca](https://github.com/coproducthq/coproduct-client-sdks/commit/9e9c4ca5980c21ad30ad783fa455b375e1edfccd))
+
 ## [1.4.2](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.4.1...flutter-v1.4.2) (2026-11-05)
 
 
