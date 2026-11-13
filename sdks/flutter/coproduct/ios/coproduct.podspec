@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'coproduct'
-  s.version          = '1.4.2' # x-release-please-version
+  s.version          = '1.5.0' # x-release-please-version
   s.summary          = 'Feature flags and experimentation for Flutter.'
   s.description      = <<-DESC
 Flutter SDK for Coproduct, a feature flag and experimentation platform.
