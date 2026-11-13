@@ -505,7 +505,7 @@ Interactive paywall behaviors (purchases, restores, dismissals) and live price p
 
 To enable server-driven paywalls with automated product syncing and receipt validation, authorize Coproduct with your store developer accounts:
 
-* In the [Coproduct dashboard](https://dash.coproduct.app), navigate to Settings → Integrations → App Store Connect.  
+* In the [Coproduct dashboard](https://dash.coproduct.app), navigate to Store connections → App Store.  
 * In App Store Connect (Users and Access → Integrations → App Store Connect API), create an API Key with App Manager permissions.  
 * Link your Issuer ID, Key ID, and downloaded private key (.p8), or ask your agent:
 
