@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.1.2...react-native-v1.2.0) (2026-11-13)
+
+
+### Features
+
+* add support to target flags by UTM campaign parameters ([#43](https://github.com/coproducthq/coproduct-client-sdks/issues/43)) ([55a5add](https://github.com/coproducthq/coproduct-client-sdks/commit/55a5add55c84a02192454f17d85dc40df9482668))
+* ergonomic setEvaluationListener across all SDK platforms ([#45](https://github.com/coproducthq/coproduct-client-sdks/issues/45)) ([4e6afc8](https://github.com/coproducthq/coproduct-client-sdks/commit/4e6afc87123eb11b2023598fe02612a7deb128c0))
+* **geofence:** on-device GPS geo-fence targeting across all SDKs ([#47](https://github.com/coproducthq/coproduct-client-sdks/issues/47)) ([7c6e55a](https://github.com/coproducthq/coproduct-client-sdks/commit/7c6e55a8412ca968a538c60da93cdfdec0503a1e))
+* number[] user-context attributes across the FFI (iOS, Android, RN, Flutter) ([#44](https://github.com/coproducthq/coproduct-client-sdks/issues/44)) ([4da8983](https://github.com/coproducthq/coproduct-client-sdks/commit/4da8983a3cb0713256415a46399d1cb879346d64))
+* **paywall:** snapshot freshness cache + native webview reveal-gating across all SDKs ([#40](https://github.com/coproducthq/coproduct-client-sdks/issues/40)) ([e8b6f3a](https://github.com/coproducthq/coproduct-client-sdks/commit/e8b6f3a5bf1e6d9e0cd85599f6414458f9f7f98b))
+* **react-native:** export LifecycleEvent, show init error reasons, and expand the Expo guide ([9bbd088](https://github.com/coproducthq/coproduct-client-sdks/commit/9bbd08846d5b4d7c8a8db815a7a63ff611c8d5eb))
+* support interactive ui elements onboarding and paywall screens ([#73](https://github.com/coproducthq/coproduct-client-sdks/issues/73)) ([9e9c4ca](https://github.com/coproducthq/coproduct-client-sdks/commit/9e9c4ca5980c21ad30ad783fa455b375e1edfccd))
+* typed list flag getters (getStringList / getNumberList) across all SDKs ([#46](https://github.com/coproducthq/coproduct-client-sdks/issues/46)) ([3841059](https://github.com/coproducthq/coproduct-client-sdks/commit/3841059cf7f21dd62dd14cac89b031c3b06709f7))
+
+
+### Bug Fixes
+
+* **paywall:** keep the snapshot cache out of the public API for ReactNative and Native Android ([#75](https://github.com/coproducthq/coproduct-client-sdks/issues/75)) ([26ccb42](https://github.com/coproducthq/coproduct-client-sdks/commit/26ccb42e7af8d2f27c511ee2dc50231fcf3cccb4))
+* **react-native:** accept netinfo 12 and webview 14, and document Expo setup ([a8d6101](https://github.com/coproducthq/coproduct-client-sdks/commit/a8d6101a070e33c7122491389fa55379f30daf00))
+
 ## [1.1.2](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.1.1...react-native-v1.1.2) (2026-10-27)
 
 
