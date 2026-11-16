@@ -17,4 +17,14 @@ final class PaywallPackageRuntimeTests: XCTestCase {
         let json = try encode(["monthly": PaywallPackageRuntime(price: "$6.99", intro: nil)])
         XCTAssertEqual(json, "{\"monthly\":{\"intro\":null,\"price\":\"$6.99\"}}")
     }
+
+    func testEncodesTitleWhenPresent() throws {
+        let json = try encode(["annual": PaywallPackageRuntime(price: "$39.99", intro: nil, title: "Pro Annual")])
+        XCTAssertEqual(json, "{\"annual\":{\"intro\":null,\"price\":\"$39.99\",\"title\":\"Pro Annual\"}}")
+    }
+
+    func testOmitsTitleWhenNil() throws {
+        let json = try encode(["annual": PaywallPackageRuntime(price: "$39.99", intro: nil, title: nil)])
+        XCTAssertFalse(json.contains("title"))
+    }
 }

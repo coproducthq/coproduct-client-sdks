@@ -94,6 +94,7 @@ class CoproductPaywallPluginTest {
     ): ProductDetails {
         val productDetails = mockk<ProductDetails>()
         every { productDetails.productId } returns productId
+        every { productDetails.name } returns "Name of $productId"
         every { productDetails.oneTimePurchaseOfferDetails } returns null
         every { productDetails.zza() } returns ""
         if (isSubscription) {
@@ -155,8 +156,10 @@ class CoproductPaywallPluginTest {
 
     private fun fakeSubscriptionProductDetailsWithOffers(
         vararg offers: ProductDetails.SubscriptionOfferDetails,
+        name: String = "Premium",
     ): ProductDetails = mockk {
         every { zza() } returns ""
+        every { this@mockk.name } returns name
         every { oneTimePurchaseOfferDetails } returns null
         every { subscriptionOfferDetails } returns offers.toList()
     }
@@ -641,5 +644,33 @@ class CoproductPaywallPluginTest {
         val restored = plugin.restore()
 
         assertTrue(restored.isEmpty())
+    }
+
+    @Test
+    fun `packageFor sends the Play product name as the title`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val plugin = CoproductPaywallPlugin()
+        plugin.billingClientForTest = billingClient
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(fakeSubscriptionProductDetailsWithOffers(basePlanOffer(), name = "Pro Monthly")))
+
+        val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
+
+        assertEquals("Pro Monthly", pkg.title)
+        assertEquals("Pro Monthly", pkg.toChannelMap()["title"])
+    }
+
+    @Test
+    fun `packageFor omits the title when the Play product name is blank`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val plugin = CoproductPaywallPlugin()
+        plugin.billingClientForTest = billingClient
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(fakeSubscriptionProductDetailsWithOffers(basePlanOffer(), name = "")))
+
+        val pkg = plugin.packageFor("premium_monthly", PackageKind.SUBSCRIPTION)
+
+        assertNull(pkg.title)
+        assertTrue("title" !in pkg.toChannelMap())
     }
 }

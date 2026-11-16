@@ -70,6 +70,36 @@ void main() {
     expect(package.intro!.label, '7 days free, then \$9.99/mo');
   });
 
+  test('packageFor decodes the store title when present', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      return {'price': '\$9.99/mo', 'intro': null, 'title': 'Pro Monthly'};
+    });
+
+    final package = await const MethodChannelPaywallBridge().packageFor(
+      'premium_monthly',
+      PackageKind.subscription,
+    );
+    expect(package.title, 'Pro Monthly');
+    expect(package.toJson()['title'], 'Pro Monthly');
+  });
+
+  test(
+    'packageFor leaves title null and omits it from toJson when absent',
+    () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        return {'price': '\$9.99/mo', 'intro': null};
+      });
+
+      final package = await const MethodChannelPaywallBridge().packageFor(
+        'premium_monthly',
+        PackageKind.subscription,
+      );
+      expect(package.title, isNull);
+      expect(package.toJson().containsKey('title'), isFalse);
+      expect(package.toJson().containsKey('intro'), isTrue);
+    },
+  );
+
   test(
     'packageFor throws PaywallBridgeUnavailable when no plugin is registered',
     () async {

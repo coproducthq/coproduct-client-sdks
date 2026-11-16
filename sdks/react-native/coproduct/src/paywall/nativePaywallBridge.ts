@@ -44,10 +44,13 @@ export interface PaywallIntroOffer {
 }
 
 // One package's live store data for a single paywall render: the regular
-// localized price and its introductory offer (or null).
+// localized price, its introductory offer (or null), and the store's
+// localized product name. title fills a paywall's optional data-cp-title-for
+// slot; when absent the page keeps the author's fallback text.
 export interface PaywallPackageRuntime {
   price: string;
   intro: PaywallIntroOffer | null;
+  title?: string;
 }
 
 // The native-capability contract PaywallRuntime drives. Deliberately not

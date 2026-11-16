@@ -116,10 +116,14 @@ class PlayBillingPaywallBridge(
         if (kind != PackageKind.SUBSCRIPTION) {
             val offer = productDetails.oneTimePurchaseOfferDetailsList?.firstOrNull()
                 ?: throw IllegalStateException("No one-time offer found for product \"$productId\"")
-            return PaywallPackageRuntime(price = offer.formattedPrice, intro = null)
+            return PaywallPackageRuntime(price = offer.formattedPrice, intro = null, title = productTitle(productDetails))
         }
         val selection = selectSubscriptionOffer(productId, productDetails)
-        return PaywallPackageRuntime(price = selection.regularPhase.formattedPrice, intro = selection.intro)
+        return PaywallPackageRuntime(
+            price = selection.regularPhase.formattedPrice,
+            intro = selection.intro,
+            title = productTitle(productDetails),
+        )
     }
 
     /**
@@ -348,6 +352,14 @@ class PlayBillingPaywallBridge(
         ).productDetailsList?.firstOrNull()
             ?: throw IllegalStateException("No product found for id \"$productId\"")
 }
+
+/**
+ * The store's localized product name for a paywall's `data-cp-title-for` slot:
+ * Play's `name` (the product's own name, unlike `title`, which appends the app
+ * name), or null when blank so the page keeps the author's fallback text.
+ */
+internal fun productTitle(productDetails: ProductDetails): String? =
+    productDetails.name.takeIf { it.isNotBlank() }
 
 /**
  * Billing periods Play returns for a pricing phase are ISO 8601 durations

@@ -103,6 +103,7 @@ PaywallPackageRuntime _packageRuntimeFromChannel(Map<Object?, Object?> raw) {
             eligible: introRaw['eligible'] as bool,
             label: introRaw['label'] as String,
           ),
+    title: raw['title'] as String?,
   );
 }
 

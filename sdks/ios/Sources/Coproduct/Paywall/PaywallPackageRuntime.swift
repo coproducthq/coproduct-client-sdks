@@ -16,21 +16,27 @@ public struct PaywallIntroOffer: Equatable, Sendable, Encodable {
 }
 
 /// One package's live store data for a single paywall render: the regular
-/// localized price and its introductory offer (or `nil`). Encodes to the
+/// localized price, its introductory offer (or `nil`), and the store's
+/// localized product name (or `nil`). Encodes to the
 /// `__coproductSetPackages__` value shape
-/// `{ "price": String, "intro": { ... } | null }`.
+/// `{ "price": String, "intro": { ... } | null, "title"?: String }`.
+/// `title` fills a paywall's optional `data-cp-title-for` slot; it is omitted
+/// when `nil`, so a page keeps the author's fallback text.
 public struct PaywallPackageRuntime: Equatable, Sendable, Encodable {
     public let price: String
     public let intro: PaywallIntroOffer?
+    public let title: String?
 
-    public init(price: String, intro: PaywallIntroOffer?) {
+    public init(price: String, intro: PaywallIntroOffer?, title: String? = nil) {
         self.price = price
         self.intro = intro
+        self.title = title
     }
 
     private enum CodingKeys: String, CodingKey {
         case price
         case intro
+        case title
     }
 
     // Encodes `intro` explicitly rather than relying on the synthesized
@@ -41,5 +47,6 @@ public struct PaywallPackageRuntime: Equatable, Sendable, Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(price, forKey: .price)
         try container.encode(intro, forKey: .intro)
+        try container.encodeIfPresent(title, forKey: .title)
     }
 }

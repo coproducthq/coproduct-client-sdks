@@ -25,14 +25,14 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
             let offer = subscription.introductoryOffer,
             await subscription.isEligibleForIntroOffer
         else {
-            return PaywallPackageRuntime(price: product.displayPrice, intro: nil)
+            return PaywallPackageRuntime(price: product.displayPrice, intro: nil, title: Self.title(of: product))
         }
         let kind: IntroOfferKind
         switch offer.paymentMode {
         case .freeTrial: kind = .freeTrial
         case .payAsYouGo: kind = .payAsYouGo
         case .payUpFront: kind = .payUpFront
-        default: return PaywallPackageRuntime(price: product.displayPrice, intro: nil)
+        default: return PaywallPackageRuntime(price: product.displayPrice, intro: nil, title: Self.title(of: product))
         }
         let label = composeIntroLabel(
             kind: kind,
@@ -47,13 +47,24 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
                 unit: Self.subscriptionPeriodUnit(from: subscription.subscriptionPeriod.unit)
             )
         )
-        return PaywallPackageRuntime(price: product.displayPrice, intro: PaywallIntroOffer(eligible: true, label: label))
+        return PaywallPackageRuntime(
+            price: product.displayPrice,
+            intro: PaywallIntroOffer(eligible: true, label: label),
+            title: Self.title(of: product)
+        )
     }
 
     /// Narrows StoreKit2's `Product.SubscriptionPeriod.Unit` to this SDK's
     /// own pure `SubscriptionPeriodUnit`, so the offer-period and
     /// regular-price formatting in `IntroOfferLabel.swift` stays testable
     /// without importing StoreKit.
+    /// The store's localized product name for a paywall's `data-cp-title-for`
+    /// slot, or `nil` when App Store Connect has none, so the page keeps the
+    /// author's fallback text.
+    private static func title(of product: Product) -> String? {
+        product.displayName.isEmpty ? nil : product.displayName
+    }
+
     private static func subscriptionPeriodUnit(from unit: Product.SubscriptionPeriod.Unit) -> SubscriptionPeriodUnit {
         switch unit {
         case .day: return .day

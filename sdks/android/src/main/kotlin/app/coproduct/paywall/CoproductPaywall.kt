@@ -119,29 +119,7 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
                 client = resolvedClient,
                 appUserId = appUserId,
                 setPackages = { packages ->
-                    val json = org.json.JSONObject().apply {
-                        packages.forEach { (key, pkg) ->
-                            put(
-                                key,
-                                org.json.JSONObject().apply {
-                                    put("price", pkg.price)
-                                    // Explicit null, not an omitted key, so the
-                                    // WebView can distinguish "no offer" from a
-                                    // missing field -- see the bridge shape's own
-                                    // kdoc on PaywallPackageRuntime.
-                                    put(
-                                        "intro",
-                                        pkg.intro?.let { intro ->
-                                            org.json.JSONObject().apply {
-                                                put("eligible", intro.eligible)
-                                                put("label", intro.label)
-                                            }
-                                        } ?: org.json.JSONObject.NULL,
-                                    )
-                                },
-                            )
-                        }
-                    }.toString()
+                    val json = packagesJson(packages)
                     webView.evaluateJavascript("window.__coproductSetPackages__($json);", null)
                     // Packages are the last thing to land, so reveal now.
                     // onPageFinished still covers the case where they never resolve.
@@ -321,3 +299,31 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
         }
     }
 }
+
+/**
+ * Encodes resolved packages to the `__coproductSetPackages__` value shape.
+ * `intro` is an explicit null, not an omitted key, so the WebView can tell
+ * "no offer" from a missing field; `title` is omitted when null so the page
+ * keeps the author's fallback text in a `data-cp-title-for` slot.
+ */
+internal fun packagesJson(packages: Map<String, PaywallPackageRuntime>): String =
+    org.json.JSONObject().apply {
+        packages.forEach { (key, pkg) ->
+            put(
+                key,
+                org.json.JSONObject().apply {
+                    put("price", pkg.price)
+                    put(
+                        "intro",
+                        pkg.intro?.let { intro ->
+                            org.json.JSONObject().apply {
+                                put("eligible", intro.eligible)
+                                put("label", intro.label)
+                            }
+                        } ?: org.json.JSONObject.NULL,
+                    )
+                    pkg.title?.let { put("title", it) }
+                },
+            )
+        }
+    }.toString()

@@ -356,6 +356,62 @@ describe('IapPaywallBridge', () => {
       expect(pkg.intro).toBeNull();
     });
 
+    it("sends StoreKit's displayNameIOS as the title on iOS", async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          platform: 'ios',
+          displayPrice: '$9.99/mo',
+          displayNameIOS: 'Pro Monthly',
+          title: 'ignored',
+        },
+      ]);
+
+      const pkg = await new IapPaywallBridge().packageFor(
+        'premium_monthly',
+        'subscription'
+      );
+
+      expect(pkg.title).toBe('Pro Monthly');
+    });
+
+    it("sends Play's nameAndroid, not the app-suffixed title, on Android", async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          platform: 'android',
+          displayPrice: '$9.99',
+          nameAndroid: 'Pro Monthly',
+          title: 'Pro Monthly (My App)',
+        },
+      ]);
+
+      const pkg = await new IapPaywallBridge().packageFor(
+        'premium_monthly',
+        'subscription'
+      );
+
+      expect(pkg.title).toBe('Pro Monthly');
+    });
+
+    it('omits the title when the store name is blank', async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          platform: 'ios',
+          displayPrice: '$9.99/mo',
+          displayNameIOS: '  ',
+        },
+      ]);
+
+      const pkg = await new IapPaywallBridge().packageFor(
+        'premium_monthly',
+        'subscription'
+      );
+
+      expect(pkg).not.toHaveProperty('title');
+    });
+
     it('throws when no product is found', async () => {
       mockFetchProducts.mockResolvedValue([]);
 
