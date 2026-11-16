@@ -34,9 +34,48 @@ public protocol PaywallClient: Sendable {
         expiresDate: Date?
     ) async throws -> [Entitlement]
 
+    /// `POST /v1/purchases` with the store's own proof of the purchase,
+    /// `signedTransaction` (iOS) or `purchaseToken` (Android), so the server
+    /// can check the purchase with Apple or Google instead of taking the
+    /// app's word. Throws `PaywallServerError` on a non-2xx response.
+    /// Defaults to `recordPurchase`, dropping the proof, so existing
+    /// conformers keep working.
+    func recordPurchaseWithProof(
+        appUserId: String,
+        platform: String,
+        storeProductId: String,
+        storeTransactionId: String,
+        purchaseDate: Date,
+        expiresDate: Date?,
+        signedTransaction: String?,
+        purchaseToken: String?
+    ) async throws -> [Entitlement]
+
     /// `GET /v1/entitlements`. Throws `PaywallServerError` on a non-2xx response.
     func getEntitlements(_ appUserId: String) async throws -> [Entitlement]
 
     /// `POST /v1/identify`. Throws `PaywallServerError` on a non-2xx response.
     func identify(appUserId: String, targetingKey: String) async throws
+}
+
+public extension PaywallClient {
+    func recordPurchaseWithProof(
+        appUserId: String,
+        platform: String,
+        storeProductId: String,
+        storeTransactionId: String,
+        purchaseDate: Date,
+        expiresDate: Date?,
+        signedTransaction _: String?,
+        purchaseToken _: String?
+    ) async throws -> [Entitlement] {
+        try await recordPurchase(
+            appUserId: appUserId,
+            platform: platform,
+            storeProductId: storeProductId,
+            storeTransactionId: storeTransactionId,
+            purchaseDate: purchaseDate,
+            expiresDate: expiresDate
+        )
+    }
 }

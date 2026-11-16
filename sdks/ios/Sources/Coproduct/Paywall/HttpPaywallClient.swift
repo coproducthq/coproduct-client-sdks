@@ -83,6 +83,28 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
         purchaseDate: Date,
         expiresDate: Date?
     ) async throws -> [Entitlement] {
+        try await recordPurchaseWithProof(
+            appUserId: appUserId,
+            platform: platform,
+            storeProductId: storeProductId,
+            storeTransactionId: storeTransactionId,
+            purchaseDate: purchaseDate,
+            expiresDate: expiresDate,
+            signedTransaction: nil,
+            purchaseToken: nil
+        )
+    }
+
+    public func recordPurchaseWithProof(
+        appUserId: String,
+        platform: String,
+        storeProductId: String,
+        storeTransactionId: String,
+        purchaseDate: Date,
+        expiresDate: Date?,
+        signedTransaction: String?,
+        purchaseToken: String?
+    ) async throws -> [Entitlement] {
         let isoFormatter = ISO8601DateFormatter()
         var transaction: [String: Any] = [
             "store_transaction_id": storeTransactionId,
@@ -90,6 +112,12 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
         ]
         if let expiresDate {
             transaction["expires_date"] = isoFormatter.string(from: expiresDate)
+        }
+        if let signedTransaction {
+            transaction["signed_transaction"] = signedTransaction
+        }
+        if let purchaseToken {
+            transaction["purchase_token"] = purchaseToken
         }
         let body: [String: Any] = [
             "app_user_id": appUserId,

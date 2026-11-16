@@ -76,11 +76,22 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
     }
 
     public func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult {
+        try await purchase(productId, options: [])
+    }
+
+    /// Purchases with StoreKit's `appAccountToken` set to the account token
+    /// derived from `appUserId`, so the signed transaction names the app user
+    /// it was made for.
+    public func purchaseForUser(_ productId: String, kind _: PackageKind, appUserId: String) async throws -> PurchaseResult {
+        try await purchase(productId, options: [.appAccountToken(accountToken(forAppUserId: appUserId))])
+    }
+
+    private func purchase(_ productId: String, options: Set<Product.PurchaseOption>) async throws -> PurchaseResult {
         let products = try await Product.products(for: [productId])
         guard let product = products.first else {
             throw StoreKitPaywallBridgeError.unknownProduct(productId)
         }
-        switch try await product.purchase() {
+        switch try await product.purchase(options: options) {
         case let .success(verification):
             guard case let .verified(transaction) = verification else {
                 throw StoreKitPaywallBridgeError.unverifiedTransaction
@@ -94,7 +105,8 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
                 transactionId: String(transaction.id),
                 productId: transaction.productID,
                 purchaseDate: transaction.purchaseDate,
-                expirationDate: transaction.expirationDate
+                expirationDate: transaction.expirationDate,
+                signedTransaction: verification.jwsRepresentation
             )
         case .userCancelled:
             return PurchaseResult(outcome: .cancelled)
@@ -113,7 +125,8 @@ public final class StoreKitPaywallBridge: NativePaywallBridge {
                 transactionId: String(transaction.id),
                 productId: transaction.productID,
                 purchaseDate: transaction.purchaseDate,
-                expirationDate: transaction.expirationDate
+                expirationDate: transaction.expirationDate,
+                signedTransaction: verification.jwsRepresentation
             ))
         }
         return restored

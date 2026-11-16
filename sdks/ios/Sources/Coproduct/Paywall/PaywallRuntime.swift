@@ -114,7 +114,7 @@ final class PaywallRuntime: @unchecked Sendable {
             onPurchaseError(PaywallPurchaseError(reason: .unresolvedProduct))
             return
         }
-        guard let result = try? await bridge.purchase(productId, kind: packageRef.kind) else {
+        guard let result = try? await bridge.purchaseForUser(productId, kind: packageRef.kind, appUserId: appUserId) else {
             onPurchaseError(PaywallPurchaseError(reason: .networkError))
             return
         }
@@ -125,13 +125,15 @@ final class PaywallRuntime: @unchecked Sendable {
 
         let entitlements: [Entitlement]
         do {
-            entitlements = try await client.recordPurchase(
+            entitlements = try await client.recordPurchaseWithProof(
                 appUserId: appUserId,
                 platform: platform,
                 storeProductId: productId,
                 storeTransactionId: result.transactionId ?? "",
                 purchaseDate: result.purchaseDate ?? Date(),
-                expiresDate: result.expirationDate
+                expiresDate: result.expirationDate,
+                signedTransaction: result.signedTransaction,
+                purchaseToken: result.purchaseToken
             )
         } catch let error as PaywallServerError {
             onPurchaseError(PaywallPurchaseError(reason: .serverRejected(serverCode: error.code)))
@@ -167,13 +169,15 @@ final class PaywallRuntime: @unchecked Sendable {
         var entitlements: [Entitlement] = []
         var anyRecorded = false
         for transaction in transactions {
-            guard let result = try? await client.recordPurchase(
+            guard let result = try? await client.recordPurchaseWithProof(
                 appUserId: appUserId,
                 platform: platform,
                 storeProductId: transaction.productId,
                 storeTransactionId: transaction.transactionId,
                 purchaseDate: transaction.purchaseDate,
-                expiresDate: transaction.expirationDate
+                expiresDate: transaction.expirationDate,
+                signedTransaction: transaction.signedTransaction,
+                purchaseToken: transaction.purchaseToken
             ) else { continue }
             entitlements = result
             anyRecorded = true

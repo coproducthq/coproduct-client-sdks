@@ -44,9 +44,14 @@ public enum Coproduct {
     ///   - userId: A stable identifier for the user.
     ///   - attributes: Targeting attributes to attach. Defaults to none.
     ///   - linkAnonymous: When `true`, the default, record the current anonymous
-    ///     id in ``previousAnonymousId`` if none is recorded yet. When `false`,
-    ///     clear it. Targeting uses `userId` either way, and nothing is sent to a
-    ///     server.
+    ///     id in ``previousAnonymousId`` if none is recorded yet, and tell the
+    ///     Coproduct API that ``anonymousId`` belongs to `userId` so purchases
+    ///     and entitlements recorded against the anonymous id follow the user.
+    ///     That request is best-effort and runs in the background: a failure is
+    ///     logged and never affects identify, and it is skipped when the
+    ///     anonymous id is unknown or equal to `userId`. When `false`, clear
+    ///     ``previousAnonymousId`` and send nothing. Targeting uses `userId`
+    ///     either way.
     public static func identify(
         userId: String,
         attributes: [String: AttributeValue] = [:],
@@ -56,7 +61,12 @@ public enum Coproduct {
             logIdentityBeforeInitialize("identify")
             return
         }
-        client.identify(userId: userId, attributes: attributes, linkAnonymous: linkAnonymous)
+        // Captured now so the link uses the instance this identify was called
+        // against, even if a shutdown lands before the local identify applies
+        let linker = Instances.shared.identityLinker()
+        client.identify(userId: userId, attributes: attributes, linkAnonymous: linkAnonymous) {
+            linker?.link(userId: userId, linkAnonymous: linkAnonymous)
+        }
     }
 
     /// Clear the identified user and return to an anonymous identity.
@@ -127,6 +137,16 @@ public enum Coproduct {
     /// memory only, and `nil` before initialize.
     public static var previousAnonymousId: String? {
         Instances.shared.defaultInstance().flatMap { $0.previousAnonymousId() }
+    }
+
+    /// This install's anonymous id: the id the SDK generates on first launch
+    /// and persists in the secure store, or the `anonymousId` config override.
+    /// Purchases and entitlements are keyed by it unless the app supplies its
+    /// own id. `nil` before initialize, and `nil` when the secure store could
+    /// not be read at launch, in which case the id in use is not known to the
+    /// host.
+    public static var anonymousId: String? {
+        Instances.shared.anonymousId()
     }
 
     // The identity calls are fire-and-forget, so a call before initialize logs
@@ -567,6 +587,8 @@ final class Instances: @unchecked Sendable {
         let timer: HostTimer?
         let networkMonitor: NetworkMonitor?
         let locationMonitor: LocationMonitor?
+        let secureStore: AnonymousIdCapturingSecureStore
+        let identityLinker: IdentityLinker
     }
 
     private var _defaultInstance: Stored?
@@ -591,6 +613,18 @@ final class Instances: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return _defaultInstance?.locationMonitor
+    }
+
+    func anonymousId() -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _defaultInstance?.secureStore.anonymousId
+    }
+
+    func identityLinker() -> IdentityLinker? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _defaultInstance?.identityLinker
     }
 
     func requireDefault() -> CoproductFFI.CoproductClient {
@@ -628,9 +662,12 @@ final class Instances: @unchecked Sendable {
         config: CoproductConfig,
         generation claimedGeneration: Int
     ) async throws -> CoproductFFI.CoproductClient {
+        // Wrap whichever secure store is in use so the anonymous id the core
+        // reads or writes through it is remembered for the anonymousId accessor
+        let secureStore = AnonymousIdCapturingSecureStore(inner: config.secureStore ?? KeychainSecureStore())
         let inner: CoproductFFI.CoproductClient
         do {
-            inner = try await Self.doInitialize(sdkKey: sdkKey, config: config)
+            inner = try await Self.doInitialize(sdkKey: sdkKey, config: config, secureStore: secureStore)
         } catch {
             // If a shutdown ran during this init, always report the same
             // cancelled error instead of whatever the cancelled work threw, so
@@ -684,7 +721,16 @@ final class Instances: @unchecked Sendable {
                 sdkKey: sdkKey,
                 timer: timer,
                 networkMonitor: networkMonitor,
-                locationMonitor: locationMonitor
+                locationMonitor: locationMonitor,
+                secureStore: secureStore,
+                identityLinker: IdentityLinker(
+                    client: HttpPaywallClient(
+                        sdkKey: sdkKey,
+                        apiBaseUrl: config.apiBaseUrl,
+                        session: IdentityLinker.sessionOverrideForTesting ?? .shared
+                    ),
+                    anonymousId: { [secureStore] in secureStore.anonymousId }
+                )
             ),
             generation: claimedGeneration
         ) else {
@@ -736,7 +782,8 @@ final class Instances: @unchecked Sendable {
     // so concurrent initialize callers can share a single Task
     private static func doInitialize(
         sdkKey: String,
-        config: CoproductConfig
+        config: CoproductConfig,
+        secureStore: any HostSecureStore
     ) async throws -> CoproductFFI.CoproductClient {
         let cacheDir = FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)
@@ -747,8 +794,6 @@ final class Instances: @unchecked Sendable {
         // the caller's setting actually reaches URLSession
         let transport: any HostTransport = config.transport
             ?? URLSessionTransport(requestTimeout: config.requestTimeout)
-        let secureStore: any HostSecureStore = config.secureStore ?? KeychainSecureStore()
-
         let client = try await coreInitialize(
             sdkKey: sdkKey,
             cacheDir: cacheDir,
@@ -992,11 +1037,18 @@ final class IdentitySerializer: @unchecked Sendable {
 // queue and any thrown error is logged, so it is fire-and-forget yet still
 // applied in call order
 extension CoproductFFI.CoproductClient {
-    func identify(userId: String, attributes: [String: AttributeValue], linkAnonymous: Bool) {
+    // onSuccess runs only after the core applied the identify, never on failure
+    func identify(
+        userId: String,
+        attributes: [String: AttributeValue],
+        linkAnonymous: Bool,
+        onSuccess: (@Sendable () -> Void)? = nil
+    ) {
         let context = attributes.contextValues
         IdentitySerializer.shared.enqueue { [self] in
             do {
                 try await identify(userId: userId, attributes: context, linkAnonymous: linkAnonymous)
+                onSuccess?()
             } catch {
                 NSLog("[Coproduct] identify failed: \(error)")
             }

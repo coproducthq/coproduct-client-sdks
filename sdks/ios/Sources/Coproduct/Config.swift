@@ -40,6 +40,11 @@ public struct CoproductConfig: Sendable {
     /// networks or long-running fixture servers
     public var requestTimeout: TimeInterval?
 
+    /// Base URL of the Coproduct API. Default `https://api.coproduct.app`. Used
+    /// when `identify` links this install's anonymous id to the user id on the
+    /// server. Override it only to point at a non-production API
+    public var apiBaseUrl: String
+
     public init(
         pollInterval: TimeInterval = 60,
         startupTimeout: TimeInterval = 3,
@@ -49,7 +54,8 @@ public struct CoproductConfig: Sendable {
         endpoint: String? = nil,
         pollOnForeground: Bool = true,
         evaluationListener: (any EvaluationListener)? = nil,
-        requestTimeout: TimeInterval? = nil
+        requestTimeout: TimeInterval? = nil,
+        apiBaseUrl: String = "https://api.coproduct.app"
     ) {
         self.pollInterval = pollInterval
         self.startupTimeout = startupTimeout
@@ -60,5 +66,6 @@ public struct CoproductConfig: Sendable {
         self.pollOnForeground = pollOnForeground
         self.evaluationListener = evaluationListener
         self.requestTimeout = requestTimeout
+        self.apiBaseUrl = apiBaseUrl
     }
 }

@@ -10,6 +10,7 @@ private final class FakeBridge: NativePaywallBridge, @unchecked Sendable {
     var restoreResult: [RestoredTransaction] = []
     var restoreError: Error?
     private(set) var purchasedProductIds: [String] = []
+    private(set) var purchasedForAppUserIds: [String] = []
 
     func priceFor(_ productId: String, kind _: PackageKind) async throws -> String {
         if let priceError { throw priceError }
@@ -31,6 +32,11 @@ private final class FakeBridge: NativePaywallBridge, @unchecked Sendable {
         return purchaseResult
     }
 
+    func purchaseForUser(_ productId: String, kind: PackageKind, appUserId: String) async throws -> PurchaseResult {
+        purchasedForAppUserIds.append(appUserId)
+        return try await purchase(productId, kind: kind)
+    }
+
     func restore() async throws -> [RestoredTransaction] {
         if let restoreError { throw restoreError }
         return restoreResult
@@ -41,6 +47,8 @@ private final class FakePaywallClient: PaywallClient, @unchecked Sendable {
     var recordPurchaseResult: [Entitlement] = []
     var recordPurchaseError: Error?
     private(set) var recordedTransactionIds: [String] = []
+    private(set) var recordedSignedTransactions: [String?] = []
+    private(set) var recordedPurchaseTokens: [String?] = []
 
     func fetchPaywall(_: String) async -> PaywallSnapshot? { nil }
 
@@ -48,6 +56,12 @@ private final class FakePaywallClient: PaywallClient, @unchecked Sendable {
         recordedTransactionIds.append(storeTransactionId)
         if let recordPurchaseError { throw recordPurchaseError }
         return recordPurchaseResult
+    }
+
+    func recordPurchaseWithProof(appUserId: String, platform: String, storeProductId: String, storeTransactionId: String, purchaseDate: Date, expiresDate: Date?, signedTransaction: String?, purchaseToken: String?) async throws -> [Entitlement] {
+        recordedSignedTransactions.append(signedTransaction)
+        recordedPurchaseTokens.append(purchaseToken)
+        return try await recordPurchase(appUserId: appUserId, platform: platform, storeProductId: storeProductId, storeTransactionId: storeTransactionId, purchaseDate: purchaseDate, expiresDate: expiresDate)
     }
 
     func getEntitlements(_: String) async throws -> [Entitlement] { [] }
@@ -221,6 +235,60 @@ final class PaywallRuntimeTests: XCTestCase {
         XCTAssertEqual(client.recordedTransactionIds, ["t1"])
     }
 
+    func testPurchasePassesAppUserIdToBridgeAndProofToClient() async {
+        let bridge = FakeBridge()
+        bridge.purchaseResult = .init(outcome: .success, transactionId: "t1", productId: "p1", purchaseDate: Date(timeIntervalSince1970: 0), expirationDate: nil, signedTransaction: "jws-1")
+        let client = FakePaywallClient()
+        let runtime = PaywallRuntime(
+            bridge: bridge, client: client, appUserId: "user-123",
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+        )
+        await runtime.onSnapshotLoaded(makeSnapshot())
+        _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
+        XCTAssertEqual(bridge.purchasedForAppUserIds, ["user-123"])
+        XCTAssertEqual(bridge.purchasedProductIds, ["p1"])
+        XCTAssertEqual(client.recordedTransactionIds, ["t1"])
+        XCTAssertEqual(client.recordedSignedTransactions, ["jws-1"])
+        XCTAssertEqual(client.recordedPurchaseTokens, [nil])
+    }
+
+    func testRestorePassesEachTransactionsProofToClient() async {
+        let bridge = FakeBridge()
+        bridge.restoreResult = [
+            RestoredTransaction(transactionId: "t1", productId: "p1", purchaseDate: Date(timeIntervalSince1970: 0), expirationDate: nil, signedTransaction: "jws-1"),
+            RestoredTransaction(transactionId: "t2", productId: "p2", purchaseDate: Date(timeIntervalSince1970: 0), expirationDate: nil),
+        ]
+        let client = FakePaywallClient()
+        let runtime = PaywallRuntime(
+            bridge: bridge, client: client, appUserId: "u1",
+            setPackages: { _ in }, onPurchaseResult: { _, _ in }, onPurchaseError: { _ in }, onDismiss: {}
+        )
+        _ = await runtime.handleNavigationRequest("coproduct-action:restore")
+        XCTAssertEqual(client.recordedTransactionIds, ["t1", "t2"])
+        XCTAssertEqual(client.recordedSignedTransactions, ["jws-1", nil])
+    }
+
+    func testPurchaseWorksThroughDefaultsForBridgeAndClientWithOnlyTheOldMethods() async {
+        // Neither fake implements purchaseForUser or recordPurchaseWithProof:
+        // the protocol-extension defaults must route the runtime's calls to
+        // purchase and recordPurchase.
+        let bridge = LegacyBridge()
+        let client = LegacyPaywallClient()
+        var reportedResult: PurchaseResult?
+        var errorReported = false
+        let runtime = PaywallRuntime(
+            bridge: bridge, client: client, appUserId: "u1",
+            setPackages: { _ in }, onPurchaseResult: { result, _ in reportedResult = result },
+            onPurchaseError: { _ in errorReported = true }, onDismiss: {}
+        )
+        await runtime.onSnapshotLoaded(makeSnapshot())
+        _ = await runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
+        XCTAssertEqual(bridge.purchasedProductIds, ["p1"])
+        XCTAssertEqual(client.recordedTransactionIds, ["t1"])
+        XCTAssertEqual(reportedResult?.outcome, .success)
+        XCTAssertFalse(errorReported)
+    }
+
     func testPurchaseServerRejectionReportsServerRejectedWithCode() async {
         let bridge = FakeBridge()
         let client = FakePaywallClient()
@@ -340,6 +408,37 @@ private final class FlakyFakePaywallClient: PaywallClient, @unchecked Sendable {
             throw TransientError()
         }
         return successResult
+    }
+
+    func getEntitlements(_: String) async throws -> [Entitlement] { [] }
+    func identify(appUserId _: String, targetingKey _: String) async throws {}
+}
+
+/// A bridge written before `purchaseForUser` existed: it implements only the
+/// original requirements.
+private final class LegacyBridge: NativePaywallBridge, @unchecked Sendable {
+    private(set) var purchasedProductIds: [String] = []
+
+    func priceFor(_: String, kind _: PackageKind) async throws -> String { "$4.99" }
+
+    func purchase(_ productId: String, kind _: PackageKind) async throws -> PurchaseResult {
+        purchasedProductIds.append(productId)
+        return .init(outcome: .success, transactionId: "t1", productId: productId, purchaseDate: Date(timeIntervalSince1970: 0), expirationDate: nil)
+    }
+
+    func restore() async throws -> [RestoredTransaction] { [] }
+}
+
+/// A client written before `recordPurchaseWithProof` existed: it implements
+/// only the original requirements.
+private final class LegacyPaywallClient: PaywallClient, @unchecked Sendable {
+    private(set) var recordedTransactionIds: [String] = []
+
+    func fetchPaywall(_: String) async -> PaywallSnapshot? { nil }
+
+    func recordPurchase(appUserId _: String, platform _: String, storeProductId _: String, storeTransactionId: String, purchaseDate _: Date, expiresDate _: Date?) async throws -> [Entitlement] {
+        recordedTransactionIds.append(storeTransactionId)
+        return []
     }
 
     func getEntitlements(_: String) async throws -> [Entitlement] { [] }

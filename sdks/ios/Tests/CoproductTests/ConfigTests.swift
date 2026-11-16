@@ -15,6 +15,12 @@ final class ConfigTests: XCTestCase {
         // requestTimeout defaults to nil meaning the platform transport uses
         // its native default (URLSession 60s on iOS)
         XCTAssertNil(config.requestTimeout)
+        XCTAssertEqual(config.apiBaseUrl, "https://api.coproduct.app")
+    }
+
+    func testApiBaseUrlOverride() {
+        let config = CoproductConfig(apiBaseUrl: "https://api.example.test")
+        XCTAssertEqual(config.apiBaseUrl, "https://api.example.test")
     }
 
     func testRequestTimeoutOverride() {
