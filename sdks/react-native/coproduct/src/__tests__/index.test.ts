@@ -125,6 +125,27 @@ describe('Coproduct.initialize', () => {
     expect(first).toBe(second);
   });
 
+  it('exposes the anonymous id the core reads or writes through the secure store', async () => {
+    const values = new Map<string, string>();
+    const secureStore = {
+      read: jest.fn(async (key: string) => values.get(key)),
+      write: jest.fn(async (key: string, value: string) => {
+        values.set(key, value);
+      }),
+    };
+
+    const client = await Coproduct.initialize('cpk_mob_test', { secureStore });
+    expect(client.anonymousId).toBeUndefined();
+
+    // The store the core was handed is the capturing wrapper, so a write the
+    // core makes for the anonymous id key becomes the client's anonymousId.
+    const handedStore = (nativeInitialize as jest.Mock).mock.calls.at(-1)[5];
+    await handedStore.write('coproduct.anonymous_id', 'anon-from-core');
+
+    expect(client.anonymousId).toBe('anon-from-core');
+    expect(values.get('coproduct.anonymous_id')).toBe('anon-from-core');
+  });
+
   it('publishes static device and session attributes before resolving', async () => {
     await Coproduct.initialize('cpk_mob_test');
 

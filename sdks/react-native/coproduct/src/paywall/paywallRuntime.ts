@@ -147,10 +147,11 @@ export class PaywallRuntime {
       return;
     }
 
-    const result = await this.bridge.purchase(
-      productId,
-      packageRef?.kind ?? 'subscription'
-    );
+    const kind = packageRef?.kind ?? 'subscription';
+    const result =
+      this.bridge.purchaseForUser != null
+        ? await this.bridge.purchaseForUser(productId, kind, this.appUserId)
+        : await this.bridge.purchase(productId, kind);
     if (result.outcome !== 'success') {
       this.onPurchaseResult?.(result, []);
       return;
@@ -158,13 +159,13 @@ export class PaywallRuntime {
 
     let entitlements: Entitlement[];
     try {
-      entitlements = await this.client.recordPurchase({
-        appUserId: this.appUserId,
-        platform: this.platform,
+      entitlements = await this.record({
         storeProductId: productId,
         storeTransactionId: result.transactionId ?? '',
         purchaseDate: result.purchaseDate ?? new Date(),
         expiresDate: result.expirationDate,
+        signedTransaction: result.signedTransaction,
+        purchaseToken: result.purchaseToken,
       });
     } catch (error) {
       if (error instanceof PaywallServerError) {
@@ -186,6 +187,32 @@ export class PaywallRuntime {
     this.onPurchaseResult?.(result, entitlements);
   }
 
+  // Sends the store's proof when the client can carry it. A client written
+  // before proofs existed records the purchase by id alone
+  private record(args: {
+    storeProductId: string;
+    storeTransactionId: string;
+    purchaseDate: Date;
+    expiresDate?: Date;
+    signedTransaction?: string;
+    purchaseToken?: string;
+  }): Promise<Entitlement[]> {
+    const { signedTransaction, purchaseToken, ...purchase } = args;
+    const base = {
+      appUserId: this.appUserId,
+      platform: this.platform,
+      ...purchase,
+    };
+    if (this.client.recordPurchaseWithProof != null) {
+      return this.client.recordPurchaseWithProof({
+        ...base,
+        signedTransaction,
+        purchaseToken,
+      });
+    }
+    return this.client.recordPurchase(base);
+  }
+
   private async handleRestore(): Promise<void> {
     const transactions = await this.bridge.restore();
     if (transactions.length === 0) {
@@ -204,13 +231,13 @@ export class PaywallRuntime {
     let anyRecorded = false;
     for (const tx of transactions) {
       try {
-        entitlements = await this.client.recordPurchase({
-          appUserId: this.appUserId,
-          platform: this.platform,
+        entitlements = await this.record({
           storeProductId: tx.productId,
           storeTransactionId: tx.transactionId,
           purchaseDate: tx.purchaseDate,
           expiresDate: tx.expirationDate,
+          signedTransaction: tx.signedTransaction,
+          purchaseToken: tx.purchaseToken,
         });
         anyRecorded = true;
       } catch {

@@ -38,6 +38,26 @@ export interface PaywallClient {
     expiresDate?: Date;
   }): Promise<Entitlement[]>;
 
+  /**
+   * POST /v1/purchases with the store's own proof of the purchase,
+   * signed_transaction (iOS) or purchase_token (Android) when present, so the
+   * server can check the purchase with Apple or Google instead of taking the
+   * app's word. Throws PaywallServerError on a non-2xx response. Optional: a
+   * client that implements only recordPurchase still works, the runtime falls
+   * back to it and the server verifies what it can from the transaction id
+   * alone.
+   */
+  recordPurchaseWithProof?(args: {
+    appUserId: string;
+    platform: string;
+    storeProductId: string;
+    storeTransactionId: string;
+    purchaseDate: Date;
+    expiresDate?: Date;
+    signedTransaction?: string;
+    purchaseToken?: string;
+  }): Promise<Entitlement[]>;
+
   // GET /v1/entitlements. Throws PaywallServerError on a non-2xx response.
   getEntitlements(appUserId: string): Promise<Entitlement[]>;
 

@@ -14,6 +14,7 @@ import type {
   PurchaseResult,
   RestoredTransaction,
 } from './nativePaywallBridge';
+import { accountToken } from './accountToken';
 
 /** What a paywall reports when the app has not installed react-native-iap */
 export const MISSING_IAP_MESSAGE =
@@ -303,6 +304,20 @@ function expirationDateFor(purchase: Purchase): Date | undefined {
   return expirationDateIOS != null ? new Date(expirationDateIOS) : undefined;
 }
 
+// The store's own proof of a transaction, for the server to verify.
+// react-native-iap reports one unified purchaseToken: StoreKit 2's signed
+// transaction (JWS) from the App Store, Play's purchase token from Google
+// Play. Any other store, or a purchase with no token, yields no proof.
+function storeProofFor(
+  purchase: Purchase
+): Pick<PurchaseResult, 'signedTransaction' | 'purchaseToken'> {
+  const token = purchase.purchaseToken;
+  if (token == null || token === '') return {};
+  if (purchase.store === 'apple') return { signedTransaction: token };
+  if (purchase.store === 'google') return { purchaseToken: token };
+  return {};
+}
+
 // react-native-iap requires initConnection() before any other call in this
 // module (fetchProducts, requestPurchase, getAvailablePurchases all reject
 // with a native "not prepared" error otherwise). The connection is a
@@ -356,6 +371,27 @@ export class IapPaywallBridge implements NativePaywallBridge {
   }
 
   purchase(productId: string, kind: PackageKind): Promise<PurchaseResult> {
+    return this.startPurchase(productId, kind, undefined);
+  }
+
+  /**
+   * Purchases a product for a known app user. Hands the store a token derived
+   * from appUserId (StoreKit's appAccountToken, Play's obfuscatedAccountId),
+   * which the server recomputes to tell whose purchase this is.
+   */
+  purchaseForUser(
+    productId: string,
+    kind: PackageKind,
+    appUserId: string
+  ): Promise<PurchaseResult> {
+    return this.startPurchase(productId, kind, accountToken(appUserId));
+  }
+
+  private startPurchase(
+    productId: string,
+    kind: PackageKind,
+    token: string | undefined
+  ): Promise<PurchaseResult> {
     const isConsumable = kind === 'consumable';
     const isSubscription = kind === 'subscription';
 
@@ -398,6 +434,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
                 productId: purchase.productId,
                 purchaseDate: new Date(purchase.transactionDate),
                 expirationDate: expirationDateFor(purchase),
+                ...storeProofFor(purchase),
               });
             });
         }
@@ -417,6 +454,14 @@ export class IapPaywallBridge implements NativePaywallBridge {
         }
       );
 
+      // Only named when purchasing for a known user, so a plain purchase
+      // sends exactly the request it always has
+      const apple =
+        token == null
+          ? { sku: productId }
+          : { sku: productId, appAccountToken: token };
+      const googleAccount = token == null ? {} : { obfuscatedAccountId: token };
+
       function cleanup(): void {
         updatedSubscription.remove();
         errorSubscription.remove();
@@ -432,8 +477,8 @@ export class IapPaywallBridge implements NativePaywallBridge {
           if (!isSubscription) {
             return iap().requestPurchase({
               request: {
-                apple: { sku: productId },
-                google: { skus: [productId] },
+                apple,
+                google: { skus: [productId], ...googleAccount },
               },
               type: storeTypeFor(kind),
             });
@@ -453,9 +498,10 @@ export class IapPaywallBridge implements NativePaywallBridge {
 
           return iap().requestPurchase({
             request: {
-              apple: { sku: productId },
+              apple,
               google: {
                 skus: [productId],
+                ...googleAccount,
                 ...(subscriptionOffers.length > 0 && {
                   subscriptionOffers,
                 }),
@@ -488,6 +534,7 @@ export class IapPaywallBridge implements NativePaywallBridge {
         productId: purchase.productId,
         purchaseDate: new Date(purchase.transactionDate),
         expirationDate: expirationDateFor(purchase),
+        ...storeProofFor(purchase),
       });
     }
     return restored;

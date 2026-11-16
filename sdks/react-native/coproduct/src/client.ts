@@ -23,6 +23,7 @@ import {
 } from './generated/coproduct_ffi_uniffi';
 import { attributesToContext, type AttributeValue } from './attributeValue';
 import { IdentitySerializer } from './identitySerializer';
+import { HttpPaywallClient } from './paywall/httpPaywallClient';
 import { observeDrain, type Cancellable } from './observation';
 import { captureUtm } from './utmStore';
 
@@ -38,10 +39,33 @@ export type FlagEvaluationDetailsInt = {
   flagKey: string;
 };
 
+/**
+ * What a CoproductClient needs to know this install's anonymous id and to
+ * tell the server when identify links it to a user id. Supplied by
+ * Coproduct.initialize. A client built without it has no anonymousId and
+ * sends nothing on identify.
+ */
+export type CoproductClientIdentityLink = {
+  /** Reads the install's current anonymous id, undefined until known. */
+  anonymousId: () => string | undefined;
+  /** The SDK key, sent as the Bearer token of the identify request. */
+  sdkKey: string;
+  /** API base URL. Defaults to https://api.coproduct.app. */
+  apiBaseUrl?: string;
+};
+
+// Anonymous id and user id pairs already sent to the server by this process,
+// so a repeated identify for the same user does not repeat the request. A
+// failed request removes its pair so a later identify can try again.
+const linkedPairs = new Set<string>();
+
 export class CoproductClient {
   private readonly identitySerializer = new IdentitySerializer();
 
-  constructor(private readonly native: CoproductClientLike) {}
+  constructor(
+    private readonly native: CoproductClientLike,
+    private readonly identityLink?: CoproductClientIdentityLink
+  ) {}
 
   // MARK: Typed getters (never throw; the native client always returns the
   // caller's default when a flag is missing, the wrong type, or not ready)
@@ -124,6 +148,14 @@ export class CoproductClient {
   // MARK: Identity (fire-and-forget; applies in call order via
   // identitySerializer; a rejection is logged, never thrown to the caller)
 
+  /**
+   * Signs the user in locally, then, unless linkAnonymous is false, tells the
+   * server that this install's anonymous id now belongs to userId so purchases
+   * and entitlements recorded under the anonymous id follow the user. The
+   * server request is best-effort: it never delays or fails identify, a
+   * failure is only logged, and it is skipped when the anonymous id is
+   * unknown or equal to userId.
+   */
   identify(
     userId: string,
     attributes: Record<string, AttributeValue> = {},
@@ -135,8 +167,29 @@ export class CoproductClient {
         await this.native.identify(userId, context, linkAnonymous);
       } catch (error) {
         console.error('[coproduct] identify failed', error);
+        return;
       }
+      if (linkAnonymous) this.linkAnonymousId(userId);
     });
+  }
+
+  // POST /v1/identify with this install's anonymous id and the user id.
+  // Deliberately not awaited by the caller: the request must never delay or
+  // fail the identity queue.
+  private linkAnonymousId(userId: string): void {
+    const link = this.identityLink;
+    if (link == null) return;
+    const anonymousId = link.anonymousId();
+    if (anonymousId == null || anonymousId === userId) return;
+    const pair = JSON.stringify([anonymousId, userId]);
+    if (linkedPairs.has(pair)) return;
+    linkedPairs.add(pair);
+    new HttpPaywallClient({ sdkKey: link.sdkKey, apiBaseUrl: link.apiBaseUrl })
+      .identify({ appUserId: anonymousId, targetingKey: userId })
+      .catch((error: unknown) => {
+        linkedPairs.delete(pair);
+        console.error('[coproduct] identify link failed', error);
+      });
   }
 
   signOut(): void {
@@ -170,6 +223,15 @@ export class CoproductClient {
     this.identitySerializer.enqueue(async () => {
       await this.native.removeAttributes(keys);
     });
+  }
+
+  /**
+   * This install's anonymous id: the id purchases and entitlements are keyed
+   * by until the app supplies its own. Undefined until the SDK has read or
+   * generated it, and for a client not created by Coproduct.initialize.
+   */
+  get anonymousId(): string | undefined {
+    return this.identityLink?.anonymousId();
   }
 
   get previousAnonymousId(): string | undefined {

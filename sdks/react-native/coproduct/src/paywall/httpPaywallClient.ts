@@ -92,6 +92,23 @@ export class HttpPaywallClient implements PaywallClient {
     purchaseDate: Date;
     expiresDate?: Date;
   }): Promise<Entitlement[]> {
+    return this.recordPurchaseWithProof(args);
+  }
+
+  /**
+   * POST /v1/purchases, adding signed_transaction (iOS) or purchase_token
+   * (Android) to the transaction when given.
+   */
+  async recordPurchaseWithProof(args: {
+    appUserId: string;
+    platform: string;
+    storeProductId: string;
+    storeTransactionId: string;
+    purchaseDate: Date;
+    expiresDate?: Date;
+    signedTransaction?: string;
+    purchaseToken?: string;
+  }): Promise<Entitlement[]> {
     const url = `${this.apiBaseUrl}/v1/purchases`;
     const response = await fetch(url, {
       method: 'POST',
@@ -105,6 +122,12 @@ export class HttpPaywallClient implements PaywallClient {
           purchase_date: args.purchaseDate.toISOString(),
           ...(args.expiresDate
             ? { expires_date: args.expiresDate.toISOString() }
+            : {}),
+          ...(args.signedTransaction != null
+            ? { signed_transaction: args.signedTransaction }
+            : {}),
+          ...(args.purchaseToken != null
+            ? { purchase_token: args.purchaseToken }
             : {}),
         },
       }),

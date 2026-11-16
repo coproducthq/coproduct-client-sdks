@@ -152,6 +152,95 @@ describe('HttpPaywallClient', () => {
     expect(entitlements[0]?.entitlementId).toBe('premium');
   });
 
+  it('recordPurchaseWithProof adds signed_transaction to the transaction when given', async () => {
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValue(fakeResponse(true, 200, { entitlements: [] }));
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    const client = new HttpPaywallClient({ sdkKey: 'cpk_mob_test' });
+    await client.recordPurchaseWithProof({
+      appUserId: 'user-1',
+      platform: 'IOS',
+      storeProductId: 'premium_monthly',
+      storeTransactionId: 'tx-1',
+      purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+      signedTransaction: 'header.payload.signature',
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.coproduct.app/v1/purchases',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          app_user_id: 'user-1',
+          platform: 'IOS',
+          store_product_id: 'premium_monthly',
+          transaction: {
+            store_transaction_id: 'tx-1',
+            purchase_date: '2026-01-01T00:00:00.000Z',
+            signed_transaction: 'header.payload.signature',
+          },
+        }),
+      })
+    );
+  });
+
+  it('recordPurchaseWithProof adds purchase_token to the transaction when given', async () => {
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValue(fakeResponse(true, 200, { entitlements: [] }));
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    const client = new HttpPaywallClient({ sdkKey: 'cpk_mob_test' });
+    await client.recordPurchaseWithProof({
+      appUserId: 'user-1',
+      platform: 'ANDROID',
+      storeProductId: 'premium_monthly',
+      storeTransactionId: 'GPA.1',
+      purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+      purchaseToken: 'play-token',
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.coproduct.app/v1/purchases',
+      expect.objectContaining({
+        body: JSON.stringify({
+          app_user_id: 'user-1',
+          platform: 'ANDROID',
+          store_product_id: 'premium_monthly',
+          transaction: {
+            store_transaction_id: 'GPA.1',
+            purchase_date: '2026-01-01T00:00:00.000Z',
+            purchase_token: 'play-token',
+          },
+        }),
+      })
+    );
+  });
+
+  it('recordPurchaseWithProof sends neither proof field when none is given', async () => {
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValue(fakeResponse(true, 200, { entitlements: [] }));
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    const client = new HttpPaywallClient({ sdkKey: 'cpk_mob_test' });
+    await client.recordPurchaseWithProof({
+      appUserId: 'user-1',
+      platform: 'IOS',
+      storeProductId: 'premium_monthly',
+      storeTransactionId: 'tx-1',
+      purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.transaction).toEqual({
+      store_transaction_id: 'tx-1',
+      purchase_date: '2026-01-01T00:00:00.000Z',
+    });
+  });
+
   it("recordPurchase throws PaywallServerError with the server's code on rejection", async () => {
     global.fetch = jest.fn().mockResolvedValue(
       fakeResponse(false, 404, {

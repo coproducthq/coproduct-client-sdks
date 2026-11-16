@@ -256,6 +256,188 @@ describe('CoproductClient identity', () => {
     errorSpy.mockRestore();
   });
 
+  describe('identify server link', () => {
+    const originalFetch = global.fetch;
+    let mockFetch: jest.Mock;
+
+    // The sent-pair memory is process-wide, so every test uses its own ids.
+    function linkedClient(
+      anonymousId: string | undefined,
+      native = fakeNativeClient()
+    ): CoproductClient {
+      return new CoproductClient(native, {
+        anonymousId: () => anonymousId,
+        sdkKey: 'cpk_mob_test',
+        apiBaseUrl: 'https://api.example.test',
+      });
+    }
+
+    async function flushLink(client: CoproductClient): Promise<void> {
+      await flushAll(client);
+      await flushMicrotasks();
+    }
+
+    beforeEach(() => {
+      mockFetch = jest
+        .fn()
+        .mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+      global.fetch = mockFetch as unknown as typeof fetch;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('exposes the anonymous id, undefined without a source', () => {
+      expect(linkedClient('anon-get').anonymousId).toBe('anon-get');
+      expect(linkedClient(undefined).anonymousId).toBeUndefined();
+      expect(
+        new CoproductClient(fakeNativeClient()).anonymousId
+      ).toBeUndefined();
+    });
+
+    it('posts the anonymous id and user id once per pair', async () => {
+      const client = linkedClient('anon-once');
+
+      client.identify('user-once');
+      client.identify('user-once', { plan: 'pro' });
+      await flushLink(client);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://api.example.test/v1/identify');
+      expect(init.method).toBe('POST');
+      expect(init.headers.Authorization).toBe('Bearer cpk_mob_test');
+      expect(JSON.parse(init.body)).toEqual({
+        app_user_id: 'anon-once',
+        targeting_key: 'user-once',
+      });
+    });
+
+    it('posts again for a different user id', async () => {
+      const client = linkedClient('anon-two');
+
+      client.identify('user-two-a');
+      client.identify('user-two-b');
+      await flushLink(client);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('defaults the api base url', async () => {
+      const client = new CoproductClient(fakeNativeClient(), {
+        anonymousId: () => 'anon-default-url',
+        sdkKey: 'cpk_mob_test',
+      });
+
+      client.identify('user-default-url');
+      await flushLink(client);
+
+      expect(mockFetch.mock.calls[0][0]).toBe(
+        'https://api.coproduct.app/v1/identify'
+      );
+    });
+
+    it('skips the post when the anonymous id is unknown', async () => {
+      const client = linkedClient(undefined);
+
+      client.identify('user-unknown');
+      await flushLink(client);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('skips the post when the user id equals the anonymous id', async () => {
+      const client = linkedClient('same-id');
+
+      client.identify('same-id');
+      await flushLink(client);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('skips the post when linkAnonymous is false', async () => {
+      const client = linkedClient('anon-nolink');
+
+      client.identify('user-nolink', {}, false);
+      await flushLink(client);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('skips the post when the native identify fails', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const client = linkedClient(
+        'anon-nativefail',
+        fakeNativeClient({
+          identify: jest.fn().mockRejectedValue(new Error('invalid key')),
+        })
+      );
+
+      client.identify('user-nativefail');
+      await flushLink(client);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it('logs a failing post without failing or blocking identify', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      mockFetch.mockRejectedValue(new Error('offline'));
+      const native = fakeNativeClient();
+      const client = linkedClient('anon-fail', native);
+
+      expect(() => client.identify('user-fail')).not.toThrow();
+      client.signOut();
+      await expect(flushAll(client)).resolves.toBeUndefined();
+      await flushMicrotasks();
+
+      expect(native.signOut).toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(
+        '[coproduct] identify link failed',
+        expect.any(Error)
+      );
+      errorSpy.mockRestore();
+    });
+
+    it('does not wait for the post before the next identity operation', async () => {
+      mockFetch.mockReturnValue(new Promise(() => {}));
+      const native = fakeNativeClient();
+      const client = linkedClient('anon-hang', native);
+
+      client.identify('user-hang');
+      client.signOut();
+      await flushAll(client);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(native.signOut).toHaveBeenCalled();
+    });
+
+    it('retries a pair whose post failed', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({}),
+      });
+      const client = linkedClient('anon-retry');
+
+      client.identify('user-retry');
+      await flushLink(client);
+      client.identify('user-retry');
+      await flushLink(client);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      errorSpy.mockRestore();
+    });
+  });
+
   it('signOut, updateAttributes, and removeAttributes pass through', async () => {
     const native = fakeNativeClient();
     const client = new CoproductClient(native);

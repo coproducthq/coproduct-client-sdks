@@ -23,6 +23,10 @@ import { requestLocationPermission } from './locationSource';
 import { NetworkMonitor } from './networkMonitor';
 import { FetchTransport } from './defaultTransport';
 import { KeychainSecureStore } from './defaultSecureStore';
+import {
+  AnonymousIdCapturingSecureStore,
+  setSharedAnonymousIdSource,
+} from './anonymousId';
 
 export { CoproductClient } from './client';
 export {
@@ -124,6 +128,12 @@ export type CoproductInitializeOptions = {
   startupTimeoutSecs?: number;
   anonymousId?: string;
   endpoint?: string;
+  /**
+   * Base URL of the Coproduct API, used when identify tells the server which
+   * user id this install's anonymous id belongs to. Defaults to
+   * https://api.coproduct.app.
+   */
+  apiBaseUrl?: string;
   pollOnForeground?: boolean;
   // Per-request timeout applied by the default FetchTransport. Ignored when
   // a caller supplies their own `transport`. Mirrors iOS's
@@ -202,6 +212,7 @@ export class Coproduct {
     stored = null;
     inFlight = null;
     inFlightKey = null;
+    setSharedAnonymousIdSource(undefined);
     if (!current) return;
 
     current.timer.stop();
@@ -270,7 +281,12 @@ async function runInitialize(
   const cacheDir = RNFS.CachesDirectoryPath;
   const transport =
     options.transport ?? new FetchTransport(options.requestTimeoutMs);
-  const secureStore = options.secureStore ?? new KeychainSecureStore();
+  // Wrapped so the anonymous id the core reads or writes is visible to JS;
+  // the core has no getter for it.
+  const secureStore = new AnonymousIdCapturingSecureStore(
+    options.secureStore ?? new KeychainSecureStore()
+  );
+  const anonymousId = () => secureStore.anonymousId;
   const pollIntervalSecs = options.pollIntervalSecs ?? 60;
   const startupTimeoutSecs = options.startupTimeoutSecs ?? 3;
   const pollOnForeground = options.pollOnForeground ?? true;
@@ -293,7 +309,11 @@ async function runInitialize(
   ).catch((error: unknown) => {
     throw withReason(error);
   });
-  const client = new CoproductClient(nativeClient);
+  const client = new CoproductClient(nativeClient, {
+    anonymousId,
+    sdkKey,
+    apiBaseUrl: options.apiBaseUrl,
+  });
 
   const sessionAttributes = await readSessionAttributes();
   const utmAttributes = await readUtmAttributes();
@@ -345,6 +365,7 @@ async function runInitialize(
   }
 
   stored = { sdkKey, client, timer, networkMonitor, locationMonitor };
+  setSharedAnonymousIdSource(anonymousId);
   timer.start();
   networkMonitor.start();
 

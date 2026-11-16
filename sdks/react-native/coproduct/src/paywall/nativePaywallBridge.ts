@@ -22,6 +22,17 @@ export interface PurchaseResult {
   productId?: string;
   purchaseDate?: Date;
   expirationDate?: Date;
+  /**
+   * StoreKit 2's signed transaction (its JWS representation), which the
+   * server verifies against Apple's root. Undefined on Android, and on a
+   * bridge that does not report it.
+   */
+  signedTransaction?: string;
+  /**
+   * Google Play's purchase token, which the server checks with Google.
+   * Undefined on iOS, and on a bridge that does not report it.
+   */
+  purchaseToken?: string;
 }
 
 // One transaction react-native-iap's getAvailablePurchases reported during
@@ -32,6 +43,16 @@ export interface RestoredTransaction {
   productId: string;
   purchaseDate: Date;
   expirationDate?: Date;
+  /**
+   * The store's own proof of this transaction. See
+   * PurchaseResult.signedTransaction.
+   */
+  signedTransaction?: string;
+  /**
+   * The store's own proof of this transaction. See
+   * PurchaseResult.purchaseToken.
+   */
+  purchaseToken?: string;
 }
 
 // One package's introductory offer as resolved natively, or its absence.
@@ -63,5 +84,18 @@ export interface NativePaywallBridge {
   // only priceFor still works, the runtime falls back to a price-only result.
   packageFor?(productId: string, kind: PackageKind): Promise<PaywallPackageRuntime>;
   purchase(productId: string, kind: PackageKind): Promise<PurchaseResult>;
+  /**
+   * Purchases a product and tells the store which app user it is for. The
+   * store keeps a token derived from appUserId with the transaction
+   * (StoreKit's appAccountToken, Play's obfuscatedAccountId) and returns it to
+   * the server, which uses it to tell whose purchase this is. Optional: a
+   * bridge that implements only purchase still works, the runtime falls back
+   * to it and its purchases carry no token.
+   */
+  purchaseForUser?(
+    productId: string,
+    kind: PackageKind,
+    appUserId: string
+  ): Promise<PurchaseResult>;
   restore(): Promise<RestoredTransaction[]>;
 }
