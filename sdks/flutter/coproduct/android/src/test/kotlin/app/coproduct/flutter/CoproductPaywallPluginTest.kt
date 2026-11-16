@@ -673,4 +673,10 @@ class CoproductPaywallPluginTest {
         assertNull(pkg.title)
         assertTrue("title" !in pkg.toChannelMap())
     }
+
+
+    @Test
+    fun `accountToken is the version 5 UUID every SDK and the server derive`() {
+        assertEquals("f5765ad4-640f-516d-be70-79ed3a75f5e7", accountToken("user-123"))
+    }
 }

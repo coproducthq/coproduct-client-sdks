@@ -310,7 +310,7 @@ CoproductHost<_FakeHandle, _FakeClient> _host(
       operationTimeout: const Duration(seconds: 1),
     ),
     metadataProviders: providers ?? _providers(),
-    createClient: (h, identityQueue) {
+    createClient: (h, identityQueue, sdkKey, config) {
       bridge.clientsCreated++;
       return _FakeClient(h, identityQueue);
     },
@@ -789,7 +789,8 @@ void main() {
           locale: stringProvider(() async => 'en-US'),
           timezone: stringProvider(() async => 'America/New_York'),
         ),
-        createClient: (h, identityQueue) => _FakeClient(h, identityQueue),
+        createClient: (h, identityQueue, sdkKey, config) =>
+            _FakeClient(h, identityQueue),
         bindForeground: (onForeground) => null,
         reportError: (e, s) {},
         networkTypeEvents: _silentNetwork,
@@ -811,6 +812,50 @@ void main() {
       await host.shutdown();
     },
   );
+
+  test('the client is built with the sdk key and validated config, and is the '
+      'current client until shutdown', () async {
+    final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
+    String? seenKey;
+    CoproductConfig? seenConfig;
+    final host = CoproductHost<_FakeHandle, _FakeClient>(
+      bridge: bridge,
+      userAgent: 'coproduct-flutter/test',
+      createTransport: (requestTimeout) => HttpTransport(
+        client: MockClient((_) async => http.Response('{}', 200)),
+        requestTimeout: requestTimeout,
+      ),
+      secureStore: SecureIdentityStore(
+        backing: _MemoryStore(),
+        operationTimeout: const Duration(seconds: 1),
+      ),
+      metadataProviders: _providers(),
+      createClient: (h, identityQueue, sdkKey, config) {
+        seenKey = sdkKey;
+        seenConfig = config;
+        return _FakeClient(h, identityQueue);
+      },
+      bindForeground: (onForeground) => null,
+      reportError: (e, s) {},
+      isRootIsolate: () => true,
+      beginSession: _immediateSession,
+      networkTypeEvents: _silentNetwork,
+      bindNetworkResume: (onResume) => null,
+      readUtmAttributes: () async => const <String, AttributeValue>{},
+    );
+    expect(host.currentClient, isNull);
+
+    final config = CoproductConfig(
+      apiBaseUrl: Uri.parse('https://api.example'),
+    );
+    final client = await host.initialize(sdkKey: 'cpk_mob_a', config: config);
+    expect(seenKey, 'cpk_mob_a');
+    expect(seenConfig, config);
+    expect(host.currentClient, same(client));
+
+    await host.shutdown();
+    expect(host.currentClient, isNull);
+  });
 
   test('the scheduler polls immediately on start', () async {
     final bridge = _FakeBridge(stateValue: frb.ProviderState.ready);
@@ -955,7 +1000,8 @@ void main() {
           operationTimeout: const Duration(seconds: 1),
         ),
         metadataProviders: _providers(),
-        createClient: (h, identityQueue) => throw StateError('client boom'),
+        createClient: (h, identityQueue, sdkKey, config) =>
+            throw StateError('client boom'),
         bindForeground: foreground.binder,
         reportError: (e, s) {},
         networkTypeEvents: _silentNetwork,

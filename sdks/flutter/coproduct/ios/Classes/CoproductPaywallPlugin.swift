@@ -1,3 +1,4 @@
+import CryptoKit
 import Flutter
 import StoreKit
 
@@ -64,6 +65,25 @@ private func periodNoun(_ unit: Product.SubscriptionPeriod.Unit) -> String {
     }
 }
 
+/// The namespace for store account tokens. Every Coproduct SDK and the server
+/// use the same value, so they derive the same token from one app user id.
+private let accountTokenNamespace = UUID(uuidString: "8F1B6C1E-6F0A-4D0E-9A53-2C1D7F4B9E10")!
+
+/// The store account token for an app user: a version 5 UUID of the id under
+/// `accountTokenNamespace`. StoreKit requires a UUID for `appAccountToken`, so
+/// the id itself cannot be sent.
+func accountToken(forAppUserId appUserId: String) -> UUID {
+    var input = withUnsafeBytes(of: accountTokenNamespace.uuid) { Data($0) }
+    input.append(Data(appUserId.utf8))
+    var bytes = Array(Insecure.SHA1.hash(data: input).prefix(16))
+    bytes[6] = (bytes[6] & 0x0F) | 0x50
+    bytes[8] = (bytes[8] & 0x3F) | 0x80
+    return UUID(uuid: (
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+    ))
+}
+
 /// The native side of app.coproduct.flutter/paywall: StoreKit2 price
 /// lookup, purchase, and restore. Deliberately small -- it holds no SDK
 /// state, knows nothing about the SDK key, and performs no network call of
@@ -96,7 +116,8 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code: "INVALID_ARGUMENTS", message: "productId is required", details: nil))
                 return
             }
-            Task { await self.purchase(productId: productId, result: result) }
+            let appUserId = (call.arguments as? [String: Any])?["appUserId"] as? String
+            Task { await self.purchase(productId: productId, appUserId: appUserId, result: result) }
         case "restore":
             Task { await self.restore(result: result) }
         default:
@@ -159,14 +180,18 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func purchase(productId: String, result: @escaping FlutterResult) async {
+    private func purchase(productId: String, appUserId: String?, result: @escaping FlutterResult) async {
         do {
             let products = try await Product.products(for: [productId])
             guard let product = products.first else {
                 result(FlutterError(code: "UNKNOWN_PRODUCT", message: "No StoreKit product for id \(productId)", details: nil))
                 return
             }
-            let purchaseResult = try await product.purchase()
+            // The store keeps this token with the transaction, which is how the
+            // server learns which app user the purchase was made for
+            var options: Set<Product.PurchaseOption> = []
+            if let appUserId { options.insert(.appAccountToken(accountToken(forAppUserId: appUserId))) }
+            let purchaseResult = try await product.purchase(options: options)
             switch purchaseResult {
             case .success(let verification):
                 guard case .verified(let transaction) = verification else {
@@ -174,7 +199,7 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                     return
                 }
                 await transaction.finish()
-                result(channelPayload(for: transaction, outcome: "success"))
+                result(channelPayload(for: transaction, signedTransaction: verification.jwsRepresentation, outcome: "success"))
             case .userCancelled:
                 result(["outcome": "cancelled"])
             case .pending:
@@ -198,14 +223,16 @@ public class CoproductPaywallPlugin: NSObject, FlutterPlugin {
                 "expirationDate": transaction.expirationDate != nil
                     ? Int(transaction.expirationDate!.timeIntervalSince1970 * 1000)
                     : NSNull(),
+                "signedTransaction": verification.jwsRepresentation,
             ])
         }
         result(restored)
     }
 
-    private func channelPayload(for transaction: Transaction, outcome: String) -> [String: Any] {
+    private func channelPayload(for transaction: Transaction, signedTransaction: String, outcome: String) -> [String: Any] {
         [
             "outcome": outcome,
+            "signedTransaction": signedTransaction,
             "transactionId": String(transaction.id),
             "productId": transaction.productID,
             "purchaseDate": Int(transaction.purchaseDate.timeIntervalSince1970 * 1000),

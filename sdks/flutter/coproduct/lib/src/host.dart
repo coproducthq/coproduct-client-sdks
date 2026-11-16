@@ -72,7 +72,13 @@ class CoproductHost<H extends Object, C extends Object> {
     required HttpTransport Function(Duration requestTimeout) createTransport,
     required SecureIdentityStore secureStore,
     required MetadataProviders metadataProviders,
-    required C Function(H handle, SerialQueue identityQueue) createClient,
+    required C Function(
+      H handle,
+      SerialQueue identityQueue,
+      String sdkKey,
+      CoproductConfig config,
+    )
+    createClient,
     required ForegroundBinder bindForeground,
     required void Function(Object error, StackTrace stack) reportError,
     required bool Function() isRootIsolate,
@@ -112,7 +118,7 @@ class CoproductHost<H extends Object, C extends Object> {
   final HttpTransport Function(Duration) _createTransport;
   final SecureIdentityStore _secureStore;
   final MetadataProviders _metadataProviders;
-  final C Function(H, SerialQueue) _createClient;
+  final C Function(H, SerialQueue, String, CoproductConfig) _createClient;
   final ForegroundBinder _bindForeground;
   final void Function(Object, StackTrace) _reportError;
   final bool Function() _isRootIsolate;
@@ -159,6 +165,10 @@ class CoproductHost<H extends Object, C extends Object> {
 
   /// Tears the current runtime down and clears it, static across the process.
   Future<void> shutdown() => _manager.shutdown();
+
+  /// The initialized client, or null before initialize completes and after
+  /// shutdown
+  C? get currentClient => _manager.current?.client;
 
   Future<_ActiveRuntime<C>> _build(
     String sdkKey,
@@ -335,7 +345,7 @@ class CoproductHost<H extends Object, C extends Object> {
           );
         },
         createRuntime: (handle) {
-          final client = _createClient(handle, identityQueue);
+          final client = _createClient(handle, identityQueue, sdkKey, config);
           final scheduler = Scheduler(
             poll: () => _bridge.pollNow(handle),
             interval: config.pollInterval,

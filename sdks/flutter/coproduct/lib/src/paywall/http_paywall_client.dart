@@ -12,7 +12,7 @@ import 'paywall_client.dart';
 /// sdks/flutter/coproduct/lib/src/coproduct_client.dart and
 /// lib/src/host.dart keep sdkKey entirely in src/). sdkKey is the same
 /// string the host app already passed to Coproduct.initialize(sdkKey:).
-class HttpPaywallClient implements PaywallClient {
+class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
   HttpPaywallClient({
     required this.sdkKey,
     this.envSlug,
@@ -98,6 +98,25 @@ class HttpPaywallClient implements PaywallClient {
     required String storeTransactionId,
     required DateTime purchaseDate,
     DateTime? expiresDate,
+  }) => recordPurchaseWithProof(
+    appUserId: appUserId,
+    platform: platform,
+    storeProductId: storeProductId,
+    storeTransactionId: storeTransactionId,
+    purchaseDate: purchaseDate,
+    expiresDate: expiresDate,
+  );
+
+  @override
+  Future<List<Entitlement>> recordPurchaseWithProof({
+    required String appUserId,
+    required String platform,
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+    String? signedTransaction,
+    String? purchaseToken,
   }) async {
     final uri = apiBaseUrl.replace(path: '/v1/purchases');
     final response = await _client.post(
@@ -112,6 +131,8 @@ class HttpPaywallClient implements PaywallClient {
           'purchase_date': purchaseDate.toUtc().toIso8601String(),
           if (expiresDate != null)
             'expires_date': expiresDate.toUtc().toIso8601String(),
+          'signed_transaction': ?signedTransaction,
+          'purchase_token': ?purchaseToken,
         },
       }),
     );

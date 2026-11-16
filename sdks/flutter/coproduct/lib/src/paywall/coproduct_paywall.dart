@@ -6,17 +6,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../coproduct_client.dart' show currentCoproductClient;
+import '../coproduct_scope.dart';
 import 'http_paywall_client.dart';
 import 'method_channel_paywall_bridge.dart';
 import 'models/paywall_snapshot.dart';
 import 'native_paywall_bridge.dart';
+import 'paywall_app_user_id.dart';
 import 'paywall_client.dart';
 import 'paywall_runtime.dart';
 import 'paywall_shell_assembler.dart';
 import 'snapshot_cache.dart';
 
 /// Thrown through [CoproductPaywall.onLoadError] when a paywall can't be
-/// fetched -- not found for this environment, or the request itself failed.
+/// fetched -- not found for this environment, or the request itself failed --
+/// or when it has no app user id to record purchases under.
 class PaywallLoadError {
   final String message;
   const PaywallLoadError(this.message);
@@ -38,7 +42,19 @@ abstract interface class FlagReader {
 /// flag read, done by the caller before constructing this widget.
 class CoproductPaywall extends StatefulWidget {
   final String paywallId;
-  final String appUserId;
+
+  /// The id purchases are recorded under and entitlements are read for.
+  ///
+  /// Omitting it is recommended. The paywall then uses the SDK's anonymous id
+  /// (`CoproductClient.anonymousId`), and `identify` links that id to your
+  /// signed-in user, so purchases follow the user. That needs the SDK to be
+  /// initialized: if no anonymous id is available, the paywall reports a
+  /// [PaywallLoadError] through [onLoadError] and does not load.
+  ///
+  /// An id you supply must be hard to guess, such as a random UUID. Anyone who
+  /// knows it can read that user's entitlements, so never pass an email
+  /// address, a username, or a sequential number
+  final String? appUserId;
   final String sdkKey;
   final String platformScriptJs;
   final PurchaseResultCallback? onPurchaseResult;
@@ -62,7 +78,7 @@ class CoproductPaywall extends StatefulWidget {
   const CoproductPaywall({
     super.key,
     required this.paywallId,
-    required this.appUserId,
+    this.appUserId,
     required this.sdkKey,
     required this.platformScriptJs,
     this.envSlug,
@@ -164,6 +180,25 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
   }
 
   Future<void> _boot() async {
+    // Resolved before the first await, while reading the scope from initState
+    // is still valid. A read, not a dependency: the id is fixed for the life
+    // of this paywall
+    final appUserId = resolvePaywallAppUserId(
+      appUserId: widget.appUserId,
+      scopedClient: context
+          .getInheritedWidgetOfExactType<CoproductScope>()
+          ?.client,
+      currentClient: currentCoproductClient(),
+    );
+    if (appUserId == null) {
+      widget.onLoadError?.call(
+        const PaywallLoadError(
+          'No app user id is available. Initialize the Coproduct SDK before '
+          'showing a paywall, or pass appUserId.',
+        ),
+      );
+      return;
+    }
     final client =
         widget.client ??
         HttpPaywallClient(sdkKey: widget.sdkKey, envSlug: widget.envSlug);
@@ -204,7 +239,7 @@ class _CoproductPaywallState extends State<CoproductPaywall> {
     final runtime = PaywallRuntime(
       bridge: bridge,
       client: client,
-      appUserId: widget.appUserId,
+      appUserId: appUserId,
       platform: Platform.isAndroid ? 'ANDROID' : 'IOS',
       setPackages: (packages) async {
         try {

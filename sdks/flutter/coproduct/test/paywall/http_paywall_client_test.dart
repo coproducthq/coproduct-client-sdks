@@ -302,4 +302,71 @@ void main() {
       ),
     );
   });
+
+  test(
+    'recordPurchaseWithProof sends the store proof inside the transaction',
+    () async {
+      Map<String, dynamic>? transaction;
+      final client = HttpPaywallClient(
+        sdkKey: 'cpk_mob_test',
+        httpClient: MockClient((request) async {
+          transaction =
+              (jsonDecode(request.body) as Map<String, dynamic>)['transaction']
+                  as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({'appUserId': 'user-1', 'entitlements': []}),
+            200,
+          );
+        }),
+      );
+
+      await client.recordPurchaseWithProof(
+        appUserId: 'user-1',
+        platform: 'IOS',
+        storeProductId: 'premium_monthly',
+        storeTransactionId: 'tx-1',
+        purchaseDate: DateTime.utc(2026, 1, 1),
+        signedTransaction: 'header.payload.signature',
+      );
+      expect(transaction!['signed_transaction'], 'header.payload.signature');
+      expect(transaction!.containsKey('purchase_token'), isFalse);
+
+      await client.recordPurchaseWithProof(
+        appUserId: 'user-1',
+        platform: 'ANDROID',
+        storeProductId: 'premium_monthly',
+        storeTransactionId: 'token-1',
+        purchaseDate: DateTime.utc(2026, 1, 1),
+        purchaseToken: 'token-1',
+      );
+      expect(transaction!['purchase_token'], 'token-1');
+      expect(transaction!.containsKey('signed_transaction'), isFalse);
+    },
+  );
+
+  test('recordPurchase sends no store proof', () async {
+    Map<String, dynamic>? transaction;
+    final client = HttpPaywallClient(
+      sdkKey: 'cpk_mob_test',
+      httpClient: MockClient((request) async {
+        transaction =
+            (jsonDecode(request.body) as Map<String, dynamic>)['transaction']
+                as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({'appUserId': 'user-1', 'entitlements': []}),
+          200,
+        );
+      }),
+    );
+
+    await client.recordPurchase(
+      appUserId: 'user-1',
+      platform: 'IOS',
+      storeProductId: 'premium_monthly',
+      storeTransactionId: 'tx-1',
+      purchaseDate: DateTime.utc(2026, 1, 1),
+    );
+    expect(transaction!.containsKey('signed_transaction'), isFalse);
+    expect(transaction!.containsKey('purchase_token'), isFalse);
+  });
 }

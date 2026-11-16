@@ -28,6 +28,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.ByteBuffer
+import java.security.MessageDigest
+import java.util.UUID
 
 /** What kind of store product a productId is, as sent over the method
  * channel by the Dart PackageKind enum (its uppercase name arrives
@@ -132,6 +135,8 @@ class PurchaseResult(
     val productId: String? = null,
     val purchaseDateMillis: Long? = null,
     val expirationDateMillis: Long? = null,
+    /** Google Play's purchase token, which the server checks with Google */
+    val purchaseToken: String? = null,
 )
 
 class RestoredTransaction(
@@ -139,7 +144,33 @@ class RestoredTransaction(
     val productId: String,
     val purchaseDateMillis: Long,
     val expirationDateMillis: Long? = null,
+    /** Google Play's purchase token, which the server checks with Google */
+    val purchaseToken: String? = null,
 )
+
+/** The namespace for store account tokens. Every Coproduct SDK and the server use the same value, so they derive the same token from one app user id */
+private val ACCOUNT_TOKEN_NAMESPACE: UUID = UUID.fromString("8f1b6c1e-6f0a-4d0e-9a53-2c1d7f4b9e10")
+
+/**
+ * The store account token for an app user: a version 5 UUID of the id under
+ * [ACCOUNT_TOKEN_NAMESPACE]. Play refuses raw personal data in
+ * obfuscatedAccountId, so the id itself cannot be sent. Not
+ * UUID.nameUUIDFromBytes, which is version 3 (MD5).
+ */
+internal fun accountToken(appUserId: String): String {
+    val digest = MessageDigest.getInstance("SHA-1")
+    digest.update(
+        ByteBuffer.allocate(16)
+            .putLong(ACCOUNT_TOKEN_NAMESPACE.mostSignificantBits)
+            .putLong(ACCOUNT_TOKEN_NAMESPACE.leastSignificantBits)
+            .array()
+    )
+    val hash = digest.digest(appUserId.toByteArray(Charsets.UTF_8))
+    hash[6] = ((hash[6].toInt() and 0x0f) or 0x50).toByte()
+    hash[8] = ((hash[8].toInt() and 0x3f) or 0x80).toByte()
+    val buffer = ByteBuffer.wrap(hash, 0, 16)
+    return UUID(buffer.long, buffer.long).toString()
+}
 
 /**
  * The native side of app.coproduct.flutter/paywall on Android: Play Billing
@@ -257,13 +288,14 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
             "purchase" -> {
                 val productId = args?.get("productId") as? String
                 val kind = parseKind(args?.get("kind") as? String)
+                val appUserId = args?.get("appUserId") as? String
                 if (productId == null) {
                     result.error("INVALID_ARGUMENTS", "productId is required", null)
                     return
                 }
                 scope.launch {
                     try {
-                        result.success(purchase(productId, kind).toChannelMap())
+                        result.success(purchase(productId, kind, appUserId).toChannelMap())
                     } catch (e: NoActivityException) {
                         result.error("NO_ACTIVITY", e.message, null)
                     } catch (e: Exception) {
@@ -378,7 +410,7 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
         return composeIntroLabel(kind, period, introPhase.formattedPrice, regularPrice)
     }
 
-    internal suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult {
+    internal suspend fun purchase(productId: String, kind: PackageKind, appUserId: String? = null): PurchaseResult {
         val currentActivity = activity
             ?: throw NoActivityException("No Activity is attached; cannot launch a billing flow")
 
@@ -401,6 +433,9 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
                         .build()
                 )
             )
+            // Play keeps this token with the purchase, which is how the
+            // server learns which app user the purchase was made for
+            .apply { if (appUserId != null) setObfuscatedAccountId(accountToken(appUserId)) }
             .build()
 
         // launchBillingFlow must be called from the main thread per the Play
@@ -437,6 +472,7 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
                     transactionId = purchase.purchaseToken,
                     productId = purchase.products.firstOrNull().orEmpty(),
                     purchaseDateMillis = purchase.purchaseTime,
+                    purchaseToken = purchase.purchaseToken,
                 )
             )
         }
@@ -498,6 +534,7 @@ class CoproductPaywallPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, P
                         transactionId = purchase.purchaseToken,
                         productId = pending.productId,
                         purchaseDateMillis = purchase.purchaseTime,
+                        purchaseToken = purchase.purchaseToken,
                     )
                 )
             }
@@ -565,6 +602,7 @@ private fun PurchaseResult.toChannelMap(): Map<String, Any?> = mapOf(
     "productId" to productId,
     "purchaseDate" to purchaseDateMillis,
     "expirationDate" to expirationDateMillis,
+    "purchaseToken" to purchaseToken,
 )
 
 private fun RestoredTransaction.toChannelMap(): Map<String, Any?> = mapOf(
@@ -572,4 +610,5 @@ private fun RestoredTransaction.toChannelMap(): Map<String, Any?> = mapOf(
     "productId" to productId,
     "purchaseDate" to purchaseDateMillis,
     "expirationDate" to expirationDateMillis,
+    "purchaseToken" to purchaseToken,
 )

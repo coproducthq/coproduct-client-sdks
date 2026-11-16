@@ -134,6 +134,8 @@ void main() {
       'plan': const AttributeValue.string('pro'),
     });
     expect(harness.client.previousAnonymousId, 'test-anonymous-id');
+    // The install's own id is unchanged by signing in
+    expect(harness.client.anonymousId, 'test-anonymous-id');
     expect(harness.client.getBool('k', defaultValue: false), isTrue);
   });
 

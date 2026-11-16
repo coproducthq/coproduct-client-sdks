@@ -7,7 +7,10 @@ import 'native_paywall_bridge.dart';
 /// response only, with no state of its own -- mirrors coproduct's
 /// HostContextChannel in shape.
 class MethodChannelPaywallBridge
-    implements NativePaywallBridge, PackageResolvingBridge {
+    implements
+        NativePaywallBridge,
+        PackageResolvingBridge,
+        UserBoundPurchaseBridge {
   const MethodChannelPaywallBridge();
 
   static const _channel = MethodChannel('app.coproduct.flutter/paywall');
@@ -45,12 +48,29 @@ class MethodChannelPaywallBridge
   }
 
   @override
-  Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) =>
+      _purchase(productId, kind, null);
+
+  @override
+  Future<PurchaseResult> purchaseForUser(
+    String productId,
+    PackageKind kind,
+    String appUserId,
+  ) => _purchase(productId, kind, appUserId);
+
+  // The native side derives the store account token from appUserId, so the
+  // id never has to be hashed in Dart
+  Future<PurchaseResult> _purchase(
+    String productId,
+    PackageKind kind,
+    String? appUserId,
+  ) async {
     final Map<Object?, Object?>? raw;
     try {
       raw = await _channel.invokeMethod<Map<Object?, Object?>>('purchase', {
         'productId': productId,
         'kind': kind.name.toUpperCase(),
+        'appUserId': ?appUserId,
       });
     } on MissingPluginException {
       throw const PaywallBridgeUnavailable();
@@ -90,6 +110,8 @@ PurchaseResult _purchaseResultFromChannel(Map<Object?, Object?> raw) {
     productId: raw['productId'] as String?,
     purchaseDate: _parseChannelDate(raw['purchaseDate']),
     expirationDate: _parseChannelDate(raw['expirationDate']),
+    signedTransaction: raw['signedTransaction'] as String?,
+    purchaseToken: raw['purchaseToken'] as String?,
   );
 }
 
@@ -113,6 +135,8 @@ RestoredTransaction _restoredTransactionFromChannel(Map<Object?, Object?> raw) {
     productId: raw['productId'] as String,
     purchaseDate: _parseChannelDate(raw['purchaseDate'])!,
     expirationDate: _parseChannelDate(raw['expirationDate']),
+    signedTransaction: raw['signedTransaction'] as String?,
+    purchaseToken: raw['purchaseToken'] as String?,
   );
 }
 

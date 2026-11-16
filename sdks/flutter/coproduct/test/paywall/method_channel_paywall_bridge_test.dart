@@ -208,4 +208,58 @@ void main() {
       );
     },
   );
+
+  test(
+    'purchaseForUser sends the app user id and decodes the store proof',
+    () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'purchase');
+        expect(call.arguments, {
+          'productId': 'premium_monthly',
+          'kind': 'SUBSCRIPTION',
+          'appUserId': 'user-123',
+        });
+        return {
+          'outcome': 'success',
+          'transactionId': 'tx-1',
+          'productId': 'premium_monthly',
+          'purchaseDate': 1700000000000,
+          'signedTransaction': 'header.payload.signature',
+          'purchaseToken': 'token-1',
+        };
+      });
+
+      final result = await const MethodChannelPaywallBridge().purchaseForUser(
+        'premium_monthly',
+        PackageKind.subscription,
+        'user-123',
+      );
+      expect(result.signedTransaction, 'header.payload.signature');
+      expect(result.purchaseToken, 'token-1');
+    },
+  );
+
+  test('restore decodes the store proof on each transaction', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      return [
+        {
+          'transactionId': 'tx-1',
+          'productId': 'premium_monthly',
+          'purchaseDate': 1700000000000,
+          'signedTransaction': 'header.payload.signature',
+        },
+        {
+          'transactionId': 'token-2',
+          'productId': 'premium_yearly',
+          'purchaseDate': 1700000000000,
+          'purchaseToken': 'token-2',
+        },
+      ];
+    });
+
+    final restored = await const MethodChannelPaywallBridge().restore();
+    expect(restored[0].signedTransaction, 'header.payload.signature');
+    expect(restored[0].purchaseToken, isNull);
+    expect(restored[1].purchaseToken, 'token-2');
+  });
 }
