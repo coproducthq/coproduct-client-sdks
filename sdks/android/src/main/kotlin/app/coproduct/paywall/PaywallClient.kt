@@ -36,6 +36,33 @@ interface PaywallClient {
         expiresDateIso: String?,
     ): List<Entitlement>
 
+    /**
+     * POST /v1/purchases with the store's own proof of the purchase
+     * (`signed_transaction` on iOS, `purchase_token` on Android) when present,
+     * so the server can check the purchase with the store instead of taking
+     * the app's word. Throws PaywallServerError on a non-2xx response.
+     * Defaults to [recordPurchase], dropping the proof, so existing
+     * conformers keep working; the server then falls back to what it can
+     * verify from the transaction id alone.
+     */
+    suspend fun recordPurchaseWithProof(
+        appUserId: String,
+        platform: String,
+        storeProductId: String,
+        storeTransactionId: String,
+        purchaseDateIso: String,
+        expiresDateIso: String?,
+        signedTransaction: String? = null,
+        purchaseToken: String? = null,
+    ): List<Entitlement> = recordPurchase(
+        appUserId = appUserId,
+        platform = platform,
+        storeProductId = storeProductId,
+        storeTransactionId = storeTransactionId,
+        purchaseDateIso = purchaseDateIso,
+        expiresDateIso = expiresDateIso,
+    )
+
     /** GET /v1/entitlements. Throws PaywallServerError on a non-2xx response. */
     suspend fun getEntitlements(appUserId: String): List<Entitlement>
 

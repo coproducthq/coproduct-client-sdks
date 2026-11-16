@@ -85,7 +85,7 @@ class PaywallRuntime(
         }
         val kind = packageRef.kind
 
-        val result = bridge.purchase(productId, kind)
+        val result = bridge.purchaseForUser(productId, kind, appUserId)
         if (result.outcome != PurchaseOutcome.SUCCESS) {
             onPurchaseResult?.invoke(result, emptyList())
             return
@@ -93,13 +93,15 @@ class PaywallRuntime(
 
         val entitlements: List<Entitlement>
         try {
-            entitlements = client.recordPurchase(
+            entitlements = client.recordPurchaseWithProof(
                 appUserId = appUserId,
                 platform = platform,
                 storeProductId = productId,
                 storeTransactionId = result.transactionId!!,
                 purchaseDateIso = isoFromMillis(result.purchaseDateMillis!!),
                 expiresDateIso = null,
+                signedTransaction = result.signedTransaction,
+                purchaseToken = result.purchaseToken,
             )
         } catch (e: PaywallServerError) {
             onPurchaseError?.invoke(PaywallPurchaseError(PaywallPurchaseErrorReason.SERVER_REJECTED, e.code))
@@ -134,13 +136,15 @@ class PaywallRuntime(
         var anyRecorded = false
         for (tx in transactions) {
             try {
-                entitlements = client.recordPurchase(
+                entitlements = client.recordPurchaseWithProof(
                     appUserId = appUserId,
                     platform = platform,
                     storeProductId = tx.productId,
                     storeTransactionId = tx.transactionId,
                     purchaseDateIso = isoFromMillis(tx.purchaseDateMillis),
                     expiresDateIso = null,
+                    signedTransaction = tx.signedTransaction,
+                    purchaseToken = tx.purchaseToken,
                 )
                 anyRecorded = true
             } catch (_: Exception) {

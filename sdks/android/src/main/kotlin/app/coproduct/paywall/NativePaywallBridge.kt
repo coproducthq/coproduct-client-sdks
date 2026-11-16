@@ -17,17 +17,32 @@ data class PurchaseResult(
     val transactionId: String? = null,
     val productId: String? = null,
     val purchaseDateMillis: Long? = null,
+    /**
+     * StoreKit 2's signed transaction, which the server verifies against
+     * Apple's root. Always null on Android; present so the type matches the
+     * other SDKs.
+     */
+    val signedTransaction: String? = null,
+    /**
+     * Google Play's purchase token, which the server checks with Google.
+     * Null on a bridge that does not report it.
+     */
+    val purchaseToken: String? = null,
 )
 
 /**
  * One purchase Play Billing's queryPurchases reported during a restore.
- * Unlike PurchaseResult, every field is required -- restore only ever
- * reports existing, owned purchases.
+ * Unlike PurchaseResult, the identifying fields are required -- restore only
+ * ever reports existing, owned purchases. [signedTransaction] and
+ * [purchaseToken] are the store's own proof of the transaction, as on
+ * [PurchaseResult], and are null on a bridge that does not report them.
  */
 data class RestoredTransaction(
     val transactionId: String,
     val productId: String,
     val purchaseDateMillis: Long,
+    val signedTransaction: String? = null,
+    val purchaseToken: String? = null,
 )
 
 /**
@@ -75,5 +90,17 @@ interface NativePaywallBridge {
         PaywallPackageRuntime(price = priceFor(productId, kind), intro = null)
 
     suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult
+
+    /**
+     * Purchases a product on behalf of [appUserId], telling the store which
+     * app user the purchase is for. The store keeps a token derived from the
+     * id with the transaction (Play's obfuscatedAccountId) and returns it to
+     * the server, which uses it to tell whose purchase this is. Defaults to
+     * [purchase], whose purchases carry no token, so existing conformers keep
+     * working.
+     */
+    suspend fun purchaseForUser(productId: String, kind: PackageKind, appUserId: String): PurchaseResult =
+        purchase(productId, kind)
+
     suspend fun restore(): List<RestoredTransaction>
 }

@@ -193,7 +193,18 @@ class PlayBillingPaywallBridge(
         return composeIntroLabel(kind, period, introPhase.formattedPrice, regularPrice)
     }
 
-    override suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult {
+    override suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult =
+        launchPurchase(productId, kind, appUserId = null)
+
+    /**
+     * Purchases like [purchase], and also hands Play Billing the store
+     * account token derived from [appUserId] as the purchase's
+     * obfuscatedAccountId, so the server can tell whose purchase this is.
+     */
+    override suspend fun purchaseForUser(productId: String, kind: PackageKind, appUserId: String): PurchaseResult =
+        launchPurchase(productId, kind, appUserId)
+
+    private suspend fun launchPurchase(productId: String, kind: PackageKind, appUserId: String?): PurchaseResult {
         val productDetails = queryProductDetails(productId, kind)
         val offerToken = if (kind == PackageKind.SUBSCRIPTION) {
             selectSubscriptionOffer(productId, productDetails).offer.offerToken
@@ -213,6 +224,7 @@ class PlayBillingPaywallBridge(
                         .build()
                 )
             )
+            .apply { if (appUserId != null) setObfuscatedAccountId(accountToken(appUserId)) }
             .build()
 
         // launchBillingFlow must be called from the main thread per the
@@ -249,6 +261,7 @@ class PlayBillingPaywallBridge(
                     transactionId = purchase.purchaseToken,
                     productId = purchase.products.firstOrNull().orEmpty(),
                     purchaseDateMillis = purchase.purchaseTime,
+                    purchaseToken = purchase.purchaseToken,
                 )
             )
         }
@@ -317,6 +330,7 @@ class PlayBillingPaywallBridge(
                         transactionId = purchase.purchaseToken,
                         productId = pending.productId,
                         purchaseDateMillis = purchase.purchaseTime,
+                        purchaseToken = purchase.purchaseToken,
                     )
                 )
             }

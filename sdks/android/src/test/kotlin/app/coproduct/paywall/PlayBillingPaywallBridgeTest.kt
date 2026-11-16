@@ -3,6 +3,7 @@ package app.coproduct.paywall
 import app.coproduct.paywall.models.PackageKind
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.ProductDetails
@@ -530,7 +531,47 @@ class PlayBillingPaywallBridgeTest {
         assertEquals("token-1", result.transactionId)
         assertEquals("premium_monthly", result.productId)
         assertEquals("token-1", ackSlot.captured.purchaseToken)
+        assertEquals("token-1", result.purchaseToken)
+        assertNull(result.signedTransaction)
         io.mockk.coVerify(exactly = 0) { billingClient.consumePurchase(any()) }
+    }
+
+    /**
+     * BillingFlowParams has no public getObfuscatedAccountId(); `zze()` is
+     * the public (internally-named) accessor for the field
+     * Builder.setObfuscatedAccountId writes, traced with javap -c on the
+     * pinned billing 9.1.0 jar the same way as the accessors in this file's
+     * class kdoc.
+     */
+    @Test
+    fun `purchaseForUser sets the app user's account token as the obfuscated account id`() = runTest {
+        val billingClient = mockk<BillingClient>()
+        val productDetails = fakeProductDetails("premium_monthly", "$9.99/mo", isSubscription = true)
+        coEvery { billingClient.queryProductDetails(any()) } returns
+            ProductDetailsResult(okResult(), listOf(productDetails))
+        val bridge = PlayBillingPaywallBridge(billingClient) { mockk<android.app.Activity>() }
+        val flowParams = mutableListOf<BillingFlowParams>()
+        every { billingClient.launchBillingFlow(any(), capture(flowParams)) } answers {
+            val purchase = mockk<Purchase> {
+                every { products } returns listOf("premium_monthly")
+                every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                every { purchaseToken } returns "token-1"
+                every { orderId } returns "order-1"
+                every { purchaseTime } returns 1700000000000L
+                every { isAcknowledged } returns false
+            }
+            bridge.onPurchasesUpdated(okResult(), listOf(purchase))
+            okResult()
+        }
+        coEvery { billingClient.acknowledgePurchase(any()) } returns okResult()
+
+        val forUser = bridge.purchaseForUser("premium_monthly", PackageKind.SUBSCRIPTION, "user-123")
+        bridge.purchase("premium_monthly", PackageKind.SUBSCRIPTION)
+
+        assertEquals(PurchaseOutcome.SUCCESS, forUser.outcome)
+        assertEquals("token-1", forUser.purchaseToken)
+        assertEquals("f5765ad4-640f-516d-be70-79ed3a75f5e7", flowParams[0].zze())
+        assertNull(flowParams[1].zze())
     }
 
     @Test
@@ -743,6 +784,8 @@ class PlayBillingPaywallBridgeTest {
         assertEquals(2, restored.size)
         assertEquals("sub-token", restored[0].transactionId)
         assertEquals("lifetime-token", restored[1].transactionId)
+        assertEquals("sub-token", restored[0].purchaseToken)
+        assertEquals("lifetime-token", restored[1].purchaseToken)
         io.mockk.coVerify(exactly = 1) { billingClient.acknowledgePurchase(any()) } // only the unacknowledged one
         io.mockk.coVerify(exactly = 0) { billingClient.consumePurchase(any()) } // restore never consumes
     }

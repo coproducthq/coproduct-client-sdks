@@ -57,11 +57,33 @@ class HttpPaywallClient(
         storeTransactionId: String,
         purchaseDateIso: String,
         expiresDateIso: String?,
+    ): List<Entitlement> = recordPurchaseWithProof(
+        appUserId = appUserId,
+        platform = platform,
+        storeProductId = storeProductId,
+        storeTransactionId = storeTransactionId,
+        purchaseDateIso = purchaseDateIso,
+        expiresDateIso = expiresDateIso,
+        signedTransaction = null,
+        purchaseToken = null,
+    )
+
+    override suspend fun recordPurchaseWithProof(
+        appUserId: String,
+        platform: String,
+        storeProductId: String,
+        storeTransactionId: String,
+        purchaseDateIso: String,
+        expiresDateIso: String?,
+        signedTransaction: String?,
+        purchaseToken: String?,
     ): List<Entitlement> = withContext(Dispatchers.IO) {
         val transaction = JSONObject().apply {
             put("store_transaction_id", storeTransactionId)
             put("purchase_date", purchaseDateIso)
             if (expiresDateIso != null) put("expires_date", expiresDateIso)
+            if (signedTransaction != null) put("signed_transaction", signedTransaction)
+            if (purchaseToken != null) put("purchase_token", purchaseToken)
         }
         val requestBody = JSONObject().apply {
             put("app_user_id", appUserId)
