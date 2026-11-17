@@ -179,6 +179,21 @@ final class HttpPaywallClientTests: XCTestCase {
         XCTAssertEqual(entitlements.first?.entitlementId, "e1")
     }
 
+    func testGetEntitlementsNamesAnAnonymousIdInTheHeaderAndAnAppIdOnlyInTheQuery() async throws {
+        var headers: [String: String?] = [:]
+        StubJSONURLProtocol.handler = { request in
+            headers[request.url?.absoluteString ?? ""] = request.value(forHTTPHeaderField: "X-Coproduct-Anonymous-Id")
+            return (200, Data(#"{"entitlements":[]}"#.utf8))
+        }
+        _ = try await makeClient().getEntitlements("822e8c6b-2040-457c-95ca-c022d2edbbdf")
+        _ = try await makeClient().getEntitlements("user-1")
+
+        let anonymous = headers.first { $0.key.hasSuffix("appUserId=822e8c6b-2040-457c-95ca-c022d2edbbdf") }
+        let app = headers.first { $0.key.hasSuffix("appUserId=user-1") }
+        XCTAssertEqual(anonymous?.value, "822e8c6b-2040-457c-95ca-c022d2edbbdf")
+        XCTAssertNil(app?.value ?? nil)
+    }
+
     func testIdentifySendsSnakeCaseBody() async throws {
         var sentBody: [String: Any]?
         StubJSONURLProtocol.handler = { request in
