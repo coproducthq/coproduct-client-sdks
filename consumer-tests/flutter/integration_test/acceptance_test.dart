@@ -55,6 +55,9 @@ void main() {
       sdkKey: key,
       config: CoproductConfig(
         endpoint: Uri.parse(endpoint),
+        // identify also reports the sign-in to the API. Send that to the
+        // fixture too, since production does not know the fixture's key
+        apiBaseUrl: Uri.parse(endpoint),
         startupTimeout: const Duration(seconds: 10),
       ),
     );
@@ -158,6 +161,7 @@ void main() {
       sdkKey: key,
       config: CoproductConfig(
         endpoint: Uri.parse(endpoint),
+        apiBaseUrl: Uri.parse(endpoint),
         // Deliberately short: initialize must return on the budget rather than
         // waiting out the held response
         startupTimeout: const Duration(seconds: 2),
@@ -231,6 +235,7 @@ void main() {
       sdkKey: key,
       config: CoproductConfig(
         endpoint: Uri.parse(endpoint),
+        apiBaseUrl: Uri.parse(endpoint),
         startupTimeout: const Duration(seconds: 2),
       ),
     );
