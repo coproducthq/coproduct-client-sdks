@@ -245,7 +245,10 @@ void main() {
       await client.getEntitlements('822e8c6b-2040-457c-95ca-c022d2edbbdf');
       await client.getEntitlements('user-1');
 
-      expect(headers['822e8c6b-2040-457c-95ca-c022d2edbbdf'], '822e8c6b-2040-457c-95ca-c022d2edbbdf');
+      expect(
+        headers['822e8c6b-2040-457c-95ca-c022d2edbbdf'],
+        '822e8c6b-2040-457c-95ca-c022d2edbbdf',
+      );
       expect(headers['user-1'], isNull);
     },
   );
