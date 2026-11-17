@@ -12,6 +12,15 @@ import 'paywall_client.dart';
 /// sdks/flutter/coproduct/lib/src/coproduct_client.dart and
 /// lib/src/host.dart keep sdkKey entirely in src/). sdkKey is the same
 /// string the host app already passed to Coproduct.initialize(sdkKey:).
+/// The header an entitlement read names the install's anonymous id in
+const String anonymousIdHeader = 'X-Coproduct-Anonymous-Id';
+
+/// The shape of an anonymous id, a UUID v4
+final RegExp _anonymousIdPattern = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
 class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
   HttpPaywallClient({
     required this.sdkKey,
@@ -146,7 +155,16 @@ class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
       path: '/v1/entitlements',
       queryParameters: {'appUserId': appUserId},
     );
-    final response = await _client.get(uri, headers: _headers);
+    final response = await _client.get(
+      uri,
+      headers: {
+        ..._headers,
+        // Named so the server can tell an anonymous id from an id the app set.
+        // The query parameter stays for servers that predate the header
+        if (_anonymousIdPattern.hasMatch(appUserId))
+          anonymousIdHeader: appUserId,
+      },
+    );
     _throwIfError(response);
     return _entitlementsFromBody(response.body);
   }

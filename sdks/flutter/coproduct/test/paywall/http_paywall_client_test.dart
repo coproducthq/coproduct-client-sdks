@@ -230,6 +230,27 @@ void main() {
   );
 
   test(
+    'getEntitlements names an anonymous id in the header, and an app id only in the query',
+    () async {
+      final headers = <String, String?>{};
+      final client = HttpPaywallClient(
+        sdkKey: 'cpk_mob_test',
+        httpClient: MockClient((request) async {
+          headers[request.url.queryParameters['appUserId']!] =
+              request.headers[anonymousIdHeader];
+          return http.Response(jsonEncode({'entitlements': []}), 200);
+        }),
+      );
+
+      await client.getEntitlements('822e8c6b-2040-457c-95ca-c022d2edbbdf');
+      await client.getEntitlements('user-1');
+
+      expect(headers['822e8c6b-2040-457c-95ca-c022d2edbbdf'], '822e8c6b-2040-457c-95ca-c022d2edbbdf');
+      expect(headers['user-1'], isNull);
+    },
+  );
+
+  test(
     'getEntitlements throws PaywallServerError on a non-2xx response',
     () async {
       final client = HttpPaywallClient(
