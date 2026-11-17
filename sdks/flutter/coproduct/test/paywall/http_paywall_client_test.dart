@@ -236,7 +236,7 @@ void main() {
       final client = HttpPaywallClient(
         sdkKey: 'cpk_mob_test',
         httpClient: MockClient((request) async {
-          headers[request.url.queryParameters['appUserId']!] =
+          headers[request.url.queryParameters['anonymousId']!] =
               request.headers[anonymousIdHeader];
           return http.Response(jsonEncode({'entitlements': []}), 200);
         }),
