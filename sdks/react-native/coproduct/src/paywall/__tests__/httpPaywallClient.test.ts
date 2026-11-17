@@ -292,6 +292,22 @@ describe('HttpPaywallClient', () => {
     expect(entitlements[0]?.entitlementId).toBe('premium');
   });
 
+  it('getEntitlements names an anonymous id in the header, and an app id only in the query', async () => {
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValue(fakeResponse(true, 200, { entitlements: [] }));
+    global.fetch = mockFetch as unknown as typeof fetch;
+    const client = new HttpPaywallClient({ sdkKey: 'cpk_mob_test' });
+
+    await client.getEntitlements('822e8c6b-2040-457c-95ca-c022d2edbbdf');
+    await client.getEntitlements('user-1');
+
+    const headersOf = (call: number) =>
+      (mockFetch.mock.calls[call] as [string, { headers: Record<string, string> }])[1].headers;
+    expect(headersOf(0)['X-Coproduct-Anonymous-Id']).toBe('822e8c6b-2040-457c-95ca-c022d2edbbdf');
+    expect(headersOf(1)['X-Coproduct-Anonymous-Id']).toBeUndefined();
+  });
+
   it('getEntitlements throws PaywallServerError on a non-2xx response', async () => {
     global.fetch = jest
       .fn()
