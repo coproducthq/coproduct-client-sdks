@@ -110,6 +110,37 @@ void main() {
     client.close();
   });
 
+  test('accepts an authorized POST /v1/identify and nothing else', () async {
+    const key = 'cpk_mob_abcdefghjkmnpqrstvwxyz0123456789';
+    final (proc, port) = await _startFixture(key);
+    addTearDown(() => proc.kill());
+
+    Future<({int statusCode, String body})> identify(String method,
+        {String? bearer}) async {
+      final client = HttpClient();
+      try {
+        final req = await client.open(method, '127.0.0.1', port, '/v1/identify');
+        if (bearer != null) req.headers.set('authorization', 'Bearer $bearer');
+        req.headers.contentType = ContentType.json;
+        req.write(jsonEncode(
+            {'anonymous_id': 'install-1', 'targeting_key': 'user-1'}));
+        final res = await req.close();
+        return (statusCode: res.statusCode, body: await utf8.decodeStream(res));
+      } finally {
+        client.close(force: true);
+      }
+    }
+
+    final linked = await identify('POST', bearer: key);
+    expect(linked.statusCode, 200);
+    expect(jsonDecode(linked.body),
+        {'appUserId': 'install-1', 'targetingKey': 'user-1'});
+
+    expect((await identify('POST')).statusCode, 401,
+        reason: 'a sign-in without the key is refused, as the real API does');
+    expect((await identify('GET', bearer: key)).statusCode, 405);
+  });
+
   test('requires the literal Bearer scheme on the snapshot route', () async {
     const key = 'cpk_mob_abcdefghjkmnpqrstvwxyz0123456789';
     final (proc, port) = await _startFixture(key);

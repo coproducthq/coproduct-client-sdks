@@ -6,8 +6,9 @@ import 'package:coproduct_acceptance/fixture_control.dart';
 import 'package:coproduct_acceptance/snapshot.dart';
 
 // A deterministic host fixture for the acceptance gate. Binds loopback on an
-// OS-assigned port, prints one readiness record to stdout, and serves the
-// snapshot for an authorized GET /v1/snapshot. All logs go to stderr
+// OS-assigned port, prints one readiness record to stdout, serves the
+// snapshot for an authorized GET /v1/snapshot, and accepts an authorized
+// POST /v1/identify. All logs go to stderr
 Future<void> main(List<String> args) async {
   final opts = _parse(args);
   final platform = opts['platform']?.single;
@@ -126,6 +127,26 @@ Future<void> _handle(
         res.statusCode = HttpStatus.ok;
         res.headers.contentType = ContentType.json;
         res.write(control.body);
+      }
+    } else if (path == '/v1/identify') {
+      // The SDK reports each sign-in here in the background. Answer like the
+      // real API does, so a test that calls identify never reaches production
+      // with a key only this fixture knows
+      if (req.method != 'POST') {
+        stderr.writeln('fixture: 405 ${req.method} $path');
+        res.statusCode = HttpStatus.methodNotAllowed;
+      } else if (!_authorized(req.headers.value('authorization'), keys)) {
+        stderr.writeln('fixture: 401 missing or wrong bearer');
+        res.statusCode = HttpStatus.unauthorized;
+      } else {
+        final decoded =
+            jsonDecode(await utf8.decodeStream(req)) as Map<String, Object?>;
+        res.statusCode = HttpStatus.ok;
+        res.headers.contentType = ContentType.json;
+        res.write(jsonEncode({
+          'appUserId': decoded['anonymous_id'],
+          'targetingKey': decoded['targeting_key'],
+        }));
       }
     } else if (path.startsWith('/control/')) {
       await _handleControl(req, res, control);
