@@ -29,7 +29,6 @@ const platformScript = await CoproductPaywall.loadPlatformScript();
 
 <CoproductPaywall
   paywallId={paywallId} // resolved from a flag read, same pattern as flowId
-  appUserId={currentUserId}
   sdkKey={sdkKey}
   platformScriptJs={platformScript}
   onPurchaseResult={(result, entitlements) => {
@@ -47,6 +46,8 @@ const platformScript = await CoproductPaywall.loadPlatformScript();
 ```
 
 Unlike onboarding, paywall ships its own HTTP client (`HttpPaywallClient`) — you don't write an adapter. It takes `sdkKey` directly, the same string you already passed to `Coproduct.initialize`.
+
+`appUserId` is optional, and leaving it out is recommended. The paywall then records purchases and reads entitlements under the SDK's anonymous id, `client.anonymousId`, so `Coproduct.initialize` must have completed first. `client.identify` links that id to the signed-in user, so their purchases follow them to every device where they sign in. If you pass your own id, make it a random UUID (version 4), never an email address, a username, or a sequential number, because the id alone decides whose purchases these are. New projects refuse an id of any other shape with the error `anonymous_id_required`.
 
 Live StoreKit2 prices are resolved and injected automatically; you never fetch or format prices yourself.
 

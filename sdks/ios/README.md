@@ -374,8 +374,11 @@ Interactive paywall behaviors (purchases, restores, dismissals) and live price p
 * `data-cp-action="purchase"`: Triggers a native in-app purchase for the target package.
 * `data-package-key="annual"`: Links the button or card to a specific package defined in the offering.
 * `data-cp-price-for="annual"`: Injects live localized pricing and trial terms directly from StoreKit2.
+* `data-cp-title-for="annual"`: Shows the product name from App Store Connect for that package. The element's own text stays as the fallback.
 * `data-cp-action="restore"`: Triggers transaction restore with Apple.
 * `data-cp-action="dismiss"`: Dismisses the paywall modal.
+
+Paywalls and onboarding screens can also include tabs, sliders, and panels that switch content on the device. They are authored with the screen and need no code in your app.
 
 ### **Store authorization & App Store Connect setup**
 
@@ -423,7 +426,8 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 ```prompt
 Create a PaywallSheet view using CoproductPaywall from the Coproduct package.
 
-Pass the paywall ID premium-annual, current user ID, and SDK key.
+Pass the paywall ID premium-annual and the SDK key. Leave out appUserId so
+purchases are recorded under the SDK's anonymous id.
 
 Handle onPurchaseResult to unlock pro access when result.outcome is .success,
 and handle onDismiss.
@@ -437,7 +441,6 @@ import Coproduct
 
 struct PaywallSheet: View {
     let paywallId: String
-    let appUserId: String
     let sdkKey: String
     let onSuccess: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -445,7 +448,6 @@ struct PaywallSheet: View {
     var body: some View {
         CoproductPaywall(
             paywallId: paywallId,
-            appUserId: appUserId,
             sdkKey: sdkKey,
             onPurchaseResult: { result, entitlements in
                 if result.outcome == .success {
@@ -471,6 +473,16 @@ struct PaywallSheet: View {
 
 * Live StoreKit2 pricing — local currency formats, subscription period terms, and trial labels are resolved natively and injected into the paywall automatically.
 * Built-in purchase bridge — uses `StoreKitPaywallBridge` out of the box, with automatic transaction recording and backend entitlement synchronization. Restoring only ever returns subscriptions and lifetime (non-consumable) purchases, an Apple platform limitation, not a gap in this SDK.
+
+### **Who a purchase belongs to**
+
+Purchases and entitlements are recorded under one id. Leave `appUserId` out, as above, and the paywall uses `Coproduct.anonymousId`, the id the SDK generates for this install on first launch.
+
+* Call `Coproduct.initialize` before you show the paywall. Without an anonymous id the paywall reports a `PaywallLoadError` through `onLoadError`.
+* When the user signs in, call `Coproduct.identify(userId:)`. The SDK then tells Coproduct that this install belongs to that user, so their purchases follow them to every device where they sign in. See [Targeting your users](#targeting-your-users).
+* After a purchase or a restore, the SDK sends the App Store's signed transaction to Coproduct, which checks it with Apple before it grants an entitlement.
+
+You can still pass your own `appUserId`. If you do, make it a random UUID (version 4), never an email address, a username, or a sequential number, because the id alone decides whose purchases these are. New projects refuse an id of any other shape with the error `anonymous_id_required`.
 
 ## **Feature flags**
 
@@ -661,6 +673,10 @@ Coproduct.updateAttributes([
 // On sign-out
 Coproduct.signOut()
 ```
+
+`identify` also links this install to the user for purchases. After the local sign-in it sends `Coproduct.anonymousId` and the user id to Coproduct in the background, so purchases recorded under the anonymous id follow the user. A failed send is logged and never fails `identify`, and the next `identify` tries it again. Pass `linkAnonymous: false` to send nothing. `signOut` does not undo a link.
+
+`Coproduct.anonymousId` is `nil` before `initialize`, and when the Keychain could not be read at launch. To send the link to a non-production API, set `apiBaseUrl` on `CoproductConfig`.
 
 To replace the targeting key and attributes in one atomic call, for a target that is not a signed-in account, such as a team or a device:
 

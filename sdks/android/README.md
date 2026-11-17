@@ -58,6 +58,29 @@ fun CheckoutScreen(client: CoproductClient) {
 }
 ```
 
+## Anonymous id and sign-in
+
+The SDK generates an anonymous id for this install on first launch and keeps
+it in secure storage. Flags are evaluated for it before `identify` and after
+`signOut`, and purchases and entitlements are recorded under it.
+
+```kotlin
+val anonymousId = client.anonymousId // null while the id is unknown
+
+client.identify(userId = "alice") // also links this install to alice
+client.identify(userId = "alice", linkAnonymous = false) // sends nothing
+```
+
+`identify` links this install to the user for purchases. After the local
+sign-in it sends the anonymous id and the user id to Coproduct in the
+background, so purchases recorded under the anonymous id follow the user to
+every device where they sign in. The request never delays or fails
+`identify`, and it is skipped while the anonymous id is unknown. `signOut`
+does not undo a link.
+
+To send the link to a non-production API, set `apiBaseUrl` on
+`CoproductConfig`. It defaults to `https://api.coproduct.app`.
+
 ## Campaign attribution (UTM)
 
 Target users by the campaign that brought them to your app. The SDK saves UTM parameters on the device and sets these attributes for your rules:
