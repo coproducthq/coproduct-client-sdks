@@ -93,7 +93,7 @@ class HttpPaywallClient(
             if (purchaseToken != null) put("purchase_token", purchaseToken)
         }
         val requestBody = JSONObject().apply {
-            put("app_user_id", appUserId)
+            put("anonymous_id", appUserId)
             put("platform", platform)
             put("store_product_id", storeProductId)
             put("transaction", transaction)
@@ -105,7 +105,7 @@ class HttpPaywallClient(
 
     override suspend fun getEntitlements(appUserId: String): List<Entitlement> = withContext(Dispatchers.IO) {
         val encoded = URLEncoder.encode(appUserId, "UTF-8")
-        val connection = openConnection("$apiBaseUrl/v1/entitlements?appUserId=$encoded", "GET", withAuth = true)
+        val connection = openConnection("$apiBaseUrl/v1/entitlements?anonymousId=$encoded", "GET", withAuth = true)
         // Named so the server can tell an anonymous id from an id the app set.
         // The query parameter stays for servers that predate the header
         if (ANONYMOUS_ID_PATTERN.matches(appUserId)) connection.setRequestProperty(ANONYMOUS_ID_HEADER, appUserId)
@@ -115,7 +115,7 @@ class HttpPaywallClient(
 
     override suspend fun identify(appUserId: String, targetingKey: String) = withContext(Dispatchers.IO) {
         val requestBody = JSONObject().apply {
-            put("app_user_id", appUserId)
+            put("anonymous_id", appUserId)
             put("targeting_key", targetingKey)
         }
         val connection = openConnection("$apiBaseUrl/v1/identify", "POST", withAuth = true, body = requestBody)

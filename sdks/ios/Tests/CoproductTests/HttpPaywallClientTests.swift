@@ -65,7 +65,7 @@ final class HttpPaywallClientTests: XCTestCase {
             appUserId: "u1", platform: "IOS", storeProductId: "com.app.monthly",
             storeTransactionId: "t1", purchaseDate: Date(timeIntervalSince1970: 0), expiresDate: nil
         )
-        XCTAssertEqual(sentBody?["app_user_id"] as? String, "u1")
+        XCTAssertEqual(sentBody?["anonymous_id"] as? String, "u1")
         XCTAssertEqual(sentBody?["store_product_id"] as? String, "com.app.monthly")
         let transaction = sentBody?["transaction"] as? [String: Any]
         XCTAssertEqual(transaction?["store_transaction_id"] as? String, "t1")
@@ -175,7 +175,7 @@ final class HttpPaywallClientTests: XCTestCase {
             return (200, Data(#"{"entitlements":[{"entitlementId":"e1","isActive":true,"willRenew":false,"source":"app_store"}]}"#.utf8))
         }
         let entitlements = try await makeClient().getEntitlements("user with space")
-        XCTAssertTrue(requestedUrl?.contains("appUserId=user%20with%20space") ?? false)
+        XCTAssertTrue(requestedUrl?.contains("anonymousId=user%20with%20space") ?? false)
         XCTAssertEqual(entitlements.first?.entitlementId, "e1")
     }
 
@@ -188,8 +188,8 @@ final class HttpPaywallClientTests: XCTestCase {
         _ = try await makeClient().getEntitlements("822e8c6b-2040-457c-95ca-c022d2edbbdf")
         _ = try await makeClient().getEntitlements("user-1")
 
-        let anonymous = headers.first { $0.key.hasSuffix("appUserId=822e8c6b-2040-457c-95ca-c022d2edbbdf") }
-        let app = headers.first { $0.key.hasSuffix("appUserId=user-1") }
+        let anonymous = headers.first { $0.key.hasSuffix("anonymousId=822e8c6b-2040-457c-95ca-c022d2edbbdf") }
+        let app = headers.first { $0.key.hasSuffix("anonymousId=user-1") }
         XCTAssertEqual(anonymous?.value, "822e8c6b-2040-457c-95ca-c022d2edbbdf")
         XCTAssertNil(app?.value ?? nil)
     }
@@ -201,7 +201,7 @@ final class HttpPaywallClientTests: XCTestCase {
             return (200, Data())
         }
         try await makeClient().identify(appUserId: "u1", targetingKey: "u1")
-        XCTAssertEqual(sentBody?["app_user_id"] as? String, "u1")
+        XCTAssertEqual(sentBody?["anonymous_id"] as? String, "u1")
         XCTAssertEqual(sentBody?["targeting_key"] as? String, "u1")
     }
 

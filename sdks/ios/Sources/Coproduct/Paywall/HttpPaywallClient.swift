@@ -120,7 +120,7 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
             transaction["purchase_token"] = purchaseToken
         }
         let body: [String: Any] = [
-            "app_user_id": appUserId,
+            "anonymous_id": appUserId,
             "platform": platform,
             "store_product_id": storeProductId,
             "transaction": transaction,
@@ -132,7 +132,7 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
 
     public func getEntitlements(_ appUserId: String) async throws -> [Entitlement] {
         let encoded = appUserId.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? appUserId
-        guard let url = URL(string: "\(apiBaseUrl)/v1/entitlements?appUserId=\(encoded)") else {
+        guard let url = URL(string: "\(apiBaseUrl)/v1/entitlements?anonymousId=\(encoded)") else {
             throw PaywallServerError(statusCode: 0, code: nil, message: "Could not build entitlements URL")
         }
         var request = URLRequest(url: url)
@@ -157,7 +157,7 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
     )
 
     public func identify(appUserId: String, targetingKey: String) async throws {
-        let body: [String: Any] = ["app_user_id": appUserId, "targeting_key": targetingKey]
+        let body: [String: Any] = ["anonymous_id": appUserId, "targeting_key": targetingKey]
         let (data, response) = try await post(path: "/v1/identify", json: body)
         try throwIfError(response, data: data)
     }

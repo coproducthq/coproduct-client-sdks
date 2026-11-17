@@ -58,7 +58,7 @@ class HttpPaywallClientTest {
     fun `getEntitlements names an anonymous id in the header and an app id only in the query`() = runTest {
         val headers = mutableMapOf<String, String?>()
         server.createContext("/v1/entitlements") { exchange ->
-            val id = exchange.requestURI.query.removePrefix("appUserId=")
+            val id = exchange.requestURI.query.removePrefix("anonymousId=")
             headers[id] = exchange.requestHeaders.getFirst("X-Coproduct-Anonymous-Id")
             val body = """{"entitlements":[]}""".toByteArray()
             exchange.sendResponseHeaders(200, body.size.toLong())

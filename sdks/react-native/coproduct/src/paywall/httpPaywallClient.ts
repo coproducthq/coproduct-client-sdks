@@ -121,7 +121,7 @@ export class HttpPaywallClient implements PaywallClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify({
-        app_user_id: args.appUserId,
+        anonymous_id: args.appUserId,
         platform: args.platform,
         store_product_id: args.storeProductId,
         transaction: {
@@ -144,7 +144,7 @@ export class HttpPaywallClient implements PaywallClient {
   }
 
   async getEntitlements(appUserId: string): Promise<Entitlement[]> {
-    const url = `${this.apiBaseUrl}/v1/entitlements?appUserId=${encodeURIComponent(appUserId)}`;
+    const url = `${this.apiBaseUrl}/v1/entitlements?anonymousId=${encodeURIComponent(appUserId)}`;
     // Named so the server can tell an anonymous id from an id the app set.
     // The query parameter stays for servers that predate the header
     const headers = ANONYMOUS_ID_PATTERN.test(appUserId)
@@ -164,7 +164,7 @@ export class HttpPaywallClient implements PaywallClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify({
-        app_user_id: args.appUserId,
+        anonymous_id: args.appUserId,
         targeting_key: args.targetingKey,
       }),
     });

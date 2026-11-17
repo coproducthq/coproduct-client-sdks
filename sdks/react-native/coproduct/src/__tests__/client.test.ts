@@ -309,7 +309,7 @@ describe('CoproductClient identity', () => {
       expect(init.method).toBe('POST');
       expect(init.headers.Authorization).toBe('Bearer cpk_mob_test');
       expect(JSON.parse(init.body)).toEqual({
-        app_user_id: 'anon-once',
+        anonymous_id: 'anon-once',
         targeting_key: 'user-once',
       });
     });

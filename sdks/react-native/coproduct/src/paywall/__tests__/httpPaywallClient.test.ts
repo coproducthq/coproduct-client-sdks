@@ -139,7 +139,7 @@ describe('HttpPaywallClient', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          app_user_id: 'user-1',
+          anonymous_id: 'user-1',
           platform: 'IOS',
           store_product_id: 'premium_monthly',
           transaction: {
@@ -173,7 +173,7 @@ describe('HttpPaywallClient', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          app_user_id: 'user-1',
+          anonymous_id: 'user-1',
           platform: 'IOS',
           store_product_id: 'premium_monthly',
           transaction: {
@@ -206,7 +206,7 @@ describe('HttpPaywallClient', () => {
       'https://api.coproduct.app/v1/purchases',
       expect.objectContaining({
         body: JSON.stringify({
-          app_user_id: 'user-1',
+          anonymous_id: 'user-1',
           platform: 'ANDROID',
           store_product_id: 'premium_monthly',
           transaction: {
@@ -282,7 +282,7 @@ describe('HttpPaywallClient', () => {
     const entitlements = await client.getEntitlements('user-1');
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://api.coproduct.app/v1/entitlements?appUserId=user-1',
+      'https://api.coproduct.app/v1/entitlements?anonymousId=user-1',
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer cpk_mob_test',
@@ -341,7 +341,7 @@ describe('HttpPaywallClient', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          app_user_id: 'user-1',
+          anonymous_id: 'user-1',
           targeting_key: 'alice@example.com',
         }),
       })

@@ -132,7 +132,7 @@ class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
       uri,
       headers: _headers,
       body: jsonEncode({
-        'app_user_id': appUserId,
+        'anonymous_id': appUserId,
         'platform': platform,
         'store_product_id': storeProductId,
         'transaction': {
@@ -153,7 +153,7 @@ class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
   Future<List<Entitlement>> getEntitlements(String appUserId) async {
     final uri = apiBaseUrl.replace(
       path: '/v1/entitlements',
-      queryParameters: {'appUserId': appUserId},
+      queryParameters: {'anonymousId': appUserId},
     );
     final response = await _client.get(
       uri,
@@ -179,7 +179,7 @@ class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
       uri,
       headers: _headers,
       body: jsonEncode({
-        'app_user_id': appUserId,
+        'anonymous_id': appUserId,
         'targeting_key': targetingKey,
       }),
     );

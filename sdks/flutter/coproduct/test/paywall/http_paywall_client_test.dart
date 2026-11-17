@@ -126,7 +126,7 @@ void main() {
             'https://api.coproduct.app/v1/purchases',
           );
           final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['app_user_id'], 'user-1');
+          expect(body['anonymous_id'], 'user-1');
           expect(body['platform'], 'IOS');
           expect(body['store_product_id'], 'premium_monthly');
           expect(body['transaction']['store_transaction_id'], 'tx-1');
@@ -203,7 +203,7 @@ void main() {
           expect(request.method, 'GET');
           expect(
             request.url.toString(),
-            'https://api.coproduct.app/v1/entitlements?appUserId=user-1',
+            'https://api.coproduct.app/v1/entitlements?anonymousId=user-1',
           );
           expect(request.headers['Authorization'], 'Bearer cpk_mob_test');
           return http.Response(
@@ -283,7 +283,7 @@ void main() {
         expect(request.method, 'POST');
         expect(request.url.toString(), 'https://api.coproduct.app/v1/identify');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body['app_user_id'], 'user-1');
+        expect(body['anonymous_id'], 'user-1');
         expect(body['targeting_key'], 'alice@example.com');
         return http.Response(
           jsonEncode({

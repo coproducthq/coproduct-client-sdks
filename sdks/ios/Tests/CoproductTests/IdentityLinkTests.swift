@@ -92,7 +92,7 @@ final class IdentityLinkTests: XCTestCase {
         XCTAssertEqual(requests.count, 1)
         XCTAssertEqual(requests.first?.url, "https://api.example.test/v1/identify")
         XCTAssertEqual(requests.first?.auth, "Bearer cpk_mob_test")
-        XCTAssertEqual(requests.first?.body, ["app_user_id": "anon-1", "targeting_key": "alice"])
+        XCTAssertEqual(requests.first?.body, ["anonymous_id": "anon-1", "targeting_key": "alice"])
     }
 
     func testLinkDoesNotRepeatTheSamePair() async {
@@ -185,7 +185,7 @@ final class IdentityLinkTests: XCTestCase {
         XCTAssertEqual(requests.count, 1)
         XCTAssertEqual(requests.first?.url, "https://api.example.test/v1/identify")
         XCTAssertEqual(requests.first?.auth, "Bearer \(Self.validKey)")
-        XCTAssertEqual(requests.first?.body, ["app_user_id": "anon-public", "targeting_key": "alice"])
+        XCTAssertEqual(requests.first?.body, ["anonymous_id": "anon-public", "targeting_key": "alice"])
     }
 
     func testIdentifySkipsThePostWhenLinkAnonymousIsFalseOrIdsAreEqual() async throws {

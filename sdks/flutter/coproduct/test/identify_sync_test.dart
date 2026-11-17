@@ -221,7 +221,7 @@ void main() {
     expect(request.url.toString(), 'https://api.example/v1/identify');
     expect(request.headers['Authorization'], 'Bearer cpk_mob_test');
     expect(jsonDecode(request.body), {
-      'app_user_id': 'anon-1',
+      'anonymous_id': 'anon-1',
       'targeting_key': 'user-1',
     });
   });

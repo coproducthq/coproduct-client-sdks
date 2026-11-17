@@ -168,7 +168,7 @@ class AnonymousIdentityTest {
             linker.link("user-1", linkAnonymous = true)!!.join()
 
             assertEquals("Bearer cpk_test", authorization)
-            assertEquals("anon-1", body?.getString("app_user_id"))
+            assertEquals("anon-1", body?.getString("anonymous_id"))
             assertEquals("user-1", body?.getString("targeting_key"))
         } finally {
             server.stop(0)
