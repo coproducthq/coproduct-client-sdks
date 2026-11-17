@@ -11,6 +11,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+/** The header an entitlement read names the install's anonymous id in */
+internal const val ANONYMOUS_ID_HEADER = "X-Coproduct-Anonymous-Id"
+
+/** The shape of an anonymous id, a UUID v4 */
+private val ANONYMOUS_ID_PATTERN =
+    Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", RegexOption.IGNORE_CASE)
+
 /**
  * HTTP-backed PaywallClient. Makes its own requests rather than reusing the
  * base SDK's internal transport, which has no public accessor for the SDK
@@ -99,6 +106,9 @@ class HttpPaywallClient(
     override suspend fun getEntitlements(appUserId: String): List<Entitlement> = withContext(Dispatchers.IO) {
         val encoded = URLEncoder.encode(appUserId, "UTF-8")
         val connection = openConnection("$apiBaseUrl/v1/entitlements?appUserId=$encoded", "GET", withAuth = true)
+        // Named so the server can tell an anonymous id from an id the app set.
+        // The query parameter stays for servers that predate the header
+        if (ANONYMOUS_ID_PATTERN.matches(appUserId)) connection.setRequestProperty(ANONYMOUS_ID_HEADER, appUserId)
         throwIfError(connection)
         entitlementsFromBody(JSONObject(connection.inputStream.bufferedReader().readText()))
     }

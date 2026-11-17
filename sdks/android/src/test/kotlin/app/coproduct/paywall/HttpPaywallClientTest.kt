@@ -55,6 +55,25 @@ class HttpPaywallClientTest {
     }
 
     @Test
+    fun `getEntitlements names an anonymous id in the header and an app id only in the query`() = runTest {
+        val headers = mutableMapOf<String, String?>()
+        server.createContext("/v1/entitlements") { exchange ->
+            val id = exchange.requestURI.query.removePrefix("appUserId=")
+            headers[id] = exchange.requestHeaders.getFirst("X-Coproduct-Anonymous-Id")
+            val body = """{"entitlements":[]}""".toByteArray()
+            exchange.sendResponseHeaders(200, body.size.toLong())
+            exchange.responseBody.use { it.write(body) }
+        }
+        val client = HttpPaywallClient(sdkKey = "cpk_test", apiBaseUrl = baseUrl)
+
+        client.getEntitlements("822e8c6b-2040-457c-95ca-c022d2edbbdf")
+        client.getEntitlements("user-1")
+
+        assertEquals("822e8c6b-2040-457c-95ca-c022d2edbbdf", headers["822e8c6b-2040-457c-95ca-c022d2edbbdf"])
+        assertNull(headers["user-1"])
+    }
+
+    @Test
     fun `recordPurchase posts the expected body and parses entitlements`() = runTest {
         server.createContext("/v1/purchases") { exchange ->
             val body = """{"appUserId":"u-1","entitlements":[{"entitlementId":"premium","isActive":true,"expiresAt":null,"willRenew":false,"source":"PURCHASE"}]}"""
