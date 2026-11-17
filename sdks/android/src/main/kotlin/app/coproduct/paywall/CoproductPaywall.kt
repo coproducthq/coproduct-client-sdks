@@ -10,6 +10,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.ProgressBar
+import app.coproduct.Coproduct
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.PendingPurchasesParams
 import kotlinx.coroutines.CoroutineScope
@@ -65,11 +66,20 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
      * launch from -- the same real Android constraint this plan's
      * onboarding sibling documents for its own permission bridge. Call
      * this once per CoproductPaywall instance.
+     *
+     * @param appUserId the id purchases and entitlements are recorded under.
+     * Omitting it is recommended: the paywall then uses this install's
+     * anonymous id ([app.coproduct.Coproduct.anonymousId]), which
+     * `identify` links to your user on the server. If you supply your own
+     * id it must be hard to guess (not an email, a sequential number, or
+     * anything else another person could derive). When it is omitted and
+     * the SDK is not initialized, [onLoadError] is called with
+     * [PAYWALL_MISSING_APP_USER_ID_MESSAGE] and nothing is loaded.
      */
     fun load(
         activity: Activity,
         paywallId: String,
-        appUserId: String,
+        appUserId: String? = null,
         sdkKey: String,
         platformScriptJsOverride: String? = null,
         envSlug: String? = null,
@@ -81,6 +91,11 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
         bridge: NativePaywallBridge? = null,
     ) {
         scope.launch {
+            val resolvedAppUserId = resolvePaywallAppUserId(appUserId)
+            if (resolvedAppUserId == null) {
+                onLoadError?.invoke(PAYWALL_MISSING_APP_USER_ID_MESSAGE)
+                return@launch
+            }
             val resolvedClient = client ?: HttpPaywallClient(sdkKey = sdkKey, envSlug = envSlug)
             val resolvedBridge = bridge ?: buildDefaultBridge(activity)
 
@@ -117,7 +132,7 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
             val runtime = PaywallRuntime(
                 bridge = resolvedBridge,
                 client = resolvedClient,
-                appUserId = appUserId,
+                appUserId = resolvedAppUserId,
                 setPackages = { packages ->
                     val json = packagesJson(packages)
                     webView.evaluateJavascript("window.__coproductSetPackages__($json);", null)
@@ -299,6 +314,24 @@ class CoproductPaywall(context: Context) : FrameLayout(context) {
         }
     }
 }
+
+/**
+ * The message [CoproductPaywall.load] reports through `onLoadError` when no
+ * `appUserId` was given and the SDK has no anonymous id to fall back to,
+ * which means `Coproduct.initialize` has not completed.
+ */
+const val PAYWALL_MISSING_APP_USER_ID_MESSAGE: String =
+    "No appUserId: call Coproduct.initialize before showing the paywall, or pass appUserId."
+
+/**
+ * The id a paywall session records purchases under: the app's own
+ * [appUserId] when given, otherwise this install's anonymous id from the
+ * default client. Null when neither is available.
+ */
+internal fun resolvePaywallAppUserId(
+    appUserId: String?,
+    anonymousId: () -> String? = { Coproduct.anonymousId },
+): String? = appUserId ?: anonymousId()
 
 /**
  * Encodes resolved packages to the `__coproductSetPackages__` value shape.

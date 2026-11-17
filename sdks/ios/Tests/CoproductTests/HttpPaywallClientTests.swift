@@ -65,11 +65,59 @@ final class HttpPaywallClientTests: XCTestCase {
             appUserId: "u1", platform: "IOS", storeProductId: "com.app.monthly",
             storeTransactionId: "t1", purchaseDate: Date(timeIntervalSince1970: 0), expiresDate: nil
         )
-        XCTAssertEqual(sentBody?["app_user_id"] as? String, "u1")
+        XCTAssertEqual(sentBody?["anonymous_id"] as? String, "u1")
         XCTAssertEqual(sentBody?["store_product_id"] as? String, "com.app.monthly")
         let transaction = sentBody?["transaction"] as? [String: Any]
         XCTAssertEqual(transaction?["store_transaction_id"] as? String, "t1")
         XCTAssertNil(transaction?["expires_date"])
+        XCTAssertNil(transaction?["signed_transaction"])
+        XCTAssertNil(transaction?["purchase_token"])
+    }
+
+    func testRecordPurchaseWithProofSendsSignedTransactionInsideTransaction() async throws {
+        var sentBody: [String: Any]?
+        StubJSONURLProtocol.handler = { request in
+            sentBody = try? JSONSerialization.jsonObject(with: Self.bodyData(from: request)) as? [String: Any]
+            return (200, Data(#"{"entitlements":[]}"#.utf8))
+        }
+        _ = try await makeClient().recordPurchaseWithProof(
+            appUserId: "u1", platform: "IOS", storeProductId: "p1", storeTransactionId: "t1",
+            purchaseDate: Date(timeIntervalSince1970: 0), expiresDate: nil,
+            signedTransaction: "jws-1", purchaseToken: nil
+        )
+        XCTAssertNil(sentBody?["signed_transaction"])
+        let transaction = sentBody?["transaction"] as? [String: Any]
+        XCTAssertEqual(transaction?["store_transaction_id"] as? String, "t1")
+        XCTAssertEqual(transaction?["signed_transaction"] as? String, "jws-1")
+        XCTAssertNil(transaction?["purchase_token"])
+    }
+
+    func testRecordPurchaseWithProofOmitsNilProofAndSendsPurchaseTokenWhenGiven() async throws {
+        var sentBodies: [[String: Any]] = []
+        StubJSONURLProtocol.handler = { request in
+            if let body = try? JSONSerialization.jsonObject(with: Self.bodyData(from: request)) as? [String: Any] {
+                sentBodies.append(body)
+            }
+            return (200, Data(#"{"entitlements":[]}"#.utf8))
+        }
+        let client = makeClient()
+        _ = try await client.recordPurchaseWithProof(
+            appUserId: "u1", platform: "IOS", storeProductId: "p1", storeTransactionId: "t1",
+            purchaseDate: Date(timeIntervalSince1970: 0), expiresDate: nil,
+            signedTransaction: nil, purchaseToken: nil
+        )
+        _ = try await client.recordPurchaseWithProof(
+            appUserId: "u1", platform: "ANDROID", storeProductId: "p1", storeTransactionId: "t2",
+            purchaseDate: Date(timeIntervalSince1970: 0), expiresDate: nil,
+            signedTransaction: nil, purchaseToken: "token-1"
+        )
+        XCTAssertEqual(sentBodies.count, 2)
+        let first = sentBodies.first?["transaction"] as? [String: Any]
+        XCTAssertNil(first?["signed_transaction"])
+        XCTAssertNil(first?["purchase_token"])
+        let second = sentBodies.last?["transaction"] as? [String: Any]
+        XCTAssertNil(second?["signed_transaction"])
+        XCTAssertEqual(second?["purchase_token"] as? String, "token-1")
     }
 
     func testRecordPurchaseIncludesExpiresDateWhenPresent() async throws {
@@ -127,8 +175,23 @@ final class HttpPaywallClientTests: XCTestCase {
             return (200, Data(#"{"entitlements":[{"entitlementId":"e1","isActive":true,"willRenew":false,"source":"app_store"}]}"#.utf8))
         }
         let entitlements = try await makeClient().getEntitlements("user with space")
-        XCTAssertTrue(requestedUrl?.contains("appUserId=user%20with%20space") ?? false)
+        XCTAssertTrue(requestedUrl?.contains("anonymousId=user%20with%20space") ?? false)
         XCTAssertEqual(entitlements.first?.entitlementId, "e1")
+    }
+
+    func testGetEntitlementsNamesAnAnonymousIdInTheHeaderAndAnAppIdOnlyInTheQuery() async throws {
+        var headers: [String: String?] = [:]
+        StubJSONURLProtocol.handler = { request in
+            headers[request.url?.absoluteString ?? ""] = request.value(forHTTPHeaderField: "X-Coproduct-Anonymous-Id")
+            return (200, Data(#"{"entitlements":[]}"#.utf8))
+        }
+        _ = try await makeClient().getEntitlements("822e8c6b-2040-457c-95ca-c022d2edbbdf")
+        _ = try await makeClient().getEntitlements("user-1")
+
+        let anonymous = headers.first { $0.key.hasSuffix("anonymousId=822e8c6b-2040-457c-95ca-c022d2edbbdf") }
+        let app = headers.first { $0.key.hasSuffix("anonymousId=user-1") }
+        XCTAssertEqual(anonymous?.value, "822e8c6b-2040-457c-95ca-c022d2edbbdf")
+        XCTAssertNil(app?.value ?? nil)
     }
 
     func testIdentifySendsSnakeCaseBody() async throws {
@@ -138,7 +201,7 @@ final class HttpPaywallClientTests: XCTestCase {
             return (200, Data())
         }
         try await makeClient().identify(appUserId: "u1", targetingKey: "u1")
-        XCTAssertEqual(sentBody?["app_user_id"] as? String, "u1")
+        XCTAssertEqual(sentBody?["anonymous_id"] as? String, "u1")
         XCTAssertEqual(sentBody?["targeting_key"] as? String, "u1")
     }
 

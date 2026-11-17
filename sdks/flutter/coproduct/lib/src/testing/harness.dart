@@ -44,7 +44,10 @@ final class CoproductTestHarness {
   /// call, and the one `signOut` returns to
   CoproductTestHarness({String anonymousId = 'test-anonymous-id'})
     : _backend = InMemoryBackend(anonymousId: anonymousId) {
-    _client = createClientForBackend(_backend);
+    _client = createClientForBackend(
+      _backend,
+      anonymousId: () => _backend.anonymousId,
+    );
   }
 
   final InMemoryBackend _backend;

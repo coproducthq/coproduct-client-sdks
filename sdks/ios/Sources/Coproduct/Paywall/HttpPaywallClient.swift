@@ -83,6 +83,28 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
         purchaseDate: Date,
         expiresDate: Date?
     ) async throws -> [Entitlement] {
+        try await recordPurchaseWithProof(
+            appUserId: appUserId,
+            platform: platform,
+            storeProductId: storeProductId,
+            storeTransactionId: storeTransactionId,
+            purchaseDate: purchaseDate,
+            expiresDate: expiresDate,
+            signedTransaction: nil,
+            purchaseToken: nil
+        )
+    }
+
+    public func recordPurchaseWithProof(
+        appUserId: String,
+        platform: String,
+        storeProductId: String,
+        storeTransactionId: String,
+        purchaseDate: Date,
+        expiresDate: Date?,
+        signedTransaction: String?,
+        purchaseToken: String?
+    ) async throws -> [Entitlement] {
         let isoFormatter = ISO8601DateFormatter()
         var transaction: [String: Any] = [
             "store_transaction_id": storeTransactionId,
@@ -91,8 +113,14 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
         if let expiresDate {
             transaction["expires_date"] = isoFormatter.string(from: expiresDate)
         }
+        if let signedTransaction {
+            transaction["signed_transaction"] = signedTransaction
+        }
+        if let purchaseToken {
+            transaction["purchase_token"] = purchaseToken
+        }
         let body: [String: Any] = [
-            "app_user_id": appUserId,
+            "anonymous_id": appUserId,
             "platform": platform,
             "store_product_id": storeProductId,
             "transaction": transaction,
@@ -104,18 +132,32 @@ public final class HttpPaywallClient: PaywallClient, @unchecked Sendable {
 
     public func getEntitlements(_ appUserId: String) async throws -> [Entitlement] {
         let encoded = appUserId.addingPercentEncoding(withAllowedCharacters: .urlQueryValueAllowed) ?? appUserId
-        guard let url = URL(string: "\(apiBaseUrl)/v1/entitlements?appUserId=\(encoded)") else {
+        guard let url = URL(string: "\(apiBaseUrl)/v1/entitlements?anonymousId=\(encoded)") else {
             throw PaywallServerError(statusCode: 0, code: nil, message: "Could not build entitlements URL")
         }
         var request = URLRequest(url: url)
         authHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+        // Named so the server can tell an anonymous id from an id the app set.
+        // The query parameter stays for servers that predate the header
+        if Self.anonymousIdPattern.firstMatch(in: appUserId, range: NSRange(appUserId.startIndex..., in: appUserId)) != nil {
+            request.setValue(appUserId, forHTTPHeaderField: Self.anonymousIdHeader)
+        }
         let (data, response) = try await session.data(for: request)
         try throwIfError(response as? HTTPURLResponse, data: data)
         return try entitlements(from: data)
     }
 
+    /// The header an entitlement read names the install's anonymous id in
+    static let anonymousIdHeader = "X-Coproduct-Anonymous-Id"
+
+    /// The shape of an anonymous id, a UUID v4
+    private static let anonymousIdPattern = try! NSRegularExpression(
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        options: [.caseInsensitive]
+    )
+
     public func identify(appUserId: String, targetingKey: String) async throws {
-        let body: [String: Any] = ["app_user_id": appUserId, "targeting_key": targetingKey]
+        let body: [String: Any] = ["anonymous_id": appUserId, "targeting_key": targetingKey]
         let (data, response) = try await post(path: "/v1/identify", json: body)
         try throwIfError(response, data: data)
     }

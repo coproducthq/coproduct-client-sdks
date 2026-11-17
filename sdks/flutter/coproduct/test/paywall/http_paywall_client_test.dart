@@ -126,7 +126,7 @@ void main() {
             'https://api.coproduct.app/v1/purchases',
           );
           final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['app_user_id'], 'user-1');
+          expect(body['anonymous_id'], 'user-1');
           expect(body['platform'], 'IOS');
           expect(body['store_product_id'], 'premium_monthly');
           expect(body['transaction']['store_transaction_id'], 'tx-1');
@@ -203,7 +203,7 @@ void main() {
           expect(request.method, 'GET');
           expect(
             request.url.toString(),
-            'https://api.coproduct.app/v1/entitlements?appUserId=user-1',
+            'https://api.coproduct.app/v1/entitlements?anonymousId=user-1',
           );
           expect(request.headers['Authorization'], 'Bearer cpk_mob_test');
           return http.Response(
@@ -226,6 +226,30 @@ void main() {
 
       final entitlements = await client.getEntitlements('user-1');
       expect(entitlements.single.entitlementId, 'premium');
+    },
+  );
+
+  test(
+    'getEntitlements names an anonymous id in the header, and an app id only in the query',
+    () async {
+      final headers = <String, String?>{};
+      final client = HttpPaywallClient(
+        sdkKey: 'cpk_mob_test',
+        httpClient: MockClient((request) async {
+          headers[request.url.queryParameters['anonymousId']!] =
+              request.headers[anonymousIdHeader];
+          return http.Response(jsonEncode({'entitlements': []}), 200);
+        }),
+      );
+
+      await client.getEntitlements('822e8c6b-2040-457c-95ca-c022d2edbbdf');
+      await client.getEntitlements('user-1');
+
+      expect(
+        headers['822e8c6b-2040-457c-95ca-c022d2edbbdf'],
+        '822e8c6b-2040-457c-95ca-c022d2edbbdf',
+      );
+      expect(headers['user-1'], isNull);
     },
   );
 
@@ -262,7 +286,7 @@ void main() {
         expect(request.method, 'POST');
         expect(request.url.toString(), 'https://api.coproduct.app/v1/identify');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(body['app_user_id'], 'user-1');
+        expect(body['anonymous_id'], 'user-1');
         expect(body['targeting_key'], 'alice@example.com');
         return http.Response(
           jsonEncode({
@@ -301,5 +325,72 @@ void main() {
         ),
       ),
     );
+  });
+
+  test(
+    'recordPurchaseWithProof sends the store proof inside the transaction',
+    () async {
+      Map<String, dynamic>? transaction;
+      final client = HttpPaywallClient(
+        sdkKey: 'cpk_mob_test',
+        httpClient: MockClient((request) async {
+          transaction =
+              (jsonDecode(request.body) as Map<String, dynamic>)['transaction']
+                  as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({'appUserId': 'user-1', 'entitlements': []}),
+            200,
+          );
+        }),
+      );
+
+      await client.recordPurchaseWithProof(
+        appUserId: 'user-1',
+        platform: 'IOS',
+        storeProductId: 'premium_monthly',
+        storeTransactionId: 'tx-1',
+        purchaseDate: DateTime.utc(2026, 1, 1),
+        signedTransaction: 'header.payload.signature',
+      );
+      expect(transaction!['signed_transaction'], 'header.payload.signature');
+      expect(transaction!.containsKey('purchase_token'), isFalse);
+
+      await client.recordPurchaseWithProof(
+        appUserId: 'user-1',
+        platform: 'ANDROID',
+        storeProductId: 'premium_monthly',
+        storeTransactionId: 'token-1',
+        purchaseDate: DateTime.utc(2026, 1, 1),
+        purchaseToken: 'token-1',
+      );
+      expect(transaction!['purchase_token'], 'token-1');
+      expect(transaction!.containsKey('signed_transaction'), isFalse);
+    },
+  );
+
+  test('recordPurchase sends no store proof', () async {
+    Map<String, dynamic>? transaction;
+    final client = HttpPaywallClient(
+      sdkKey: 'cpk_mob_test',
+      httpClient: MockClient((request) async {
+        transaction =
+            (jsonDecode(request.body) as Map<String, dynamic>)['transaction']
+                as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({'appUserId': 'user-1', 'entitlements': []}),
+          200,
+        );
+      }),
+    );
+
+    await client.recordPurchase(
+      appUserId: 'user-1',
+      platform: 'IOS',
+      storeProductId: 'premium_monthly',
+      storeTransactionId: 'tx-1',
+      purchaseDate: DateTime.utc(2026, 1, 1),
+    );
+    expect(transaction!.containsKey('signed_transaction'), isFalse);
+    expect(transaction!.containsKey('purchase_token'), isFalse);
   });
 }

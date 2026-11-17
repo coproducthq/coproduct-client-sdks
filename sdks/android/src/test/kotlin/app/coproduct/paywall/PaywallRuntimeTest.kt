@@ -112,17 +112,17 @@ class PaywallRuntimeTest {
         runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=missing")
 
         assertEquals(PaywallPurchaseErrorReason.UNRESOLVED_PRODUCT, error?.reason)
-        coVerify(exactly = 0) { bridge.purchase(any(), any()) }
+        coVerify(exactly = 0) { bridge.purchaseForUser(any(), any(), any()) }
     }
 
     @Test
     fun `a successful purchase records it and reports onPurchaseResult with entitlements`() = runTest {
         val bridge = mockk<NativePaywallBridge>()
         val client = mockk<PaywallClient>()
-        coEvery { bridge.purchase("monthly_android", PackageKind.SUBSCRIPTION) } returns
+        coEvery { bridge.purchaseForUser("monthly_android", PackageKind.SUBSCRIPTION, "u-1") } returns
             PurchaseResult(PurchaseOutcome.SUCCESS, "tx-1", "monthly_android", 1700000000000L)
         coEvery {
-            client.recordPurchase("u-1", "ANDROID", "monthly_android", "tx-1", any(), null)
+            client.recordPurchaseWithProof("u-1", "ANDROID", "monthly_android", "tx-1", any(), null, any(), any())
         } returns listOf(Entitlement("premium", true, null, true, "PURCHASE"))
         var result: PurchaseResult? = null
         var entitlements: List<Entitlement>? = null
@@ -146,7 +146,7 @@ class PaywallRuntimeTest {
     @Test
     fun `a non-success purchase outcome reports onPurchaseResult directly, never onPurchaseError`() = runTest {
         val bridge = mockk<NativePaywallBridge>()
-        coEvery { bridge.purchase("monthly_android", PackageKind.SUBSCRIPTION) } returns
+        coEvery { bridge.purchaseForUser("monthly_android", PackageKind.SUBSCRIPTION, "u-1") } returns
             PurchaseResult(PurchaseOutcome.CANCELLED)
         var result: PurchaseResult? = null
         var errorCalled = false
@@ -172,9 +172,9 @@ class PaywallRuntimeTest {
     fun `a server rejection after a successful purchase reports serverRejected with the server's code`() = runTest {
         val bridge = mockk<NativePaywallBridge>()
         val client = mockk<PaywallClient>()
-        coEvery { bridge.purchase("monthly_android", PackageKind.SUBSCRIPTION) } returns
+        coEvery { bridge.purchaseForUser("monthly_android", PackageKind.SUBSCRIPTION, "u-1") } returns
             PurchaseResult(PurchaseOutcome.SUCCESS, "tx-1", "monthly_android", 1700000000000L)
-        coEvery { client.recordPurchase(any(), any(), any(), any(), any(), any()) } throws
+        coEvery { client.recordPurchaseWithProof(any(), any(), any(), any(), any(), any(), any(), any()) } throws
             PaywallServerError(404, "unknown_product", "Unknown product for this platform.")
         var error: PaywallPurchaseError? = null
         val runtime = PaywallRuntime(
@@ -198,9 +198,9 @@ class PaywallRuntimeTest {
     fun `a transport failure after a successful purchase reports networkError`() = runTest {
         val bridge = mockk<NativePaywallBridge>()
         val client = mockk<PaywallClient>()
-        coEvery { bridge.purchase("monthly_android", PackageKind.SUBSCRIPTION) } returns
+        coEvery { bridge.purchaseForUser("monthly_android", PackageKind.SUBSCRIPTION, "u-1") } returns
             PurchaseResult(PurchaseOutcome.SUCCESS, "tx-1", "monthly_android", 1700000000000L)
-        coEvery { client.recordPurchase(any(), any(), any(), any(), any(), any()) } throws RuntimeException("offline")
+        coEvery { client.recordPurchaseWithProof(any(), any(), any(), any(), any(), any(), any(), any()) } throws RuntimeException("offline")
         var error: PaywallPurchaseError? = null
         val runtime = PaywallRuntime(
             bridge = bridge,
@@ -246,9 +246,9 @@ class PaywallRuntimeTest {
             RestoredTransaction("tx-1", "monthly_android", 1700000000000L),
             RestoredTransaction("tx-2", "remove_ads", 1700000001000L),
         )
-        coEvery { client.recordPurchase("u-1", "ANDROID", "monthly_android", "tx-1", any(), null) } throws
+        coEvery { client.recordPurchaseWithProof("u-1", "ANDROID", "monthly_android", "tx-1", any(), null, any(), any()) } throws
             RuntimeException("transient")
-        coEvery { client.recordPurchase("u-1", "ANDROID", "remove_ads", "tx-2", any(), null) } returns
+        coEvery { client.recordPurchaseWithProof("u-1", "ANDROID", "remove_ads", "tx-2", any(), null, any(), any()) } returns
             listOf(Entitlement("remove_ads", true, null, false, "PURCHASE"))
         var result: PurchaseResult? = null
         var entitlements: List<Entitlement>? = null
@@ -271,7 +271,7 @@ class PaywallRuntimeTest {
         val bridge = mockk<NativePaywallBridge>()
         val client = mockk<PaywallClient>()
         coEvery { bridge.restore() } returns listOf(RestoredTransaction("tx-1", "monthly_android", 1700000000000L))
-        coEvery { client.recordPurchase(any(), any(), any(), any(), any(), any()) } throws RuntimeException("offline")
+        coEvery { client.recordPurchaseWithProof(any(), any(), any(), any(), any(), any(), any(), any()) } throws RuntimeException("offline")
         var error: PaywallPurchaseError? = null
         val runtime = PaywallRuntime(
             bridge = bridge,
@@ -284,6 +284,108 @@ class PaywallRuntimeTest {
         runtime.handleNavigationRequest("coproduct-action:restore")
 
         assertEquals(PaywallPurchaseErrorReason.NETWORK_ERROR, error?.reason)
+    }
+
+    @Test
+    fun `a purchase passes the app user id to the bridge and the purchase token to the client`() = runTest {
+        val bridge = mockk<NativePaywallBridge>()
+        val client = mockk<PaywallClient>()
+        coEvery { bridge.purchaseForUser("monthly_android", PackageKind.SUBSCRIPTION, "u-1") } returns
+            PurchaseResult(
+                outcome = PurchaseOutcome.SUCCESS,
+                transactionId = "tx-1",
+                productId = "monthly_android",
+                purchaseDateMillis = 1700000000000L,
+                purchaseToken = "token-1",
+            )
+        coEvery {
+            client.recordPurchaseWithProof(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns emptyList()
+        val runtime = PaywallRuntime(bridge = bridge, client = client, appUserId = "u-1", setPackages = {})
+        runtime.onSnapshotLoaded(
+            snapshotWith(mapOf("monthly" to PaywallPackageRef(null, "monthly_android", null, PackageKind.SUBSCRIPTION)))
+        )
+
+        runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
+
+        coVerify(exactly = 1) { bridge.purchaseForUser("monthly_android", PackageKind.SUBSCRIPTION, "u-1") }
+        coVerify(exactly = 1) {
+            client.recordPurchaseWithProof("u-1", "ANDROID", "monthly_android", "tx-1", any(), null, null, "token-1")
+        }
+    }
+
+    @Test
+    fun `restore passes each transaction's purchase token to the client`() = runTest {
+        val bridge = mockk<NativePaywallBridge>()
+        val client = mockk<PaywallClient>()
+        coEvery { bridge.restore() } returns listOf(
+            RestoredTransaction("tx-1", "monthly_android", 1700000000000L, purchaseToken = "token-1"),
+            RestoredTransaction("tx-2", "remove_ads", 1700000001000L),
+        )
+        coEvery {
+            client.recordPurchaseWithProof(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns emptyList()
+        val runtime = PaywallRuntime(bridge = bridge, client = client, appUserId = "u-1", setPackages = {})
+
+        runtime.handleNavigationRequest("coproduct-action:restore")
+
+        coVerify(exactly = 1) {
+            client.recordPurchaseWithProof("u-1", "ANDROID", "monthly_android", "tx-1", any(), null, null, "token-1")
+        }
+        coVerify(exactly = 1) {
+            client.recordPurchaseWithProof("u-1", "ANDROID", "remove_ads", "tx-2", any(), null, null, null)
+        }
+    }
+
+    @Test
+    fun `a bridge and client that implement only the original methods still purchase and restore`() = runTest {
+        val purchased = mutableListOf<String>()
+        val bridge = object : NativePaywallBridge {
+            override suspend fun priceFor(productId: String, kind: PackageKind): String = "$9.99"
+            override suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult {
+                purchased.add(productId)
+                return PurchaseResult(PurchaseOutcome.SUCCESS, "tx-1", productId, 1700000000000L)
+            }
+
+            override suspend fun restore(): List<RestoredTransaction> =
+                listOf(RestoredTransaction("tx-2", "remove_ads", 1700000001000L))
+        }
+        val recorded = mutableListOf<String>()
+        val client = object : PaywallClient {
+            override suspend fun fetchPaywall(paywallId: String): PaywallSnapshot? = null
+            override suspend fun recordPurchase(
+                appUserId: String,
+                platform: String,
+                storeProductId: String,
+                storeTransactionId: String,
+                purchaseDateIso: String,
+                expiresDateIso: String?,
+            ): List<Entitlement> {
+                recorded.add("$appUserId:$storeProductId:$storeTransactionId")
+                return listOf(Entitlement("premium", true, null, true, "PURCHASE"))
+            }
+
+            override suspend fun getEntitlements(appUserId: String): List<Entitlement> = emptyList()
+            override suspend fun identify(appUserId: String, targetingKey: String) {}
+        }
+        val results = mutableListOf<List<Entitlement>>()
+        val runtime = PaywallRuntime(
+            bridge = bridge,
+            client = client,
+            appUserId = "u-1",
+            setPackages = {},
+            onPurchaseResult = { _, e -> results.add(e) },
+        )
+        runtime.onSnapshotLoaded(
+            snapshotWith(mapOf("monthly" to PaywallPackageRef(null, "monthly_android", null, PackageKind.SUBSCRIPTION)))
+        )
+
+        runtime.handleNavigationRequest("coproduct-action:purchase?packageKey=monthly")
+        runtime.handleNavigationRequest("coproduct-action:restore")
+
+        assertEquals(listOf("monthly_android"), purchased)
+        assertEquals(listOf("u-1:monthly_android:tx-1", "u-1:remove_ads:tx-2"), recorded)
+        assertEquals(listOf(1, 1), results.map { it.size })
     }
 
     @Test

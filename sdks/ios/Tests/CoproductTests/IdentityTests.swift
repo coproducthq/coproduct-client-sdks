@@ -13,6 +13,12 @@ final class IdentityTests: XCTestCase {
     override func setUp() async throws {
         await Coproduct.shutdown()
         clearCoproductSnapshotCache()
+        // identify now links the anonymous id on the server. Route that request
+        // to a stub with no handler, which fails it locally, so these tests
+        // never reach the real API
+        let stubbed = URLSessionConfiguration.ephemeral
+        stubbed.protocolClasses = [StubJSONURLProtocol.self] + (stubbed.protocolClasses ?? [])
+        IdentityLinker.sessionOverrideForTesting = URLSession(configuration: stubbed)
         let config = CoproductConfig(
             startupTimeout: 1,
             anonymousId: baselineAnon,
@@ -28,6 +34,8 @@ final class IdentityTests: XCTestCase {
     override func tearDown() async throws {
         await Coproduct.shutdown()
         clearCoproductSnapshotCache()
+        IdentityLinker.sessionOverrideForTesting = nil
+        IdentityLinker.resetForTesting()
     }
 
     // Poll previousAnonymousId until it satisfies the predicate or the timeout

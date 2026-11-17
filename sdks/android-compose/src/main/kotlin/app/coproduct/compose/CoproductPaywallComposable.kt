@@ -16,11 +16,17 @@ import app.coproduct.paywall.PurchaseResultCallback
  * AndroidView(factory = ...) boilerplate. Requires the current Context to
  * be an Activity -- the same real Android constraint CoproductPaywall.load
  * documents for its own Play Billing bridge.
+ *
+ * @param appUserId the id purchases and entitlements are recorded under.
+ * Omitting it is recommended: the paywall then uses this install's anonymous
+ * id, which `identify` links to your user on the server. If you supply your
+ * own id it must be hard to guess. When it is omitted and the SDK is not
+ * initialized, [onLoadError] reports it and nothing is loaded.
  */
 @Composable
 fun CoproductPaywall(
     paywallId: String,
-    appUserId: String,
+    appUserId: String? = null,
     sdkKey: String,
     platformScriptJsOverride: String? = null,
     envSlug: String? = null,

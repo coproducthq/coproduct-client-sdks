@@ -21,12 +21,23 @@ class PurchaseResult {
   final DateTime? purchaseDate;
   final DateTime? expirationDate;
 
+  /// StoreKit 2's signed transaction (its JWS representation), which the
+  /// server verifies against Apple's root. Null on Android, and on a bridge
+  /// that does not report it.
+  final String? signedTransaction;
+
+  /// Google Play's purchase token, which the server checks with Google.
+  /// Null on iOS, and on a bridge that does not report it.
+  final String? purchaseToken;
+
   const PurchaseResult({
     required this.outcome,
     this.transactionId,
     this.productId,
     this.purchaseDate,
     this.expirationDate,
+    this.signedTransaction,
+    this.purchaseToken,
   });
 }
 
@@ -39,11 +50,18 @@ class RestoredTransaction {
   final DateTime purchaseDate;
   final DateTime? expirationDate;
 
+  /// The store's own proof of this transaction. See
+  /// [PurchaseResult.signedTransaction] and [PurchaseResult.purchaseToken].
+  final String? signedTransaction;
+  final String? purchaseToken;
+
   const RestoredTransaction({
     required this.transactionId,
     required this.productId,
     required this.purchaseDate,
     this.expirationDate,
+    this.signedTransaction,
+    this.purchaseToken,
   });
 }
 
@@ -142,4 +160,24 @@ abstract interface class NativePaywallBridge {
 /// in PaywallRuntime promotes the bridge (Dart only promotes to a subtype).
 abstract interface class PackageResolvingBridge implements NativePaywallBridge {
   Future<PaywallPackageRuntime> packageFor(String productId, PackageKind kind);
+}
+
+/// Optional capability: a bridge that tells the store which app user a
+/// purchase is for. The store keeps a token derived from [appUserId] with the
+/// transaction (StoreKit's appAccountToken, Play's obfuscatedAccountId) and
+/// returns it to the server, which uses it to tell whose purchase this is.
+/// The built-in [MethodChannelPaywallBridge] implements it. A bridge that does
+/// not is driven through [NativePaywallBridge.purchase], and its purchases
+/// carry no token.
+///
+/// A separate interface for the same reason as [PackageResolvingBridge]: a new
+/// required method on the public NativePaywallBridge would break every existing
+/// implementer.
+abstract interface class UserBoundPurchaseBridge
+    implements NativePaywallBridge {
+  Future<PurchaseResult> purchaseForUser(
+    String productId,
+    PackageKind kind,
+    String appUserId,
+  );
 }

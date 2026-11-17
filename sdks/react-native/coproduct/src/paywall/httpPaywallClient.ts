@@ -16,6 +16,13 @@ type FetchResponse = {
 // public accessor for the sdk key or a request client. sdkKey is the same
 // string the host app already passed to Coproduct.initialize(sdkKey).
 // Mirrors sdks/flutter/coproduct/lib/src/paywall/http_paywall_client.dart.
+/** The header an entitlement read names the install's anonymous id in */
+export const ANONYMOUS_ID_HEADER = 'X-Coproduct-Anonymous-Id';
+
+/** The shape of an anonymous id, a UUID v4 */
+const ANONYMOUS_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export class HttpPaywallClient implements PaywallClient {
   private readonly sdkKey: string;
   private readonly envSlug?: string;
@@ -92,12 +99,29 @@ export class HttpPaywallClient implements PaywallClient {
     purchaseDate: Date;
     expiresDate?: Date;
   }): Promise<Entitlement[]> {
+    return this.recordPurchaseWithProof(args);
+  }
+
+  /**
+   * POST /v1/purchases, adding signed_transaction (iOS) or purchase_token
+   * (Android) to the transaction when given.
+   */
+  async recordPurchaseWithProof(args: {
+    appUserId: string;
+    platform: string;
+    storeProductId: string;
+    storeTransactionId: string;
+    purchaseDate: Date;
+    expiresDate?: Date;
+    signedTransaction?: string;
+    purchaseToken?: string;
+  }): Promise<Entitlement[]> {
     const url = `${this.apiBaseUrl}/v1/purchases`;
     const response = await fetch(url, {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify({
-        app_user_id: args.appUserId,
+        anonymous_id: args.appUserId,
         platform: args.platform,
         store_product_id: args.storeProductId,
         transaction: {
@@ -105,6 +129,12 @@ export class HttpPaywallClient implements PaywallClient {
           purchase_date: args.purchaseDate.toISOString(),
           ...(args.expiresDate
             ? { expires_date: args.expiresDate.toISOString() }
+            : {}),
+          ...(args.signedTransaction != null
+            ? { signed_transaction: args.signedTransaction }
+            : {}),
+          ...(args.purchaseToken != null
+            ? { purchase_token: args.purchaseToken }
             : {}),
         },
       }),
@@ -114,8 +144,13 @@ export class HttpPaywallClient implements PaywallClient {
   }
 
   async getEntitlements(appUserId: string): Promise<Entitlement[]> {
-    const url = `${this.apiBaseUrl}/v1/entitlements?appUserId=${encodeURIComponent(appUserId)}`;
-    const response = await fetch(url, { headers: this.headers });
+    const url = `${this.apiBaseUrl}/v1/entitlements?anonymousId=${encodeURIComponent(appUserId)}`;
+    // Named so the server can tell an anonymous id from an id the app set.
+    // The query parameter stays for servers that predate the header
+    const headers = ANONYMOUS_ID_PATTERN.test(appUserId)
+      ? { ...this.headers, [ANONYMOUS_ID_HEADER]: appUserId }
+      : this.headers;
+    const response = await fetch(url, { headers });
     await this.throwIfError(response);
     return this.entitlementsFromBody(await response.json());
   }
@@ -129,7 +164,7 @@ export class HttpPaywallClient implements PaywallClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify({
-        app_user_id: args.appUserId,
+        anonymous_id: args.appUserId,
         targeting_key: args.targetingKey,
       }),
     });

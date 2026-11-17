@@ -12,7 +12,16 @@ import 'paywall_client.dart';
 /// sdks/flutter/coproduct/lib/src/coproduct_client.dart and
 /// lib/src/host.dart keep sdkKey entirely in src/). sdkKey is the same
 /// string the host app already passed to Coproduct.initialize(sdkKey:).
-class HttpPaywallClient implements PaywallClient {
+/// The header an entitlement read names the install's anonymous id in
+const String anonymousIdHeader = 'X-Coproduct-Anonymous-Id';
+
+/// The shape of an anonymous id, a UUID v4
+final RegExp _anonymousIdPattern = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
+class HttpPaywallClient implements PaywallClient, StoreProofPaywallClient {
   HttpPaywallClient({
     required this.sdkKey,
     this.envSlug,
@@ -98,13 +107,32 @@ class HttpPaywallClient implements PaywallClient {
     required String storeTransactionId,
     required DateTime purchaseDate,
     DateTime? expiresDate,
+  }) => recordPurchaseWithProof(
+    appUserId: appUserId,
+    platform: platform,
+    storeProductId: storeProductId,
+    storeTransactionId: storeTransactionId,
+    purchaseDate: purchaseDate,
+    expiresDate: expiresDate,
+  );
+
+  @override
+  Future<List<Entitlement>> recordPurchaseWithProof({
+    required String appUserId,
+    required String platform,
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+    String? signedTransaction,
+    String? purchaseToken,
   }) async {
     final uri = apiBaseUrl.replace(path: '/v1/purchases');
     final response = await _client.post(
       uri,
       headers: _headers,
       body: jsonEncode({
-        'app_user_id': appUserId,
+        'anonymous_id': appUserId,
         'platform': platform,
         'store_product_id': storeProductId,
         'transaction': {
@@ -112,6 +140,8 @@ class HttpPaywallClient implements PaywallClient {
           'purchase_date': purchaseDate.toUtc().toIso8601String(),
           if (expiresDate != null)
             'expires_date': expiresDate.toUtc().toIso8601String(),
+          'signed_transaction': ?signedTransaction,
+          'purchase_token': ?purchaseToken,
         },
       }),
     );
@@ -123,9 +153,18 @@ class HttpPaywallClient implements PaywallClient {
   Future<List<Entitlement>> getEntitlements(String appUserId) async {
     final uri = apiBaseUrl.replace(
       path: '/v1/entitlements',
-      queryParameters: {'appUserId': appUserId},
+      queryParameters: {'anonymousId': appUserId},
     );
-    final response = await _client.get(uri, headers: _headers);
+    final response = await _client.get(
+      uri,
+      headers: {
+        ..._headers,
+        // Named so the server can tell an anonymous id from an id the app set.
+        // The query parameter stays for servers that predate the header
+        if (_anonymousIdPattern.hasMatch(appUserId))
+          anonymousIdHeader: appUserId,
+      },
+    );
     _throwIfError(response);
     return _entitlementsFromBody(response.body);
   }
@@ -140,7 +179,7 @@ class HttpPaywallClient implements PaywallClient {
       uri,
       headers: _headers,
       body: jsonEncode({
-        'app_user_id': appUserId,
+        'anonymous_id': appUserId,
         'targeting_key': targetingKey,
       }),
     );

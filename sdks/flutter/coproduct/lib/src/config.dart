@@ -23,6 +23,7 @@ final class CoproductConfig {
     this.requestTimeout = const Duration(seconds: 30),
     this.endpoint,
     this.pollOnForeground = true,
+    this.apiBaseUrl,
   });
 
   /// How often the SDK checks Coproduct for updated flags.
@@ -61,6 +62,12 @@ final class CoproductConfig {
   /// while the SDK is backing off, or after checks have stopped
   final bool pollOnForeground;
 
+  /// The Coproduct API that `identify` reports a sign-in to.
+  ///
+  /// Leave it null to use Coproduct's API, `https://api.coproduct.app`. An
+  /// override must use `http` or `https` and include a host
+  final Uri? apiBaseUrl;
+
   @override
   bool operator ==(Object other) =>
       other is CoproductConfig &&
@@ -68,7 +75,8 @@ final class CoproductConfig {
       other.startupTimeout == startupTimeout &&
       other.requestTimeout == requestTimeout &&
       other.endpoint == endpoint &&
-      other.pollOnForeground == pollOnForeground;
+      other.pollOnForeground == pollOnForeground &&
+      other.apiBaseUrl == apiBaseUrl;
 
   @override
   int get hashCode => Object.hash(
@@ -77,6 +85,7 @@ final class CoproductConfig {
     requestTimeout,
     endpoint,
     pollOnForeground,
+    apiBaseUrl,
   );
 
   CoproductConfig _withEndpoint(Uri? e) => CoproductConfig(
@@ -85,8 +94,12 @@ final class CoproductConfig {
     requestTimeout: requestTimeout,
     endpoint: e,
     pollOnForeground: pollOnForeground,
+    apiBaseUrl: apiBaseUrl,
   );
 }
+
+/// Where `identify` reports a sign-in when [CoproductConfig.apiBaseUrl] is null
+final Uri defaultApiBaseUrl = Uri.parse('https://api.coproduct.app');
 
 /// The core minimum poll interval, matching coproduct-core MIN_POLL_INTERVAL
 const Duration minPollInterval = Duration(seconds: 30);
@@ -106,6 +119,15 @@ CoproductConfig validateConfig(CoproductConfig config) {
   }
   if (config.requestTimeout <= Duration.zero) {
     throw const InvalidConfig('requestTimeout', 'must be positive');
+  }
+  final apiBaseUrl = config.apiBaseUrl;
+  if (apiBaseUrl != null) {
+    if (apiBaseUrl.scheme != 'http' && apiBaseUrl.scheme != 'https') {
+      throw const InvalidConfig('apiBaseUrl', 'scheme must be http or https');
+    }
+    if (apiBaseUrl.host.isEmpty) {
+      throw const InvalidConfig('apiBaseUrl', 'must have a host');
+    }
   }
   final endpoint = config.endpoint;
   if (endpoint == null) {

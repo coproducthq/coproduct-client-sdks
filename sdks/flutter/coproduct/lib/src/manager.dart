@@ -32,6 +32,10 @@ class CoproductManager<C extends Object> {
   /// The current generation, advanced by each initialize and each teardown
   int get generation => _generation;
 
+  /// The initialized client, or null before initialize completes and after
+  /// shutdown
+  C? get current => _current;
+
   Future<C> initialize(
     Object identity,
     Future<C> Function(

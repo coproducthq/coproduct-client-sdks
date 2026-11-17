@@ -13,11 +13,13 @@ import 'foreground.dart';
 import 'frb_backend.dart';
 import 'host.dart';
 import 'host_context_channel.dart';
+import 'identify_sync.dart';
 import 'isolate_probe.dart';
 import 'http_transport.dart';
 import 'json_value.dart';
 import 'native_bridge.dart';
 import 'paywall/coproduct_paywall.dart' show FlagReader;
+import 'paywall/http_paywall_client.dart';
 import 'platform_metadata.dart';
 import 'provider_state.dart';
 import 'rust/api.dart' as frb;
@@ -36,11 +38,22 @@ CoproductClient createClientForBackend(
   CoproductClientBackend backend, {
   SerialQueue? identityQueue,
   UtmStore? utmStore,
+  String? Function()? anonymousId,
+  IdentifySync? identifySync,
 }) => CoproductClient._(
   backend,
   identityQueue ?? SerialQueue(),
   utmStore ?? UtmStore(),
+  anonymousId,
+  identifySync,
 );
+
+/// The client of the running SDK, or null before `Coproduct.initialize`
+/// completes and after `Coproduct.shutdown`.
+///
+/// Package-internal: exported from neither barrel. The paywall uses it to find
+/// the anonymous id when no `CoproductScope` is above it
+CoproductClient? currentCoproductClient() => Coproduct._host.currentClient;
 
 /// Reads flags and sets who they are evaluated for. Get one from
 /// [Coproduct.initialize], or from `CoproductTestHarness` in a widget test.
@@ -58,7 +71,13 @@ CoproductClient createClientForBackend(
 /// Identity is not saved between launches, so call [identify] again after
 /// `initialize` on each launch
 final class CoproductClient implements FlagReader {
-  CoproductClient._(this._backend, this._identityQueue, this._utmStore);
+  CoproductClient._(
+    this._backend,
+    this._identityQueue,
+    this._utmStore,
+    this._readAnonymousId,
+    this._identifySync,
+  );
 
   final CoproductClientBackend _backend;
   // Supplied by the host so machine-initiated writes to the automatic layer
@@ -66,6 +85,11 @@ final class CoproductClient implements FlagReader {
   // would reintroduce exactly the interleaving this one exists to prevent
   final SerialQueue _identityQueue;
   final UtmStore _utmStore;
+  // The core has no getter for the anonymous id, so the host supplies a read
+  // of the value it saw pass through the secure store
+  final String? Function()? _readAnonymousId;
+  // Null when there is nowhere to send a sign-in, as in a test harness
+  final IdentifySync? _identifySync;
   StreamSubscription<EvaluationEvent>? _evaluationSubscription;
 
   /// Reads a boolean flag.
@@ -188,7 +212,12 @@ final class CoproductClient implements FlagReader {
   /// in [attributes] are ignored, so set identity through [userId]. Throws
   /// `InvalidTargetingKey` if [userId] is empty. Awaiting settles the in-memory
   /// transition, lifecycle notifications, and observer fan-out, and performs no
-  /// persistence
+  /// persistence.
+  ///
+  /// Once that succeeds, and unless [linkAnonymous] is false, the SDK also
+  /// sends [anonymousId] and [userId] to Coproduct in the background, so
+  /// purchases made before sign-in follow the user. The returned future does
+  /// not wait for that request, and a failure of it never fails this call
   Future<void> identify({
     required String userId,
     Map<String, AttributeValue> attributes = const {},
@@ -197,13 +226,17 @@ final class CoproductClient implements FlagReader {
     // Snapshotted synchronously, before the operation is queued, so a later
     // mutation of the caller's map cannot change an operation already in flight
     final snapshot = Map<String, AttributeValue>.unmodifiable(attributes);
-    return _identityQueue.add(
-      () => _backend.identify(
+    return _identityQueue.add(() async {
+      await _backend.identify(
         userId: userId,
         attributes: snapshot,
         linkAnonymous: linkAnonymous,
-      ),
-    );
+      );
+      // Started only after the local identify succeeded, and not awaited
+      if (linkAnonymous) {
+        _identifySync?.link(anonymousId: anonymousId, userId: userId);
+      }
+    });
   }
 
   /// Returns to this installation's anonymous id, and clears your attributes
@@ -281,12 +314,23 @@ final class CoproductClient implements FlagReader {
   /// The anonymous id captured when someone signed in, or null.
   ///
   /// Pass it to your own analytics or backend alongside the signed-in id to
-  /// join activity from before sign-in to the account. The SDK does not send
-  /// it anywhere. [identify] captures it only when none is stored, so a later
-  /// [identify] does not overwrite it. [signOut], and [identify] with
-  /// `linkAnonymous: false`, clear it. Read it after awaiting the call that
-  /// should have changed it
+  /// join activity from before sign-in to the account. [identify] sends the
+  /// anonymous id and the user id to Coproduct so purchases follow the user,
+  /// and `linkAnonymous: false` skips that send. [identify] captures it only
+  /// when none is stored, so a later [identify] does not overwrite it.
+  /// [signOut], and [identify] with `linkAnonymous: false`, clear it. Read it
+  /// after awaiting the call that should have changed it
   String? get previousAnonymousId => _backend.previousAnonymousId;
+
+  /// This installation's anonymous id, or null while the SDK does not know
+  /// it.
+  ///
+  /// It is the id flags are evaluated for before [identify] and after
+  /// [signOut], and it stays the same across both. Purchases and entitlements
+  /// are keyed by it unless you pass your own id to a paywall. It is null in
+  /// the rare case that the device's secure storage could not be read at
+  /// startup
+  String? get anonymousId => _readAnonymousId?.call();
 
   /// What the SDK is doing: whether it has flags, and whether its checks for
   /// updates are succeeding. See [ProviderState] for each value.
@@ -424,20 +468,36 @@ final class CoproductClient implements FlagReader {
 final class Coproduct {
   Coproduct._();
 
+  // Held here as well as by the host, so each client can read the anonymous
+  // id the store saw the core read or write
+  static final SecureIdentityStore _secureStore = SecureIdentityStore(
+    operationTimeout: const Duration(seconds: 1),
+  );
+
   static final CoproductHost<frb.CoproductClientHandle, CoproductClient> _host =
       CoproductHost<frb.CoproductClientHandle, CoproductClient>(
         bridge: FrbNativeBridge(),
         userAgent: coproductUserAgent,
         createTransport: (requestTimeout) =>
             HttpTransport(requestTimeout: requestTimeout),
-        secureStore: SecureIdentityStore(
-          operationTimeout: const Duration(seconds: 1),
-        ),
+        secureStore: _secureStore,
         metadataProviders: platformMetadataProviders(),
-        createClient: (handle, identityQueue) => createClientForBackend(
-          FrbBackend(handle),
-          identityQueue: identityQueue,
-        ),
+        createClient: (handle, identityQueue, sdkKey, config) {
+          final apiBaseUrl = config.apiBaseUrl ?? defaultApiBaseUrl;
+          final api = HttpPaywallClient(sdkKey: sdkKey, apiBaseUrl: apiBaseUrl);
+          return createClientForBackend(
+            FrbBackend(handle),
+            identityQueue: identityQueue,
+            anonymousId: () => _secureStore.anonymousId,
+            identifySync: IdentifySync(
+              scope: '$sdkKey $apiBaseUrl',
+              send: ({required appUserId, required targetingKey}) => api
+                  .identify(appUserId: appUserId, targetingKey: targetingKey)
+                  .timeout(config.requestTimeout),
+              onError: _reportError,
+            ),
+          );
+        },
         bindForeground: appLifecycleForegroundBinder,
         reportError: _reportError,
         isRootIsolate: isRootIsolateNow,

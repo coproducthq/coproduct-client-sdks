@@ -136,10 +136,11 @@ class PaywallRuntime {
       return;
     }
 
-    final result = await bridge.purchase(
-      productId,
-      ref?.kind ?? PackageKind.subscription,
-    );
+    final kind = ref?.kind ?? PackageKind.subscription;
+    final bridge = this.bridge;
+    final result = bridge is UserBoundPurchaseBridge
+        ? await bridge.purchaseForUser(productId, kind, appUserId)
+        : await bridge.purchase(productId, kind);
     if (result.outcome != PurchaseOutcome.success) {
       onPurchaseResult?.call(result, const []);
       return;
@@ -147,13 +148,13 @@ class PaywallRuntime {
 
     final List<Entitlement> entitlements;
     try {
-      entitlements = await client.recordPurchase(
-        appUserId: appUserId,
-        platform: platform,
+      entitlements = await _record(
         storeProductId: productId,
         storeTransactionId: result.transactionId!,
         purchaseDate: result.purchaseDate!,
         expiresDate: result.expirationDate,
+        signedTransaction: result.signedTransaction,
+        purchaseToken: result.purchaseToken,
       );
     } on PaywallServerError catch (e) {
       onPurchaseError?.call(
@@ -178,6 +179,39 @@ class PaywallRuntime {
     onPurchaseResult?.call(result, entitlements);
   }
 
+  // Sends the store's proof when the client can carry it. A client written
+  // before proofs existed records the purchase by id alone
+  Future<List<Entitlement>> _record({
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+    String? signedTransaction,
+    String? purchaseToken,
+  }) {
+    final client = this.client;
+    if (client is StoreProofPaywallClient) {
+      return client.recordPurchaseWithProof(
+        appUserId: appUserId,
+        platform: platform,
+        storeProductId: storeProductId,
+        storeTransactionId: storeTransactionId,
+        purchaseDate: purchaseDate,
+        expiresDate: expiresDate,
+        signedTransaction: signedTransaction,
+        purchaseToken: purchaseToken,
+      );
+    }
+    return client.recordPurchase(
+      appUserId: appUserId,
+      platform: platform,
+      storeProductId: storeProductId,
+      storeTransactionId: storeTransactionId,
+      purchaseDate: purchaseDate,
+      expiresDate: expiresDate,
+    );
+  }
+
   Future<void> _handleRestore() async {
     final transactions = await bridge.restore();
     if (transactions.isEmpty) {
@@ -198,13 +232,13 @@ class PaywallRuntime {
     var anyRecorded = false;
     for (final tx in transactions) {
       try {
-        entitlements = await client.recordPurchase(
-          appUserId: appUserId,
-          platform: platform,
+        entitlements = await _record(
           storeProductId: tx.productId,
           storeTransactionId: tx.transactionId,
           purchaseDate: tx.purchaseDate,
           expiresDate: tx.expirationDate,
+          signedTransaction: tx.signedTransaction,
+          purchaseToken: tx.purchaseToken,
         );
         anyRecorded = true;
       } catch (_) {

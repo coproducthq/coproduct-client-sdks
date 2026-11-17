@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { sharedAnonymousId } from '../anonymousId';
 import { HttpPaywallClient } from './httpPaywallClient';
 import { IapPaywallBridge } from './iapPaywallBridge';
 import type { PaywallSnapshot } from './models/paywallSnapshot';
@@ -43,7 +44,15 @@ export interface PaywallPrefetchPlacementsArgs {
 
 export interface CoproductPaywallProps {
   paywallId: string;
-  appUserId: string;
+  /**
+   * The id purchases and entitlements are recorded under. Omitting it is
+   * recommended: the paywall then uses the SDK's anonymousId, which
+   * Coproduct.initialize must have produced first, and identify links that id
+   * to the signed-in user on the server. An app-supplied id must be hard to
+   * guess (a random id, never an email, a username, or a sequential number),
+   * because anyone who knows it can ask for that user's entitlements.
+   */
+  appUserId?: string;
   sdkKey: string;
   platformScriptJs: string;
   envSlug?: string;
@@ -81,6 +90,28 @@ export function createBridge(
   }
 }
 
+/** Reported through onLoadError when a paywall has no id to purchase under. */
+export const MISSING_APP_USER_ID_MESSAGE =
+  'No appUserId was given and the SDK anonymous id is not available. ' +
+  'Call Coproduct.initialize before showing a paywall, or pass appUserId.';
+
+/**
+ * The id a paywall records purchases under: the app-supplied one when given,
+ * otherwise the shared SDK instance's anonymousId. Returns undefined after
+ * reporting through onLoadError when neither is available, so a paywall
+ * shown before the SDK is ready fails its load instead of throwing in render.
+ */
+export function resolveAppUserId(
+  explicit: string | undefined,
+  onLoadError: ((error: PaywallLoadError) => void) | undefined
+): string | undefined {
+  const appUserId = explicit ?? sharedAnonymousId();
+  if (appUserId != null && appUserId !== '') return appUserId;
+  console.error(MISSING_APP_USER_ID_MESSAGE);
+  onLoadError?.({ message: MISSING_APP_USER_ID_MESSAGE });
+  return undefined;
+}
+
 /**
  * Maps React Native's Platform.OS to the platform string PaywallRuntime
  * and the backend's purchase-recording API expect. Every non-Android OS
@@ -94,7 +125,7 @@ export function platformFor(osName: string): string {
 export function CoproductPaywall(props: CoproductPaywallProps) {
   const {
     paywallId,
-    appUserId,
+    appUserId: appUserIdOverride,
     sdkKey,
     platformScriptJs,
     envSlug,
@@ -122,6 +153,8 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     const client = clientOverride ?? new HttpPaywallClient({ sdkKey, envSlug });
     const bridge = createBridge(bridgeOverride, onLoadError);
     if (bridge == null) return;
+    const appUserId = resolveAppUserId(appUserIdOverride, onLoadError);
+    if (appUserId == null) return;
 
     const cacheKey = snapshotCacheKey(paywallId, envSlug);
     let snapshot: PaywallSnapshot | undefined;
@@ -209,7 +242,7 @@ export function CoproductPaywall(props: CoproductPaywallProps) {
     if (revealTimerRef.current != null) clearTimeout(revealTimerRef.current);
     revealTimerRef.current = setTimeout(() => setVisible(true), 8000);
   }, [
-    appUserId,
+    appUserIdOverride,
     bridgeOverride,
     clientOverride,
     envSlug,

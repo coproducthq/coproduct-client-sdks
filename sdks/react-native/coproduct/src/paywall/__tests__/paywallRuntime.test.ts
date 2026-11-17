@@ -128,6 +128,54 @@ class FakePaywallClient implements PaywallClient {
   async identify(): Promise<void> {}
 }
 
+// A bridge that also implements the optional purchaseForUser capability
+class FakeUserBoundPaywallBridge extends FakeNativePaywallBridge {
+  purchaseForUserCalls: Array<{
+    productId: string;
+    kind: PackageKind;
+    appUserId: string;
+  }> = [];
+
+  async purchaseForUser(
+    productId: string,
+    kind: PackageKind,
+    appUserId: string
+  ): Promise<PurchaseResult> {
+    this.purchaseForUserCalls.push({ productId, kind, appUserId });
+    return this.nextPurchaseResult;
+  }
+}
+
+// A client that also implements the optional recordPurchaseWithProof
+// capability
+class FakeStoreProofPaywallClient extends FakePaywallClient {
+  proofCalls: Array<{
+    appUserId: string;
+    storeTransactionId: string;
+    signedTransaction?: string;
+    purchaseToken?: string;
+  }> = [];
+
+  async recordPurchaseWithProof(args: {
+    appUserId: string;
+    platform: string;
+    storeProductId: string;
+    storeTransactionId: string;
+    purchaseDate: Date;
+    expiresDate?: Date;
+    signedTransaction?: string;
+    purchaseToken?: string;
+  }): Promise<Entitlement[]> {
+    this.proofCalls.push({
+      appUserId: args.appUserId,
+      storeTransactionId: args.storeTransactionId,
+      signedTransaction: args.signedTransaction,
+      purchaseToken: args.purchaseToken,
+    });
+    return this.recordPurchase(args);
+  }
+}
+
 function buildSnapshot(
   packages: Record<string, PaywallPackageRef> = {}
 ): PaywallSnapshot {
@@ -387,6 +435,125 @@ describe('PaywallRuntime', () => {
     expect(client.recordedTransactionIds).toEqual(['tx-1']);
     expect(capturedResult?.outcome).toBe('success');
     expect(capturedEntitlements?.[0]?.entitlementId).toBe('premium');
+  });
+
+  it('a purchase tap passes the app user id to a bridge that implements purchaseForUser', async () => {
+    const bridge = new FakeUserBoundPaywallBridge({
+      nextPurchaseResult: {
+        outcome: 'success',
+        transactionId: 'tx-1',
+        productId: 'points_pack_300',
+        purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    });
+    const client = new FakePaywallClient();
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      setPackages: async () => {},
+    });
+    await runtime.onSnapshotLoaded(
+      buildSnapshot({
+        points_pack: { iosProductId: 'points_pack_300', kind: 'consumable' },
+      })
+    );
+
+    await runtime.handleNavigationRequest(
+      'coproduct-action:purchase?packageKey=points_pack'
+    );
+
+    expect(bridge.purchaseForUserCalls).toEqual([
+      { productId: 'points_pack_300', kind: 'consumable', appUserId: 'user-1' },
+    ]);
+    expect(bridge.purchaseCalls).toEqual([]);
+    // A client without recordPurchaseWithProof still records the purchase
+    expect(client.recordedTransactionIds).toEqual(['tx-1']);
+  });
+
+  it("a purchase tap sends the store's proof to a client that implements recordPurchaseWithProof", async () => {
+    const bridge = new FakeNativePaywallBridge({
+      nextPurchaseResult: {
+        outcome: 'success',
+        transactionId: 'tx-1',
+        productId: 'premium_monthly',
+        purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+        signedTransaction: 'header.payload.signature',
+      },
+    });
+    const client = new FakeStoreProofPaywallClient();
+    let capturedEntitlements: Entitlement[] | undefined;
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      setPackages: async () => {},
+      onPurchaseResult: (_result, entitlements) => {
+        capturedEntitlements = entitlements;
+      },
+    });
+    await runtime.onSnapshotLoaded(
+      buildSnapshot({ monthly: { iosProductId: 'premium_monthly' } })
+    );
+
+    await runtime.handleNavigationRequest(
+      'coproduct-action:purchase?packageKey=monthly'
+    );
+
+    // A bridge without purchaseForUser is still driven through purchase
+    expect(bridge.purchaseCalls).toEqual(['premium_monthly']);
+    expect(client.proofCalls).toEqual([
+      {
+        appUserId: 'user-1',
+        storeTransactionId: 'tx-1',
+        signedTransaction: 'header.payload.signature',
+        purchaseToken: undefined,
+      },
+    ]);
+    expect(capturedEntitlements?.[0]?.entitlementId).toBe('premium');
+  });
+
+  it("a restore tap sends each transaction's proof to a client that implements recordPurchaseWithProof", async () => {
+    const bridge = new FakeNativePaywallBridge({
+      restoredTransactions: [
+        {
+          transactionId: 'GPA.1',
+          productId: 'premium_monthly_android',
+          purchaseDate: new Date('2026-01-01T00:00:00.000Z'),
+          purchaseToken: 'play-token-1',
+        },
+        {
+          transactionId: 'GPA.2',
+          productId: 'remove_ads',
+          purchaseDate: new Date('2026-01-02T00:00:00.000Z'),
+        },
+      ],
+    });
+    const client = new FakeStoreProofPaywallClient();
+    const runtime = new PaywallRuntime({
+      bridge,
+      client,
+      appUserId: 'user-1',
+      platform: 'ANDROID',
+      setPackages: async () => {},
+    });
+
+    await runtime.handleNavigationRequest('coproduct-action:restore');
+
+    expect(client.proofCalls).toEqual([
+      {
+        appUserId: 'user-1',
+        storeTransactionId: 'GPA.1',
+        signedTransaction: undefined,
+        purchaseToken: 'play-token-1',
+      },
+      {
+        appUserId: 'user-1',
+        storeTransactionId: 'GPA.2',
+        signedTransaction: undefined,
+        purchaseToken: undefined,
+      },
+    ]);
   });
 
   it('onSnapshotLoaded resolves a package using androidProductId when platform is ANDROID', async () => {

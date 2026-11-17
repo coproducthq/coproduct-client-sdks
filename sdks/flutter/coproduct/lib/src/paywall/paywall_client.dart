@@ -51,3 +51,27 @@ abstract interface class PaywallClient {
     required String targetingKey,
   });
 }
+
+/// Optional capability: a client that sends the store's own proof of a
+/// purchase along with it, so the server can check the purchase with Apple or
+/// Google instead of taking the app's word. The built-in [HttpPaywallClient]
+/// implements it. A client that does not is driven through
+/// [PaywallClient.recordPurchase], and the server falls back to what it can
+/// verify from the transaction id alone.
+///
+/// A separate interface, not new parameters on [PaywallClient.recordPurchase],
+/// because a changed signature would break every existing implementer.
+abstract interface class StoreProofPaywallClient implements PaywallClient {
+  /// POST /v1/purchases with `signed_transaction` (iOS) or `purchase_token`
+  /// (Android) when present. Throws [PaywallServerError] on a non-2xx response.
+  Future<List<Entitlement>> recordPurchaseWithProof({
+    required String appUserId,
+    required String platform,
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+    String? signedTransaction,
+    String? purchaseToken,
+  });
+}

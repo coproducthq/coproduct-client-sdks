@@ -169,6 +169,63 @@ class GatedPackageBridge extends FakeNativePaywallBridge {
   }
 }
 
+/// A bridge that binds a purchase to an app user and reports the store's
+/// proof, as the built-in MethodChannelPaywallBridge does.
+class UserBoundFakeBridge implements UserBoundPurchaseBridge {
+  final List<(String, PackageKind, String)> purchaseForUserCalls = [];
+  int plainPurchaseCalls = 0;
+  List<RestoredTransaction> restoredTransactions = const [];
+
+  @override
+  Future<String> priceFor(String productId, PackageKind kind) async => '\$9.99';
+
+  @override
+  Future<PurchaseResult> purchase(String productId, PackageKind kind) async {
+    plainPurchaseCalls++;
+    return const PurchaseResult(outcome: PurchaseOutcome.cancelled);
+  }
+
+  @override
+  Future<PurchaseResult> purchaseForUser(
+    String productId,
+    PackageKind kind,
+    String appUserId,
+  ) async {
+    purchaseForUserCalls.add((productId, kind, appUserId));
+    return PurchaseResult(
+      outcome: PurchaseOutcome.success,
+      transactionId: 'tx-1',
+      productId: productId,
+      purchaseDate: DateTime.utc(2026, 1, 1),
+      signedTransaction: 'header.payload.signature',
+    );
+  }
+
+  @override
+  Future<List<RestoredTransaction>> restore() async => restoredTransactions;
+}
+
+/// A client that carries the store's proof, as HttpPaywallClient does.
+class StoreProofFakeClient extends FakePaywallClient
+    implements StoreProofPaywallClient {
+  final List<(String, String?, String?)> proofs = [];
+
+  @override
+  Future<List<Entitlement>> recordPurchaseWithProof({
+    required String appUserId,
+    required String platform,
+    required String storeProductId,
+    required String storeTransactionId,
+    required DateTime purchaseDate,
+    DateTime? expiresDate,
+    String? signedTransaction,
+    String? purchaseToken,
+  }) async {
+    proofs.add((storeTransactionId, signedTransaction, purchaseToken));
+    return const [];
+  }
+}
+
 void main() {
   test('onSnapshotLoaded resolves every cta concurrently', () async {
     final bridge = GatedPackageBridge();
@@ -861,4 +918,96 @@ void main() {
 
     expect(decision, PaywallNavigationDecision.navigate);
   });
+
+  test(
+    'a purchase is bound to the app user and recorded with the store proof',
+    () async {
+      final bridge = UserBoundFakeBridge();
+      final client = StoreProofFakeClient();
+      final runtime = PaywallRuntime(
+        bridge: bridge,
+        client: client,
+        appUserId: 'user-1',
+        setPackages: (_) async {},
+      );
+      await runtime.onSnapshotLoaded(
+        buildSnapshot(
+          packages: {
+            'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly'),
+          },
+        ),
+      );
+
+      await runtime.handleNavigationRequest(
+        'coproduct-action:purchase?packageKey=monthly',
+      );
+
+      expect(bridge.purchaseForUserCalls, [
+        ('premium_monthly', PackageKind.subscription, 'user-1'),
+      ]);
+      expect(bridge.plainPurchaseCalls, 0);
+      expect(client.proofs, [('tx-1', 'header.payload.signature', null)]);
+      expect(client.recordedTransactionIds, isEmpty);
+    },
+  );
+
+  test('a restore records each transaction with its store proof', () async {
+    final bridge = UserBoundFakeBridge()
+      ..restoredTransactions = [
+        RestoredTransaction(
+          transactionId: 'token-1',
+          productId: 'premium_monthly',
+          purchaseDate: DateTime.utc(2026, 1, 1),
+          purchaseToken: 'token-1',
+        ),
+      ];
+    final client = StoreProofFakeClient();
+    final runtime = PaywallRuntime(
+      bridge: bridge,
+      client: client,
+      appUserId: 'user-1',
+      setPackages: (_) async {},
+    );
+
+    await runtime.handleNavigationRequest('coproduct-action:restore');
+
+    expect(client.proofs, [('token-1', null, 'token-1')]);
+  });
+
+  test(
+    'a bridge and client without the new capabilities still purchase and record',
+    () async {
+      final bridge = FakeNativePaywallBridge()
+        ..nextPurchaseResult = PurchaseResult(
+          outcome: PurchaseOutcome.success,
+          transactionId: 'tx-1',
+          productId: 'premium_monthly',
+          purchaseDate: DateTime.utc(2026, 1, 1),
+          signedTransaction: 'header.payload.signature',
+        );
+      final client = FakePaywallClient();
+      final runtime = PaywallRuntime(
+        bridge: bridge,
+        client: client,
+        appUserId: 'user-1',
+        setPackages: (_) async {},
+      );
+      await runtime.onSnapshotLoaded(
+        buildSnapshot(
+          packages: {
+            'monthly': const PaywallPackageRef(iosProductId: 'premium_monthly'),
+          },
+        ),
+      );
+
+      await runtime.handleNavigationRequest(
+        'coproduct-action:purchase?packageKey=monthly',
+      );
+
+      expect(bridge.purchaseCalls, [
+        ('premium_monthly', PackageKind.subscription),
+      ]);
+      expect(client.recordedTransactionIds, ['tx-1']);
+    },
+  );
 }

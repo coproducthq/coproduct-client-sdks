@@ -10,6 +10,7 @@ void main() {
     expect(c.requestTimeout, const Duration(seconds: 30));
     expect(c.endpoint, isNull);
     expect(c.pollOnForeground, isTrue);
+    expect(c.apiBaseUrl, isNull);
     expect(const CoproductConfig(), const CoproductConfig());
     expect(
       const CoproductConfig(pollOnForeground: false),
@@ -37,6 +38,35 @@ void main() {
       throwsA(isA<InvalidConfig>()),
     );
     expect(validateConfig(const CoproductConfig()), const CoproductConfig());
+  });
+
+  test('apiBaseUrl takes part in equality and is validated', () {
+    final a = CoproductConfig(apiBaseUrl: Uri.parse('https://api.example'));
+    final b = CoproductConfig(apiBaseUrl: Uri.parse('https://api.example'));
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+    expect(a, isNot(const CoproductConfig()));
+    expect(validateConfig(a), a);
+    // Kept when the endpoint is normalized
+    expect(
+      validateConfig(
+        CoproductConfig(
+          endpoint: Uri.parse('https://h/'),
+          apiBaseUrl: Uri.parse('https://api.example'),
+        ),
+      ).apiBaseUrl,
+      Uri.parse('https://api.example'),
+    );
+    for (final bad in ['ftp://h', 'https:///p']) {
+      expect(
+        () => validateConfig(CoproductConfig(apiBaseUrl: Uri.parse(bad))),
+        throwsA(
+          isA<InvalidConfig>().having((e) => e.field, 'field', 'apiBaseUrl'),
+        ),
+        reason: bad,
+      );
+    }
+    expect(defaultApiBaseUrl, Uri.parse('https://api.coproduct.app'));
   });
 
   test('endpoint validation and all-trailing-slash normalization', () {

@@ -30,6 +30,10 @@ class FlutterSecureKeyValueStore implements KeyValueStore {
       _storage.write(key: key, value: value);
 }
 
+/// The key the core stores the anonymous id under, matching
+/// `ANONYMOUS_ID_STORAGE_KEY` in coproduct-core
+const String anonymousIdStorageKey = 'coproduct.anonymous_id';
+
 /// Persists the anonymous id for the core, bounding each operation so a hung
 /// platform channel cannot block initialization. The bound is a timeout on the
 /// await, not a cancellation, the underlying platform operation is not aborted
@@ -37,7 +41,10 @@ class FlutterSecureKeyValueStore implements KeyValueStore {
 /// core stops awaiting and generates a session-only id. A write that times out or
 /// fails throws, so the core stops awaiting durability and proceeds session-only,
 /// though a late platform write may still land. The core supplies its own global
-/// storage key, passed through
+/// storage key, passed through.
+///
+/// The core has no getter for the anonymous id, so the store remembers the
+/// last one that passed through it, see [anonymousId]
 class SecureIdentityStore {
   SecureIdentityStore({KeyValueStore? backing, required this.operationTimeout})
     : _backing = backing ?? FlutterSecureKeyValueStore();
@@ -45,9 +52,36 @@ class SecureIdentityStore {
   final KeyValueStore _backing;
   final Duration operationTimeout;
 
-  Future<String?> read(String key) =>
-      _backing.read(key).timeout(operationTimeout);
+  String? _anonymousId;
 
-  Future<void> write(String key, String value) =>
-      _backing.write(key, value).timeout(operationTimeout);
+  /// The anonymous id the core is using, or null while it is not known.
+  ///
+  /// It is the last value read or written under [anonymousIdStorageKey]. A
+  /// value the core asks to write counts even when the write then fails or
+  /// times out, because the core keeps using it for the session. A read that
+  /// fails clears it: the core then generates an id it never passes through
+  /// this store, so the id of an earlier run would be wrong
+  String? get anonymousId => _anonymousId;
+
+  Future<String?> read(String key) async {
+    final String? value;
+    try {
+      value = await _backing.read(key).timeout(operationTimeout);
+    } catch (_) {
+      if (key == anonymousIdStorageKey) _anonymousId = null;
+      rethrow;
+    }
+    // The core treats an empty value as absent and writes a fresh id next
+    if (key == anonymousIdStorageKey && value != null && value.isNotEmpty) {
+      _anonymousId = value;
+    }
+    return value;
+  }
+
+  Future<void> write(String key, String value) {
+    // Recorded before the write is attempted, so a failed or timed-out write
+    // still leaves the id the core goes on using
+    if (key == anonymousIdStorageKey) _anonymousId = value;
+    return _backing.write(key, value).timeout(operationTimeout);
+  }
 }

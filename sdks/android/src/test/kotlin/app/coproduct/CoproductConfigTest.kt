@@ -16,5 +16,6 @@ class CoproductConfigTest {
         assertNull(config.secureStore)
         assertNull(config.endpoint)
         assertTrue(config.pollOnForeground)
+        assertEquals("https://api.coproduct.app", config.apiBaseUrl)
     }
 }

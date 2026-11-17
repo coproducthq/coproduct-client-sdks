@@ -19,6 +19,7 @@ final class PublicSurfaceTests: XCTestCase {
         // so the reachability check confirms their types without evaluating
         // them
         let _: () -> String? = { Coproduct.previousAnonymousId }
+        let _: () -> String? = { Coproduct.anonymousId }
         let _: () -> ProviderState = { Coproduct.state }
         let _: () -> CoproductSnapshot = { Coproduct.snapshot }
 

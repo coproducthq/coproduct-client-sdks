@@ -6,6 +6,12 @@ import WebKit
 /// fetched -- never a blank or broken WebView.
 public struct PaywallLoadError: Equatable, Sendable {
     public let message: String
+
+    /// Reported when `appUserId` was omitted and the SDK has no anonymous id
+    /// to fall back to, typically because `Coproduct.initialize` has not run.
+    static let missingAppUserId = PaywallLoadError(
+        message: "No app user id is available. Call Coproduct.initialize before showing the paywall, or pass appUserId."
+    )
 }
 
 /// Flag-reading surface `prefetchPlacements` uses to resolve a placement flag
@@ -28,7 +34,7 @@ struct CoproductFlagReader: FlagReader {
 /// a purchase or restore when the user taps a cta.
 public struct CoproductPaywall: View {
     let paywallId: String
-    let appUserId: String
+    let appUserId: String?
     let sdkKey: String
     let envSlug: String?
     let onPurchaseResult: (@Sendable (PurchaseResult, [Entitlement]) -> Void)?
@@ -38,9 +44,18 @@ public struct CoproductPaywall: View {
     let client: PaywallClient?
     let bridge: NativePaywallBridge?
 
+    /// - Parameter appUserId: The id purchases and entitlements are recorded
+    ///   against. Omitting it is recommended: the paywall then uses
+    ///   `Coproduct.anonymousId`, and `Coproduct.identify` links that id to
+    ///   the signed-in user on the server. If the app supplies its own id it
+    ///   must be hard to guess (for example a random UUID, never an email
+    ///   address or a sequential number), because the id alone decides whose
+    ///   purchases and entitlements these are. When it is omitted and the SDK has no
+    ///   anonymous id yet (`Coproduct.initialize` has not run), the paywall
+    ///   reports a `PaywallLoadError` through `onLoadError`.
     public init(
         paywallId: String,
-        appUserId: String,
+        appUserId: String? = nil,
         sdkKey: String,
         envSlug: String? = nil,
         onPurchaseResult: (@Sendable (PurchaseResult, [Entitlement]) -> Void)? = nil,
@@ -70,6 +85,12 @@ public struct CoproductPaywall: View {
             client: client ?? HttpPaywallClient(sdkKey: sdkKey, envSlug: envSlug),
             bridge: bridge ?? StoreKitPaywallBridge()
         )
+    }
+
+    /// The id the paywall records purchases against: the app-supplied one when
+    /// given, otherwise this install's anonymous id. `nil` when neither exists.
+    nonisolated static func resolveAppUserId(_ appUserId: String?, anonymousId: @autoclosure () -> String?) -> String? {
+        appUserId ?? anonymousId()
     }
 
     /// Loads the platform script bundled as this package's own generated
@@ -127,7 +148,7 @@ public struct CoproductPaywall: View {
 /// plain `View` body because `WKWebView` is a `UIView`, not SwiftUI-native.
 struct PaywallWebViewHost: UIViewRepresentable {
     let paywallId: String
-    let appUserId: String
+    let appUserId: String?
     let sdkKey: String
     let envSlug: String?
     let onPurchaseResult: (@Sendable (PurchaseResult, [Entitlement]) -> Void)?
@@ -186,7 +207,7 @@ struct PaywallWebViewHost: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate {
         private let paywallId: String
-        private let appUserId: String
+        private let appUserId: String?
         private let envSlug: String?
         private let onPurchaseResult: (@Sendable (PurchaseResult, [Entitlement]) -> Void)?
         private let onPurchaseError: (@Sendable (PaywallPurchaseError) -> Void)?
@@ -202,7 +223,7 @@ struct PaywallWebViewHost: UIViewRepresentable {
         private var revealTask: Task<Void, Never>?
 
         init(
-            paywallId: String, appUserId: String, envSlug: String?,
+            paywallId: String, appUserId: String?, envSlug: String?,
             onPurchaseResult: (@Sendable (PurchaseResult, [Entitlement]) -> Void)?,
             onPurchaseError: (@Sendable (PaywallPurchaseError) -> Void)?,
             onDismiss: (@Sendable () -> Void)?,
@@ -239,6 +260,12 @@ struct PaywallWebViewHost: UIViewRepresentable {
         }
 
         private func boot() async {
+            // Resolved here rather than at view init so an initialize that
+            // finishes between building the view and mounting it still counts
+            guard let appUserId = CoproductPaywall.resolveAppUserId(appUserId, anonymousId: Coproduct.anonymousId) else {
+                onLoadError?(.missingAppUserId)
+                return
+            }
             let snapshot = await snapshotCache.resolve(snapshotCacheKey(paywallId, envSlug)) { [client, paywallId] in
                 await client.fetchPaywall(paywallId)
             }

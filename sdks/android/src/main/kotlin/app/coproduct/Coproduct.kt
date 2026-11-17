@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
+import app.coproduct.paywall.HttpPaywallClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,12 @@ import uniffi.coproduct_ffi_uniffi.InitException
 import uniffi.coproduct_ffi_uniffi.ProviderState
 import uniffi.coproduct_ffi_uniffi.initialize as nativeInitialize
 
-/** Every config field the SDK exposes, each with its own default. */
+/**
+ * Every config field the SDK exposes, each with its own default.
+ *
+ * [apiBaseUrl] is the Coproduct API that `identify` reports the anonymous id
+ * and user id pair to; override it only to target a non-production API.
+ */
 data class CoproductConfig(
     val pollIntervalSeconds: Long = 60,
     val startupTimeoutSeconds: Long = 3,
@@ -31,6 +37,7 @@ data class CoproductConfig(
     val secureStore: HostSecureStore? = null,
     val endpoint: String? = null,
     val pollOnForeground: Boolean = true,
+    val apiBaseUrl: String = "https://api.coproduct.app",
 )
 
 /** The single error family initialize throws. Reads and identity calls never throw. */
@@ -261,7 +268,11 @@ object Coproduct {
     private suspend fun doInitialize(sdkKey: String, appContext: Context, config: CoproductConfig): CoproductClient {
         val cacheDir = appContext.cacheDir.absolutePath
         val transport = config.transport ?: OkHttpTransport()
-        val secureStore = config.secureStore ?: EncryptedPreferencesSecureStore(appContext)
+        // Wrapped so the anonymous id the core reads or writes through the
+        // store can be exposed as CoproductClient.anonymousId
+        val secureStore = AnonymousIdCapturingSecureStore(
+            config.secureStore ?: EncryptedPreferencesSecureStore(appContext),
+        )
 
         val ffiConfig = FfiConfig(
             pollIntervalSecs = config.pollIntervalSeconds.toULong(),
@@ -280,7 +291,17 @@ object Coproduct {
             secureStore = secureStore,
         )
 
-        val client = CoproductClient(native, appContext)
+        val identifyClient = HttpPaywallClient(sdkKey = sdkKey, apiBaseUrl = config.apiBaseUrl.trimEnd('/'))
+        val client = CoproductClient(
+            inner = native,
+            appContext = appContext,
+            anonymousIdSource = { secureStore.anonymousId },
+            identifyLinker = IdentifyLinker(
+                scope = scope,
+                anonymousId = { secureStore.anonymousId },
+                post = identifyClient::identify,
+            ),
+        )
         val sessionPrefs = appContext.getSharedPreferences("app.coproduct.session", Context.MODE_PRIVATE)
         val locationPrefs = appContext.getSharedPreferences("app.coproduct.location", Context.MODE_PRIVATE)
         val attributes = DeviceContext.staticAttributes(appContext) +
@@ -296,6 +317,14 @@ object Coproduct {
         client.setAutoPopulatedNow(attributes)
         return client
     }
+
+    /**
+     * This install's anonymous id, read from the default client. Null before
+     * [initialize] completes, after [shutdown], or while the id is unknown.
+     * See [CoproductClient.anonymousId].
+     */
+    val anonymousId: String?
+        get() = synchronized(lock) { defaultInstance?.client }?.anonymousId
 
     suspend fun shutdown() {
         val (stored, pending) = synchronized(lock) {

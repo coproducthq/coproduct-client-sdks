@@ -482,6 +482,43 @@ describe('IapPaywallBridge', () => {
       expect(removedErrorListeners).toHaveLength(1);
     });
 
+    it('reports the App Store purchase token as signedTransaction', async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('premium_monthly', 'subscription');
+      purchaseUpdateListeners[0]?.({
+        productId: 'premium_monthly',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+        store: 'apple',
+        purchaseToken: 'header.payload.signature',
+      });
+
+      const result = await resultPromise;
+
+      expect(result.signedTransaction).toBe('header.payload.signature');
+      expect(result.purchaseToken).toBeUndefined();
+      expect(result.transactionId).toBe('tx-1');
+    });
+
+    it('reports the Google Play purchase token as purchaseToken', async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchase('remove_ads', 'lifetime');
+      purchaseUpdateListeners[0]?.({
+        productId: 'remove_ads',
+        purchaseState: 'purchased',
+        transactionId: 'GPA.1',
+        transactionDate: 1700000000000,
+        store: 'google',
+        purchaseToken: 'play-token',
+      });
+
+      const result = await resultPromise;
+
+      expect(result.purchaseToken).toBe('play-token');
+      expect(result.signedTransaction).toBeUndefined();
+      expect(result.transactionId).toBe('GPA.1');
+    });
+
     it("requests type:'in-app' and finishes as consumable for a consumable product", async () => {
       const bridge = new IapPaywallBridge();
       const resultPromise = bridge.purchase('points_pack_300', 'consumable');
@@ -701,6 +738,75 @@ describe('IapPaywallBridge', () => {
     });
   });
 
+  describe('purchaseForUser', () => {
+    // The version 5 UUID the server derives for app user id "user-123"
+    const token = 'f5765ad4-640f-516d-be70-79ed3a75f5e7';
+
+    it("hands the store the app user's account token on a one-time purchase", async () => {
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchaseForUser(
+        'remove_ads',
+        'lifetime',
+        'user-123'
+      );
+      purchaseUpdateListeners[0]?.({
+        productId: 'remove_ads',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+      const result = await resultPromise;
+
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: {
+          apple: { sku: 'remove_ads', appAccountToken: token },
+          google: { skus: ['remove_ads'], obfuscatedAccountId: token },
+        },
+        type: 'in-app',
+      });
+      expect(result.outcome).toBe('success');
+    });
+
+    it("hands the store the app user's account token on a subscription purchase", async () => {
+      mockFetchProducts.mockResolvedValue([
+        {
+          id: 'premium_monthly',
+          displayPrice: '$9.99/mo',
+          subscriptionOffers: [
+            { id: 'base-plan', offerTokenAndroid: 'token-abc' },
+          ],
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const resultPromise = bridge.purchaseForUser(
+        'premium_monthly',
+        'subscription',
+        'user-123'
+      );
+      purchaseUpdateListeners[0]?.({
+        productId: 'premium_monthly',
+        purchaseState: 'purchased',
+        transactionId: 'tx-1',
+        transactionDate: 1700000000000,
+      });
+      await resultPromise;
+
+      expect(mockRequestPurchase).toHaveBeenCalledWith({
+        request: {
+          apple: { sku: 'premium_monthly', appAccountToken: token },
+          google: {
+            skus: ['premium_monthly'],
+            obfuscatedAccountId: token,
+            subscriptionOffers: [
+              { sku: 'premium_monthly', offerToken: 'token-abc' },
+            ],
+          },
+        },
+        type: 'subs',
+      });
+    });
+  });
+
   describe('restore', () => {
     it('finishes and maps every available purchase', async () => {
       mockGetAvailablePurchases.mockResolvedValue([
@@ -727,6 +833,33 @@ describe('IapPaywallBridge', () => {
           expirationDate: undefined,
         },
       ]);
+    });
+
+    it("carries each purchase's store proof", async () => {
+      mockGetAvailablePurchases.mockResolvedValue([
+        {
+          productId: 'premium_monthly',
+          transactionId: 'tx-1',
+          transactionDate: 1700000000000,
+          store: 'apple',
+          purchaseToken: 'header.payload.signature',
+        },
+        {
+          productId: 'remove_ads',
+          transactionId: 'GPA.1',
+          transactionDate: 1700000000000,
+          store: 'google',
+          purchaseToken: 'play-token',
+        },
+      ]);
+
+      const bridge = new IapPaywallBridge();
+      const restored = await bridge.restore();
+
+      expect(restored[0]?.signedTransaction).toBe('header.payload.signature');
+      expect(restored[0]?.purchaseToken).toBeUndefined();
+      expect(restored[1]?.purchaseToken).toBe('play-token');
+      expect(restored[1]?.signedTransaction).toBeUndefined();
     });
 
     it('returns an empty array when nothing is available', async () => {

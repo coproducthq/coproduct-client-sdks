@@ -67,8 +67,19 @@ private class ClosureEvaluationHook(
 class CoproductClient internal constructor(
     private val inner: NativeCoproductClient,
     private val appContext: Context,
+    private val anonymousIdSource: () -> String? = { null },
+    private val identifyLinker: IdentifyLinker? = null,
 ) : FlagReader {
     private val identitySerializer = IdentitySerializer()
+
+    /**
+     * This install's anonymous id: the id purchases and entitlements are keyed
+     * by until the app supplies its own. Null until the SDK has read or
+     * generated it, and null when the secure store could not be read at
+     * startup (the id is then session-only and is not exposed).
+     */
+    val anonymousId: String?
+        get() = anonymousIdSource()
 
     // --- Typed getters (never throw) ---
     fun getBool(key: String, default: Boolean): Boolean = inner.getBool(key, default)
@@ -101,13 +112,23 @@ class CoproductClient internal constructor(
         inner.getNumberListDetails(key, default).toPublic()
 
     // --- Identity (fire-and-forget) ---
+    /**
+     * Identifies the current user. Once the local identify succeeds and
+     * [linkAnonymous] is true, the SDK also sends this install's [anonymousId]
+     * and [userId] to the Coproduct API (`POST /v1/identify`) so purchases
+     * made before sign-in follow the user. That request is best-effort: it
+     * never delays or fails this call, and it is skipped when the anonymous
+     * id is unknown or equal to [userId].
+     */
     fun identify(userId: String, attributes: Map<String, AttributeValue> = emptyMap(), linkAnonymous: Boolean = true) {
         identitySerializer.enqueue {
             try {
                 inner.identify(userId, attributes.toContextValues(), linkAnonymous)
             } catch (error: Throwable) {
                 Log.e(LOG_TAG, "identify failed", error)
+                return@enqueue
             }
+            identifyLinker?.link(userId, linkAnonymous)
         }
     }
 

@@ -5,8 +5,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** A bridge that implements only priceFor, to prove the interface's default
- * packageFor delegates to it with no intro. */
+/** A bridge that implements only the original members, to prove the
+ * interface's default packageFor delegates to priceFor with no intro and its
+ * default purchaseForUser delegates to purchase. */
 private class PriceOnlyBridge : NativePaywallBridge {
     override suspend fun priceFor(productId: String, kind: PackageKind): String = "$4.99"
     override suspend fun purchase(productId: String, kind: PackageKind): PurchaseResult =
@@ -21,5 +22,12 @@ class NativePaywallBridgeTest {
         val result = PriceOnlyBridge().packageFor("p1", PackageKind.SUBSCRIPTION)
 
         assertEquals(PaywallPackageRuntime(price = "$4.99", intro = null), result)
+    }
+
+    @Test
+    fun `purchaseForUser defaults to purchase when a bridge implements only purchase`() = runTest {
+        val result = PriceOnlyBridge().purchaseForUser("p1", PackageKind.SUBSCRIPTION, "user-123")
+
+        assertEquals(PurchaseResult(outcome = PurchaseOutcome.CANCELLED), result)
     }
 }
