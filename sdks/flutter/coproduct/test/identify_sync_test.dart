@@ -15,6 +15,8 @@ import 'package:http/testing.dart';
 class _Sends {
   final List<(String, String)> pairs = [];
   Object? failWith;
+  // When set, only this many sends fail and later ones succeed
+  int? failFirst;
   Future<void>? gate;
 
   Future<void> call({
@@ -24,7 +26,9 @@ class _Sends {
     pairs.add((appUserId, targetingKey));
     if (gate != null) await gate;
     final failure = failWith;
-    if (failure != null) throw failure;
+    if (failure != null && (failFirst == null || pairs.length <= failFirst!)) {
+      throw failure;
+    }
   }
 }
 
@@ -45,6 +49,8 @@ CoproductClient _client(
       send: sends.call,
       onError: (error, stack) => errors?.add(error),
       sentPairs: sentPairs ?? {},
+      // No waiting between tries, so a test does not sit through the backoff
+      retryDelays: const [Duration.zero, Duration.zero, Duration.zero],
     ),
   );
 }
@@ -141,7 +147,7 @@ void main() {
 
   test('a failing send does not fail identify, and is reported', () async {
     final sends = _Sends()
-      ..failWith = const PaywallServerError(statusCode: 500, message: 'boom');
+      ..failWith = const PaywallServerError(statusCode: 401, message: 'boom');
     final errors = <Object>[];
     final client = _client(sends, errors: errors);
 
@@ -156,6 +162,97 @@ void main() {
     await client.identify(userId: 'user-1');
     await pumpEventQueue();
     expect(sends.pairs, [('anon-1', 'user-1'), ('anon-1', 'user-1')]);
+  });
+
+  test(
+    'a send that fails while offline is tried again and stays quiet',
+    () async {
+      final sends = _Sends()
+        ..failWith = http.ClientException('Connection refused')
+        ..failFirst = 2;
+      final errors = <Object>[];
+      final client = _client(sends, errors: errors);
+
+      await client.identify(userId: 'user-1');
+      await pumpEventQueue();
+
+      expect(sends.pairs, hasLength(3));
+      expect(errors, isEmpty);
+
+      // The third try got through, so the pair is not sent again
+      await client.identify(userId: 'user-1');
+      await pumpEventQueue();
+      expect(sends.pairs, hasLength(3));
+    },
+  );
+
+  test(
+    'a send that never gets through gives up quietly and is tried on the next identify',
+    () async {
+      final sends = _Sends()..failWith = TimeoutException('no answer');
+      final errors = <Object>[];
+      final client = _client(sends, errors: errors);
+
+      await client.identify(userId: 'user-1');
+      await pumpEventQueue();
+
+      // One send and three retries
+      expect(sends.pairs, hasLength(4));
+      expect(errors, isEmpty);
+
+      sends.failWith = null;
+      await client.identify(userId: 'user-1');
+      await pumpEventQueue();
+      expect(sends.pairs, hasLength(5));
+    },
+  );
+
+  test('a busy or failing server is retried and not reported', () async {
+    final sends = _Sends()
+      ..failWith = const PaywallServerError(statusCode: 503, message: 'down')
+      ..failFirst = 1;
+    final errors = <Object>[];
+    final client = _client(sends, errors: errors);
+
+    await client.identify(userId: 'user-1');
+    await pumpEventQueue();
+
+    expect(sends.pairs, hasLength(2));
+    expect(errors, isEmpty);
+  });
+
+  test('the install limit is expected: not retried and not reported', () async {
+    final sends = _Sends()
+      ..failWith = const PaywallServerError(
+        statusCode: 409,
+        code: 'install_limit_reached',
+        message: 'limit',
+      );
+    final errors = <Object>[];
+    final client = _client(sends, errors: errors);
+
+    await client.identify(userId: 'user-1');
+    await pumpEventQueue();
+
+    expect(sends.pairs, hasLength(1));
+    expect(errors, isEmpty);
+  });
+
+  test('a rejected request is reported once and not retried', () async {
+    final sends = _Sends()
+      ..failWith = const PaywallServerError(
+        statusCode: 403,
+        code: 'anonymous_id_required',
+        message: 'refused',
+      );
+    final errors = <Object>[];
+    final client = _client(sends, errors: errors);
+
+    await client.identify(userId: 'user-1');
+    await pumpEventQueue();
+
+    expect(sends.pairs, hasLength(1));
+    expect(errors, [isA<PaywallServerError>()]);
   });
 
   test('a throwing error reporter does not escape', () async {
