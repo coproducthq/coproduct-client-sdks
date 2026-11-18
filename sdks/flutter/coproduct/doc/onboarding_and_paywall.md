@@ -94,7 +94,6 @@ final platformScript = await CoproductPaywall.loadPlatformScript();
 
 CoproductPaywall(
   paywallId: paywallId,       // read from a flag, like the onboarding flow
-  appUserId: currentUserId,
   sdkKey: sdkKey,
   platformScriptJs: platformScript,
   onPurchaseResult: (result, entitlements) {
@@ -112,6 +111,12 @@ CoproductPaywall(
   },
 );
 ```
+
+`appUserId` is optional, and leaving it out is recommended. The paywall then records purchases and reads entitlements under `client.anonymousId`, taken from the nearest `CoproductScope` or from the running SDK, so call `Coproduct.initialize` first. Without an id the paywall reports an error through `onLoadError`. When the user signs in, `client.identify` links this installation to them, so their purchases follow them to every device where they sign in. If you pass your own id, make it a random UUID (version 4), never an email address, a username, or a sequential number, because the id alone decides whose purchases these are. New projects refuse an id of any other shape with the error `anonymous_id_required`.
+
+After a purchase or a restore the SDK sends the store's proof of it to Coproduct: the signed transaction on iOS and the purchase token on Android.
+
+A paywall page can show the store's product name for a package with `data-cp-title-for`, and paywall and onboarding screens can include tabs, sliders, and panels. Both are authored on the Coproduct platform and need no code in your app.
 
 The paywall shows live store prices, from the App Store on iOS and Google Play on Android. The SDK fetches and formats them, so your app never does.
 

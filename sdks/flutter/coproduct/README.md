@@ -502,6 +502,9 @@ so an anonymous user normally stays in the same rollout group across launches.
 If secure storage cannot be read at launch, the SDK uses a temporary id for
 that launch.
 
+`client.anonymousId` returns the id, or null in that case. Purchases and
+entitlements are recorded under it unless you pass your own id to a paywall.
+
 ### identify
 
 ```dart
@@ -520,8 +523,16 @@ between launches.** For a session your app restores at launch, call `identify`
 right after `initialize` and before `runApp`, so the first frame is evaluated
 for that user rather than anonymously.
 
-None of the identity calls makes a network request. Each one re-evaluates the
+None of the identity calls waits on the network. Each one re-evaluates the
 flags the SDK already has, so values update as soon as the call completes.
+
+`identify` also links this installation to the user for purchases. Once the
+call succeeds it sends `anonymousId` and the user id to Coproduct in the
+background, so purchases recorded under the anonymous id follow the user to
+every device where they sign in. The returned future does not wait for that
+request. A failed send never fails `identify`, and the next `identify` tries
+it again. Pass `linkAnonymous: false` to send nothing. `signOut` does not
+undo a link.
 
 Await these calls. If you ignore the returned future and the call fails, the
 error becomes an unhandled asynchronous error.
@@ -602,8 +613,8 @@ signed in, so you can join their activity before sign-in to their account.
 - `identify` with `linkAnonymous: false`, and `signOut`, clear it.
 - Read it after awaiting the call that should have changed it.
 
-The SDK does not send it anywhere. Pass it to your own analytics or backend
-alongside the signed-in id to link the two.
+The SDK does not send `previousAnonymousId` anywhere. Pass it to your own
+analytics or backend alongside the signed-in id to link the two.
 
 ## Automatic attributes
 
@@ -738,6 +749,7 @@ being silently corrected.
 | `requestTimeout` | 30 seconds | How long a single request for flags can take. Must be positive |
 | `endpoint` | Coproduct's endpoint | `http` or `https`, with a host, and no query or fragment |
 | `pollOnForeground` | `true` | Whether returning to the foreground triggers a check for updates |
+| `apiBaseUrl` | Coproduct's API | Where `identify` reports a sign-in. `http` or `https`, with a host. Override it only to target a non-production API. The paywall does not use it |
 
 ### What startupTimeout bounds
 
@@ -867,6 +879,14 @@ you configure an `http` endpoint. It carries:
 
 It carries no attributes, no user ids, and no anonymous id. Flags are
 evaluated on the device.
+
+Two other features send requests to Coproduct's API:
+
+- `identify` sends the anonymous id and the user id you passed, unless you
+  pass `linkAnonymous: false`.
+- A paywall sends the id purchases are recorded under. After a purchase or a
+  restore it also sends the store's proof of it: the signed transaction on
+  iOS and the purchase token on Android.
 
 Coproduct sees the IP address of each request, as any server does. It uses the
 address to derive the approximate location attributes `country`, `continent`,
