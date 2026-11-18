@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.5.0...flutter-v1.5.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* documentation for anonymousId and linking app userIds ([#84](https://github.com/coproducthq/coproduct-client-sdks/issues/84)) ([65b239a](https://github.com/coproducthq/coproduct-client-sdks/commit/65b239aa5bca9b440315f136d132d1eddad12d8a))
+
 ## [1.5.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.4.2...flutter-v1.5.0) (2026-11-17)
 
 
