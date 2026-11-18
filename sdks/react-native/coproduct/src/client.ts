@@ -55,8 +55,10 @@ export type CoproductClientIdentityLink = {
 };
 
 // Anonymous id and user id pairs already sent to the server by this process,
-// so a repeated identify for the same user does not repeat the request. A
-// failed request removes its pair so a later identify can try again.
+// so a repeated identify for the same user does not repeat the request. Each
+// pair is kept per SDK key and API, since a client for another project or
+// environment has not told its own server yet. A failed request removes its
+// pair so a later identify can try again.
 const linkedPairs = new Set<string>();
 
 export class CoproductClient {
@@ -181,7 +183,12 @@ export class CoproductClient {
     if (link == null) return;
     const anonymousId = link.anonymousId();
     if (anonymousId == null || anonymousId === userId) return;
-    const pair = JSON.stringify([anonymousId, userId]);
+    const pair = JSON.stringify([
+      link.sdkKey,
+      link.apiBaseUrl ?? null,
+      anonymousId,
+      userId,
+    ]);
     if (linkedPairs.has(pair)) return;
     linkedPairs.add(pair);
     new HttpPaywallClient({ sdkKey: link.sdkKey, apiBaseUrl: link.apiBaseUrl })

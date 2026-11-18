@@ -365,6 +365,22 @@ describe('CoproductClient identity', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
+    it('posts again for the same pair under another SDK key', async () => {
+      const first = linkedClient('anon-scope');
+      first.identify('user-scope');
+      await flushLink(first);
+
+      const second = new CoproductClient(fakeNativeClient(), {
+        anonymousId: () => 'anon-scope',
+        sdkKey: 'cpk_mob_other',
+        apiBaseUrl: 'https://api.example.test',
+      });
+      second.identify('user-scope');
+      await flushLink(second);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
     it('skips the post when the native identify fails', async () => {
       const errorSpy = jest
         .spyOn(console, 'error')
