@@ -1,6 +1,7 @@
 package app.coproduct
 
 import app.coproduct.paywall.HttpPaywallClient
+import app.coproduct.paywall.PaywallServerError
 import com.sun.net.httpserver.HttpServer
 import java.net.InetSocketAddress
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -111,9 +112,9 @@ class AnonymousIdentityTest {
         val posted = mutableListOf<Pair<String, String>>()
         val post: suspend (String, String) -> Unit = { anonymous, user -> posted.add(anonymous to user) }
 
-        assertNull(IdentifyLinker(this, { "same" }, post).link("same", linkAnonymous = true))
-        assertNull(IdentifyLinker(this, { null }, post).link("user-1", linkAnonymous = true))
-        assertNull(IdentifyLinker(this, { "anon-1" }, post).link("user-1", linkAnonymous = false))
+        assertNull(IdentifyLinker(this, { "same" }, post = post).link("same", linkAnonymous = true))
+        assertNull(IdentifyLinker(this, { null }, post = post).link("user-1", linkAnonymous = true))
+        assertNull(IdentifyLinker(this, { "anon-1" }, post = post).link("user-1", linkAnonymous = false))
         advanceUntilIdle()
 
         assertEquals(emptyList<Pair<String, String>>(), posted)
@@ -144,6 +145,60 @@ class AnonymousIdentityTest {
         assertEquals(1, attempts)
 
         linker.link("user-1", linkAnonymous = true)
+        advanceUntilIdle()
+        assertEquals(2, attempts)
+    }
+
+    @Test
+    fun `a post that fails while offline is tried again and not sent twice`() = runTest {
+        var attempts = 0
+        val linker = IdentifyLinker(scope = this, anonymousId = { "anon-1" }, retryDelaysMs = listOf(0L, 0L, 0L)) { _, _ ->
+            attempts += 1
+            if (attempts <= 2) throw java.net.ConnectException("Connection refused")
+        }
+
+        linker.link("user-1", linkAnonymous = true)
+        advanceUntilIdle()
+        assertEquals(3, attempts)
+
+        // The third try got through, so the pair is not sent again
+        assertNull(linker.link("user-1", linkAnonymous = true))
+    }
+
+    @Test
+    fun `a post that never gets through gives up and is sent on the next identify`() = runTest {
+        var attempts = 0
+        val linker = IdentifyLinker(scope = this, anonymousId = { "anon-1" }, retryDelaysMs = listOf(0L, 0L, 0L)) { _, _ ->
+            attempts += 1
+            throw PaywallServerError(statusCode = 503, code = null, message = "down")
+        }
+
+        linker.link("user-1", linkAnonymous = true)
+        advanceUntilIdle()
+        // One post and three retries
+        assertEquals(4, attempts)
+
+        linker.link("user-1", linkAnonymous = true)
+        advanceUntilIdle()
+        assertEquals(8, attempts)
+    }
+
+    @Test
+    fun `the install limit and a rejected key are not retried`() = runTest {
+        var attempts = 0
+        val limit = IdentifyLinker(scope = this, anonymousId = { "anon-1" }, retryDelaysMs = listOf(0L, 0L, 0L)) { _, _ ->
+            attempts += 1
+            throw PaywallServerError(statusCode = 409, code = "install_limit_reached", message = "limit")
+        }
+        limit.link("user-1", linkAnonymous = true)
+        advanceUntilIdle()
+        assertEquals(1, attempts)
+
+        val rejected = IdentifyLinker(scope = this, anonymousId = { "anon-2" }, retryDelaysMs = listOf(0L, 0L, 0L)) { _, _ ->
+            attempts += 1
+            throw PaywallServerError(statusCode = 401, code = null, message = "bad key")
+        }
+        rejected.link("user-1", linkAnonymous = true)
         advanceUntilIdle()
         assertEquals(2, attempts)
     }
