@@ -55,10 +55,12 @@ final class IdentityLinkTests: XCTestCase {
         return URLSession(configuration: config)
     }
 
-    private func makeLinker(anonymousId: String?) -> IdentityLinker {
+    // No waiting between tries, so a test does not sit through the backoff
+    private func makeLinker(anonymousId: String?, retryDelays: [TimeInterval] = [0, 0, 0]) -> IdentityLinker {
         IdentityLinker(
             client: HttpPaywallClient(sdkKey: "cpk_mob_test", apiBaseUrl: "https://api.example.test", session: stubSession()),
-            anonymousId: { anonymousId }
+            anonymousId: { anonymousId },
+            retryDelays: retryDelays
         )
     }
 
@@ -127,14 +129,49 @@ final class IdentityLinkTests: XCTestCase {
         XCTAssertTrue(recorder.requests.isEmpty)
     }
 
-    func testAFailedLinkIsSwallowedAndCanBeRetried() async {
-        respond(status: 500)
+    func testARejectedLinkIsSwallowedAndCanBeRetried() async {
+        respond(status: 401)
         let linker = makeLinker(anonymousId: "anon-1")
         // The task's failure type is Never: a failing POST has nowhere to throw
         await linker.link(userId: "alice", linkAnonymous: true)?.value
+        XCTAssertEqual(recorder.requests.count, 1)
         respond(status: 200)
         await linker.link(userId: "alice", linkAnonymous: true)?.value
         XCTAssertEqual(recorder.requests.count, 2)
+    }
+
+    func testABusyServerIsTriedAgainWithinTheSameLink() async {
+        // The first two posts get a 503 and the third gets through
+        StubJSONURLProtocol.handler = { [recorder] request in
+            recorder.record(request)
+            return (recorder.requests.count < 3 ? 503 : 200, Data())
+        }
+        let linker = makeLinker(anonymousId: "anon-1")
+        await linker.link(userId: "alice", linkAnonymous: true)?.value
+        XCTAssertEqual(recorder.requests.count, 3)
+        // The third try got through, so the pair is not sent again
+        XCTAssertNil(linker.link(userId: "alice", linkAnonymous: true))
+    }
+
+    func testALinkThatNeverGetsThroughGivesUpAndIsSentOnTheNextIdentify() async {
+        respond(status: 503)
+        let linker = makeLinker(anonymousId: "anon-1")
+        await linker.link(userId: "alice", linkAnonymous: true)?.value
+        // One post and three retries
+        XCTAssertEqual(recorder.requests.count, 4)
+        respond(status: 200)
+        await linker.link(userId: "alice", linkAnonymous: true)?.value
+        XCTAssertEqual(recorder.requests.count, 5)
+    }
+
+    func testTheInstallLimitIsNotRetried() async {
+        StubJSONURLProtocol.handler = { [recorder] request in
+            recorder.record(request)
+            return (409, Data(#"{"code":"install_limit_reached","error":"limit"}"#.utf8))
+        }
+        let linker = makeLinker(anonymousId: "anon-1")
+        await linker.link(userId: "alice", linkAnonymous: true)?.value
+        XCTAssertEqual(recorder.requests.count, 1)
     }
 
     // MARK: - Through the public API
@@ -198,7 +235,8 @@ final class IdentityLinkTests: XCTestCase {
     }
 
     func testAFailingPostDoesNotFailIdentify() async throws {
-        respond(status: 500)
+        // A rejected key is not retried, so no task outlives the test
+        respond(status: 401)
         try await initialize(anonymousId: "anon-public")
         Coproduct.identify(userId: "alice")
         await IdentitySerializer.shared.drain()
