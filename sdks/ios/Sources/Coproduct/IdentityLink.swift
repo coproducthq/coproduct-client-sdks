@@ -61,6 +61,11 @@ final class AnonymousIdCapturingSecureStore: HostSecureStore, @unchecked Sendabl
 final class IdentityLinker: @unchecked Sendable {
     private let client: any PaywallClient
     private let anonymousId: @Sendable () -> String?
+    private let retryDelays: [TimeInterval]
+
+    /// The waits before each retry of a link that failed for a reason that can
+    /// pass: two seconds, ten seconds, then a minute
+    static let defaultRetryDelays: [TimeInterval] = [2, 10, 60]
 
     // The pair most recently sent, kept for the life of the process so a repeat
     // identify of the same user does not post again, including across a
@@ -86,9 +91,14 @@ final class IdentityLinker: @unchecked Sendable {
         }
     }
 
-    init(client: any PaywallClient, anonymousId: @escaping @Sendable () -> String?) {
+    init(
+        client: any PaywallClient,
+        anonymousId: @escaping @Sendable () -> String?,
+        retryDelays: [TimeInterval] = IdentityLinker.defaultRetryDelays
+    ) {
         self.client = client
         self.anonymousId = anonymousId
+        self.retryDelays = retryDelays
     }
 
     // Claims the pair for sending. Returns false when it is the pair already sent
@@ -120,18 +130,58 @@ final class IdentityLinker: @unchecked Sendable {
     /// Posts the anonymous id and `userId` to `/v1/identify` on a detached task.
     /// Skipped when `linkAnonymous` is false, when the anonymous id is unknown
     /// or equal to `userId`, and when this pair was the last one sent. Returns
-    /// the task so a test can await it, or nil when nothing was sent
+    /// the task so a test can await it, or nil when nothing was sent.
+    ///
+    /// A post that fails because the network is down, times out, or the server
+    /// is busy is tried again after each retry delay, and only logs if it never
+    /// gets through. The install limit is expected too. A pair that gave up is
+    /// forgotten, so the next identify sends it again
     @discardableResult
     func link(userId: String, linkAnonymous: Bool) -> Task<Void, Never>? {
         guard linkAnonymous, let anonymousId = anonymousId(), anonymousId != userId else { return nil }
         guard Self.claim(anonymousId: anonymousId, userId: userId) else { return nil }
-        return Task.detached { [client] in
-            do {
-                try await client.identify(appUserId: anonymousId, targetingKey: userId)
-            } catch {
-                Self.release(anonymousId: anonymousId, userId: userId)
-                NSLog("[Coproduct] identify could not link the anonymous id on the server: \(error)")
+        return Task.detached { [client, retryDelays] in
+            var retries = 0
+            while true {
+                do {
+                    try await client.identify(appUserId: anonymousId, targetingKey: userId)
+                    return
+                } catch {
+                    if Self.canPass(error), retries < retryDelays.count {
+                        let delay = retryDelays[retries]
+                        retries += 1
+                        do {
+                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        } catch {
+                            Self.release(anonymousId: anonymousId, userId: userId)
+                            return
+                        }
+                        continue
+                    }
+                    Self.release(anonymousId: anonymousId, userId: userId)
+                    if Self.isExpected(error) {
+                        NSLog("[Coproduct] could not link this install to the signed-in user yet: \(error)")
+                    } else {
+                        NSLog("[Coproduct] identify could not link the anonymous id on the server: \(error)")
+                    }
+                    return
+                }
             }
         }
+    }
+
+    /// Whether the same post can succeed later: no network, a timeout, no
+    /// answer, or a server that is busy or failing
+    private static func canPass(_ error: Error) -> Bool {
+        guard let server = error as? PaywallServerError else { return true }
+        let status = server.statusCode
+        return status == 0 || status == 408 || status == 429 || status >= 500
+    }
+
+    /// Failures that are not a bug in the app: the ones above that never got
+    /// through, and the project's limit on installs linked to one user
+    private static func isExpected(_ error: Error) -> Bool {
+        if canPass(error) { return true }
+        return (error as? PaywallServerError)?.code == "install_limit_reached"
     }
 }

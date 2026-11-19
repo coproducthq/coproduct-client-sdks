@@ -263,12 +263,14 @@ describe('CoproductClient identity', () => {
     // The sent-pair memory is process-wide, so every test uses its own ids.
     function linkedClient(
       anonymousId: string | undefined,
-      native = fakeNativeClient()
+      native = fakeNativeClient(),
+      retryDelaysMs: readonly number[] = []
     ): CoproductClient {
       return new CoproductClient(native, {
         anonymousId: () => anonymousId,
         sdkKey: 'cpk_mob_test',
         apiBaseUrl: 'https://api.example.test',
+        retryDelaysMs,
       });
     }
 
@@ -403,7 +405,11 @@ describe('CoproductClient identity', () => {
       const errorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      mockFetch.mockRejectedValue(new Error('offline'));
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      });
       const native = fakeNativeClient();
       const client = linkedClient('anon-fail', native);
 
@@ -431,6 +437,108 @@ describe('CoproductClient identity', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(native.signOut).toHaveBeenCalled();
+    });
+
+    it('tries an offline post again and stays quiet', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch
+        .mockRejectedValueOnce(new Error('Network request failed'))
+        .mockRejectedValueOnce(new Error('Network request failed'));
+      const client = linkedClient(
+        'anon-offline',
+        fakeNativeClient(),
+        [0, 0, 0]
+      );
+
+      client.identify('user-offline');
+      await flushLink(client);
+      await flushMicrotasks();
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      // The third try got through, so the pair is not sent again
+      client.identify('user-offline');
+      await flushLink(client);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it('gives up on a post that never gets through without an error', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch.mockRejectedValue(new Error('Network request failed'));
+      const client = linkedClient('anon-down', fakeNativeClient(), [0, 0, 0]);
+
+      client.identify('user-down');
+      await flushLink(client);
+      await flushMicrotasks();
+
+      // One post and three retries
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      });
+      client.identify('user-down');
+      await flushLink(client);
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it('does not retry or report the install limit', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ code: 'install_limit_reached', error: 'limit' }),
+      });
+      const client = linkedClient('anon-limit', fakeNativeClient(), [0, 0, 0]);
+
+      client.identify('user-limit');
+      await flushLink(client);
+      await flushMicrotasks();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it('reports a rejected post once without retrying', async () => {
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ code: 'anonymous_id_required', error: 'no' }),
+      });
+      const client = linkedClient('anon-403', fakeNativeClient(), [0, 0, 0]);
+
+      client.identify('user-403');
+      await flushLink(client);
+      await flushMicrotasks();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      errorSpy.mockRestore();
     });
 
     it('retries a pair whose post failed', async () => {
