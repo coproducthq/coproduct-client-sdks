@@ -25,6 +25,7 @@ PINNED_FLUTTER_PRIMARY=3.44.0
 PINNED_FLUTTER_FLOOR=3.38.1
 PINNED_CARGO_NDK=4.1.2
 PINNED_CODEGEN=2.12.0
+PINNED_CARGO_EXPAND=1.0.127
 PINNED_NDK=27.1.12297006
 PINNED_XCODE=26.5
 
@@ -122,6 +123,11 @@ step "Rust"
 ( cd "$REPO_ROOT" && rustup toolchain install )
 cargo install cargo-ndk --version "$PINNED_CARGO_NDK" --locked
 cargo install flutter_rust_bridge_codegen --version "$PINNED_CODEGEN" --locked
+# The codegen runs cargo expand, and installs it unpinned and unlocked when it
+# is missing. That resolves the newest dependencies, which fails as soon as one
+# of them needs a newer Rust than rust-toolchain.toml pins, and the codegen then
+# reports only "cargo expand returned empty output"
+cargo install cargo-expand --version "$PINNED_CARGO_EXPAND" --locked
 
 step "Android NDK $PINNED_NDK"
 SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"

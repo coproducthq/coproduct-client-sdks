@@ -72,6 +72,7 @@ uses_pin() { # label, fixed string the setup script must contain
 uses_pin "the NDK" '"ndk;$PINNED_NDK"'
 uses_pin "cargo-ndk" 'cargo install cargo-ndk --version "$PINNED_CARGO_NDK" --locked'
 uses_pin "the codegen" 'cargo install flutter_rust_bridge_codegen --version "$PINNED_CODEGEN" --locked'
+uses_pin "cargo-expand" 'cargo install cargo-expand --version "$PINNED_CARGO_EXPAND" --locked'
 uses_pin "Xcode" '/Applications/Xcode_${PINNED_XCODE}.app'
 uses_pin "the primary Flutter" 'fvm install "$PINNED_FLUTTER_PRIMARY"'
 uses_pin "the floor Flutter" 'fvm install "$PINNED_FLUTTER_FLOOR"'
