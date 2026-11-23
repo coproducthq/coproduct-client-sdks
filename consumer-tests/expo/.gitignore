@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+expo-env.d.ts
+*.tsbuildinfo
+.sdk-pack.tgz
+
+# Continuous Native Generation: prebuild writes these from app.json
+/ios
+/android

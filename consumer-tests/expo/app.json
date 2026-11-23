@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "CpConsumerExpo",
+    "slug": "cp-consumer-expo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "ios": {
+      "bundleIdentifier": "app.coproduct.consumer.expo"
+    },
+    "android": {
+      "package": "app.coproduct.consumer.expo"
+    },
+    "plugins": [
+      [
+        "@coproduct/react-native-sdk",
+        {
+          "permissions": {
+            "notifications": true,
+            "camera": "Lets you add a profile photo.",
+            "microphone": "Lets you record a voice note.",
+            "photos": "Lets you choose a profile photo.",
+            "location": "Shows content for where you are."
+          }
+        }
+      ],
+      "react-native-permissions",
+      "expo-iap"
+    ]
+  }
+}

@@ -1,6 +1,14 @@
 import { Platform } from 'react-native';
-import DeviceInfo from 'react-native-device-info';
+import type DeviceInfoModule from 'react-native-device-info';
 import type { AttributeValue } from './attributeValue';
+
+// Required on first use rather than imported: react-native-device-info throws
+// at import in a build without its native code, such as Expo Go, and the SDK's
+// import must not crash such an app (see NativeCoproduct.ts)
+function deviceInfo(): typeof DeviceInfoModule {
+  const mod = require('react-native-device-info');
+  return (mod.default ?? mod) as typeof DeviceInfoModule;
+}
 
 // Static device attributes collected once per initialize. Values are raw
 // platform facts; the core normalizes them (version padding, locale
@@ -16,6 +24,7 @@ export function staticDeviceAttributes(): Record<string, AttributeValue> {
     attrs.locale = locale;
   }
 
+  const DeviceInfo = deviceInfo();
   attrs.os_version = DeviceInfo.getSystemVersion();
   attrs.app_version = DeviceInfo.getVersion();
   attrs.app_build = DeviceInfo.getBuildNumber();

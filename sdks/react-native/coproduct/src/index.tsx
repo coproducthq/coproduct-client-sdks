@@ -1,6 +1,5 @@
-import RNFS from 'react-native-fs';
-
 import installer from './NativeCoproduct';
+import NativeCoproductStorage from './NativeCoproductStorage';
 import {
   default as generatedCoproduct,
   initialize as nativeInitialize,
@@ -44,12 +43,31 @@ type GlobalWithCoproduct = typeof globalThis & {
 
 const coproductGlobal = globalThis as GlobalWithCoproduct;
 
-if (!coproductGlobal.__coproductRustInstalled) {
+/**
+ * What initialize rejects with when the app was built without this SDK's
+ * native code, such as in Expo Go or in a React Native app that
+ * was not rebuilt after installing the SDK.
+ */
+const NATIVE_MODULE_MISSING_MESSAGE =
+  "[coproduct] The SDK's native module is not in this build. Coproduct runs " +
+  'in a development or release build of your app, not in Expo Go or on the ' +
+  'web. In an Expo app, run "npx expo prebuild" and build with ' +
+  '"npx expo run:ios" or "npx expo run:android". In a React Native app, run ' +
+  '"pod install" in ios/ and rebuild.';
+
+// Installed at import so the generated bindings are ready before the first
+// call. Without the native module the import still succeeds, and initialize
+// rejects with NATIVE_MODULE_MISSING_MESSAGE instead, so an app whose build
+// lacks the SDK renders with its flag fallbacks rather than crashing at launch
+if (installer != null && !coproductGlobal.__coproductRustInstalled) {
   installer.installRustCrate();
   coproductGlobal.__coproductRustInstalled = true;
 }
 
-if (!coproductGlobal.__coproductRustInitialized) {
+if (
+  coproductGlobal.__coproductRustInstalled &&
+  !coproductGlobal.__coproductRustInitialized
+) {
   generatedCoproduct.initialize();
   coproductGlobal.__coproductRustInitialized = true;
 }
@@ -248,7 +266,9 @@ export class Coproduct {
   static async setLocationUpdateInterval(ms: number): Promise<boolean> {
     const current = stored;
     if (!current) {
-      console.warn('[coproduct] setLocationUpdateInterval called before initialize');
+      console.warn(
+        '[coproduct] setLocationUpdateInterval called before initialize'
+      );
       return false;
     }
     const granted = await requestLocationPermission();
@@ -276,9 +296,16 @@ async function runInitialize(
   options: CoproductInitializeOptions,
   claimedGeneration: number
 ): Promise<CoproductClient> {
+  if (
+    installer == null ||
+    NativeCoproductStorage == null ||
+    !coproductGlobal.__coproductRustInitialized
+  ) {
+    throw new Error(NATIVE_MODULE_MISSING_MESSAGE);
+  }
   // The cache directory is platform-sandboxed and computed automatically.
   // Developers do not pick cache locations, so no override is exposed.
-  const cacheDir = RNFS.CachesDirectoryPath;
+  const cacheDir = NativeCoproductStorage.cachesDirectoryPath();
   const transport =
     options.transport ?? new FetchTransport(options.requestTimeoutMs);
   // Wrapped so the anonymous id the core reads or writes is visible to JS;

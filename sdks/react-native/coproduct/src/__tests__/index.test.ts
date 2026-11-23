@@ -1,11 +1,3 @@
-jest.mock('react-native-fs', () => ({
-  CachesDirectoryPath: '/mock-caches',
-  DocumentDirectoryPath: '/mock-documents',
-  exists: jest.fn().mockResolvedValue(false),
-  readFile: jest.fn(),
-  writeFile: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('react-native-device-info', () => ({
   getSystemVersion: jest.fn(() => '17.0'),
   getVersion: jest.fn(() => '1.0.0'),
@@ -47,6 +39,15 @@ jest.mock('../NativeCoproduct', () => ({
   default: {
     installRustCrate: jest.fn(() => true),
     cleanupRustCrate: jest.fn(() => true),
+  },
+}));
+
+jest.mock('../NativeCoproductStorage', () => ({
+  __esModule: true,
+  default: {
+    cachesDirectoryPath: jest.fn(() => '/mock-caches'),
+    readDocumentFile: jest.fn(() => null),
+    writeDocumentFile: jest.fn(() => true),
   },
 }));
 

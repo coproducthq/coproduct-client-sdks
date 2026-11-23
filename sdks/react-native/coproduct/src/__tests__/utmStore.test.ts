@@ -1,33 +1,34 @@
-jest.mock('react-native-fs', () => ({
-  DocumentDirectoryPath: '/mock-documents',
-  exists: jest.fn(),
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
+jest.mock('../NativeCoproductStorage', () => ({
+  __esModule: true,
+  default: {
+    readDocumentFile: jest.fn(),
+    writeDocumentFile: jest.fn(),
+  },
 }));
 
 jest.mock('../generated/coproduct_ffi_uniffi', () => ({
   parseUtmParameters: jest.fn(),
 }));
 
-import RNFS from 'react-native-fs';
+import NativeCoproductStorage from '../NativeCoproductStorage';
 import { parseUtmParameters } from '../generated/coproduct_ffi_uniffi';
 import { captureUtm, readUtmAttributes } from '../utmStore';
 
-// In-memory file backing the RNFS mock, keyed to the same path utmStore.ts
-// computes, so successive captureUtm/readUtmAttributes calls within a test
-// see each other's writes exactly like the real file system would
+const native = NativeCoproductStorage as unknown as {
+  readDocumentFile: jest.Mock;
+  writeDocumentFile: jest.Mock;
+};
+
+// In-memory file backing the native document store mock, so successive
+// captureUtm/readUtmAttributes calls within a test see each other's writes
+// exactly like the real file system would
 function useInMemoryFile(): void {
   let stored: string | null = null;
 
-  (RNFS.exists as jest.Mock).mockImplementation(() =>
-    Promise.resolve(stored !== null)
-  );
-  (RNFS.readFile as jest.Mock).mockImplementation(() =>
-    Promise.resolve(stored ?? '')
-  );
-  (RNFS.writeFile as jest.Mock).mockImplementation((_path, data) => {
+  native.readDocumentFile.mockImplementation(() => stored);
+  native.writeDocumentFile.mockImplementation((_name: string, data: string) => {
     stored = data;
-    return Promise.resolve(undefined);
+    return true;
   });
 }
 
@@ -101,7 +102,7 @@ describe('captureUtm', () => {
       new Map(Object.entries({ utm_source: 'google' }))
     );
     await captureUtm('https://example.com?utm_source=google');
-    (RNFS.writeFile as jest.Mock).mockClear();
+    native.writeDocumentFile.mockClear();
 
     (parseUtmParameters as jest.Mock).mockReturnValue(new Map());
     const attrs = await captureUtm('https://example.com/no-utm');
@@ -110,7 +111,7 @@ describe('captureUtm', () => {
       utm_source: 'google',
       utm_source_last: 'google',
     });
-    expect(RNFS.writeFile).not.toHaveBeenCalled();
+    expect(native.writeDocumentFile).not.toHaveBeenCalled();
   });
 
   it('omits empty values from the flattened result', async () => {
@@ -157,7 +158,7 @@ describe('readUtmAttributes', () => {
     await captureUtm(
       'https://example.com?utm_source=google&utm_campaign=spring'
     );
-    (RNFS.writeFile as jest.Mock).mockClear();
+    native.writeDocumentFile.mockClear();
 
     const attrs = await readUtmAttributes();
 
@@ -167,6 +168,6 @@ describe('readUtmAttributes', () => {
       utm_source_last: 'google',
       utm_campaign_last: 'spring',
     });
-    expect(RNFS.writeFile).not.toHaveBeenCalled();
+    expect(native.writeDocumentFile).not.toHaveBeenCalled();
   });
 });

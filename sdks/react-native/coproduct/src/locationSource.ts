@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { PERMISSIONS, request } from 'react-native-permissions';
+import type * as PermissionsModule from 'react-native-permissions';
 
 /** A single GPS fix as the [lat, lng] pair the core reads for a geo-fence. */
 export type LocationFix = [number, number];
@@ -10,9 +10,15 @@ export type LocationFix = [number, number];
 // required. Metro treats a require() inside try as optional.
 type GeolocationModule = {
   getCurrentPosition(
-    success: (position: { coords: { latitude: number; longitude: number } }) => void,
+    success: (position: {
+      coords: { latitude: number; longitude: number };
+    }) => void,
     error: (err: { code: number; message: string }) => void,
-    options?: { enableHighAccuracy?: boolean; timeout?: number; maximumAge?: number }
+    options?: {
+      enableHighAccuracy?: boolean;
+      timeout?: number;
+      maximumAge?: number;
+    }
   ): void;
 };
 
@@ -39,6 +45,10 @@ function loadGeolocation(): GeolocationModule | null {
  * so the prompt appears on the host's terms.
  */
 export async function requestLocationPermission(): Promise<boolean> {
+  // Required here rather than imported: react-native-permissions throws at
+  // import in a build without its native code, such as Expo Go
+  const { PERMISSIONS, request } =
+    require('react-native-permissions') as typeof PermissionsModule;
   const target =
     Platform.OS === 'ios'
       ? PERMISSIONS.IOS.LOCATION_WHEN_IN_USE
@@ -62,7 +72,8 @@ export function acquireFix(timeoutMs = 10_000): Promise<LocationFix | null> {
   if (geolocation === null) return Promise.resolve(null);
   return new Promise((resolve) => {
     geolocation.getCurrentPosition(
-      (position) => resolve([position.coords.latitude, position.coords.longitude]),
+      (position) =>
+        resolve([position.coords.latitude, position.coords.longitude]),
       (error) => {
         console.error('[coproduct] failed to read location', error);
         resolve(null);

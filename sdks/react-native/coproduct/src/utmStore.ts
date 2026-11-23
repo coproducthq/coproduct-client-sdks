@@ -1,5 +1,5 @@
-import RNFS from 'react-native-fs';
 import type { AttributeValue } from './attributeValue';
+import { readDocumentJson, writeDocumentJson } from './documentStore';
 import { parseUtmParameters } from './generated/coproduct_ffi_uniffi';
 
 const UTM_FILE_NAME = 'coproduct-utm.json';
@@ -10,32 +10,18 @@ type UtmFile = {
 };
 
 // Persists first-touch and last-touch UTM attribution as a small JSON file
-// via the SDK's existing react-native-fs dependency, mirroring
-// sessionStore.ts's approach to first_seen_at/session_count rather than
-// adding a key-value storage package for a few small values
+// in the documents directory, like sessionStore.ts (see documentStore.ts)
 async function readUtmFile(): Promise<UtmFile> {
-  const path = `${RNFS.DocumentDirectoryPath}/${UTM_FILE_NAME}`;
-
-  try {
-    if (await RNFS.exists(path)) {
-      const raw = await RNFS.readFile(path, 'utf8');
-      return JSON.parse(raw) as UtmFile;
+  return (
+    (await readDocumentJson<UtmFile>(UTM_FILE_NAME, 'utm')) ?? {
+      firstTouch: {},
+      lastTouch: {},
     }
-  } catch (error) {
-    console.error('[coproduct] failed to read utm store', error);
-  }
-
-  return { firstTouch: {}, lastTouch: {} };
+  );
 }
 
 async function writeUtmFile(file: UtmFile): Promise<void> {
-  const path = `${RNFS.DocumentDirectoryPath}/${UTM_FILE_NAME}`;
-
-  try {
-    await RNFS.writeFile(path, JSON.stringify(file), 'utf8');
-  } catch (error) {
-    console.error('[coproduct] failed to persist utm store', error);
-  }
+  await writeDocumentJson(UTM_FILE_NAME, file, 'utm');
 }
 
 // Maps a bare UTM key to its last-touch attribute name, e.g.

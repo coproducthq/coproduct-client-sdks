@@ -33,6 +33,11 @@ turboModule:
   spec: NativeCoproduct
   entrypoint: src/index.tsx
 
+# Files ubrn first generated and this package now maintains by hand:
+# NativeCoproduct.ts looks the module up with get, and CoproductPackage.kt also
+# registers the storage module, CoproductStorageModule.kt
 noOverwrite:
   - src/index.tsx
+  - src/NativeCoproduct.ts
   - android/CMakeLists.txt
+  - android/src/main/java/app/coproduct/CoproductPackage.kt

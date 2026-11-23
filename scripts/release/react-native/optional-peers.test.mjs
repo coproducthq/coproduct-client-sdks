@@ -8,8 +8,8 @@ import { checkOptionalPeers } from './optional-peers.mjs';
 
 const BRIDGE = 'src/paywall/iapPaywallBridge.ts';
 const PKG_JSON = {
-  peerDependencies: { 'react-native-iap': '^17.0.1', 'react-native-nitro-modules': '>=0.36.5' },
-  peerDependenciesMeta: { 'react-native-iap': { optional: true }, 'react-native-nitro-modules': { optional: true } },
+  peerDependencies: { 'react-native-iap': '^17.0.1', 'react-native-nitro-modules': '>=0.36.5', 'expo-iap': '>=6.4.4' },
+  peerDependenciesMeta: { 'react-native-iap': { optional: true }, 'react-native-nitro-modules': { optional: true }, 'expo-iap': { optional: true } },
   dependencies: { 'uniffi-bindgen-react-native': '0.31.0-6' },
 };
 const withPkg = (change) => {
@@ -21,7 +21,7 @@ const withPkg = (change) => {
 function pkg(extra = {}) {
   const root = mkdtempSync(join(tmpdir(), 'peers-'));
   const files = {
-    [BRIDGE]: "import type * as Iap from 'react-native-iap';\nimport type {\n  Purchase,\n} from 'react-native-iap';\n// see react-native-iap's docs\nconst m = require('react-native-iap') as typeof Iap;\n",
+    [BRIDGE]: "import type * as Iap from 'react-native-iap';\nimport type {\n  Purchase,\n} from 'react-native-iap';\n// see react-native-iap's docs\nconst m = require('react-native-iap') as typeof Iap;\nconst e = require('expo-iap') as typeof Iap;\n",
     'src/index.tsx': "export const MESSAGE = 'npm install react-native-iap react-native-nitro-modules';\n",
     'src/__tests__/a.test.ts': "import { initConnection } from 'react-native-iap';\n",
     'android/src/main/AndroidManifest.xml': '<manifest xmlns:android="http://schemas.android.com/apk/res/android" />\n',
@@ -111,12 +111,22 @@ test('a paywall package marked not optional fails', () => {
 });
 
 test('missing optional metadata fails', () => {
-  assert.equal(checkOptionalPeers(pkg(withPkg((j) => { delete j.peerDependenciesMeta; }))).length, 2);
+  assert.equal(checkOptionalPeers(pkg(withPkg((j) => { delete j.peerDependenciesMeta; }))).length, 3);
 });
 
 test('a paywall package missing from peerDependencies fails', () => {
   const [p] = checkOptionalPeers(pkg(withPkg((j) => { delete j.peerDependencies['react-native-nitro-modules']; })));
   assert.match(p, /react-native-nitro-modules must be listed in peerDependencies/);
+});
+
+test('expo-iap loaded outside the paywall bridge fails', () => {
+  const [p] = checkOptionalPeers(pkg({ 'src/onboarding/a.ts': "const m = require('expo-iap');\n" }));
+  assert.match(p, /src\/onboarding\/a\.ts loads expo-iap at import time with require\(\)/);
+});
+
+test('expo-iap not marked optional fails', () => {
+  const [p] = checkOptionalPeers(pkg(withPkg((j) => { j.peerDependenciesMeta['expo-iap'].optional = false; })));
+  assert.match(p, /expo-iap must be marked optional/);
 });
 
 test('a paywall package in regular dependencies fails', () => {

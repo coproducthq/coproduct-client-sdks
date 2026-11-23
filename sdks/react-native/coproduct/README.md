@@ -113,8 +113,9 @@ Install @coproduct/react-native-sdk and its required native packages from npm,
 using the command in the SDK's manual reference. If the app will show
 paywalls, also install the paywall packages listed there.
 
-Then run pod install for iOS. In an Expo app, install with npx expo install
-and run npx expo prebuild instead, as the SDK's Expo section describes.
+Then run pod install for iOS. In an Expo app, follow the SDK's Expo section
+instead: install with npx expo install, add the SDK's config plugin if the
+app asks for device permissions, and run npx expo prebuild.
 ```
 
 ### **Manual reference**
@@ -122,10 +123,10 @@ and run npx expo prebuild instead, as the SDK's Expo section describes.
 Install the SDK with the native packages it requires. React Native links native code only for packages listed in your app's own `package.json`, so each one is installed explicitly:
 
 ```bash
-npm install @coproduct/react-native-sdk @react-native-async-storage/async-storage @react-native-community/netinfo react-native-device-info react-native-fs react-native-keychain react-native-permissions react-native-webview
+npm install @coproduct/react-native-sdk @react-native-async-storage/async-storage @react-native-community/netinfo react-native-device-info react-native-keychain react-native-permissions react-native-webview
 ```
 
-If your app shows paywalls, also install the purchase packages. An app that uses only flags or onboarding can leave them out, which also keeps Google Play's billing permission out of your Android app:
+If your app shows paywalls, also install the purchase packages. An app that uses only flags or onboarding can leave them out, which also keeps Google Play's billing permission out of your Android app. Expo apps install `expo-iap` instead (see [Expo](#expo)):
 
 ```bash
 npm install react-native-iap react-native-nitro-modules
@@ -141,17 +142,50 @@ The SDK requires React Native 0.84 or later. In an app on an earlier release, np
 
 ### **Expo**
 
-The SDK ships native code, so it runs in an Expo [development build](https://docs.expo.dev/develop/development-builds/introduction/), not in Expo Go. Expo Go can't load native modules that aren't bundled with it.
+The SDK supports Expo SDK 56 and later. It ships native code, so it runs in an Expo [development build](https://docs.expo.dev/develop/development-builds/introduction/) or a release build, not in Expo Go. In Expo Go the import still succeeds, so your app runs, but `initialize` rejects with a message saying so, and flag reads return your fallbacks. The web is not supported.
 
 1. Install the SDK and its native packages with `npx expo install`, which picks the versions of packages such as `@react-native-community/netinfo` and `react-native-webview` that match your Expo SDK:
 
    ```bash
-   npx expo install @coproduct/react-native-sdk @react-native-async-storage/async-storage @react-native-community/netinfo react-native-device-info react-native-fs react-native-keychain react-native-permissions react-native-webview
+   npx expo install @coproduct/react-native-sdk @react-native-async-storage/async-storage @react-native-community/netinfo react-native-device-info react-native-keychain react-native-permissions react-native-webview
    ```
 
    `npx expo install` also adds a `react-native-permissions` entry to the `plugins` list in `app.json`.
 
-2. Put your key in `.env.local` at the project root. Expo's default `.gitignore` covers `.env*.local`, so the key stays out of git:
+   If your app shows paywalls, also install `expo-iap`, the purchase library for Expo apps. The SDK uses it for purchases when `react-native-iap` is not installed:
+
+   ```bash
+   npx expo install expo-iap
+   ```
+
+2. If your onboarding flows ask for device permissions, or you use [location targeting](#segmentation-by-gps-location-geo-fencing), add the SDK's config plugin to the `plugins` list in `app.json` and list those permissions. Leave out any your app never asks for:
+
+   ```json
+   {
+     "expo": {
+       "plugins": [
+         [
+           "@coproduct/react-native-sdk",
+           {
+             "permissions": {
+               "notifications": true,
+               "camera": "Lets you add a profile photo.",
+               "microphone": "Lets you record a voice note.",
+               "photos": "Lets you choose a profile photo.",
+               "location": "Shows content for where you are."
+             }
+           }
+         ]
+       ]
+     }
+   }
+   ```
+
+   Give each permission except `notifications` the sentence iOS shows when it asks. App Review rejects an app whose prompt gives no reason. The plugin adds the iOS usage descriptions, the iOS permission handlers `react-native-permissions` needs, and the Android manifest permissions. A usage description you already set under `ios.infoPlist` is kept.
+
+   If your `react-native-permissions` entry lists its own `iosPermissions`, put the `@coproduct/react-native-sdk` entry above it. Both plugins write the same setting, and the SDK's plugin keeps both lists only when it comes first. Prebuild stops with a message saying so if the order is reversed.
+
+3. Put your key in `.env.local` at the project root. Expo's default `.gitignore` covers `.env*.local`, so the key stays out of git:
 
    ```bash
    EXPO_PUBLIC_COPRODUCT_SDK_KEY=cpk_mob_your_key_here
@@ -165,7 +199,7 @@ The SDK ships native code, so it runs in an Expo [development build](https://doc
    eas env:set --name EXPO_PUBLIC_COPRODUCT_SDK_KEY --value cpk_mob_your_key_here --environment production --visibility plaintext
    ```
 
-3. Generate the native projects, then build and run the app:
+4. Generate the native projects, then build and run the app:
 
    ```bash
    npx expo prebuild
@@ -174,6 +208,24 @@ The SDK ships native code, so it runs in an Expo [development build](https://doc
    ```
 
    `npx expo prebuild` writes the `ios` and `android` folders and installs the iOS pods. Each run command builds the app, starts the development server, and keeps running. Run one platform at a time: stop it with Ctrl+C before you run the other, or run the other from a second terminal. The second command reuses the running development server, so logs from both apps appear in the first terminal.
+
+   Run `npx expo prebuild` again after you change the plugin's permissions or upgrade the SDK.
+
+#### **EAS Update**
+
+The SDK's JavaScript must match the native code it was built with. At startup it checks that they match, so an over-the-air update that carries a different SDK version than the build it reaches stops the app at launch. Use the `fingerprint` runtime version policy, so EAS Update sends an update only to builds with the same native code:
+
+```json
+{
+  "expo": {
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    }
+  }
+}
+```
+
+With another policy, make a new build, not an update, whenever you change the SDK's version.
 
 ## **Basic integration**
 
@@ -410,6 +462,18 @@ Authored screens can prompt the user for native OS permissions (e.g. a push noti
 * Custom handling: Supply onRequestPermission: (permission: string) => Promise<void>, which is called when a screen asks for a permission, to keep your app’s own permission state or third-party wrappers (like react-native-permissions) in step.  
 * Conditional branching: Subsequent screens or transitions can branch on the result of the SDK’s built-in permission request, granted or denied.
 
+The OS shows a permission prompt only when the app's native projects declare that permission. Set up each permission your flows request:
+
+| Flow permission | iOS `setup_permissions` handler | iOS `Info.plist` key | Android manifest permission |
+| :---- | :---- | :---- | :---- |
+| `notifications` | `Notifications` | none | `POST_NOTIFICATIONS` |
+| `camera` | `Camera` | `NSCameraUsageDescription` | `CAMERA` |
+| `microphone` | `Microphone` | `NSMicrophoneUsageDescription` | `RECORD_AUDIO` |
+| `photos` | `PhotoLibrary` | `NSPhotoLibraryUsageDescription` | `READ_MEDIA_IMAGES` |
+| `location` | `LocationWhenInUse` | `NSLocationWhenInUseUsageDescription` | `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` |
+
+In an Expo app, list the permissions in the SDK's config plugin, which sets up all three columns (see [Expo](#expo)). In a React Native app, add the handlers to `setup_permissions` in your `Podfile` as [react-native-permissions' iOS setup](https://github.com/zoontek/react-native-permissions#ios) describes and run `pod install`, add the `Info.plist` keys, and add each permission to `AndroidManifest.xml` as `android.permission.<name>`. A permission that is not set up resolves as unavailable rather than prompting.
+
 #### **2. Waiting for API calls (onNativeOperation & onLoad)**
 
 Onboarding screens frequently need data that doesn’t exist until the user answers prior questions — such as computing a custom diet plan, querying a credit limit, or reserving a username.
@@ -550,7 +614,7 @@ You can also adjust prices, add promotional discounts, or swap packages visually
 ```prompt
 Create a PaywallModal component using CoproductPaywall from
 @coproduct/react-native-sdk/paywall. Make sure react-native-iap and
-react-native-nitro-modules are installed first.
+react-native-nitro-modules are installed first, or expo-iap in an Expo app.
 
 Pass the paywall ID premium-annual and the SDK key. Leave out appUserId so
 purchases are recorded under the SDK's anonymous id.
@@ -619,7 +683,7 @@ const styles = StyleSheet.create({
 ```
 
 * Live StoreKit 2 & Google Play pricing — local currency formats, subscription period terms, and trial labels are resolved natively and injected into the paywall automatically.  
-* Built-in purchase bridge — uses IapPaywallBridge (backed by react-native-iap) out of the box, with automatic transaction recording and backend entitlement synchronization. It needs react-native-iap and react-native-nitro-modules installed, and a paywall in an app without them fails with the command that installs them.
+* Built-in purchase bridge — uses IapPaywallBridge out of the box, with automatic transaction recording and backend entitlement synchronization. It purchases through react-native-iap (with react-native-nitro-modules) when it is installed, and through expo-iap otherwise, the library for Expo apps. A paywall in an app with neither fails with the commands that install them.
 
 ### **Who a purchase belongs to**
 
@@ -908,27 +972,20 @@ await Coproduct.refreshLocation();
 
 **When the permission popup appears:** the first time you call `enableLocation()` (or `setLocationUpdateInterval()`), never at startup, and only once. The SDK requests permission on both iOS and Android through `react-native-permissions`, which needs the setup below. Without it, the prompt can't appear: `enableLocation()` returns `false`, and on iOS a debug build shows "No permission handler detected."
 
-In an Expo app, run `npx expo install @react-native-community/geolocation` (see **Dependency** below), add the permission to `app.json`, and then run `npx expo prebuild` again:
+In an Expo app, run `npx expo install @react-native-community/geolocation` (see **Dependency** below), add `location` to the SDK's config plugin in `app.json` (see [Expo](#expo)), and then run `npx expo prebuild` again:
 
 ```json
 {
   "expo": {
-    "ios": {
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Shows content for where you are."
-      }
-    },
-    "android": {
-      "permissions": ["android.permission.ACCESS_FINE_LOCATION"]
-    },
     "plugins": [
-      ["react-native-permissions", { "iosPermissions": ["LocationWhenInUse"] }]
+      [
+        "@coproduct/react-native-sdk",
+        { "permissions": { "location": "Shows content for where you are." } }
+      ]
     ]
   }
 }
 ```
-
-Merge these keys into your existing `app.json`, and replace the plain `"react-native-permissions"` entry in `plugins` with the one above.
 
 In a bare React Native app, follow [react-native-permissions' iOS setup](https://github.com/zoontek/react-native-permissions#ios): add `'LocationWhenInUse'` to `setup_permissions` in your `Podfile` and run `pod install`, then add `NSLocationWhenInUseUsageDescription` to your `Info.plist`. On Android, add `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />` to `AndroidManifest.xml`.
 
@@ -964,4 +1021,4 @@ export function CoproductStatus() {
 
 `ProviderState.Fatal` means the SDK has stopped fetching flags, most often because the key was rejected. In that case `initialize` still resolves and every read returns the fallback you pass. Check that you copied the key your agent generated, or ask your agent to rotate it (see [If you forgot or lost the key](#2-if-you-forgot-or-lost-the-key)).
 
-**Running in Expo Go?** Expo Go can't load native modules like this SDK. Use a development build instead (see [Expo](#expo)).
+**`initialize` rejects saying the native module is not in this build?** The app is running without the SDK's native code. Expo Go can't load it, so use a development build (see [Expo](#expo)). In a React Native app, run `pod install` in `ios/` and rebuild, and in an Expo app run `npx expo prebuild` and rebuild after installing or upgrading the SDK.

@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-// Keeps react-native-iap and react-native-nitro-modules optional, so an app
-// that only reads flags builds without them and gets no BILLING permission.
-// The SDK may name them in type-only imports, and load react-native-iap
-// lazily from the paywall bridge. Nothing else may load them, and the native
-// build files must not depend on either
+// Keeps the paywall's purchase packages optional (react-native-iap and its
+// react-native-nitro-modules, or expo-iap in an Expo app), so an app that only
+// reads flags builds without them and gets no BILLING permission. The SDK may
+// name them in type-only imports, and load react-native-iap or expo-iap lazily
+// from the paywall bridge. Nothing else may load them, and the native build
+// files must not depend on any of them
 import { createRequire } from 'node:module';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const LAZY_FILE = 'src/paywall/iapPaywallBridge.ts';
-const NATIVE = /nitro|react-native-iap|RNIap/i;
+const NATIVE = /nitro|react-native-iap|RNIap|expo-iap|ExpoIap/i;
 const SKIP = new Set(['__tests__', '__mocks__', '__fixtures__', 'build', 'generated', '.gradle', '.cxx', 'node_modules', 'CoproductFFI.xcframework', 'jniLibs']);
 
 function files(dir, keep, out = []) {
@@ -26,7 +27,8 @@ function files(dir, keep, out = []) {
   return out;
 }
 
-const PEERS = new Set(['react-native-iap', 'react-native-nitro-modules']);
+const PEERS = new Set(['react-native-iap', 'react-native-nitro-modules', 'expo-iap']);
+const LAZY_PEERS = new Set(['react-native-iap', 'expo-iap']);
 const peerOf = (specifier) => [...PEERS].find((p) => specifier === p || specifier.startsWith(`${p}/`));
 
 // TypeScript's own parser, from the SDK's dev dependencies, so comments,
@@ -67,14 +69,14 @@ export function checkOptionalPeers(pkgDir) {
   for (const path of files(join(pkgDir, 'src'), (n) => /\.(ts|tsx|js)$/.test(n))) {
     const file = rel(path);
     for (const { peer, how } of runtimeLoads(path, readFileSync(path, 'utf8'))) {
-      if (how === 'require()' && peer === 'react-native-iap' && file === LAZY_FILE) continue;
-      problems.push(`${file} loads ${peer} at import time with ${how}. Use "import type", or load react-native-iap lazily in ${LAZY_FILE}.`);
+      if (how === 'require()' && LAZY_PEERS.has(peer) && file === LAZY_FILE) continue;
+      problems.push(`${file} loads ${peer} at import time with ${how}. Use "import type", or load react-native-iap or expo-iap lazily in ${LAZY_FILE}.`);
     }
   }
 
   // npm installs a peer automatically unless its metadata marks it optional
   const pkgJson = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
-  for (const name of ['react-native-iap', 'react-native-nitro-modules']) {
+  for (const name of PEERS) {
     if (!pkgJson.peerDependencies?.[name]) problems.push(`${name} must be listed in peerDependencies.`);
     if (pkgJson.peerDependenciesMeta?.[name]?.optional !== true) problems.push(`${name} must be marked optional in peerDependenciesMeta, or npm installs it in every app.`);
     if (pkgJson.dependencies?.[name]) problems.push(`${name} must not be in dependencies, or every app installs it.`);
@@ -82,7 +84,7 @@ export function checkOptionalPeers(pkgDir) {
 
   const manifest = join(pkgDir, 'android/src/main/AndroidManifest.xml');
   if (existsSync(manifest) && readFileSync(manifest, 'utf8').includes('com.android.vending.BILLING')) {
-    problems.push('android/src/main/AndroidManifest.xml declares com.android.vending.BILLING. Only react-native-iap may add it, for apps that install it.');
+    problems.push('android/src/main/AndroidManifest.xml declares com.android.vending.BILLING. Only react-native-iap or expo-iap may add it, for apps that install one.');
   }
 
   const nativeFiles = [
@@ -108,5 +110,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     for (const problem of problems) console.error(`- ${problem}`);
     process.exit(1);
   }
-  console.log('Optional paywall packages: react-native-iap and react-native-nitro-modules stay optional');
+  console.log('Optional paywall packages: react-native-iap, react-native-nitro-modules, and expo-iap stay optional');
 }

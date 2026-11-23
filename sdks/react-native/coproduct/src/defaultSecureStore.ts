@@ -1,8 +1,14 @@
-import * as Keychain from 'react-native-keychain';
+import type * as KeychainModule from 'react-native-keychain';
 import {
   SecureStoreError,
   type HostSecureStore,
 } from './generated/coproduct_ffi_uniffi';
+
+// Required on first use rather than imported, so importing the SDK in a build
+// without react-native-keychain's native code, such as Expo Go, cannot throw
+function keychain(): typeof KeychainModule {
+  return require('react-native-keychain') as typeof KeychainModule;
+}
 
 // Namespace prefix for every key this SDK stores, matching the
 // app.coproduct.* reverse-DNS convention AGENTS.md documents for iOS's
@@ -18,9 +24,11 @@ const SERVICE_PREFIX = 'app.coproduct.sdk';
 // throws a typed SecureStoreError so the core can distinguish the two.
 export class KeychainSecureStore implements HostSecureStore {
   async read(key: string): Promise<string | undefined> {
-    let credentials: Awaited<ReturnType<typeof Keychain.getGenericPassword>>;
+    let credentials: Awaited<
+      ReturnType<typeof KeychainModule.getGenericPassword>
+    >;
     try {
-      credentials = await Keychain.getGenericPassword({
+      credentials = await keychain().getGenericPassword({
         service: serviceFor(key),
       });
     } catch {
@@ -32,7 +40,7 @@ export class KeychainSecureStore implements HostSecureStore {
 
   async write(key: string, value: string): Promise<void> {
     try {
-      await Keychain.setGenericPassword(key, value, {
+      await keychain().setGenericPassword(key, value, {
         service: serviceFor(key),
       });
     } catch {

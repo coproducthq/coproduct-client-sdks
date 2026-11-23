@@ -1,0 +1,32 @@
+{
+  "name": "cp-consumer-expo",
+  "version": "0.0.1",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "sdk:pack": "cd ../../sdks/react-native/coproduct && yarn pack --filename ../../../consumer-tests/expo/.sdk-pack.tgz",
+    "setup": "npm run sdk:pack && rm -rf node_modules && npm install --package-lock=false",
+    "prebuild": "expo prebuild --clean",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@coproduct/react-native-sdk": "file:./.sdk-pack.tgz",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-community/netinfo": "12.0.1",
+    "expo": "~56.0.24",
+    "expo-iap": "^6.4.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-device-info": "^14.0.0",
+    "react-native-keychain": "^10.0.0",
+    "react-native-permissions": "^5.4.2",
+    "react-native-webview": "13.16.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
+}

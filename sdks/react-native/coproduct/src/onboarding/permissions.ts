@@ -1,32 +1,41 @@
 import { Platform } from 'react-native';
-import {
-  PERMISSIONS,
-  request,
-  requestNotifications,
-  type Permission,
-} from 'react-native-permissions';
+import type * as PermissionsModule from 'react-native-permissions';
+import type { Permission } from 'react-native-permissions';
 
 export type PermissionRequestFn = (
   permission: string
 ) => Promise<Record<string, string>>;
 
-const BY_PLATFORM: Partial<
+// Required on first use rather than imported: react-native-permissions throws
+// at import in a build without its native code, such as Expo Go, and importing
+// the onboarding entry point must not crash such an app
+function permissions(): typeof PermissionsModule {
+  return require('react-native-permissions') as typeof PermissionsModule;
+}
+
+function byPlatform(): Partial<
   Record<string, Partial<Record<'ios' | 'android', Permission>>>
-> = {
-  camera: { ios: PERMISSIONS.IOS.CAMERA, android: PERMISSIONS.ANDROID.CAMERA },
-  microphone: {
-    ios: PERMISSIONS.IOS.MICROPHONE,
-    android: PERMISSIONS.ANDROID.RECORD_AUDIO,
-  },
-  location: {
-    ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
-    android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-  },
-  photos: {
-    ios: PERMISSIONS.IOS.PHOTO_LIBRARY,
-    android: PERMISSIONS.ANDROID.READ_MEDIA_IMAGES,
-  },
-};
+> {
+  const { PERMISSIONS } = permissions();
+  return {
+    camera: {
+      ios: PERMISSIONS.IOS.CAMERA,
+      android: PERMISSIONS.ANDROID.CAMERA,
+    },
+    microphone: {
+      ios: PERMISSIONS.IOS.MICROPHONE,
+      android: PERMISSIONS.ANDROID.RECORD_AUDIO,
+    },
+    location: {
+      ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+      android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+    },
+    photos: {
+      ios: PERMISSIONS.IOS.PHOTO_LIBRARY,
+      android: PERMISSIONS.ANDROID.READ_MEDIA_IMAGES,
+    },
+  };
+}
 
 // Maps an authored flow's requestPermission action to a real OS permission
 // prompt. Mirrors Flutter's _defaultRequestPermission/_permissionByName
@@ -40,15 +49,15 @@ export const defaultRequestPermission: PermissionRequestFn = async (
   permission
 ): Promise<Record<string, string>> => {
   if (permission === 'notifications') {
-    const { status } = await requestNotifications();
+    const { status } = await permissions().requestNotifications();
     return { status };
   }
 
-  const target = BY_PLATFORM[permission]?.[Platform.OS as 'ios' | 'android'];
+  const target = byPlatform()[permission]?.[Platform.OS as 'ios' | 'android'];
   if (target == null) {
     return { status: 'error', message: `Unknown permission "${permission}"` };
   }
 
-  const status = await request(target);
+  const status = await permissions().request(target);
   return { status };
 };

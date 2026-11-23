@@ -4,6 +4,15 @@ jest.mock('react-native-webview', () => ({ WebView: () => null }));
 jest.mock('react-native-iap', () => {
   throw new Error("Cannot find module 'react-native-iap'");
 });
+// Nor the expo-iap fallback. Virtual, because the package is not installed in
+// this workspace
+jest.mock(
+  'expo-iap',
+  () => {
+    throw new Error("Cannot find module 'expo-iap'");
+  },
+  { virtual: true }
+);
 
 import { createBridge } from '../CoproductPaywall';
 import { MISSING_IAP_MESSAGE } from '../iapPaywallBridge';
