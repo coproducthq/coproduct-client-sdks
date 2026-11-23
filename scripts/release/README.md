@@ -78,7 +78,7 @@ flutter/
 
 | Script | Does |
 |---|---|
-| `ci/setup-toolchains.sh` | Installs FVM, both Flutter toolchains, Rust from `rust-toolchain.toml`, `cargo-ndk`, the codegen and the NDK, selects Xcode, then runs `preflight.sh`. `--publish` installs only the primary Flutter |
+| `ci/setup-toolchains.sh` | Installs FVM, both Flutter toolchains, Rust from `rust-toolchain.toml`, `cargo-ndk`, the codegen, `cargo-expand` and the NDK, selects Xcode, then runs `preflight.sh`. `--publish` installs only the primary Flutter |
 | `ci/handoff.sh` | Packs the stage, seal and build stamp into one tar and prints its SHA-256, and unpacks it only after checking that hash and refusing any entry that is not a plain file or directory |
 
 `publish.sh` refuses a stage inside a git repository, so a handoff unpacked
