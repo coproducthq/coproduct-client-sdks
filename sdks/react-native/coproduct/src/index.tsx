@@ -330,6 +330,10 @@ async function runInitialize(
 
   const timer = new HostTimer({
     intervalSecs: pollIntervalSecs,
+    // The core drops the interval to 2s while the held snapshot belongs to a
+    // development or staging environment.
+    currentIntervalSecs: () =>
+      Number(nativeClient.effectivePollIntervalSecs(BigInt(pollIntervalSecs))),
     pollOnForeground,
     poll: () => client.pollNow(),
   });

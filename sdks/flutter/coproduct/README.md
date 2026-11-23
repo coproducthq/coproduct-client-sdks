@@ -156,8 +156,9 @@ once you know who is signed in. See
 [Identity and attributes](#identity-and-attributes).
 
 That is a working integration. Flag changes you make in Coproduct reach the
-running app on the next check for updates, which happens every 60 seconds and
-whenever the app returns to the foreground. See
+running app on the next check for updates, which happens every 60 seconds
+(every 2 seconds with a development or staging SDK key) and whenever the app
+returns to the foreground. See
 [Checking for updates](#checking-for-updates).
 
 ## Requirements and platform support
@@ -744,7 +745,7 @@ being silently corrected.
 
 | Field | Default | Notes |
 |---|---|---|
-| `pollInterval` | 60 seconds | How often the SDK checks for updated flags. Must be at least 30 seconds |
+| `pollInterval` | 60 seconds | How often the SDK checks for updated flags. Must be at least 30 seconds. A development or staging SDK key checks every 2 seconds instead |
 | `startupTimeout` | 5 seconds | How long `initialize` waits for the first download and the automatic attributes. Must be positive |
 | `requestTimeout` | 30 seconds | How long a single request for flags can take. Must be positive |
 | `endpoint` | Coproduct's endpoint | `http` or `https`, with a host, and no query or fragment |
@@ -768,13 +769,18 @@ The SDK checks Coproduct for updated flags when it starts, then every
 `pollInterval` (60 seconds by default). A change you make in Coproduct can take
 that long to reach a running app.
 
+With an SDK key from a development or staging environment, the SDK checks every
+2 seconds instead, whatever `pollInterval` says. It learns the environment from
+the flags it downloads, so the faster pace starts right after the first check.
+A production key always uses `pollInterval`.
+
 ### Seeing a change while you develop
 
 - **Background the app and bring it back.** With `pollOnForeground` left at
   `true`, returning to the foreground triggers an immediate check. This is the
   quickest loop and needs no code change.
-- **Lower `pollInterval` while developing.** Thirty seconds is the minimum, so
-  this halves the wait at most. Backgrounding is usually quicker.
+- **Use a development or staging SDK key.** The SDK checks every 2 seconds
+  with one, so a change reaches the app almost at once.
 
 Returning to the foreground does not trigger a check while one is already
 running, while the SDK is backing off (`stale`, or when Coproduct has asked it

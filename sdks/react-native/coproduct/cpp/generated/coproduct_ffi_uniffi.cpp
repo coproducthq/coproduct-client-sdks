@@ -274,6 +274,11 @@ extern "C" {
         RustBuffer keys, 
         RustCallStatus *uniffi_out_err
     );
+    uint64_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(
+        /*handle*/ uint64_t ptr, 
+        uint64_t configured_secs, 
+        RustCallStatus *uniffi_out_err
+    );
     int8_t uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(
         /*handle*/ uint64_t ptr, 
         RustBuffer key, 
@@ -941,6 +946,8 @@ extern "C" {
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(
+    );
+    uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs(
     );
     uint16_t uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool(
     );
@@ -4962,6 +4969,14 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs"),
+        2,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool"),
@@ -6274,6 +6289,14 @@ NativeCoproductFfiUniffi::NativeCoproductFfiUniffi(
             return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(rt, thisVal, args, count);
         }
     );
+    props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs"] = jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs"),
+        0,
+        [this](jsi::Runtime &rt, const jsi::Value &thisVal, const jsi::Value *args, size_t count) -> jsi::Value {
+            return this->cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs(rt, thisVal, args, count);
+        }
+    );
     props["ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool"] = jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool"),
@@ -7431,6 +7454,16 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_c
 
         
         return uniffi::coproduct_ffi_uniffi::Bridging<RustBuffer>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
+        auto value = uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(uniffi_jsi::Bridging</*handle*/ uint64_t>::fromJs(rt, callInvoker, args[0]), uniffi_jsi::Bridging<uint64_t>::fromJs(rt, callInvoker, args[1]), 
+            &status
+        );
+        uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::copyIntoJs(rt, callInvoker, status, args[count - 1]);
+
+        
+        return uniffi_jsi::Bridging<uint64_t>::toJs(rt, callInvoker, value);
 }
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         RustCallStatus status = uniffi::coproduct_ffi_uniffi::Bridging<RustCallStatus>::rustSuccess(rt);
@@ -8895,6 +8928,13 @@ jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_me
 }
 jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
         auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(
+        );
+
+        
+        return uniffi_jsi::Bridging<uint16_t>::toJs(rt, callInvoker, value);
+}
+jsi::Value NativeCoproductFfiUniffi::cpp_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs(jsi::Runtime& rt, const jsi::Value& thisVal, const jsi::Value* args, size_t count) {
+        auto value = uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs(
         );
 
         

@@ -758,6 +758,15 @@ impl CoproductClient {
     pub fn snapshot_view(&self) -> CoproductSnapshot {
         CoproductSnapshot::from(self.inner.snapshot_view())
     }
+
+    /// Seconds the host timer waits before its next normal poll. The host passes
+    /// its configured interval, and the core returns 2 while the held snapshot
+    /// belongs to a development or staging environment
+    pub fn effective_poll_interval_secs(&self, configured_secs: u64) -> u64 {
+        self.inner
+            .effective_poll_interval(Duration::from_secs(configured_secs))
+            .as_secs()
+    }
 }
 
 /// One delivered batch: the transition's revision and the subscription's complete

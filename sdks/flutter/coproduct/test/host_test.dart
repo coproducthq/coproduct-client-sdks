@@ -253,6 +253,10 @@ class _FakeBridge implements NativeBridge<_FakeHandle> {
   bool pollFinished = false;
 
   @override
+  Duration effectivePollInterval(_FakeHandle handle, Duration configured) =>
+      configured;
+
+  @override
   Future<frb.PollOutcome> pollNow(_FakeHandle handle) async {
     pollCalls++;
     if (!pollEntered.isCompleted) pollEntered.complete();

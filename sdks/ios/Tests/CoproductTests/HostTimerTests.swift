@@ -33,6 +33,21 @@ final class HostTimerTests: XCTestCase {
         timer.stop()
     }
 
+    func testTimerReadsTheCurrentIntervalAfterEveryPoll() async {
+        // The fixed interval is far longer than the timeout, so a second poll
+        // inside it proves the timer rescheduled from the provider
+        let expectation = XCTestExpectation(description: "repoll at the current interval")
+        expectation.expectedFulfillmentCount = 2
+        expectation.assertForOverFulfill = false
+        let timer = HostTimer(interval: 60, currentInterval: { 0.05 }) {
+            expectation.fulfill()
+            return .updated
+        }
+        timer.start()
+        await fulfillment(of: [expectation], timeout: 1.0)
+        timer.stop()
+    }
+
     func testForegroundTriggersAPollDuringNormalCadence() async {
         let counter = Counter()
         let firstPoll = XCTestExpectation(description: "start poll")

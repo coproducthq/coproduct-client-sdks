@@ -319,6 +319,21 @@ impl CoproductClient {
         }
     }
 
+    /// The interval the host timer waits before its next normal poll. The host
+    /// owns the configured interval and passes it in, and the core shortens it
+    /// to `NON_PRODUCTION_POLL_INTERVAL` while the held snapshot belongs to a
+    /// development or staging environment. Hosts read it after every poll, so
+    /// the cadence follows the environment the latest snapshot names
+    pub fn effective_poll_interval(&self, configured: std::time::Duration) -> std::time::Duration {
+        let snap = self.snapshot.lock().clone();
+        match snap {
+            Some(snap) => {
+                crate::polling::poll_interval_for_environment(configured, &snap.environment.slug)
+            }
+            None => configured,
+        }
+    }
+
     /// Host-driven poll trigger. The platform loop calls this on its timer and
     /// on foreground events. Returns when the poll completes or is deduped
     pub async fn poll_now(self: &Arc<Self>) -> crate::polling::PollOutcome {

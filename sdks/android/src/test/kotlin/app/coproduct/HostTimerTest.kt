@@ -42,6 +42,27 @@ class HostTimerTest {
     }
 
     @Test
+    fun timerReadsTheCurrentIntervalAfterEveryPoll() = runBlocking {
+        // The fixed interval is far longer than the latch timeout, so a second
+        // poll inside the window proves the timer rescheduled from the provider
+        val latch = CountDownLatch(2)
+        val scope = CoroutineScope(Dispatchers.Default)
+        val timer = HostTimer(
+            intervalMillis = 60_000,
+            scope = scope,
+            currentIntervalMillis = { 20L },
+            poll = suspend {
+                latch.countDown()
+                PollOutcome.Updated
+            }
+        )
+        timer.start()
+        assertTrue(latch.await(2, TimeUnit.SECONDS))
+        timer.stop()
+        scope.cancel()
+    }
+
+    @Test
     fun foregroundTriggersAPollDuringNormalCadence() = runBlocking {
         val scope = CoroutineScope(Dispatchers.Default)
         val foregroundEvents = MutableSharedFlow<Unit>()

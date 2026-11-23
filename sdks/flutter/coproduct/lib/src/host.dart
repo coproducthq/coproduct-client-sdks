@@ -349,6 +349,10 @@ class CoproductHost<H extends Object, C extends Object> {
           final scheduler = Scheduler(
             poll: () => _bridge.pollNow(handle),
             interval: config.pollInterval,
+            // The core drops the interval to 2s while the held snapshot
+            // belongs to a development or staging environment
+            currentInterval: () =>
+                _bridge.effectivePollInterval(handle, config.pollInterval),
             pollOnForeground: config.pollOnForeground,
             onError: _reportError,
             clock: _schedulerClock,

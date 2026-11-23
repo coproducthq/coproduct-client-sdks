@@ -524,6 +524,33 @@ fn extract_etag(headers: &[HttpHeader]) -> Option<String> {
         .map(|h| h.value.clone())
 }
 
+/// Poll cadence for a development or staging environment. Flag changes in those
+/// environments reach a test device within seconds, where production keeps the
+/// configured interval and its 30s floor
+pub const NON_PRODUCTION_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// Environment slugs that poll at `NON_PRODUCTION_POLL_INTERVAL`. The platform
+/// seeds `development`, `staging` and `production` on every project, and slugs
+/// cannot be renamed
+const NON_PRODUCTION_ENVIRONMENTS: [&str; 2] = ["development", "staging"];
+
+/// The interval a host loop should wait between normal polls, given the
+/// developer's configured interval and the slug of the snapshot the client
+/// holds. A development or staging environment polls every
+/// `NON_PRODUCTION_POLL_INTERVAL`. Any other slug, and an empty slug when no
+/// snapshot is loaded yet, keeps the configured interval
+pub fn poll_interval_for_environment(configured: Duration, environment: &str) -> Duration {
+    let slug = environment.trim();
+    if NON_PRODUCTION_ENVIRONMENTS
+        .iter()
+        .any(|candidate| slug.eq_ignore_ascii_case(candidate))
+    {
+        NON_PRODUCTION_POLL_INTERVAL
+    } else {
+        configured
+    }
+}
+
 /// Cadence at which a host loop should call `poll_now` while the provider
 /// is in `Stale`. The host loop owns the timer. The core just answers
 /// "how long until your next tick?" so cadence stays bounded and

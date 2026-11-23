@@ -188,7 +188,7 @@ struct MyApp: App {
 }
 ```
 
-The SDK loads your flags from the on-device cache immediately so the client is ready to use as soon as `initialize` resolves. Flag evaluations and updates run against cached snapshots with background polling.
+The SDK loads your flags from the on-device cache immediately so the client is ready to use as soon as `initialize` resolves. Flag evaluations and updates run against cached snapshots with background polling. The SDK checks for updates every `pollInterval` (60 seconds by default), and every 2 seconds with an SDK key from a development or staging environment.
 
 ## **Onboarding flows**
 

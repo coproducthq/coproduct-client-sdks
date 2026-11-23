@@ -40,14 +40,20 @@ class Scheduler {
     required this.interval,
     required this.pollOnForeground,
     required void Function(Object error, StackTrace stack) onError,
+    Duration Function()? currentInterval,
     Duration Function()? clock,
-  }) : _now = clock ?? _monotonicClock(),
+  }) : _currentInterval = currentInterval,
+       _now = clock ?? _monotonicClock(),
        // ignore: prefer_initializing_formals
        _onError = onError;
 
   final Future<frb.PollOutcome> Function() poll;
   final Duration interval;
   final bool pollOnForeground;
+
+  // Supplies the normal interval, read after every poll so the cadence follows
+  // the environment the latest snapshot names. Falls back to [interval]
+  final Duration Function()? _currentInterval;
 
   // Injectable monotonic elapsed source and required diagnostic reporter, so
   // tests drive fake time and a caught poll failure is always surfaced
@@ -109,7 +115,8 @@ class Scheduler {
     _pollInFlight = false;
     if (_stopped) return;
     // A caught exception (null outcome) reschedules at the normal interval
-    final delay = outcome == null ? interval : nextPollDelay(outcome, interval);
+    final normal = _currentInterval?.call() ?? interval;
+    final delay = outcome == null ? normal : nextPollDelay(outcome, normal);
     if (delay == null) {
       // A fatal provider is terminal, mark stopped so no later timer or
       // foreground event can start another poll

@@ -144,9 +144,11 @@ flutter run --dart-define=COPRODUCT_SDK_KEY=your_mobile_sdk_key
 ```
 
 Before demonstrating live, know that the poll interval defaults to 60 seconds
-with a 30 second floor, so a flag changed in Coproduct takes up to a minute to
-appear on its own. To show a change on demand, call `client.pollNow()`, or
-background and foreground the app, which also polls.
+with a 30 second floor, so with a production SDK key a flag changed in Coproduct
+takes up to a minute to appear on its own. With a development or staging SDK
+key the SDK polls every 2 seconds, so a change appears almost at once. To show a
+change on demand with a production key, call `client.pollNow()`, or background
+and foreground the app, which also polls.
 
 ## Changing the SDK
 

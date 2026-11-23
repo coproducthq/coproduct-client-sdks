@@ -426,6 +426,17 @@ pub fn state(client: &CoproductClientHandle) -> ProviderState {
     client.inner.state().into()
 }
 
+// Microseconds the host timer waits before its next normal poll, a synchronous
+// in-memory read. The host passes its configured interval, and the core
+// shortens it to 2s while the held snapshot belongs to a development or staging
+// environment. Microseconds match FfiConfig's poll_interval_us
+#[frb(sync)]
+pub fn effective_poll_interval_us(client: &CoproductClientHandle, configured_us: i64) -> i64 {
+    let configured = std::time::Duration::from_micros(configured_us.max(0) as u64);
+    let effective = client.inner.effective_poll_interval(configured);
+    i64::try_from(effective.as_micros()).unwrap_or(i64::MAX)
+}
+
 // Drive one poll. Async because it performs the network request
 pub async fn poll_now(client: &CoproductClientHandle) -> PollOutcome {
     client.inner.poll_now().await.into()

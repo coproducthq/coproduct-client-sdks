@@ -203,6 +203,14 @@ class CoproductClient internal constructor(
 
     internal suspend fun pollNow(): PollOutcome = inner.pollNow()
 
+    /**
+     * Seconds the host timer waits before its next normal poll. The core
+     * returns 2 while the held snapshot belongs to a development or staging
+     * environment, and [configuredSecs] otherwise.
+     */
+    internal fun effectivePollIntervalSecs(configuredSecs: ULong): ULong =
+        inner.effectivePollIntervalSecs(configuredSecs)
+
     internal fun state(): ProviderState = inner.state()
 
     internal suspend fun shutdownInner() = inner.shutdown()
