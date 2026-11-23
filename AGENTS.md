@@ -27,6 +27,8 @@ Every SDK surface has a build script under `scripts/build/`. Use these rather th
 | Android | `scripts/build/source-linked-android-demo.sh` | `scripts/build/artifact-linked-android-consumer-test.sh` |
 | React Native (iOS) | `scripts/build/source-linked-rn-demo-ios.sh` | `scripts/build/artifact-linked-rn-consumer-test-ios.sh` |
 | React Native (Android) | `scripts/build/source-linked-rn-demo-android.sh` | `scripts/build/artifact-linked-rn-consumer-test-android.sh` |
+| React Native in Expo (iOS) | — | `scripts/build/artifact-linked-expo-consumer-test-ios.sh` |
+| React Native in Expo (Android) | — | `scripts/build/artifact-linked-expo-consumer-test-android.sh` |
 | Flutter (iOS) | `scripts/build/source-linked-flutter-demo-ios.sh` | `scripts/build/artifact-linked-flutter-consumer-test-ios.sh` |
 | Flutter (Android) | `scripts/build/source-linked-flutter-demo-android.sh` | `scripts/build/artifact-linked-flutter-consumer-test-android.sh` |
 | Flutter (iOS, device-running acceptance) | — | `scripts/build/artifact-linked-flutter-acceptance-ios.sh` |
@@ -391,15 +393,44 @@ wrapped public APIs on each platform shield ordinary consumers.
   `react-native-nitro-modules` is installed. Raise the floor only when a
   dependency or platform requirement forces it, and note it in the changelog.
 - `react-native-iap` and `react-native-nitro-modules` are optional peers that
-  only the paywall uses. `react-native-iap` adds Google Play's billing
-  permission to any Android app that links it, so an app using only flags or
-  onboarding must not need it. Only `src/paywall/iapPaywallBridge.ts` may load
-  it, through the `require` inside `try` that Metro treats as optional. A
-  static import anywhere, including from the package root or onboarding, would
-  make it required again.
+  only the paywall uses, and so is `expo-iap`, the same OpenIAP client packaged
+  as an Expo module, which Expo apps install instead. Either purchase library
+  adds Google Play's billing permission to any Android app that links it, so an
+  app using only flags or onboarding must not need one. Only
+  `src/paywall/iapPaywallBridge.ts` may load them, trying `react-native-iap`
+  first and `expo-iap` second, through the `require` inside `try` that Metro
+  treats as optional. A static import anywhere, including from the package root
+  or onboarding, would make one required again.
+  `scripts/release/react-native/optional-peers.mjs` enforces this.
+- The RN SDK supports Expo SDK 56 and later in development and release builds.
+  Importing it must never throw in a build without its native code, such as
+  Expo Go: `src/NativeCoproduct.ts` uses `TurboModuleRegistry.get`,
+  `initialize` rejects with an explanation instead, and native peers that
+  throw at import (`react-native-device-info`, `react-native-keychain`,
+  `react-native-permissions`) are required on first use, not imported. The
+  Expo config plugin is `plugin/withCoproduct.js`, loaded through
+  `app.plugin.js`. It may import only `expo/config-plugins`, which the Expo
+  CLI provides, so the package never depends on Expo.
+- The web is not a supported platform. Nothing verifies that the package
+  loads in a web bundle, so do not document that it does.
+  `src/NativeCoproduct.web.ts` only keeps the native module lookup out of one.
+- The SDK's own `CoproductStorage` TurboModule serves the caches directory and
+  the small JSON files under the documents directory (`src/documentStore.ts`),
+  at the paths `react-native-fs` used before, so the SDK needs no file system
+  package. It is separate from the `Coproduct` module that installs the Rust
+  core, because Android autolinks a C++ implementation of that one
+  (`cpp/CoproductImpl.cpp`), which cannot reach the app's directories. Its
+  spec is `src/NativeCoproductStorage.ts`, implemented by
+  `ios/CoproductStorage.mm` and
+  `android/src/main/java/app/coproduct/CoproductStorageModule.kt`. Never add
+  methods to `src/NativeCoproduct.ts`: every implementation of it, the C++ one
+  included, would need them. `CoproductPackage.kt` registers the storage
+  module, so `ubrn.config.yaml` lists it under `noOverwrite`.
 - The RN example app (`sdks/react-native/coproduct/example`) runs the minimum
   supported React Native and the RN consumer-test runs the latest, so together
-  they build both ends of the supported range. Move the example only when the
+  they build both ends of the supported range. `consumer-tests/expo` runs
+  the oldest supported Expo SDK and generates its native projects with
+  `expo prebuild`, so it checks the config plugin and Expo autolinking. Move the example only when the
   floor moves. Upgrading it to the latest release would stop the floor from
   being built.
 - After editing any `package.json` in the RN workspace, run `yarn install` and

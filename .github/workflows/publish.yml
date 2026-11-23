@@ -184,7 +184,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [react-native, react-native-floor]
+        app: [react-native, react-native-floor, expo]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -200,7 +200,7 @@ jobs:
       - env:
           COPRODUCT_RN_TGZ: ${{ github.workspace }}/pkg/react-native.tgz
           EXPECTED_SHA256: ${{ needs.pack.outputs.sha256 }}
-        run: scripts/build/artifact-linked-rn-consumer-test-ios.sh consumer-tests/${{ matrix.app }}
+        run: scripts/build/artifact-linked-${{ matrix.app == 'expo' && 'expo' || 'rn' }}-consumer-test-ios.sh consumer-tests/${{ matrix.app }}
 
   build-android:
     name: Android build ${{ matrix.app }}
@@ -210,7 +210,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [react-native, react-native-floor]
+        app: [react-native, react-native-floor, expo]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -230,7 +230,7 @@ jobs:
       - env:
           COPRODUCT_RN_TGZ: ${{ github.workspace }}/pkg/react-native.tgz
           EXPECTED_SHA256: ${{ needs.pack.outputs.sha256 }}
-        run: scripts/build/artifact-linked-rn-consumer-test-android.sh consumer-tests/${{ matrix.app }}
+        run: scripts/build/artifact-linked-${{ matrix.app == 'expo' && 'expo' || 'rn' }}-consumer-test-android.sh consumer-tests/${{ matrix.app }}
       - name: The app with IAP declares BILLING, so the no-IAP check is not vacuous
         if: matrix.app == 'react-native'
         run: scripts/release/react-native/billing.sh consumer-tests/react-native present

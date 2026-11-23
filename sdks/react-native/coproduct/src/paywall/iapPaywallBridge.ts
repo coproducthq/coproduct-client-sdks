@@ -16,25 +16,37 @@ import type {
 } from './nativePaywallBridge';
 import { accountToken } from './accountToken';
 
-/** What a paywall reports when the app has not installed react-native-iap */
+/** What a paywall reports when the app has installed no purchase library */
 export const MISSING_IAP_MESSAGE =
-  'Paywalls need react-native-iap and react-native-nitro-modules, which the ' +
-  'Coproduct SDK lists as optional peer dependencies. Install them with ' +
+  'Paywalls need a purchase library, which the Coproduct SDK lists as an ' +
+  'optional peer dependency. In an Expo app, install expo-iap with ' +
+  '"npx expo install expo-iap", then run "npx expo prebuild" and rebuild the ' +
+  'app. In a React Native app, install react-native-iap with ' +
   '"npm install react-native-iap react-native-nitro-modules", then run ' +
   '"pod install" in ios/ and rebuild the app.';
 
 // Loaded on first use rather than imported, so an app that never shows a
-// paywall need not install react-native-iap, which also adds Google Play's
-// billing permission to every Android app that links it. Metro treats a
+// paywall need not install a purchase library, which also adds Google Play's
+// billing permission to every Android app that links one. Metro treats a
 // require inside try as an optional dependency, so a missing package reaches
-// the catch below instead of failing the bundle
+// the catch below instead of failing the bundle.
+//
+// react-native-iap is tried first, so a React Native app keeps the library it
+// has always used. expo-iap is the same OpenIAP client packaged as an Expo
+// module, the one react-native-iap's maintainers direct Expo apps to. Both
+// generate their API and types from the same OpenIAP schema, so the calls
+// below drive either one unchanged
 let iapModule: typeof ReactNativeIap | undefined;
 function iap(): typeof ReactNativeIap {
   if (iapModule == null) {
     try {
       iapModule = require('react-native-iap') as typeof ReactNativeIap;
     } catch {
-      throw new Error(MISSING_IAP_MESSAGE);
+      try {
+        iapModule = require('expo-iap') as typeof ReactNativeIap;
+      } catch {
+        throw new Error(MISSING_IAP_MESSAGE);
+      }
     }
   }
   return iapModule;

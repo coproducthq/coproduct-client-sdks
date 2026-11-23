@@ -3,6 +3,15 @@
 jest.mock('react-native-iap', () => {
   throw new Error("Cannot find module 'react-native-iap'");
 });
+// Nor the expo-iap fallback. Virtual, because the package is not installed in
+// this workspace
+jest.mock(
+  'expo-iap',
+  () => {
+    throw new Error("Cannot find module 'expo-iap'");
+  },
+  { virtual: true }
+);
 
 import { IapPaywallBridge, MISSING_IAP_MESSAGE } from '../iapPaywallBridge';
 
@@ -12,5 +21,6 @@ describe('IapPaywallBridge without react-native-iap installed', () => {
     expect(MISSING_IAP_MESSAGE).toContain(
       'npm install react-native-iap react-native-nitro-modules'
     );
+    expect(MISSING_IAP_MESSAGE).toContain('npx expo install expo-iap');
   });
 });

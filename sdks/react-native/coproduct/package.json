@@ -35,6 +35,8 @@
     "cpp",
     "*.podspec",
     "react-native.config.js",
+    "app.plugin.js",
+    "plugin",
     "!ios/build",
     "!android/build",
     "!android/gradle",
@@ -60,7 +62,8 @@
   "keywords": [
     "react-native",
     "ios",
-    "android"
+    "android",
+    "expo"
   ],
   "repository": {
     "type": "git",
@@ -80,6 +83,7 @@
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
+    "@expo/config-plugins": "~56.0.17",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/cli": "20.1.0",
     "@react-native-community/netinfo": "^11.4.0",
@@ -98,7 +102,6 @@
     "react-native": "0.84.1",
     "react-native-builder-bob": "^0.41.0",
     "react-native-device-info": "^14.0.0",
-    "react-native-fs": "^2.20.0",
     "react-native-iap": "^17.0.1",
     "react-native-keychain": "^10.0.0",
     "react-native-nitro-modules": ">=0.36.5",
@@ -111,10 +114,11 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native-community/netinfo": "^11.4.0 || ^12.0.1",
+    "expo": ">=56.0.0",
+    "expo-iap": "^6.4.4",
     "react": "*",
     "react-native": ">=0.84.0",
     "react-native-device-info": "^14.0.0",
-    "react-native-fs": "^2.20.0",
     "react-native-iap": "^17.0.1",
     "react-native-keychain": "^10.0.0",
     "react-native-nitro-modules": ">=0.36.5",
@@ -123,6 +127,12 @@
   },
   "peerDependenciesMeta": {
     "@react-native-community/geolocation": {
+      "optional": true
+    },
+    "expo": {
+      "optional": true
+    },
+    "expo-iap": {
       "optional": true
     },
     "react-native-iap": {

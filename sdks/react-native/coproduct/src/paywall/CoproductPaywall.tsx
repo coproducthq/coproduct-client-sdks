@@ -70,10 +70,10 @@ export interface CoproductPaywallProps {
 // sdks/flutter/coproduct/lib/src/paywall/coproduct_paywall.dart.
 /**
  * The purchase bridge a paywall uses, or undefined after reporting why there
- * is none. Building the default bridge loads react-native-iap, an optional
- * peer, so an app without it gets onLoadError and a logged message naming the
- * install command, rather than a rejection inside the boot effect that would
- * leave the paywall blank
+ * is none. Building the default bridge loads react-native-iap or expo-iap,
+ * both optional peers, so an app with neither gets onLoadError and a logged
+ * message naming the install commands, rather than a rejection inside the
+ * boot effect that would leave the paywall blank
  */
 export function createBridge(
   override: NativePaywallBridge | undefined,

@@ -6,7 +6,7 @@ An optional feature of the `@coproduct/react-native-sdk` package — the same `y
 import { CoproductPaywall } from '@coproduct/react-native-sdk/paywall';
 ```
 
-Purchases on iOS go through StoreKit2 and on Android through Google Play Billing, both via `react-native-iap`.
+Purchases on iOS go through StoreKit2 and on Android through Google Play Billing, both via `react-native-iap`, or via `expo-iap` in an Expo app that does not install `react-native-iap`. Both libraries implement the same OpenIAP API.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ import { Coproduct } from '@coproduct/react-native-sdk';
 const client = await Coproduct.initialize(sdkKey); // a mobile key, cpk_mob_...
 ```
 
-New peer dependencies: `react-native-webview` (shared with onboarding), `react-native-iap`, `react-native-nitro-modules`.
+New peer dependencies: `react-native-webview` (shared with onboarding), and either `react-native-iap` with `react-native-nitro-modules`, or `expo-iap` in an Expo app.
 
 ## Usage
 
