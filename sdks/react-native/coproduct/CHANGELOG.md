@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.0](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.2.0...react-native-v1.3.0) (2026-11-23)
+
+
+### Features
+
+* poll every 2 seconds in development and staging environments ([#89](https://github.com/coproducthq/coproduct-client-sdks/issues/89)) ([c3a0bac](https://github.com/coproducthq/coproduct-client-sdks/commit/c3a0bac30123461f7aa3a55babcf966b11e5a48b))
+* support Expo apps with a config plugin and expo-iap ([#92](https://github.com/coproducthq/coproduct-client-sdks/issues/92)) ([7cb015f](https://github.com/coproducthq/coproduct-client-sdks/commit/7cb015f3ad486062225cf3404803c3a34abb7902))
+
 ## [1.2.0](https://github.com/coproducthq/coproduct-client-sdks/compare/react-native-v1.1.2...react-native-v1.2.0) (2026-11-18)
 
 
