@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.5.1...flutter-v1.6.0) (2026-11-23)
+
+
+### Features
+
+* poll every 2 seconds in development and staging environments ([#89](https://github.com/coproducthq/coproduct-client-sdks/issues/89)) ([c3a0bac](https://github.com/coproducthq/coproduct-client-sdks/commit/c3a0bac30123461f7aa3a55babcf966b11e5a48b))
+
 ## [1.5.1](https://github.com/coproducthq/coproduct-client-sdks/compare/flutter-v1.5.0...flutter-v1.5.1) (2026-11-18)
 
 
