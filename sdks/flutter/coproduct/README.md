@@ -156,8 +156,9 @@ once you know who is signed in. See
 [Identity and attributes](#identity-and-attributes).
 
 That is a working integration. Flag changes you make in Coproduct reach the
-running app on the next check for updates, which happens every 60 seconds and
-whenever the app returns to the foreground. See
+running app on the next check for updates, which happens every 60 seconds
+(every 2 seconds with a development or staging SDK key) and whenever the app
+returns to the foreground. See
 [Checking for updates](#checking-for-updates).
 
 ## Requirements and platform support

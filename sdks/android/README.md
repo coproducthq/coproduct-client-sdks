@@ -58,6 +58,10 @@ fun CheckoutScreen(client: CoproductClient) {
 }
 ```
 
+The SDK checks for updated flags every `pollIntervalSeconds` (60 seconds by
+default), and every 2 seconds with an SDK key from a development or staging
+environment.
+
 ## Anonymous id and sign-in
 
 The SDK generates an anonymous id for this install on first launch and keeps

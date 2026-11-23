@@ -278,7 +278,7 @@ import Config from 'react-native-config';
 const sdkKey = Config.COPRODUCT_SDK_KEY;
 ```
 
-The SDK saves the last flag values it fetched on the device. This saved copy is the cached snapshot. `initialize` loads it right away, so the client is ready to use as soon as `initialize` resolves. Reads evaluate against the cached snapshot while the SDK fetches updates in the background.
+The SDK saves the last flag values it fetched on the device. This saved copy is the cached snapshot. `initialize` loads it right away, so the client is ready to use as soon as `initialize` resolves. Reads evaluate against the cached snapshot while the SDK fetches updates in the background. It checks for updates every `pollIntervalSecs` (60 seconds by default), and every 2 seconds with an SDK key from a development or staging environment.
 
 ## **Onboarding flows**
 
