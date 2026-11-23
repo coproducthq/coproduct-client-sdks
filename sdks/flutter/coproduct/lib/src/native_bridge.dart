@@ -44,6 +44,11 @@ abstract interface class NativeBridge<H extends Object> {
   /// Performs one network poll and reports the outcome.
   Future<frb.PollOutcome> pollNow(H handle);
 
+  /// The interval to wait before the next normal poll, read synchronously from
+  /// core memory. The core returns 2s while the held snapshot belongs to a
+  /// development or staging environment, and [configured] otherwise.
+  Duration effectivePollInterval(H handle, Duration configured);
+
   /// Sets the core shutdown latch and tears the client down.
   Future<void> shutdown(H handle);
 }
@@ -113,6 +118,17 @@ class FrbNativeBridge implements NativeBridge<frb.CoproductClientHandle> {
   @override
   Future<frb.PollOutcome> pollNow(frb.CoproductClientHandle handle) =>
       frb.pollNow(client: handle);
+
+  @override
+  Duration effectivePollInterval(
+    frb.CoproductClientHandle handle,
+    Duration configured,
+  ) => Duration(
+    microseconds: frb.effectivePollIntervalUs(
+      client: handle,
+      configuredUs: configured.inMicroseconds,
+    ),
+  );
 
   @override
   Future<void> shutdown(frb.CoproductClientHandle handle) =>

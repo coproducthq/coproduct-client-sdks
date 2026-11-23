@@ -11,7 +11,8 @@ import UIKit
 // normal interval, a 429 waits out the server's retry-after, and only a stale
 // provider backs off. The foreground fast path refreshes on return to the
 // foreground during normal cadence, but respects an active back-off window rather
-// than bypassing it
+// than bypassing it. The normal interval comes from `currentInterval`, read after
+// every poll, so the cadence follows the environment the latest snapshot names
 final class HostTimer: @unchecked Sendable {
     static let didBecomeActiveNotification: Notification.Name = {
         #if canImport(UIKit)
@@ -26,7 +27,7 @@ final class HostTimer: @unchecked Sendable {
     // transient failure recovers promptly within the retry budget
     static let backoffMultiplier: Double = 5
 
-    private let interval: TimeInterval
+    private let currentInterval: @Sendable () -> TimeInterval
     private let pollOnForeground: Bool
     private let poll: @Sendable () async -> PollOutcome
     private var timer: DispatchSourceTimer?
@@ -44,12 +45,16 @@ final class HostTimer: @unchecked Sendable {
     // the app is mid-gesture or otherwise not spinning the main run loop
     private let queue = DispatchQueue(label: "app.coproduct.host-timer")
 
+    // `currentInterval` defaults to the fixed `interval`. The wrapper passes the
+    // core's effective interval, which drops to 2s for a development or staging
+    // environment
     init(
         interval: TimeInterval,
+        currentInterval: (@Sendable () -> TimeInterval)? = nil,
         pollOnForeground: Bool = true,
         _ poll: @escaping @Sendable () async -> PollOutcome
     ) {
-        self.interval = interval
+        self.currentInterval = currentInterval ?? { interval }
         self.pollOnForeground = pollOnForeground
         self.poll = poll
     }
@@ -125,7 +130,7 @@ final class HostTimer: @unchecked Sendable {
         defer { lock.unlock() }
         pollInFlight = false
         if stopped { return }
-        guard let delay = Self.nextDelay(for: outcome, interval: interval) else {
+        guard let delay = Self.nextDelay(for: outcome, interval: currentInterval()) else {
             // A fatal provider is terminal. Mark stopped and drop the foreground
             // observer so a later foreground event cannot start another poll,
             // matching stop

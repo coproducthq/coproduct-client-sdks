@@ -375,6 +375,11 @@ interface NativeModuleInterface {
     keys: Uint8Array,
     uniffi_out_err: UniffiRustCallStatus
   ): Uint8Array;
+  ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(
+    uniffiSelf: bigint,
+    configuredSecs: bigint,
+    uniffi_out_err: UniffiRustCallStatus
+  ): bigint;
   ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(
     uniffiSelf: bigint,
     key: Uint8Array,
@@ -702,6 +707,7 @@ interface NativeModuleInterface {
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_evaluation_hook(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_add_handler(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(): number;
+  ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details(): number;
   ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_int(): number;

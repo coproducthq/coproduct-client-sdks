@@ -6652,6 +6652,12 @@ export interface CoproductClientLike {
    * populated at subscription. Keys absent from the snapshot are omitted
    */
   currentFlagValues(keys: Array<string>): Map<string, FlagValue>;
+  /**
+   * Seconds the host timer waits before its next normal poll. The host passes
+   * its configured interval, and the core returns 2 while the held snapshot
+   * belongs to a development or staging environment
+   */
+  effectivePollIntervalSecs(configuredSecs: bigint): bigint;
   getBool(key: string, defaultValue: boolean): boolean;
   getBoolDetails(key: string, defaultValue: boolean): FlagEvaluationDetailsBool;
   getInt(key: string, defaultValue: bigint): bigint;
@@ -6816,6 +6822,29 @@ export class CoproductClient
     } finally {
       nativeModule().rustbuffer_free(__rb);
     }
+  }
+
+  /**
+   * Seconds the host timer waits before its next normal poll. The host passes
+   * its configured interval, and the core returns 2 while the held snapshot
+   * belongs to a development or staging environment
+   */
+  effectivePollIntervalSecs(configuredSecs: bigint): bigint {
+    return FfiConverterUInt64.lift(
+      uniffiCaller.rustCall(
+        /*caller:*/ (callStatus) => {
+          return nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(
+            uniffiTypeCoproductClientObjectFactory.clonePointer(this),
+            FfiConverterUInt64.lower(
+              configuredSecs,
+              nativeModule().rustbuffer_alloc
+            ),
+            callStatus
+          );
+        },
+        /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString)
+      )
+    );
   }
 
   getBool(key: string, defaultValue: boolean): boolean {
@@ -8642,6 +8671,14 @@ function uniffiEnsureInitialized() {
   ) {
     throw new UniffiInternalError.ApiChecksumMismatch(
       'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values'
+    );
+  }
+  if (
+    nativeModule().ubrn_uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs() !==
+    43607
+  ) {
+    throw new UniffiInternalError.ApiChecksumMismatch(
+      'uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs'
     );
   }
   if (

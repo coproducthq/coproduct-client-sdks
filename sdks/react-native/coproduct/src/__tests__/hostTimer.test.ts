@@ -121,6 +121,36 @@ describe('HostTimer', () => {
     timer.stop();
   });
 
+  it('reads the current interval after every poll', async () => {
+    const poll = jest.fn().mockResolvedValue(PollOutcome.Updated.new());
+    const currentIntervalSecs = jest.fn().mockReturnValue(2);
+    const timer = new HostTimer({
+      intervalSecs: 60,
+      currentIntervalSecs,
+      pollOnForeground: true,
+      poll,
+    });
+
+    timer.start();
+    await flushMicrotasks();
+    expect(poll).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(2_000);
+    expect(poll).toHaveBeenCalledTimes(2);
+
+    // A later snapshot from a production environment restores the configured
+    // interval on the next reschedule
+    currentIntervalSecs.mockReturnValue(60);
+    await jest.advanceTimersByTimeAsync(2_000);
+    expect(poll).toHaveBeenCalledTimes(3);
+    await jest.advanceTimersByTimeAsync(59_000);
+    expect(poll).toHaveBeenCalledTimes(3);
+    await jest.advanceTimersByTimeAsync(1_000);
+    expect(poll).toHaveBeenCalledTimes(4);
+
+    timer.stop();
+  });
+
   it('stops permanently after a fatal outcome', async () => {
     const poll = jest.fn().mockResolvedValue(PollOutcome.Fatal.new());
     const timer = new HostTimer({

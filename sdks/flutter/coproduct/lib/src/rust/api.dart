@@ -176,6 +176,14 @@ Map<String, String> parseUtmParameters({required String url}) =>
 ProviderState state({required CoproductClientHandle client}) =>
     RustLib.instance.api.crateApiState(client: client);
 
+PlatformInt64 effectivePollIntervalUs({
+  required CoproductClientHandle client,
+  required PlatformInt64 configuredUs,
+}) => RustLib.instance.api.crateApiEffectivePollIntervalUs(
+  client: client,
+  configuredUs: configuredUs,
+);
+
 Future<PollOutcome> pollNow({required CoproductClientHandle client}) =>
     RustLib.instance.api.crateApiPollNow(client: client);
 

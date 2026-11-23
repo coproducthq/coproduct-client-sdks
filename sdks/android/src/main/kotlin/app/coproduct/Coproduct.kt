@@ -164,6 +164,9 @@ object Coproduct {
             pollOnForeground = config.pollOnForeground,
             scope = scope,
             foregroundEvents = foregroundEvents,
+            currentIntervalMillis = {
+                client.effectivePollIntervalSecs(config.pollIntervalSeconds.toULong()).toLong() * 1000
+            },
         ) { client.pollNow() }
 
         val connectivityManager =

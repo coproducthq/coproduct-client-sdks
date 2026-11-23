@@ -16,12 +16,18 @@ import uniffi.coproduct_ffi_uniffi.PollOutcome
  * the server's retry-after, and only a stale provider backs off. The
  * foreground fast path refreshes on return to the foreground during normal
  * cadence, but respects an active back-off window rather than bypassing it.
+ *
+ * [currentIntervalMillis] supplies the normal interval and is read after every
+ * poll, so the cadence follows the environment the latest snapshot names. The
+ * wrapper passes the core's effective interval, which drops to 2s for a
+ * development or staging environment.
  */
 internal class HostTimer(
     private val intervalMillis: Long,
     private val pollOnForeground: Boolean = true,
     private val scope: CoroutineScope,
     private val foregroundEvents: Flow<Unit> = MutableSharedFlow(),
+    private val currentIntervalMillis: () -> Long = { intervalMillis },
     private val poll: suspend () -> PollOutcome,
 ) {
     private val lock = Any()
@@ -95,7 +101,7 @@ internal class HostTimer(
         synchronized(lock) {
             pollInFlight = false
             if (stopped) return
-            val delayMs = nextDelay(outcome, intervalMillis)
+            val delayMs = nextDelay(outcome, currentIntervalMillis())
             if (delayMs == null) {
                 // A fatal provider is terminal. Mark stopped and drop the
                 // foreground listener so a later foreground event cannot

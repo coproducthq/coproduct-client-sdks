@@ -74,6 +74,7 @@ var mockNativeClient = {
   state: jest.fn().mockReturnValue(ProviderState.Ready),
   setAutoPopulatedAttributes: jest.fn().mockResolvedValue(undefined),
   pollNow: jest.fn().mockResolvedValue(PollOutcome.Updated.new()),
+  effectivePollIntervalSecs: jest.fn((configured: bigint) => configured),
   shutdown: jest.fn().mockResolvedValue(undefined),
   addHandler: jest.fn(() => ({ cancel: jest.fn() })),
 };

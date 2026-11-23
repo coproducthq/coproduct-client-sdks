@@ -791,6 +791,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values(
     ): Int
+    external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs(
+    ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool(
     ): Int
     external fun uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool_details(
@@ -988,6 +990,8 @@ external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_add_handler(`
 ): Long
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(`ptr`: Long,`keys`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
 ): RustBuffer.ByValue
+external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(`ptr`: Long,`configuredSecs`: Long,uniffi_out_err: UniffiRustCallStatus, 
+): Long
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Byte,uniffi_out_err: UniffiRustCallStatus, 
 ): Byte
 external fun uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_get_bool_details(`ptr`: Long,`key`: RustBuffer.ByValue,`defaultValue`: Byte,uniffi_out_err: UniffiRustCallStatus, 
@@ -1353,6 +1357,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values() != 36853) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs() != 43607) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431) {
@@ -2856,6 +2863,13 @@ public interface CoproductClientInterface {
      */
     fun `currentFlagValues`(`keys`: List<kotlin.String>): Map<kotlin.String, FlagValue>
     
+    /**
+     * Seconds the host timer waits before its next normal poll. The host passes
+     * its configured interval, and the core returns 2 while the held snapshot
+     * belongs to a development or staging environment
+     */
+    fun `effectivePollIntervalSecs`(`configuredSecs`: kotlin.ULong): kotlin.ULong
+    
     fun `getBool`(`key`: kotlin.String, `defaultValue`: kotlin.Boolean): kotlin.Boolean
     
     fun `getBoolDetails`(`key`: kotlin.String, `defaultValue`: kotlin.Boolean): FlagEvaluationDetailsBool
@@ -3068,6 +3082,24 @@ open class CoproductClient: Disposable, AutoCloseable, CoproductClientInterface
     UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(
         it,
         FfiConverterSequenceString.lower(`keys`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Seconds the host timer waits before its next normal poll. The host passes
+     * its configured interval, and the core returns 2 while the held snapshot
+     * belongs to a development or staging environment
+     */override fun `effectivePollIntervalSecs`(`configuredSecs`: kotlin.ULong): kotlin.ULong {
+            return FfiConverterULong.lift(
+    callWithHandle {
+    uniffiRustCall() { _status ->
+    UniffiLib.uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(
+        it,
+        FfiConverterULong.lower(`configuredSecs`),_status)
 }
     }
     )

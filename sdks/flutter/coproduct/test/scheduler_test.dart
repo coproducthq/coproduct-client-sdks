@@ -74,6 +74,40 @@ void main() {
       });
     });
 
+    test('reads the current interval after every poll', () {
+      fakeAsync((async) {
+        var polls = 0;
+        var current = const Duration(seconds: 2);
+        final scheduler = Scheduler(
+          interval: const Duration(seconds: 60),
+          currentInterval: () => current,
+          pollOnForeground: true,
+          clock: () => async.elapsed,
+          onError: (_, _) {},
+          poll: () async {
+            polls++;
+            return const frb.PollOutcome.updated();
+          },
+        );
+        scheduler.start();
+        async.flushMicrotasks();
+        expect(polls, 1);
+        async.elapse(const Duration(seconds: 2));
+        expect(polls, 2); // a staging snapshot polls every 2s
+
+        // A production snapshot restores the configured interval on the next
+        // reschedule
+        current = const Duration(seconds: 60);
+        async.elapse(const Duration(seconds: 2));
+        expect(polls, 3);
+        async.elapse(const Duration(seconds: 59));
+        expect(polls, 3);
+        async.elapse(const Duration(seconds: 1));
+        expect(polls, 4);
+        scheduler.stop();
+      });
+    });
+
     test('stops permanently on fatal', () {
       fakeAsync((async) {
         var polls = 0;

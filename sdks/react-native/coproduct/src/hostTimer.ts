@@ -37,6 +37,9 @@ export function isBackoff(outcome: PollOutcome): boolean {
 
 type HostTimerOptions = {
   intervalSecs: number;
+  // Supplies the normal interval, read after every poll so the cadence follows
+  // the environment the latest snapshot names. Defaults to `intervalSecs`.
+  currentIntervalSecs?: () => number;
   pollOnForeground: boolean;
   poll: () => Promise<PollOutcome>;
 };
@@ -47,7 +50,7 @@ type HostTimerOptions = {
 // so a 429 retry-after and a stale back-off are honored. The foreground fast
 // path refreshes during normal cadence but waits out an active back-off.
 export class HostTimer {
-  private readonly intervalSecs: number;
+  private readonly currentIntervalSecs: () => number;
   private readonly pollOnForeground: boolean;
   private readonly poll: () => Promise<PollOutcome>;
 
@@ -61,7 +64,9 @@ export class HostTimer {
   private earliestForegroundPollAt = 0;
 
   constructor(options: HostTimerOptions) {
-    this.intervalSecs = options.intervalSecs;
+    const { intervalSecs } = options;
+    this.currentIntervalSecs =
+      options.currentIntervalSecs ?? (() => intervalSecs);
     this.pollOnForeground = options.pollOnForeground;
     this.poll = options.poll;
   }
@@ -123,7 +128,7 @@ export class HostTimer {
   private rescheduleAfterPoll(outcome: PollOutcome): void {
     this.pollInFlight = false;
     if (this.stopped) return;
-    const delay = nextDelay(outcome, this.intervalSecs);
+    const delay = nextDelay(outcome, this.currentIntervalSecs());
     if (delay === null) {
       this.stop();
       return;

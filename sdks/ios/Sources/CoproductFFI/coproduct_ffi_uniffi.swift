@@ -957,6 +957,13 @@ public protocol CoproductClientProtocol: AnyObject, Sendable {
      */
     func currentFlagValues(keys: [String])  -> [String: FlagValue]
     
+    /**
+     * Seconds the host timer waits before its next normal poll. The host passes
+     * its configured interval, and the core returns 2 while the held snapshot
+     * belongs to a development or staging environment
+     */
+    func effectivePollIntervalSecs(configuredSecs: UInt64)  -> UInt64
+    
     func getBool(key: String, defaultValue: Bool)  -> Bool
     
     func getBoolDetails(key: String, defaultValue: Bool)  -> FlagEvaluationDetailsBool
@@ -1115,6 +1122,20 @@ open func currentFlagValues(keys: [String]) -> [String: FlagValue]  {
     uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_current_flag_values(
             self.uniffiCloneHandle(),
         FfiConverterSequenceString.lower(keys),$0
+    )
+})
+}
+    
+    /**
+     * Seconds the host timer waits before its next normal poll. The host passes
+     * its configured interval, and the core returns 2 while the held snapshot
+     * belongs to a development or staging environment
+     */
+open func effectivePollIntervalSecs(configuredSecs: UInt64) -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_coproduct_ffi_uniffi_fn_method_coproductclient_effective_poll_interval_secs(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(configuredSecs),$0
     )
 })
 }
@@ -7309,6 +7330,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_current_flag_values() != 36853) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_effective_poll_interval_secs() != 43607) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_coproduct_ffi_uniffi_checksum_method_coproductclient_get_bool() != 14431) {

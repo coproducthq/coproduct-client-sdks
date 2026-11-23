@@ -685,8 +685,18 @@ final class Instances: @unchecked Sendable {
         // recurring schedule. The foreground fast path re-polls when the app
         // returns to the foreground. A weak capture avoids the timer keeping a
         // shut-down client alive
+        let configuredInterval = config.pollInterval
+        let configuredSecs = try safeUInt64Seconds(configuredInterval, field: "pollInterval")
         let timer = HostTimer(
-            interval: config.pollInterval,
+            interval: configuredInterval,
+            currentInterval: { [weak inner] in
+                // The core drops the interval to 2s while the held snapshot
+                // belongs to a development or staging environment. Any other
+                // environment keeps the configured value, fractional part included
+                guard let inner else { return configuredInterval }
+                let effective = inner.effectivePollIntervalSecs(configuredSecs: configuredSecs)
+                return effective == configuredSecs ? configuredInterval : TimeInterval(effective)
+            },
             pollOnForeground: config.pollOnForeground
         ) { [weak inner] in
             // The poll outcome drives the timer's next fire, so a 429 retry-after
