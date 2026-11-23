@@ -530,9 +530,9 @@ fn extract_etag(headers: &[HttpHeader]) -> Option<String> {
 pub const NON_PRODUCTION_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Environment slugs that poll at `NON_PRODUCTION_POLL_INTERVAL`. The platform
-/// seeds `development` and `staging` on every project. `dev` and `stage` cover
-/// projects that renamed them to the short form
-const NON_PRODUCTION_ENVIRONMENTS: [&str; 4] = ["development", "dev", "staging", "stage"];
+/// seeds `development`, `staging` and `production` on every project, and slugs
+/// cannot be renamed
+const NON_PRODUCTION_ENVIRONMENTS: [&str; 2] = ["development", "staging"];
 
 /// The interval a host loop should wait between normal polls, given the
 /// developer's configured interval and the slug of the snapshot the client

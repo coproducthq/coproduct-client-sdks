@@ -10,7 +10,7 @@ fn non_production_interval_is_two_seconds() {
 
 #[test]
 fn development_and_staging_poll_every_two_seconds() {
-    for slug in ["development", "staging", "dev", "stage"] {
+    for slug in ["development", "staging"] {
         assert_eq!(
             poll_interval_for_environment(CONFIGURED, slug),
             NON_PRODUCTION_POLL_INTERVAL,
@@ -45,7 +45,15 @@ fn production_keeps_the_configured_interval() {
 
 #[test]
 fn unknown_and_empty_slugs_keep_the_configured_interval() {
-    for slug in ["", "qa", "preview", "development-eu", "prod"] {
+    for slug in [
+        "",
+        "dev",
+        "stage",
+        "qa",
+        "preview",
+        "development-eu",
+        "prod",
+    ] {
         assert_eq!(
             poll_interval_for_environment(CONFIGURED, slug),
             CONFIGURED,
