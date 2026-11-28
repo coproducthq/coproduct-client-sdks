@@ -1,4 +1,9 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+
+import 'package:http/http.dart' show ClientException;
+
+import 'paywall/paywall_client.dart' show PaywallServerError;
 
 /// Sends one sign-in to Coproduct: the install's anonymous id as `appUserId`
 /// and the app's user id as `targetingKey`
@@ -17,17 +22,33 @@ final Set<(String, String, String)> _processSentPairs = {};
 /// user, so purchases made before sign-in follow the user.
 ///
 /// Best-effort and detached from the caller: [link] returns at once and never
-/// throws, and a failed send is reported through `onError`
+/// throws.
+///
+/// A send that fails because the network is down, times out, or the server is
+/// busy is tried again after each of [retryDelays], and stays quiet if it
+/// never gets through, since being offline is not a bug. The server's
+/// `install_limit_reached` answer is expected too and is only logged. Any other
+/// failure, such as a rejected key, is reported through `onError`
 class IdentifySync {
   IdentifySync({
     required String scope,
     required IdentifySend send,
     required void Function(Object error, StackTrace stack) onError,
     Set<(String, String, String)>? sentPairs,
+    List<Duration> retryDelays = defaultRetryDelays,
   }) : _scope = scope, // ignore: prefer_initializing_formals
        _send = send, // ignore: prefer_initializing_formals
        _onError = onError, // ignore: prefer_initializing_formals
-       _sentPairs = sentPairs ?? _processSentPairs;
+       _sentPairs = sentPairs ?? _processSentPairs,
+       _retryDelays = retryDelays;
+
+  /// The waits before each retry of a send that failed for a reason that can
+  /// pass: two seconds, ten seconds, then a minute
+  static const List<Duration> defaultRetryDelays = [
+    Duration(seconds: 2),
+    Duration(seconds: 10),
+    Duration(seconds: 60),
+  ];
 
   // Separates pairs sent for one SDK key and API from those of another, since
   // the sent set outlives a shutdown
@@ -35,6 +56,7 @@ class IdentifySync {
   final IdentifySend _send;
   final void Function(Object error, StackTrace stack) _onError;
   final Set<(String, String, String)> _sentPairs;
+  final List<Duration> _retryDelays;
 
   /// Starts the send for [anonymousId] and [userId] without waiting for it.
   ///
@@ -55,15 +77,50 @@ class IdentifySync {
     String anonymousId,
     String userId,
   ) async {
-    try {
-      await _send(appUserId: anonymousId, targetingKey: userId);
-    } catch (error, stack) {
-      _sentPairs.remove(pair);
+    var retries = 0;
+    while (true) {
       try {
-        _onError(error, stack);
-      } catch (_) {
-        // A reporter that throws must not become an unhandled async error
+        await _send(appUserId: anonymousId, targetingKey: userId);
+        return;
+      } catch (error, stack) {
+        if (_canPass(error) && retries < _retryDelays.length) {
+          await Future<void>.delayed(_retryDelays[retries++]);
+          continue;
+        }
+        // Forgotten, so the next identify tries this pair again
+        _sentPairs.remove(pair);
+        if (_isExpected(error)) {
+          developer.log(
+            'Could not link this install to the signed-in user: $error',
+            name: 'coproduct',
+            level: 900,
+          );
+          return;
+        }
+        try {
+          _onError(error, stack);
+        } catch (_) {
+          // A reporter that throws must not become an unhandled async error
+        }
+        return;
       }
     }
   }
+
+  /// Whether the same send can succeed later: no network, a timeout, no
+  /// answer, or a server that is busy or failing
+  static bool _canPass(Object error) {
+    if (error is TimeoutException || error is ClientException) return true;
+    if (error is PaywallServerError) {
+      final status = error.statusCode;
+      return status == 0 || status == 408 || status == 429 || status >= 500;
+    }
+    return false;
+  }
+
+  /// Failures that are not a bug in the app: the ones above that never got
+  /// through, and the project's limit on installs linked to one user
+  static bool _isExpected(Object error) =>
+      _canPass(error) ||
+      (error is PaywallServerError && error.code == 'install_limit_reached');
 }

@@ -24,6 +24,7 @@ import {
 import { attributesToContext, type AttributeValue } from './attributeValue';
 import { IdentitySerializer } from './identitySerializer';
 import { HttpPaywallClient } from './paywall/httpPaywallClient';
+import { PaywallServerError } from './paywall/paywallClient';
 import { observeDrain, type Cancellable } from './observation';
 import { captureUtm } from './utmStore';
 
@@ -52,7 +53,32 @@ export type CoproductClientIdentityLink = {
   sdkKey: string;
   /** API base URL. Defaults to https://api.coproduct.app. */
   apiBaseUrl?: string;
+  /**
+   * Waits in milliseconds before each retry of a link that failed for a reason
+   * that can pass. Defaults to two seconds, ten seconds, then a minute.
+   */
+  retryDelaysMs?: readonly number[];
 };
+
+const DEFAULT_LINK_RETRY_DELAYS_MS: readonly number[] = [2000, 10000, 60000];
+
+// Whether the same request can succeed later: no network, no answer, or a
+// server that is busy or failing.
+function linkFailureCanPass(error: unknown): boolean {
+  if (!(error instanceof PaywallServerError)) return true;
+  const status = error.statusCode;
+  return status === 0 || status === 408 || status === 429 || status >= 500;
+}
+
+// Failures that are not a bug in the app: the ones above that never got
+// through, and the project's limit on installs linked to one user.
+function linkFailureIsExpected(error: unknown): boolean {
+  return (
+    linkFailureCanPass(error) ||
+    (error instanceof PaywallServerError &&
+      error.code === 'install_limit_reached')
+  );
+}
 
 // Anonymous id and user id pairs already sent to the server by this process,
 // so a repeated identify for the same user does not repeat the request. Each
@@ -191,12 +217,44 @@ export class CoproductClient {
     ]);
     if (linkedPairs.has(pair)) return;
     linkedPairs.add(pair);
-    new HttpPaywallClient({ sdkKey: link.sdkKey, apiBaseUrl: link.apiBaseUrl })
-      .identify({ appUserId: anonymousId, targetingKey: userId })
-      .catch((error: unknown) => {
+    void this.sendLink(link, anonymousId, userId, pair);
+  }
+
+  // A link that fails because the network is down, times out, or the server is
+  // busy is tried again after each retry delay and stays quiet if it never gets
+  // through, since being offline is not a bug. The install limit is expected
+  // too and is only logged. Any other failure, such as a rejected key, is an
+  // error. A pair that gave up is forgotten, so the next identify sends it again.
+  private async sendLink(
+    link: CoproductClientIdentityLink,
+    anonymousId: string,
+    userId: string,
+    pair: string
+  ): Promise<void> {
+    const delays = link.retryDelaysMs ?? DEFAULT_LINK_RETRY_DELAYS_MS;
+    const http = new HttpPaywallClient({
+      sdkKey: link.sdkKey,
+      apiBaseUrl: link.apiBaseUrl,
+    });
+    for (let retries = 0; ; retries++) {
+      try {
+        await http.identify({ appUserId: anonymousId, targetingKey: userId });
+        return;
+      } catch (error: unknown) {
+        const delay = delays[retries];
+        if (linkFailureCanPass(error) && delay !== undefined) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
         linkedPairs.delete(pair);
-        console.error('[coproduct] identify link failed', error);
-      });
+        if (linkFailureIsExpected(error)) {
+          console.warn('[coproduct] identify link not sent', error);
+        } else {
+          console.error('[coproduct] identify link failed', error);
+        }
+        return;
+      }
+    }
   }
 
   signOut(): void {
